@@ -6,7 +6,7 @@ import { Calendar, Search, Plus, MapPin, Users, DollarSign, Filter, LayoutGrid, 
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventType, EventCategory, EventStatus } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS } from '@/types';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { EventBadge } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -34,7 +34,7 @@ export function EventsPage() {
         if (search) params.set('search', search);
         const res = await fetch(`/api/events?${params}`);
         const data = await res.json();
-        if (data.success) setEvents(data.data || []);
+        if (data.success) setEvents(data.data.events || []);
       } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
@@ -94,7 +94,7 @@ export function EventsPage() {
               <Card className="group cursor-pointer border-white/5 bg-[#111]/60 backdrop-blur transition-all hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 h-full" onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}>
                 <CardContent className="pt-6">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
-                    <StatusBadge type="event" status={event.status} />
+                    <EventBadge status={event.status} />
                     <Badge variant="outline" className="border-white/10 text-[10px] text-gray-400">{EVENT_CATEGORY_LABELS[event.category]}</Badge>
                     <Badge variant="outline" className="border-white/10 text-[10px] text-gray-400">{EVENT_TYPE_LABELS[event.type]}</Badge>
                   </div>
@@ -126,7 +126,7 @@ export function EventsPage() {
                 <p className="text-xs text-gray-500">{new Date(event.startDate).toLocaleDateString()} • {event.venue}</p>
               </div>
               <div className="hidden items-center gap-3 sm:flex">
-                <StatusBadge type="event" status={event.status} />
+                <EventBadge status={event.status} />
                 {event.fee > 0 && <span className="text-sm text-emerald-400">৳{event.fee}</span>}
               </div>
             </div>

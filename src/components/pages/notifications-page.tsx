@@ -24,7 +24,7 @@ export function NotificationsPage() {
     if (!currentUser) return;
     const load = async () => {
       setLoading(true);
-      try { const r = await fetch(`/api/notifications?userId=${currentUser.id}`); const d = await r.json(); if (d.success) setNotifications(d.data || []); } catch (e) { console.error(e); } finally { setLoading(false); }
+      try { const r = await fetch(`/api/notifications?userId=${currentUser.id}`); const d = await r.json(); if (d.success) setNotifications(d.data.notifications || []); } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
   }, [currentUser]);

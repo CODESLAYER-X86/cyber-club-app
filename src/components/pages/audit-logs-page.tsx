@@ -18,7 +18,7 @@ export function AuditLogsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      try { const r = await fetch('/api/audit-logs?limit=50'); const d = await r.json(); if (d.success) setLogs(d.data || []); } catch (e) { console.error(e); } finally { setLoading(false); }
+      try { const r = await fetch('/api/audit-logs?limit=50'); const d = await r.json(); if (d.success) setLogs(d.data.auditLogs || []); } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
   }, []);

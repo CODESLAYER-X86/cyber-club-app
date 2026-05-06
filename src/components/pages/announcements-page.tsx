@@ -28,7 +28,7 @@ export function AnnouncementsPage() {
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      try { const r = await fetch('/api/announcements'); const d = await r.json(); if (d.success) setAnnouncements(d.data || []); } catch (e) { console.error(e); } finally { setLoading(false); }
+      try { const r = await fetch('/api/announcements'); const d = await r.json(); if (d.success) setAnnouncements(d.data.announcements || []); } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
   }, []);
@@ -37,7 +37,7 @@ export function AnnouncementsPage() {
     e.preventDefault(); if (!currentUser) return; setCreating(true);
     try {
       const r = await fetch('/api/announcements', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ ...form, createdBy: currentUser.id }) });
-      const d = await r.json(); if (d.success) { setDialogOpen(false); setForm({ title: '', content: '', type: 'GENERAL' }); const r2 = await fetch('/api/announcements'); const d2 = await r2.json(); if (d2.success) setAnnouncements(d2.data || []); }
+      const d = await r.json(); if (d.success) { setDialogOpen(false); setForm({ title: '', content: '', type: 'GENERAL' }); const r2 = await fetch('/api/announcements'); const d2 = await r2.json(); if (d2.success) setAnnouncements(d2.data.announcements || []); }
     } catch (e) { console.error(e); } finally { setCreating(false); }
   };
 

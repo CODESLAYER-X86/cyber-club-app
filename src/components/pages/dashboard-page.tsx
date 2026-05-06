@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity, TrendingUp } from 'lucide-react';
+import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity, TrendingUp, Bell, Info } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { UserRole, Event, Payment, Certificate, User } from '@/types';
 import { StatCard } from '@/components/shared/stat-card';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { EventBadge, MembershipBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
@@ -17,8 +17,23 @@ interface DashboardStats {
   upcomingEvents: Event[];
 }
 
+function getGreeting(): string {
+  const hour = new Date().getHours();
+  if (hour < 12) return 'Good Morning';
+  if (hour < 17) return 'Good Afternoon';
+  return 'Good Evening';
+}
+
+const EVENT_CATEGORY_COLORS: Record<string, string> = {
+  WORKSHOP: '#10b981',
+  CTF: '#06b6d4',
+  SEMINAR: '#f59e0b',
+  MEETUP: '#8b5cf6',
+  TRAINING: '#ef4444',
+};
+
 export function DashboardPage() {
-  const { currentUser, setCurrentView, setSelectedEventId } = useAppStore();
+  const { currentUser, setCurrentView, setSelectedEventId, notifications } = useAppStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
@@ -47,16 +62,16 @@ export function DashboardPage() {
         if (currentUser) {
           const certRes = await fetch(`/api/certificates?userId=${currentUser.id}`);
           const certData = await certRes.json();
-          if (certData.success) setCertificates(certData.data || []);
+          if (certData.success) setCertificates(certData.data.certificates || []);
 
           const payRes = await fetch(`/api/payments?userId=${currentUser.id}`);
           const payData = await payRes.json();
-          if (payData.success) setPayments(payData.data || []);
+          if (payData.success) setPayments(payData.data.payments || []);
 
           if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
             const pendingRes = await fetch('/api/users/approval');
             const pendingData = await pendingRes.json();
-            if (pendingData.success) setPendingUsers(pendingData.data || []);
+            if (pendingData.success) setPendingUsers(pendingData.data.users || []);
           }
         }
       } catch (e) { console.error(e); } finally { setLoading(false); }
@@ -65,6 +80,12 @@ export function DashboardPage() {
   }, [currentUser]);
 
   const role = currentUser?.role || 'GUEST';
+
+  const recentNotifications = useMemo(() => {
+    return notifications.slice(0, 3);
+  }, [notifications]);
+
+  const greeting = useMemo(() => getGreeting(), []);
 
   if (loading) {
     return (
@@ -81,17 +102,17 @@ export function DashboardPage() {
       case 'MEMBER':
         return (
           <>
-            <StatCard icon={Calendar} label="My Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
-            <StatCard icon={Award} label="My Certificates" value={certificates.length} trend="up" delay={0.1} />
+            <StatCard icon={Calendar} label="My Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} progress={65} progressColor="#10b981" />
+            <StatCard icon={Award} label="My Certificates" value={certificates.length} trend="up" delay={0.1} progress={certificates.length > 0 ? 80 : 20} progressColor="#06b6d4" />
             <StatCard icon={CreditCard} label="Payments" value={payments.length} trend="neutral" delay={0.2} />
-            <StatCard icon={Calendar} label="Upcoming Events" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} />
+            <StatCard icon={Calendar} label="Upcoming Events" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} progress={stats?.upcomingEvents?.length ? Math.min((stats.upcomingEvents.length / 5) * 100, 100) : 0} progressColor="#f59e0b" />
           </>
         );
       case 'MEDIA':
         return (
           <>
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
-            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0.1} />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} progress={70} progressColor="#10b981" />
+            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0.1} progress={85} progressColor="#06b6d4" />
             <StatCard icon={FileText} label="Announcements" value={0} trend="neutral" delay={0.2} />
             <StatCard icon={BarChart3} label="Registrations" value={0} trend="up" delay={0.3} />
           </>
@@ -99,55 +120,55 @@ export function DashboardPage() {
       case 'TREASURER':
         return (
           <>
-            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0} />
-            <StatCard icon={CreditCard} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
-            <StatCard icon={CheckCircle} label="Verified Payments" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
+            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0} progress={78} progressColor="#10b981" />
+            <StatCard icon={CreditCard} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} progress={stats?.pendingApprovals ? Math.min((stats.pendingApprovals / 10) * 100, 100) : 0} progressColor="#f59e0b" />
+            <StatCard icon={CheckCircle} label="Verified Payments" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} progress={90} progressColor="#06b6d4" />
             <StatCard icon={Activity} label="Active Budgets" value={1} trend="neutral" delay={0.3} />
           </>
         );
       case 'GS':
         return (
           <>
-            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
-            <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.1} />
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
+            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} progress={85} progressColor="#10b981" />
+            <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.1} progress={pendingUsers.length > 0 ? 60 : 5} progressColor="#f59e0b" />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} progress={70} progressColor="#06b6d4" />
             <StatCard icon={FileText} label="Pending Expenses" value={0} trend="neutral" delay={0.3} />
           </>
         );
       case 'VP':
         return (
           <>
-            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.1} />
-            <StatCard icon={BarChart3} label="Growth Rate" value="12%" trend="up" delay={0.2} />
+            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} progress={85} progressColor="#10b981" />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.1} progress={65} progressColor="#06b6d4" />
+            <StatCard icon={BarChart3} label="Growth Rate" value="12%" trend="up" delay={0.2} progress={12} progressColor="#8b5cf6" />
             <StatCard icon={Award} label="Certificates Issued" value={0} trend="neutral" delay={0.3} />
           </>
         );
       case 'PRESIDENT':
         return (
           <>
-            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
-            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0.1} />
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
-            <StatCard icon={AlertTriangle} label="System Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
+            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} progress={90} progressColor="#10b981" />
+            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0.1} progress={78} progressColor="#06b6d4" />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} progress={65} progressColor="#f59e0b" />
+            <StatCard icon={AlertTriangle} label="System Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} progress={stats?.pendingApprovals ? Math.min((stats.pendingApprovals / 10) * 100, 100) : 0} progressColor="#ef4444" />
           </>
         );
       case 'VERIFIER':
         return (
           <>
-            <StatCard icon={Calendar} label="Assigned Events" value={stats?.activeEvents ?? 0} trend="neutral" delay={0} />
-            <StatCard icon={CheckCircle} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
+            <StatCard icon={Calendar} label="Assigned Events" value={stats?.activeEvents ?? 0} trend="neutral" delay={0} progress={50} progressColor="#10b981" />
+            <StatCard icon={CheckCircle} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} progress={stats?.pendingApprovals ? Math.min((stats.pendingApprovals / 10) * 100, 100) : 0} progressColor="#f59e0b" />
             <StatCard icon={Shield} label="Verified Today" value={0} trend="up" delay={0.2} />
-            <StatCard icon={Activity} label="Total Verified" value={0} trend="up" delay={0.3} />
+            <StatCard icon={Activity} label="Total Verified" value={0} trend="up" delay={0.3} progress={30} progressColor="#06b6d4" />
           </>
         );
       case 'PLATFORM_ADMIN':
         return (
           <>
-            <StatCard icon={Users} label="Total Users" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
-            <StatCard icon={Activity} label="System Health" value="99.9%" trend="up" delay={0.1} />
+            <StatCard icon={Users} label="Total Users" value={stats?.totalMembers ?? 0} trend="up" delay={0} progress={95} progressColor="#10b981" />
+            <StatCard icon={Activity} label="System Health" value="99.9%" trend="up" delay={0.1} progress={99} progressColor="#06b6d4" />
             <StatCard icon={Settings} label="Recent Actions" value={stats?.recentActivity?.length ?? 0} trend="neutral" delay={0.2} />
-            <StatCard icon={AlertTriangle} label="Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
+            <StatCard icon={AlertTriangle} label="Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} progress={stats?.pendingApprovals ? Math.min((stats.pendingApprovals / 10) * 100, 100) : 0} progressColor="#ef4444" />
           </>
         );
       default:
@@ -162,17 +183,24 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
+      {/* Greeting Section */}
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Dashboard</h1>
-          <p className="text-sm text-gray-500">Welcome back, {currentUser?.name || 'Guest'}</p>
+          <h1 className="text-2xl font-bold text-white">
+            {greeting}, <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">{currentUser?.name?.split(' ')[0] || 'Guest'}</span>
+          </h1>
+          <p className="text-sm text-gray-500">
+            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+          </p>
         </div>
       </motion.div>
 
+      {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {renderStatCards()}
       </div>
 
+      {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Upcoming Events */}
         <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
@@ -181,19 +209,30 @@ export function DashboardPage() {
             <Button variant="ghost" size="sm" onClick={() => setCurrentView('events')} className="text-xs text-emerald-400">View All</Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 max-h-80 overflow-y-auto">
-              {(stats?.upcomingEvents || []).slice(0, 5).map((event) => (
-                <div key={event.id} className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 cursor-pointer hover:border-emerald-500/20 transition-colors" onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}>
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10">
-                    <Calendar className="h-5 w-5 text-emerald-400" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white truncate">{event.title}</p>
-                    <p className="text-xs text-gray-500 truncate">{new Date(event.startDate).toLocaleDateString()} • {event.venue}</p>
-                  </div>
-                  <StatusBadge type="event" status={event.status} />
-                </div>
-              ))}
+            <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
+              {(stats?.upcomingEvents || []).slice(0, 5).map((event, index) => {
+                const borderColor = EVENT_CATEGORY_COLORS[event.category] || '#10b981';
+                return (
+                  <motion.div
+                    key={event.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 cursor-pointer hover:bg-white/[0.04] transition-all duration-200 group"
+                    style={{ borderLeftWidth: '3px', borderLeftColor: borderColor }}
+                    onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}
+                  >
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: `${borderColor}15` }}>
+                      <Calendar className="h-5 w-5" style={{ color: borderColor }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white truncate group-hover:text-emerald-300 transition-colors">{event.title}</p>
+                      <p className="text-xs text-gray-500 truncate">{new Date(event.startDate).toLocaleDateString()} • {event.venue}</p>
+                    </div>
+                    <EventBadge status={event.status} />
+                  </motion.div>
+                );
+              })}
               {(!stats?.upcomingEvents || stats.upcomingEvents.length === 0) && (
                 <p className="py-8 text-center text-sm text-gray-500">No upcoming events</p>
               )}
@@ -209,7 +248,7 @@ export function DashboardPage() {
             </CardTitle>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 max-h-80 overflow-y-auto">
+            <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
               {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && pendingUsers.length > 0 ? pendingUsers.map((u) => (
                 <div key={u.id} className="flex items-center gap-3 rounded-lg border border-amber-500/10 bg-amber-500/5 p-3">
                   <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-400 text-sm font-bold">{u.name?.charAt(0)}</div>
@@ -217,7 +256,7 @@ export function DashboardPage() {
                     <p className="text-sm font-medium text-white">{u.name}</p>
                     <p className="text-xs text-gray-500">{u.email} • {u.department}</p>
                   </div>
-                  <StatusBadge type="membership" status={u.membershipStatus} />
+                  <MembershipBadge status={u.membershipStatus} />
                 </div>
               )) : (stats?.recentActivity || []).length > 0 ? (stats?.recentActivity || []).slice(0, 5).map((a, i) => (
                 <div key={i} className="flex items-start gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3">
@@ -243,26 +282,30 @@ export function DashboardPage() {
           <div className="flex flex-wrap gap-3">
             {role === 'MEMBER' && (
               <>
-                <Button onClick={() => setCurrentView('events')} variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"><Calendar className="mr-2 h-4 w-4" />Register for Event</Button>
-                <Button onClick={() => setCurrentView('certificates')} variant="outline" className="border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"><Award className="mr-2 h-4 w-4" />View Certificates</Button>
+                <Button onClick={() => setCurrentView('events')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20">
+                  <Calendar className="mr-2 h-4 w-4" />Register for Event
+                </Button>
+                <Button onClick={() => setCurrentView('certificates')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20">
+                  <Award className="mr-2 h-4 w-4" />View Certificates
+                </Button>
               </>
             )}
-            {role === 'MEDIA' && <Button onClick={() => setCurrentView('create-event')} variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"><Calendar className="mr-2 h-4 w-4" />Create Event</Button>}
+            {role === 'MEDIA' && <Button onClick={() => setCurrentView('create-event')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Calendar className="mr-2 h-4 w-4" />Create Event</Button>}
             {role === 'TREASURER' && (
               <>
-                <Button onClick={() => setCurrentView('verify-payments')} variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>
-                <Button onClick={() => setCurrentView('budgets')} variant="outline" className="border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"><DollarSign className="mr-2 h-4 w-4" />Manage Budgets</Button>
+                <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>
+                <Button onClick={() => setCurrentView('budgets')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><DollarSign className="mr-2 h-4 w-4" />Manage Budgets</Button>
               </>
             )}
             {role === 'PRESIDENT' && (
               <>
-                <Button onClick={() => setCurrentView('members')} variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"><Users className="mr-2 h-4 w-4" />Manage Members</Button>
-                <Button onClick={() => setCurrentView('roles')} variant="outline" className="border-amber-500/20 text-amber-400 hover:bg-amber-500/10"><Shield className="mr-2 h-4 w-4" />Assign Roles</Button>
-                <Button onClick={() => setCurrentView('audit-logs')} variant="outline" className="border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"><FileText className="mr-2 h-4 w-4" />Audit Logs</Button>
+                <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Manage Members</Button>
+                <Button onClick={() => setCurrentView('roles')} className="bg-gradient-to-r from-amber-600 to-amber-500 text-white hover:from-amber-500 hover:to-amber-400 border-0 shadow-lg shadow-amber-500/20"><Shield className="mr-2 h-4 w-4" />Assign Roles</Button>
+                <Button onClick={() => setCurrentView('audit-logs')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><FileText className="mr-2 h-4 w-4" />Audit Logs</Button>
               </>
             )}
-            {role === 'GS' && <Button onClick={() => setCurrentView('members')} variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"><Users className="mr-2 h-4 w-4" />Approve Members</Button>}
-            {role === 'VERIFIER' && <Button onClick={() => setCurrentView('verify-payments')} variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>}
+            {role === 'GS' && <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Approve Members</Button>}
+            {role === 'VERIFIER' && <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>}
           </div>
         </CardContent>
       </Card>
@@ -315,6 +358,52 @@ export function DashboardPage() {
           </Card>
         </div>
       )}
+
+      {/* Recent Notifications Section */}
+      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+        <CardHeader className="flex flex-row items-center justify-between pb-2">
+          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+            <Bell className="h-5 w-5 text-cyan-400" />
+            Recent Notifications
+          </CardTitle>
+          <Button variant="ghost" size="sm" onClick={() => setCurrentView('notifications')} className="text-xs text-cyan-400">View All</Button>
+        </CardHeader>
+        <CardContent>
+          {recentNotifications.length > 0 ? (
+            <div className="space-y-3">
+              {recentNotifications.map((notification, index) => {
+                const typeColor = notification.type === 'SUCCESS' ? '#10b981' : notification.type === 'WARNING' ? '#f59e0b' : notification.type === 'ERROR' ? '#ef4444' : '#06b6d4';
+                return (
+                  <motion.div
+                    key={notification.id}
+                    initial={{ opacity: 0, y: 10 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ delay: index * 0.1 }}
+                    className="flex items-start gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors"
+                    style={{ borderLeftWidth: '3px', borderLeftColor: typeColor }}
+                  >
+                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${typeColor}15` }}>
+                      <Info className="h-4 w-4" style={{ color: typeColor }} />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">{notification.title}</p>
+                      <p className="text-xs text-gray-500 truncate">{notification.message}</p>
+                    </div>
+                    <span className="shrink-0 text-[10px] text-gray-600">
+                      {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                    </span>
+                  </motion.div>
+                );
+              })}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+              <Bell className="mb-2 h-8 w-8 text-gray-600" />
+              <p className="text-sm">No notifications yet</p>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }

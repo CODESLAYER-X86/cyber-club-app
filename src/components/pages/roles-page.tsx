@@ -28,7 +28,7 @@ export function RolesPage() {
   const [users, setUsers] = useState<User[]>([]);
 
   useEffect(() => {
-    fetch('/api/users').then(r => r.json()).then(d => { if (d.success) setUsers(d.data || []); }).catch(() => {});
+    fetch('/api/users').then(r => r.json()).then(d => { if (d.success) setUsers(d.data.users || []); }).catch(() => {});
   }, []);
 
   const handleRoleChange = async (userId: string, role: UserRole) => {

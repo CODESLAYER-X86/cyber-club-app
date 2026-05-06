@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { User, Mail, Hash, Building2, Phone, Edit3, Save, Calendar, Award, CreditCard } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { ROLE_LABELS, MEMBERSHIP_STATUS_LABELS } from '@/types';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { MembershipBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,7 +39,7 @@ export function ProfilePage() {
                 </div>
                 <div className="flex flex-wrap gap-2">
                   <Badge variant="outline" className="border-emerald-500/30 text-emerald-400">{ROLE_LABELS[currentUser.role]}</Badge>
-                  <StatusBadge type="membership" status={currentUser.membershipStatus} />
+                  <MembershipBadge status={currentUser.membershipStatus} />
                 </div>
               </div>
             </div>
