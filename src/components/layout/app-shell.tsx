@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/use-app-store';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
+import { Footer } from './footer';
 import type { AppView } from '@/types';
 
 // Page imports
@@ -85,26 +86,25 @@ export function AppShell() {
 
   if (isPublicView || !isAuthenticated) {
     return (
-      <div className="relative flex min-h-screen bg-[#0a0a0a] text-gray-100">
+      <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100">
         <MatrixBackground />
-        <div className="relative z-10 flex flex-1">
-          <div className="flex flex-1 flex-col">
-            <Header />
-            <main className="flex flex-1 flex-col">
-              <AnimatePresence mode="wait">
-                <motion.div key={currentView} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-1 flex-col">
-                  <PageComponent />
-                </motion.div>
-              </AnimatePresence>
-            </main>
-          </div>
+        <div className="relative z-10 flex flex-1 flex-col">
+          <Header />
+          <main className="flex flex-1 flex-col">
+            <AnimatePresence mode="wait">
+              <motion.div key={currentView} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.2 }} className="flex flex-1 flex-col">
+                <PageComponent />
+              </motion.div>
+            </AnimatePresence>
+          </main>
+          <Footer />
         </div>
       </div>
     );
   }
 
   return (
-    <div className="relative flex min-h-screen bg-[#0a0a0a] text-gray-100">
+    <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100">
       <MatrixBackground />
       <div className="relative z-10 flex flex-1">
         <Sidebar />
@@ -124,6 +124,7 @@ export function AppShell() {
               </motion.div>
             </AnimatePresence>
           </main>
+          <Footer />
         </div>
       </div>
     </div>

@@ -403,3 +403,273 @@ The CyberSec Club Platform is fully functional with all core features working. T
 8. Add responsive mobile optimizations for all pages
 9. Add unit tests and E2E tests
 10. Add loading skeletons for all data-fetching pages
+
+---
+Task ID: 8
+Agent: Main Coordinator
+Task: QA testing, styling enhancements, and new features (Phase 2)
+
+Work Log:
+- Reviewed worklog.md and assessed current project status (33 bugs previously fixed, 4 components restyled, 3 features added)
+- Performed comprehensive QA testing using agent-browser across all pages:
+  - Landing page ✅
+  - Login page ✅ (President, Member quick login)
+  - Dashboard (President view) ✅
+  - Events page ✅
+  - Members page ✅
+  - Finance page ✅
+  - Audit Logs page ✅
+  - Roles page ✅
+  - Member Approval page ✅
+  - Certificates page ✅
+  - Payments page ✅
+  - Profile page ✅
+  - About page ✅
+  - Notifications page ✅
+- No errors found on any page - application is stable
+
+Styling Enhancements Completed:
+1. **About Page** - Complete rewrite with:
+   - Canvas-based animated particle/dots grid background
+   - Tagline "Defending the Digital Frontier Since 2020"
+   - Mission & Vision cards with gradient left borders and hover glow
+   - Fixed critical production bug: replaced dynamic Tailwind classes with explicit class names
+   - NEW: Leadership Team section with 5 members (President, VP, GS, Treasurer, Media) - gradient avatars, role-specific colors, responsive grid
+   - NEW: Timeline/Journey section with 6 milestones (2020-2025) - vertical timeline, alternating cards, slide-in animations
+   - Expanded achievements from 3 to 6 stats with animated counters
+   - NEW: CTA Footer with "Join the Club" button
+
+2. **Profile Page** - Major enhancement with:
+   - Real stats fetching from API (events, certificates, payments counts instead of hardcoded 0)
+   - Functional edit mode with PATCH to /api/users/[id] and Zustand store update
+   - Bio textarea field in edit mode
+   - Activity timeline from /api/stats recentActivity
+   - Enhanced avatar with gradient ring and status dot
+   - Security card with 2FA toggle and account status
+   - Gradient banner and better visual hierarchy
+
+3. **Notifications Page** - Complete redesign with:
+   - Filter tabs: All, Unread, Info, Warning, Success, Error (with counts)
+   - Mark All Read with animation
+   - Gradient header with Bell icon and count
+   - Colored left borders by notification type
+   - Time-ago display ("1h ago", "yesterday")
+   - Hover slide animations on cards
+   - Sound toggle (visual)
+   - Date grouping: Today, Yesterday, Earlier this week, Older
+   - Clear All button
+
+4. **Footer Component** - New component at /src/components/layout/footer.tsx:
+   - 4-column responsive layout (Brand, Quick Links, Resources, Legal)
+   - Social links (GitHub, X/Twitter, Discord) with hover animations
+   - Quick links navigate using setCurrentView from store
+   - Bottom bar with copyright
+   - Sticky footer behavior (min-h-screen flex flex-col + mt-auto)
+   - Integrated into app-shell for both public and authenticated views
+
+Backend Changes:
+- PATCH /api/users/[id] endpoint added for profile editing (name, phone, bio)
+- updateCurrentUser action added to Zustand store
+
+Stage Summary:
+- QA: All pages tested, zero errors
+- 4 components significantly enhanced (About, Profile, Notifications, Footer)
+- 1 new component created (Footer)
+- 1 new API endpoint added (PATCH /api/users/[id])
+- 1 critical production bug fixed (dynamic Tailwind classes in About page)
+- 1 store action added (updateCurrentUser)
+- Lint passes cleanly, dev server compiles without errors
+
+Current Project Status:
+- CyberSec Club Platform is fully functional with all core features working
+- 33+ bugs fixed across sessions
+- 8+ components significantly restyled/enhanced
+- 6+ new features added (registration, event registration, certificate verification, profile editing, footer, enhanced notifications)
+- 3+ new API routes created
+- Application tested end-to-end via agent-browser with zero errors
+
+Unresolved Issues / Risks:
+1. Password stored in plaintext - production needs bcrypt
+2. No JWT/session-based auth - user state in Zustand (client-side only)
+3. Search bar in header is decorative only (no backend search API)
+4. Some API endpoints lack proper RBAC authorization checks
+5. Could add data export (CSV/Excel) for reports
+6. Could add WebSocket-based real-time notifications
+7. Could add assessment system for event prerequisites
+8. Could add mobile-specific optimizations
+
+Priority Recommendations for Next Phase:
+1. Add password hashing (bcrypt) for production security
+2. Implement proper session/JWT authentication
+3. Add global search functionality across the platform
+4. Add data export (CSV/Excel) for reports
+5. Add WebSocket-based real-time notifications
+6. Add mobile-specific responsive optimizations
+7. Add unit tests and E2E tests
+
+## Task 7: Footer Component & App Shell Enhancement
+
+**Status**: ✅ Completed
+
+### Changes Made
+
+#### 1. Created `/src/components/layout/footer.tsx`
+- Dark-themed footer matching the app (bg-[#0a0a0a] with border-t border-white/5)
+- 4-column responsive layout (stacked on mobile, 4 columns on desktop via `grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4`)
+- **Column 1 (Brand)**: CyberSec Club logo with Shield icon, tagline "Defending the Digital Frontier", social links (GitHub, Twitter/X, Discord) with framer-motion hover animations (scale + translateY)
+- **Column 2 (Quick Links)**: Home, Events, About, Join Club — all clickable using `setCurrentView` from the Zustand store
+- **Column 3 (Resources)**: Documentation, API Status, Support, FAQ — visual links with `#` href
+- **Column 4 (Legal)**: Privacy Policy, Terms of Service, Cookie Policy — visual links with `#` href
+- **Bottom bar**: © 2025 CyberSec Club. All rights reserved. | Made with ♥ by CyberSec Team
+- Emerald/cyan accent colors for hover states and icons
+- Framer-motion staggered entrance animation triggered via `whileInView`
+
+#### 2. Updated `/src/components/layout/app-shell.tsx`
+- Imported the `Footer` component
+- Added `Footer` to both public and authenticated view branches
+- Changed outer div to `min-h-screen flex flex-col` for both branches
+- Footer uses `mt-auto` to push to bottom when content is shorter than viewport
+- Lint passes with zero errors, dev server compiles successfully
+
+---
+Task ID: 4
+Agent: About Page Enhancement Agent
+Task: Significantly enhance the About page of the CyberSec Club Platform
+
+Work Log:
+
+1. **Hero Section Enhancement**:
+   - Added animated particles/dots grid background using HTML5 Canvas (`ParticlesGrid` component)
+   - 80 floating dots with emerald color and interconnecting lines (cyan, distance < 120px)
+   - Dots move with random velocity, bounce off canvas edges
+   - Added "Defending the Digital Frontier Since 2020" tagline below heading
+   - Changed "CyberSec Club" text to emerald-to-cyan gradient (`bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent`)
+   - Added second glow orb (cyan) alongside existing emerald orb
+   - Increased heading size to lg:text-6xl for more impact
+
+2. **Mission & Vision Enhancement**:
+   - Added gradient left borders to cards (emerald gradient for Mission, cyan for Vision)
+   - Added animated glow effects on hover (`hover:shadow-[0_0_40px_rgba(16,185,129,0.08)]` for Mission, cyan for Vision)
+   - Added icon areas (Target for Mission, Eye for Vision) in rounded-xl containers with hover scale animation (`group-hover:scale-110`)
+   - Increased left padding (`pl-6`) to accommodate gradient border
+   - Added transition-shadow duration-500 for smooth glow effect
+
+3. **Core Values Fix**:
+   - **CRITICAL FIX**: Replaced dynamic Tailwind classes (`bg-${v.color}-500/10`, `border-${v.color}-500/20`, `text-${v.color}-400`) with explicit full class names
+   - Each value now has `bgClass`, `borderClass`, and `iconClass` properties with complete class strings
+   - This ensures classes are NOT purged by Tailwind in production builds
+   - Added section subtitle "The principles that guide everything we do"
+   - Added hover effects: border-white/10, translate-y-1 lift animation
+
+4. **NEW: Leadership Team Section**:
+   - Added 5 team members with hardcoded data: Sarah Chen (President), Marcus Williams (VP), Fatima Rahman (GS), David Kim (Treasurer), Aisha Patel (Media Lead)
+   - Each card has: avatar circle with gradient background and initials, name, role, description
+   - Role-specific accent colors: President=amber, VP=purple, GS=cyan, Treasurer=emerald, Media=pink
+   - Cards have hover glow effects with role-specific colors
+   - Responsive grid: 3 columns on lg, 2 on sm, 1 on mobile
+   - Staggered entrance animations (0.1s delay per card)
+
+5. **NEW: Timeline/Journey Section**:
+   - Added 6 milestones from 2020 to 2025 with hardcoded data
+   - Each milestone has: year, title, description, icon, and colored dot
+   - Vertical timeline with gradient line (emerald → cyan → emerald)
+   - Alternating left/right cards on desktop (even=left, odd=right)
+   - Left-only layout on mobile (all cards right of the line)
+   - Slide-in animations from alternating directions
+   - Colored dots on timeline (emerald, cyan, amber, purple, pink, emerald)
+
+6. **Achievements Section Enhancement**:
+   - Expanded from 3 to 6 stats: CTF Wins (12), Workshops & Seminars (40+), Active Members (500+), Industry Partners (25+), National Awards (8), Certified Members (100+)
+   - Added `AnimatedCounter` component with ease-out cubic easing over 2 seconds
+   - Counter triggers when scrolled into view using `useInView`
+   - Changed stat numbers from plain text to emerald-to-cyan gradient text
+   - Added hover lift animation and border glow
+   - Responsive grid: 3 cols on lg, 2 on sm, 1 on mobile
+
+7. **NEW: CTA Footer Section**:
+   - "Join the Club" section with Crown icon, heading, description
+   - Gradient CTA button (emerald-to-cyan) with shadow and hover scale animation
+   - Button navigates to register page using `useAppStore`'s `setCurrentView('register')`
+   - Background glow orbs for depth
+   - ChevronRight icon in button for visual direction
+
+8. **Footer Enhancement**:
+   - Added `mt-auto` to footer for sticky behavior when content is short
+   - Footer stays at bottom via parent flex layout
+
+Technical Details:
+- No dynamic Tailwind class generation - all classes are explicit full strings
+- Framer-motion animations used throughout (fadeUp, stagger, slide-in)
+- Canvas-based particle system for hero background (80 dots with connection lines)
+- `useAppStore` hook for navigation to register page
+- All Lucide icons properly imported
+- Responsive design with mobile-first approach
+- Dark cybersecurity theme maintained with emerald (#10b981) and cyan (#06b6d4) accents
+- Lint passes cleanly (0 errors, 0 warnings)
+- Dev server compiles without errors
+
+Stage Summary:
+- 7 sections in the About page (up from 4)
+- 2 new sections added (Leadership Team, Timeline/Journey, CTA)
+- Critical production bug fixed (dynamic Tailwind classes)
+- Animated particle background in hero
+- Animated counters in achievements
+- Gradient text, borders, and glow effects throughout
+- All responsive breakpoints implemented
+
+---
+Task ID: 5
+Agent: Page Enhancement Agent
+Task: Enhance Profile Page and Notifications Page with real data, functional edit, visual improvements
+
+Work Log:
+
+1. **Users API PATCH Handler** (`/src/app/api/users/[id]/route.ts`):
+   - Added PATCH endpoint to support profile editing
+   - Accepts: name, phone, bio fields (only these are allowed to be updated)
+   - Validates user exists before updating
+   - Returns updated user object with safe select fields (no password)
+   - Returns 400 error if no valid fields provided to update
+
+2. **Zustand Store Update** (`/src/store/use-app-store.ts`):
+   - Added `updateCurrentUser(updates: Partial<User>)` action
+   - Merges partial updates into existing currentUser state
+   - Used by profile page after successful save to update the store
+
+3. **Profile Page Enhancements** (`/src/components/pages/profile-page.tsx`):
+   - **Real stats fetching**: Fetches from `/api/users/${id}` which returns eventRegistrations, certificates, and payments arrays - counts displayed instead of hardcoded 0s
+   - **Functional edit mode**: Save button PATCHes to `/api/users/${id}` with name, phone, bio; on success updates Zustand store via `updateCurrentUser()`
+   - **Cancel edit**: Restores form to original values without saving
+   - **Bio field**: Textarea in edit mode, rendered as paragraph in view mode, with placeholder prompt when empty
+   - **Activity timeline**: Fetches last 5 recent activities from `/api/stats` (recentActivity array), displays with timeline dots and gradient lines, time-ago display
+   - **Enhanced avatar**: Gradient ring (emerald → cyan → emerald) around avatar, enlarged to h-24 w-24, pulsing green status dot, hover overlay with Camera icon
+   - **Change Avatar button**: Visual-only overlay on avatar hover with Camera icon
+   - **Security card**: Shows account status (Active badge), last login time, two-factor auth toggle (visual Switch), password change button
+   - **Better styling**: Gradient banner on profile card with SVG pattern overlay, info items in bordered rounded-lg containers with colored icon backgrounds, stat cards with gradient icon containers and hover border effects, separator between bio and info grid, staggered entrance animations (container/item variants)
+   - **Loading states**: Skeleton pulse animations for stats while fetching
+   - **Saving state**: Loader2 spinner animation on save button
+
+4. **Notifications Page Enhancements** (`/src/components/pages/notifications-page.tsx`):
+   - **Filter tabs**: "All", "Unread", "Info", "Warning", "Success", "Error" - filter notifications by type with count badges
+   - **Mark All Read with animation**: AnimatePresence transitions between "Mark All Read" and "Done!" states with CheckCheck icon
+   - **Gradient header bar**: Emerald-to-cyan gradient banner with Bell icon, notification count, SVG pattern overlay
+   - **Colored left borders**: Each notification card has border-l-2 colored by type (cyan=INFO, amber=WARNING, emerald=SUCCESS, red=ERROR)
+   - **Time-ago display**: Relative timestamps ("just now", "2h ago", "yesterday", "3d ago") instead of full datetime
+   - **Hover animations**: Cards slide 4px right on hover via framer-motion `whileHover`
+   - **Empty state**: BellOff icon illustration with contextual message based on active filter
+   - **Sound toggle**: Volume2/VolumeX icon with Switch component in header (visual only)
+   - **Group by date**: Notifications organized into "Today", "Yesterday", "Earlier this week", "Older" sections
+   - **Delete All button**: "Clear All" button that marks all as read and clears the local list
+   - **Individual mark-read buttons**: Small emerald check button on unread notifications
+   - **Staggered animations**: Container/item variants for smooth list entrance
+   - **Layout animations**: `layout` prop on notification items for smooth reordering
+   - **Notification type background gradients**: Subtle gradient overlays matching notification type color
+
+Stage Summary:
+- 2 page components significantly enhanced
+- 1 API endpoint added (PATCH /api/users/[id])
+- 1 store action added (updateCurrentUser)
+- Profile page: real stats, functional edit with API save, bio field, activity timeline, enhanced avatar, security card
+- Notifications page: filter tabs, date grouping, colored borders, time-ago, sound toggle, mark-all animation, empty state
+- Dark cybersecurity theme maintained with emerald/cyan accents throughout
+- Lint passes cleanly (0 errors), dev server compiles without errors
