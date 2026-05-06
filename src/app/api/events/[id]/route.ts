@@ -2,6 +2,63 @@ import { db } from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
+const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "MEDIA", "VP", "GS"];
+
+export async function DELETE(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id } = await params;
+    const body = await request.json().catch(() => ({}));
+    const role = body.role as string | undefined;
+
+    // Only authorized roles can delete events
+    if (!role || !DELETE_ROLES.includes(role)) {
+      return errorResponse("You do not have permission to delete events", 403);
+    }
+
+    const event = await db.event.findUnique({ where: { id } });
+    if (!event) {
+      return notFoundResponse("Event not found");
+    }
+
+    // Delete related records first (in correct dependency order)
+    // 1. Certificate audit logs (depend on certificates)
+    const eventCertificates = await db.certificate.findMany({ where: { eventId: id }, select: { id: true } });
+    if (eventCertificates.length > 0) {
+      await db.certificateAuditLog.deleteMany({
+        where: { certificateId: { in: eventCertificates.map(c => c.id) } },
+      });
+    }
+    // 2. Certificates
+    await db.certificate.deleteMany({ where: { eventId: id } });
+    // 3. Assessment submissions (depend on assessments)
+    const eventAssessments = await db.assessment.findMany({ where: { eventId: id }, select: { id: true } });
+    if (eventAssessments.length > 0) {
+      await db.assessmentSubmission.deleteMany({
+        where: { assessmentId: { in: eventAssessments.map(a => a.id) } },
+      });
+    }
+    // 4. Assessments
+    await db.assessment.deleteMany({ where: { eventId: id } });
+    // 5. Attendance
+    await db.attendance.deleteMany({ where: { eventId: id } });
+    // 6. Registrations
+    await db.registration.deleteMany({ where: { eventId: id } });
+    // 7. Gallery images (unlink, don't delete the images themselves)
+    await db.galleryImage.updateMany({ where: { eventId: id }, data: { eventId: null } });
+    // 8. Payments (unlink, don't delete payment records)
+    await db.payment.updateMany({ where: { eventId: id }, data: { eventId: null } });
+    // 9. Finally, delete the event
+    await db.event.delete({ where: { id } });
+
+    return successResponse({ message: "Event deleted successfully" });
+  } catch {
+    return serverErrorResponse();
+  }
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ id: string }> }

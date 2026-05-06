@@ -39,7 +39,9 @@ export async function PATCH(request: NextRequest) {
       return errorResponse("userId, action, and approverId are required");
     }
 
-    if (!["APPROVE", "REJECT"].includes(action)) {
+    // Accept both APPROVE/APPROVED and REJECT/REJECTED formats
+    const normalizedAction = action === "APPROVED" ? "APPROVE" : action === "REJECTED" ? "REJECT" : action;
+    if (!["APPROVE", "REJECT"].includes(normalizedAction)) {
       return errorResponse("Action must be APPROVE or REJECT");
     }
 
@@ -52,23 +54,29 @@ export async function PATCH(request: NextRequest) {
       return errorResponse("User is not in PENDING status");
     }
 
-    const newStatus = action === "APPROVE" ? "ACTIVE" : "REJECTED";
+    const newStatus = normalizedAction === "APPROVE" ? "ACTIVE" : "REJECTED";
+
+    // If approving, also update the role from GUEST to MEMBER
+    const updateData: Record<string, string> = { membershipStatus: newStatus };
+    if (normalizedAction === "APPROVE" && user.role === "GUEST") {
+      updateData.role = "MEMBER";
+    }
 
     const updatedUser = await db.user.update({
       where: { id: userId },
-      data: { membershipStatus: newStatus },
+      data: updateData,
     });
 
     // Create notification for the user
     await db.notification.create({
       data: {
         userId,
-        title: action === "APPROVE" ? "Membership Approved" : "Membership Rejected",
+        title: normalizedAction === "APPROVE" ? "Membership Approved" : "Membership Rejected",
         message:
-          action === "APPROVE"
+          normalizedAction === "APPROVE"
             ? "Your membership has been approved! Welcome to the Cyber Security Club."
             : "Your membership application has been rejected. Please contact an administrator for more information.",
-        type: action === "APPROVE" ? "SUCCESS" : "WARNING",
+        type: normalizedAction === "APPROVE" ? "SUCCESS" : "WARNING",
       },
     });
 
@@ -76,8 +84,8 @@ export async function PATCH(request: NextRequest) {
     await db.auditLog.create({
       data: {
         userId: approverId,
-        action: `MEMBER_${action}`,
-        details: `${action === "APPROVE" ? "Approved" : "Rejected"} membership for user ${user.name} (${user.email})`,
+        action: `MEMBER_${normalizedAction}`,
+        details: `${normalizedAction === "APPROVE" ? "Approved" : "Rejected"} membership for user ${user.name} (${user.email})`,
       },
     });
 

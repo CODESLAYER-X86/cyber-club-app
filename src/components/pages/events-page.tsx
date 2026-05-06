@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Calendar, Search, Plus, MapPin, Users, DollarSign, Filter, LayoutGrid, List, Star, Sparkles } from 'lucide-react';
+import { Calendar, Search, Plus, MapPin, Users, DollarSign, Filter, LayoutGrid, List, Star, Sparkles, Download, Loader2, Trash2 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventType, EventCategory, EventStatus } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS } from '@/types';
@@ -12,6 +12,9 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from '@/components/ui/alert-dialog';
+import { exportToCSV } from '@/lib/export-utils';
+import { toast } from '@/hooks/use-toast';
 
 const CATEGORY_COLORS: Record<EventCategory, { border: string; glow: string; glowShadow: string; bg: string; text: string; badge: string }> = {
   WORKSHOP: { border: 'border-l-emerald-400', glow: 'hover:border-emerald-500/30', glowShadow: 'hover:shadow-emerald-500/10', bg: 'bg-emerald-500/10', text: 'text-emerald-400', badge: 'border-emerald-500/30 text-emerald-400' },
@@ -39,8 +42,36 @@ export function EventsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [categoryFilter, setCategoryFilter] = useState<string>('all');
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
+  const [exporting, setExporting] = useState(false);
+  const [deleteTarget, setDeleteTarget] = useState<Event | null>(null);
+  const [deleting, setDeleting] = useState(false);
 
   const canCreate = currentUser && ['MEDIA', 'PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const canDelete = currentUser && ['MEDIA', 'PRESIDENT', 'PLATFORM_ADMIN', 'VP', 'GS'].includes(currentUser.role);
+
+  const handleDeleteEvent = async () => {
+    if (!deleteTarget || !currentUser) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/events/${deleteTarget.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: currentUser.role }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        setEvents(prev => prev.filter(e => e.id !== deleteTarget.id));
+        setDeleteTarget(null);
+        toast({ title: 'Event deleted', description: `"${deleteTarget.title}" has been deleted.` });
+      } else {
+        toast({ title: 'Delete failed', description: data.error || 'Could not delete event', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Delete failed', description: 'Something went wrong', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+    }
+  };
 
   useEffect(() => {
     const load = async () => {
@@ -89,10 +120,88 @@ export function EventsPage() {
             <p className="text-sm text-gray-400">Discover and join cybersecurity events</p>
           </div>
           {canCreate && (
-            <div className="ml-auto">
+            <div className="ml-auto flex items-center gap-2">
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Button
+                  variant="outline"
+                  className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
+                  disabled={exporting}
+                  onClick={() => {
+                    setExporting(true);
+                    setTimeout(() => {
+                      exportToCSV(
+                        filtered.map(e => ({
+                          Title: e.title,
+                          Category: EVENT_CATEGORY_LABELS[e.category] || e.category,
+                          Type: EVENT_TYPE_LABELS[e.type] || e.type,
+                          Date: new Date(e.startDate).toLocaleDateString(),
+                          Venue: e.venue,
+                          Fee: e.fee > 0 ? e.fee : 'Free',
+                          Status: e.status,
+                        })),
+                        'events-export',
+                        [
+                          { key: 'Title', label: 'Title' },
+                          { key: 'Category', label: 'Category' },
+                          { key: 'Type', label: 'Type' },
+                          { key: 'Date', label: 'Date' },
+                          { key: 'Venue', label: 'Venue' },
+                          { key: 'Fee', label: 'Fee' },
+                          { key: 'Status', label: 'Status' },
+                        ]
+                      );
+                      setExporting(false);
+                    }, 300);
+                  }}
+                >
+                  {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  Export CSV
+                </Button>
+              </motion.div>
               <Button onClick={() => setCurrentView('create-event')} className="bg-emerald-600 text-white hover:bg-emerald-500">
                 <Plus className="mr-2 h-4 w-4" /> Create Event
               </Button>
+            </div>
+          )}
+          {!canCreate && (
+            <div className="ml-auto">
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+                <Button
+                  variant="outline"
+                  className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
+                  disabled={exporting}
+                  onClick={() => {
+                    setExporting(true);
+                    setTimeout(() => {
+                      exportToCSV(
+                        filtered.map(e => ({
+                          Title: e.title,
+                          Category: EVENT_CATEGORY_LABELS[e.category] || e.category,
+                          Type: EVENT_TYPE_LABELS[e.type] || e.type,
+                          Date: new Date(e.startDate).toLocaleDateString(),
+                          Venue: e.venue,
+                          Fee: e.fee > 0 ? e.fee : 'Free',
+                          Status: e.status,
+                        })),
+                        'events-export',
+                        [
+                          { key: 'Title', label: 'Title' },
+                          { key: 'Category', label: 'Category' },
+                          { key: 'Type', label: 'Type' },
+                          { key: 'Date', label: 'Date' },
+                          { key: 'Venue', label: 'Venue' },
+                          { key: 'Fee', label: 'Fee' },
+                          { key: 'Status', label: 'Status' },
+                        ]
+                      );
+                      setExporting(false);
+                    }, 300);
+                  }}
+                >
+                  {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                  Export CSV
+                </Button>
+              </motion.div>
             </div>
           )}
         </div>
@@ -160,6 +269,16 @@ export function EventsPage() {
                           <Star className="mr-1 h-3 w-3" /> Featured
                         </Badge>
                       )}
+                      {canDelete && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="ml-auto h-7 w-7 text-gray-600 hover:text-red-400 hover:bg-red-500/10"
+                          onClick={(e) => { e.stopPropagation(); setDeleteTarget(event); }}
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                     <h3 className="text-lg font-semibold text-white group-hover:text-emerald-400 transition-colors line-clamp-1">{event.title}</h3>
                     <p className="mt-2 text-sm text-gray-500 line-clamp-2">{event.description}</p>
@@ -215,6 +334,16 @@ export function EventsPage() {
                   <div className="hidden items-center gap-3 sm:flex">
                     <EventBadge status={event.status} />
                     {event.fee > 0 && <span className="text-sm text-emerald-400">৳{event.fee}</span>}
+                    {canDelete && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-7 w-7 text-gray-600 hover:text-red-400 hover:bg-red-500/10"
+                        onClick={(e) => { e.stopPropagation(); setDeleteTarget(event); }}
+                      >
+                        <Trash2 className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                   </div>
                 </div>
               </motion.div>
@@ -231,6 +360,43 @@ export function EventsPage() {
           <p className="text-xs text-gray-600 mt-1">Try adjusting your filters</p>
         </motion.div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+      >
+        <AlertDialogContent className="border-white/10 bg-[#111111] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Event</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to delete &ldquo;{deleteTarget?.title}&rdquo;? This will also remove all registrations, attendance records, and certificates associated with this event. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 bg-transparent text-gray-300 hover:bg-white/5 hover:text-white">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteEvent}
+              disabled={deleting}
+              className="gap-2 bg-rose-600 text-white hover:bg-rose-500"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete Event
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

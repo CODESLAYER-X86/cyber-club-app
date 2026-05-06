@@ -40,6 +40,13 @@ model User {
   assessments         AssessmentSubmission[]
   attendance          Attendance[]
   assignedEvents      Event[]              @relation("EventVerifier")
+  issuedCertificates  Certificate[]        @relation("CertificateIssuer")
+  approvedCertificates Certificate[]       @relation("CertificateApprover")
+  revokedCertificates Certificate[]       @relation("CertificateRevoker")
+  certificateAuditLogs CertificateAuditLog[]
+  galleryImages     GalleryImage[]
+  submittedAchievements Achievement[] @relation("AchievementSubmitter")
+  approvedAchievements  Achievement[] @relation("AchievementApprover")
 }
 
 model Event {
@@ -70,6 +77,7 @@ model Event {
   certificates   Certificate[]
   assessments    Assessment[]
   payments       Payment[]
+  galleryImages  GalleryImage[]
 }
 
 model EventRegistration {
@@ -149,17 +157,30 @@ model Attendance {
 }
 
 model Certificate {
-  id              String   @id @default(cuid())
-  certificateCode String   @unique
-  userId          String
-  eventId         String
-  type            String   @default("PARTICIPATION") // PARTICIPATION, ACHIEVEMENT, EXCELLENCE
-  score           Float?
-  status          String   @default("VALID") // VALID, REVOKED
-  issuedAt        DateTime @default(now())
+  id                  String    @id @default(cuid())
+  certificateCode     String    @unique
+  userId              String
+  eventId             String
+  type                String    @default("PARTICIPATION") // PARTICIPATION, ACHIEVEMENT, EXCELLENCE
+  score               Float?
+  status              String    @default("VALID") // VALID, REVOKED, PENDING_APPROVAL
+  issuedAt            DateTime  @default(now())
 
-  user  User  @relation(fields: [userId], references: [id])
-  event Event @relation(fields: [eventId], references: [id])
+  // Certificate Authority Fields
+  issuedBy            String?   // GS who issued the certificate
+  approvedBy          String?   // President who approved (for excellence/achievement types)
+  revokedBy           String?   // President who revoked
+  revokedAt           DateTime? // When revoked
+  revocationReason    String?   // Why revoked
+  eligibilityVerified Boolean   @default(false) // Whether eligibility was checked before issuance
+  eligibilityDetails  String?   // JSON: attendance verified, assessment passed, event completed
+
+  user      User                @relation(fields: [userId], references: [id])
+  event     Event               @relation(fields: [eventId], references: [id])
+  issuer    User?               @relation("CertificateIssuer", fields: [issuedBy], references: [id])
+  approver  User?               @relation("CertificateApprover", fields: [approvedBy], references: [id])
+  revoker   User?               @relation("CertificateRevoker", fields: [revokedBy], references: [id])
+  auditLogs CertificateAuditLog[]
 }
 
 model Assessment {
@@ -198,6 +219,18 @@ model AuditLog {
   user User @relation(fields: [userId], references: [id])
 }
 
+model CertificateAuditLog {
+  id            String   @id @default(cuid())
+  certificateId String
+  action        String   // ISSUED, APPROVED, REVOKED, ELIGIBILITY_CHECKED, VIEWED, SHARED
+  performedBy   String
+  details       String   // JSON with contextual info
+  createdAt     DateTime @default(now())
+
+  certificate Certificate @relation(fields: [certificateId], references: [id])
+  performer   User        @relation(fields: [performedBy], references: [id])
+}
+
 model Notification {
   id        String   @id @default(cuid())
   userId    String
@@ -217,4 +250,51 @@ model Announcement {
   type      String   @default("GENERAL") // GENERAL, EVENT, URGENT
   createdBy String
   createdAt DateTime @default(now())
+}
+
+model GalleryImage {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String
+  category    String   @default("EVENT") // EVENT, WORKSHOP, CTF, SEMINAR, MEETUP, GENERAL
+  eventId     String?
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+
+  event    Event? @relation(fields: [eventId], references: [id])
+  uploader User   @relation(fields: [uploadedBy], references: [id])
+}
+
+model Achievement {
+  id           String    @id @default(cuid())
+  title        String
+  description  String
+  imageUrl     String?
+  category     String    @default("COMPETITION") // COMPETITION, ACADEMIC, COMMUNITY, INDUSTRY, CERTIFICATION
+  achievedBy   String?   // Name or group description
+  achievedDate DateTime
+  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  submittedBy  String
+  approvedBy   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  submitter User?  @relation("AchievementSubmitter", fields: [submittedBy], references: [id])
+  approver  User?  @relation("AchievementApprover", fields: [approvedBy], references: [id])
+}
+
+model CommitteeMember {
+  id          String   @id @default(cuid())
+  name        String
+  role        String   // President, Vice President, General Secretary, Treasurer, Media Lead, etc.
+  description String
+  imageUrl    String?
+  department  String?
+  email       String?
+  socialLinks String?  // JSON: { linkedin, github, twitter }
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }

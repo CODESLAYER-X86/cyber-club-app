@@ -9,13 +9,19 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { action, approvedBy } = body;
+    const { action, approvedBy, status, approverId } = body;
 
-    if (!action || !approvedBy) {
+    // Accept both field name formats: action/approvedBy (API format) or status/approverId (legacy)
+    const effectiveAction = action || (status === 'APPROVED' ? 'APPROVE' : status === 'REJECTED' ? 'REJECT' : status);
+    const effectiveApprover = approvedBy || approverId;
+
+    if (!effectiveAction || !effectiveApprover) {
       return errorResponse("action and approvedBy are required");
     }
 
-    if (!["APPROVE", "REJECT"].includes(action)) {
+    // Accept both APPROVE/APPROVED and REJECT/REJECTED formats
+    const normalizedAction = effectiveAction === "APPROVED" ? "APPROVE" : effectiveAction === "REJECTED" ? "REJECT" : effectiveAction;
+    if (!["APPROVE", "REJECT"].includes(normalizedAction)) {
       return errorResponse("Action must be APPROVE or REJECT");
     }
 
@@ -32,13 +38,13 @@ export async function PATCH(
       return errorResponse("Expense is not in PENDING status");
     }
 
-    const newStatus = action === "APPROVE" ? "APPROVED" : "REJECTED";
+    const newStatus = normalizedAction === "APPROVE" ? "APPROVED" : "REJECTED";
 
     const updatedExpense = await db.expense.update({
       where: { id },
       data: {
         status: newStatus,
-        approvedBy,
+        approvedBy: effectiveApprover,
       },
       include: {
         budget: {
@@ -68,21 +74,21 @@ export async function PATCH(
     await db.notification.create({
       data: {
         userId: expense.createdBy,
-        title: action === "APPROVE" ? "Expense Approved" : "Expense Rejected",
+        title: normalizedAction === "APPROVE" ? "Expense Approved" : "Expense Rejected",
         message:
-          action === "APPROVE"
+          normalizedAction === "APPROVE"
             ? `Your expense "${expense.title}" for ${expense.amount} has been approved.`
             : `Your expense "${expense.title}" for ${expense.amount} has been rejected.`,
-        type: action === "APPROVE" ? "SUCCESS" : "WARNING",
+        type: normalizedAction === "APPROVE" ? "SUCCESS" : "WARNING",
       },
     });
 
     // Log to audit log
     await db.auditLog.create({
       data: {
-        userId: approvedBy,
-        action: `EXPENSE_${action === "APPROVE" ? "APPROVED" : "REJECTED"}`,
-        details: `${action === "APPROVE" ? "Approved" : "Rejected"} expense "${expense.title}" (${expense.amount}) submitted by ${expense.creator.name}`,
+        userId: effectiveApprover,
+        action: `EXPENSE_${normalizedAction === "APPROVE" ? "APPROVED" : "REJECTED"}`,
+        details: `${normalizedAction === "APPROVE" ? "Approved" : "Rejected"} expense "${expense.title}" (${expense.amount}) submitted by ${expense.creator.name}`,
       },
     });
 

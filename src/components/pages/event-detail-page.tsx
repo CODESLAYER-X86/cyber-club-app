@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventRegistration, User as UserType } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, ROLE_LABELS } from '@/types';
@@ -13,6 +13,8 @@ import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+import { toast } from '@/hooks/use-toast';
 
 interface EventDetailData extends Event {
   creator?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role'>;
@@ -33,6 +35,9 @@ export function EventDetailPage() {
   const [userRegistration, setUserRegistration] = useState<EventRegistration | null>(null);
   const [showRegistrants, setShowRegistrants] = useState(false);
   const [shareMsg, setShareMsg] = useState<string | null>(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const [updatingRegId, setUpdatingRegId] = useState<string | null>(null);
 
   const loadEvent = useCallback(async () => {
     if (!selectedEventId) return;
@@ -73,9 +78,15 @@ export function EventDetailPage() {
       });
       const data = await res.json();
       if (data.success) {
-        setMessage({ type: 'success', text: 'Successfully registered! Your registration is pending approval.' });
-        setUserRegistration(data.data.registration || { status: 'PENDING' });
-        setEvent(prev => prev ? { ...prev, currentSeats: prev.currentSeats + 1 } : prev);
+        const reg = data.data.registration;
+        const isPaid = event.fee > 0;
+        const successMsg = isPaid
+          ? 'Successfully registered! Your payment is pending verification. You will be approved once payment is confirmed.'
+          : 'Successfully registered! Your registration has been approved.';
+        setMessage({ type: 'success', text: successMsg });
+        setUserRegistration(reg || { status: isPaid ? 'PENDING' : 'APPROVED' });
+        // Reload event data to get updated registrations list and seat count
+        loadEvent();
       } else {
         setMessage({ type: 'error', text: data.error || 'Registration failed' });
       }
@@ -101,6 +112,30 @@ export function EventDetailPage() {
     setCurrentView('create-event');
   };
 
+  const handleDeleteEvent = async () => {
+    if (!event || !currentUser) return;
+    setDeleting(true);
+    try {
+      const res = await fetch(`/api/events/${event.id}`, {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ role: currentUser.role }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Event deleted', description: `"${event.title}" has been deleted.` });
+        setCurrentView('events');
+      } else {
+        toast({ title: 'Delete failed', description: data.error || 'Could not delete event', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Delete failed', description: 'Something went wrong', variant: 'destructive' });
+    } finally {
+      setDeleting(false);
+      setDeleteDialogOpen(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="space-y-4">
@@ -114,9 +149,15 @@ export function EventDetailPage() {
   const seatPercent = event.maxSeats ? Math.min((event.currentSeats / event.maxSeats) * 100, 100) : 0;
   const isFull = event.maxSeats ? event.currentSeats >= event.maxSeats : false;
   const isMember = currentUser?.membershipStatus === 'ACTIVE';
-  const canRegister = currentUser && isMember && !isFull && event.status === 'UPCOMING' && !userRegistration;
+  // PUBLIC events: anyone logged in can register
+  // MEMBER_ONLY events: only active members can register
+  // PAID events: anyone logged in can register (payment required)
+  // LIMITED events: anyone logged in can register (subject to seat availability)
+  const canRegisterForEventType = event.type === 'MEMBER_ONLY' ? isMember : !!currentUser;
+  const canRegister = canRegisterForEventType && !isFull && event.status === 'UPCOMING' && !userRegistration;
   const isAdmin = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role);
   const canEdit = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'MEDIA'].includes(currentUser.role);
+  const canDelete = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'MEDIA', 'VP', 'GS'].includes(currentUser.role);
   const registrationCount = event._count?.registrations ?? event.registrations?.length ?? event.currentSeats;
 
   return (
@@ -147,6 +188,12 @@ export function EventDetailPage() {
           {canEdit && (
             <Button variant="outline" size="sm" onClick={handleEdit} className="border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-emerald-500/30">
               <Pencil className="mr-2 h-4 w-4" /> Edit Event
+            </Button>
+          )}
+          {/* Delete Button */}
+          {canDelete && (
+            <Button variant="outline" size="sm" onClick={() => setDeleteDialogOpen(true)} className="border-red-500/20 bg-red-500/5 text-red-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/40">
+              <Trash2 className="mr-2 h-4 w-4" /> Delete
             </Button>
           )}
         </div>
@@ -302,10 +349,10 @@ export function EventDetailPage() {
               <CardTitle className="text-lg text-white">Registration</CardTitle>
             </CardHeader>
             <CardContent>
-              {!isMember && currentUser.role === 'GUEST' ? (
+              {!canRegisterForEventType ? (
                 <div className="flex items-center gap-2 text-amber-400">
                   <AlertTriangle className="h-4 w-4" />
-                  <p className="text-sm">You need to be an approved member to register for events.</p>
+                  <p className="text-sm">You need to be an approved member to register for this event.</p>
                 </div>
               ) : isFull ? (
                 <div className="flex items-center gap-2 text-red-400">
@@ -405,6 +452,70 @@ export function EventDetailPage() {
                           <div className="flex items-center gap-2">
                             <RegistrationBadge status={reg.status} />
                             <span className="text-xs text-gray-600">{new Date(reg.registeredAt).toLocaleDateString()}</span>
+                            {reg.status === 'PENDING' && isAdmin && (
+                              <>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[10px] border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 px-2"
+                                  disabled={updatingRegId === reg.id}
+                                  onClick={async () => {
+                                    setUpdatingRegId(reg.id);
+                                    try {
+                                      const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ status: 'APPROVED', role: currentUser?.role }),
+                                      });
+                                      const d = await r.json();
+                                      if (d.success) {
+                                        toast({ title: 'Approved', description: `${reg.user?.name} has been approved.` });
+                                        loadEvent();
+                                      } else {
+                                        toast({ title: 'Failed', description: d.error || 'Could not approve', variant: 'destructive' });
+                                      }
+                                    } catch {
+                                      toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+                                    } finally {
+                                      setUpdatingRegId(null);
+                                    }
+                                  }}
+                                >
+                                  {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                  Approve
+                                </Button>
+                                <Button
+                                  size="sm"
+                                  variant="outline"
+                                  className="h-7 text-[10px] border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 px-2"
+                                  disabled={updatingRegId === reg.id}
+                                  onClick={async () => {
+                                    setUpdatingRegId(reg.id);
+                                    try {
+                                      const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
+                                        method: 'PATCH',
+                                        headers: { 'Content-Type': 'application/json' },
+                                        body: JSON.stringify({ status: 'REJECTED', role: currentUser?.role }),
+                                      });
+                                      const d = await r.json();
+                                      if (d.success) {
+                                        toast({ title: 'Rejected', description: `${reg.user?.name} has been rejected.` });
+                                        loadEvent();
+                                      } else {
+                                        toast({ title: 'Failed', description: d.error || 'Could not reject', variant: 'destructive' });
+                                      }
+                                    } catch {
+                                      toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+                                    } finally {
+                                      setUpdatingRegId(null);
+                                    }
+                                  }}
+                                >
+                                  {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                                  Reject
+                                </Button>
+                              </>
+                            )}
                           </div>
                         </motion.div>
                       ))}
@@ -416,6 +527,40 @@ export function EventDetailPage() {
           </Card>
         </motion.div>
       )}
+
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+        <AlertDialogContent className="border-white/10 bg-[#111111] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Delete Event</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to delete &ldquo;{event?.title}&rdquo;? This will also remove all registrations, attendance records, and certificates associated with this event. This action cannot be undone.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 bg-transparent text-gray-300 hover:bg-white/5 hover:text-white">
+              Cancel
+            </AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleDeleteEvent}
+              disabled={deleting}
+              className="gap-2 bg-rose-600 text-white hover:bg-rose-500"
+            >
+              {deleting ? (
+                <>
+                  <Loader2 className="h-4 w-4 animate-spin" />
+                  Deleting...
+                </>
+              ) : (
+                <>
+                  <Trash2 className="h-4 w-4" />
+                  Delete Event
+                </>
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

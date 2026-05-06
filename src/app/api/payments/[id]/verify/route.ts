@@ -66,6 +66,15 @@ export async function PATCH(
       });
     }
 
+    // If it's an EVENT payment, update the corresponding registration status
+    if (payment.type === "EVENT" && payment.eventId) {
+      const newRegStatus = action === "VERIFY" ? "APPROVED" : "REJECTED";
+      await db.eventRegistration.updateMany({
+        where: { userId: payment.userId, eventId: payment.eventId },
+        data: { status: newRegStatus },
+      });
+    }
+
     // Create notification
     await db.notification.create({
       data: {

@@ -21,7 +21,7 @@ export type PaymentStatus = "PENDING" | "VERIFIED" | "REJECTED";
 export type RegistrationStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
 export type CertificateType = "PARTICIPATION" | "ACHIEVEMENT" | "EXCELLENCE";
-export type CertificateStatus = "VALID" | "REVOKED";
+export type CertificateStatus = "VALID" | "REVOKED" | "PENDING_APPROVAL";
 
 export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -147,8 +147,42 @@ export interface Certificate {
   score?: number;
   status: CertificateStatus;
   issuedAt: string;
+  issuedBy?: string;
+  approvedBy?: string;
+  revokedBy?: string;
+  revokedAt?: string;
+  revocationReason?: string;
+  eligibilityVerified?: boolean;
+  eligibilityDetails?: string;
   user?: User;
   event?: Event;
+  issuer?: User;
+  approver?: User;
+  revoker?: User;
+}
+
+export type CertificateAuditAction = 'ISSUED' | 'APPROVED' | 'REVOKED' | 'ELIGIBILITY_CHECKED' | 'VIEWED' | 'SHARED';
+
+export interface CertificateAuditLog {
+  id: string;
+  certificateId: string;
+  action: CertificateAuditAction;
+  performedBy: string;
+  details: string;
+  createdAt: string;
+  performer?: User;
+}
+
+export interface EligibilityCheck {
+  eligible: boolean;
+  checks: {
+    eventCompleted: boolean;
+    registration: boolean;
+    attendance: boolean;
+    assessment: boolean;
+    existingCertificate: boolean;
+  };
+  event?: { title: string; status: string; requiresAssessment: boolean; passingScore?: number };
 }
 
 export interface Assessment {
@@ -199,6 +233,56 @@ export interface Announcement {
   createdAt: string;
 }
 
+export type GalleryCategory = "EVENT" | "WORKSHOP" | "CTF" | "SEMINAR" | "MEETUP" | "GENERAL";
+
+export interface GalleryImage {
+  id: string;
+  title: string;
+  description?: string;
+  imageUrl: string;
+  category: GalleryCategory;
+  eventId?: string;
+  uploadedBy: string;
+  createdAt: string;
+  uploader?: Pick<User, 'id' | 'name' | 'avatar'>;
+  event?: Pick<Event, 'id' | 'title'>;
+}
+
+export type AchievementCategory = "COMPETITION" | "ACADEMIC" | "COMMUNITY" | "INDUSTRY" | "CERTIFICATION";
+export type AchievementStatus = "PENDING" | "APPROVED" | "REJECTED";
+
+export interface Achievement {
+  id: string;
+  title: string;
+  description: string;
+  imageUrl?: string;
+  category: AchievementCategory;
+  achievedBy?: string;
+  achievedDate: string;
+  status: AchievementStatus;
+  submittedBy: string;
+  approvedBy?: string;
+  createdAt: string;
+  updatedAt: string;
+  submitter?: Pick<User, 'id' | 'name' | 'avatar'>;
+  approver?: Pick<User, 'id' | 'name' | 'avatar'>;
+}
+
+export interface CommitteeMember {
+  id: string;
+  name: string;
+  role: string;
+  description: string;
+  imageUrl?: string;
+  department?: string;
+  email?: string;
+  socialLinks?: string; // JSON string
+  order: number;
+  isActive: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
 export type AppView =
   | "landing"
   | "login"
@@ -215,6 +299,7 @@ export type AppView =
   | "verify-payments"
   | "certificates"
   | "certificate-verify"
+  | "certificate-public"
   | "assessments"
   | "notifications"
   | "audit-logs"
@@ -223,7 +308,10 @@ export type AppView =
   | "announcements"
   | "analytics"
   | "about"
-  | "settings";
+  | "certificate-authority"
+  | "settings"
+  | "gallery"
+  | "achievements";
 
 export interface NavItem {
   label: string;

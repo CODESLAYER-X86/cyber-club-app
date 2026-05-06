@@ -15,6 +15,9 @@ interface AppState {
   sidebarOpen: boolean;
   theme: "light" | "dark";
 
+  // Certificate sharing
+  certificateShareCode: string | null;
+
   // Data cache
   notifications: AppNotification[];
 
@@ -30,6 +33,7 @@ interface AppState {
   setNotifications: (notifications: AppNotification[]) => void;
   markNotificationRead: (id: string) => void;
   updateCurrentUser: (updates: Partial<User>) => void;
+  setCertificateShareCode: (code: string | null) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -41,6 +45,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedMemberId: null,
   sidebarOpen: true,
   theme: "dark",
+  certificateShareCode: null,
   notifications: [],
 
   // Actions
@@ -87,4 +92,6 @@ export const useAppStore = create<AppState>((set) => ({
         ? { ...state.currentUser, ...updates }
         : null,
     })),
+
+  setCertificateShareCode: (code) => set({ certificateShareCode: code }),
 }));

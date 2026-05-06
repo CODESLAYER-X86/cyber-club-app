@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Shield, Search, CheckCircle, XCircle, Award, RotateCcw, Fingerprint, CalendarDays, Trophy, Hash, User, Sparkles } from 'lucide-react';
+import { Shield, Search, CheckCircle, XCircle, Award, RotateCcw, Fingerprint, CalendarDays, Trophy, Hash, User, Sparkles, Linkedin, Twitter, Copy } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Certificate } from '@/types';
 import { CERTIFICATE_TYPE_LABELS } from '@/types';
@@ -56,6 +56,24 @@ export function CertificateVerifyPage() {
   };
 
   const isValid = result?.status === 'VALID';
+  const [copied, setCopied] = useState(false);
+
+  const shareUrl = typeof window !== 'undefined' && result ? `${window.location.origin}/?cert=${result.certificateCode}` : '';
+  const shareText = result ? `I earned a ${CERTIFICATE_TYPE_LABELS[result.type]} certificate from CyberSec Club! 🛡️🔐` : '';
+
+  const handleLinkedInShare = () => {
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank', 'width=600,height=400');
+  };
+
+  const handleTwitterShare = () => {
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(shareText)}&url=${encodeURIComponent(shareUrl)}`, '_blank', 'width=600,height=400');
+  };
+
+  const handleCopyLink = async () => {
+    await navigator.clipboard.writeText(shareUrl);
+    setCopied(true);
+    setTimeout(() => setCopied(false), 2000);
+  };
 
   return (
     <div className="space-y-6">
@@ -252,12 +270,36 @@ export function CertificateVerifyPage() {
                     />
                   </motion.div>
 
+                  {/* Share Buttons for valid certificates */}
+                  {isValid && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: 0.85 }}
+                      className="mt-6 pt-4 border-t border-white/5"
+                    >
+                      <p className="text-xs text-gray-500 text-center mb-3">Share this certificate</p>
+                      <div className="flex items-center justify-center gap-2 flex-wrap">
+                        <Button onClick={handleLinkedInShare} size="sm" className="bg-[#0A66C2] hover:bg-[#0A66C2]/80 text-white gap-1.5">
+                          <Linkedin className="h-3.5 w-3.5" /> LinkedIn
+                        </Button>
+                        <Button onClick={handleTwitterShare} size="sm" variant="outline" className="border-sky-500/30 text-sky-400 hover:bg-sky-500/10 gap-1.5">
+                          <Twitter className="h-3.5 w-3.5" /> X / Twitter
+                        </Button>
+                        <Button onClick={handleCopyLink} size="sm" variant="outline" className="border-white/10 text-gray-400 hover:text-white hover:bg-white/5 gap-1.5">
+                          {copied ? <CheckCircle className="h-3.5 w-3.5 text-emerald-400" /> : <Copy className="h-3.5 w-3.5" />}
+                          {copied ? 'Copied!' : 'Copy Link'}
+                        </Button>
+                      </div>
+                    </motion.div>
+                  )}
+
                   {/* Verify Another Button */}
                   <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
-                    transition={{ delay: 0.8 }}
-                    className="mt-8 flex justify-center"
+                    transition={{ delay: 0.9 }}
+                    className="mt-6 flex justify-center"
                   >
                     <Button
                       onClick={handleReset}

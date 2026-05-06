@@ -1,8 +1,12 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { motion } from 'framer-motion';
-import { Users, Search, Shield, CheckCircle, XCircle, Clock, UserPlus, UserCheck, UserX, Hourglass } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
+import {
+  Users, Search, Shield, CheckCircle, XCircle, Clock, UserPlus,
+  UserCheck, UserX, Hourglass, Download, Loader2, LayoutGrid, List,
+  Eye, UserCog, GraduationCap, Calendar,
+} from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { User, UserRole, MembershipStatus } from '@/types';
 import { ROLE_LABELS, MEMBERSHIP_STATUS_LABELS } from '@/types';
@@ -12,17 +16,18 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
+import { exportToCSV } from '@/lib/export-utils';
 
 const ROLE_AVATAR_COLORS: Record<UserRole, string> = {
-  PRESIDENT: 'bg-gradient-to-br from-amber-500/30 to-amber-600/20 text-amber-400 border-amber-500/20',
-  VP: 'bg-gradient-to-br from-purple-500/30 to-purple-600/20 text-purple-400 border-purple-500/20',
-  GS: 'bg-gradient-to-br from-cyan-500/30 to-cyan-600/20 text-cyan-400 border-cyan-500/20',
-  TREASURER: 'bg-gradient-to-br from-emerald-500/30 to-emerald-600/20 text-emerald-400 border-emerald-500/20',
-  MEDIA: 'bg-gradient-to-br from-pink-500/30 to-pink-600/20 text-pink-400 border-pink-500/20',
-  VERIFIER: 'bg-gradient-to-br from-blue-500/30 to-blue-600/20 text-blue-400 border-blue-500/20',
-  MEMBER: 'bg-gradient-to-br from-gray-500/30 to-gray-600/20 text-gray-400 border-gray-500/20',
-  GUEST: 'bg-gradient-to-br from-gray-500/30 to-gray-600/20 text-gray-400 border-gray-500/20',
-  PLATFORM_ADMIN: 'bg-gradient-to-br from-red-500/30 to-red-600/20 text-red-400 border-red-500/20',
+  PRESIDENT: 'from-amber-500/40 to-amber-600/20 text-amber-400 border-amber-500/30',
+  VP: 'from-purple-500/40 to-purple-600/20 text-purple-400 border-purple-500/30',
+  GS: 'from-cyan-500/40 to-cyan-600/20 text-cyan-400 border-cyan-500/30',
+  TREASURER: 'from-emerald-500/40 to-emerald-600/20 text-emerald-400 border-emerald-500/30',
+  MEDIA: 'from-pink-500/40 to-pink-600/20 text-pink-400 border-pink-500/30',
+  VERIFIER: 'from-blue-500/40 to-blue-600/20 text-blue-400 border-blue-500/30',
+  MEMBER: 'from-gray-500/40 to-gray-600/20 text-gray-400 border-gray-500/30',
+  GUEST: 'from-gray-500/40 to-gray-600/20 text-gray-400 border-gray-500/30',
+  PLATFORM_ADMIN: 'from-red-500/40 to-red-600/20 text-red-400 border-red-500/30',
 };
 
 const DEPARTMENT_COLORS: Record<string, string> = {
@@ -51,6 +56,13 @@ function timeAgo(date: string): string {
   return `${years}y ago`;
 }
 
+function formatDate(date: string): string {
+  return new Date(date).toLocaleDateString('en-US', {
+    month: 'short',
+    year: 'numeric',
+  });
+}
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.04 } },
@@ -61,13 +73,27 @@ const item = {
   show: { opacity: 1, y: 0, transition: { duration: 0.25 } },
 };
 
+const gridContainer = {
+  hidden: { opacity: 0 },
+  show: { opacity: 1, transition: { staggerChildren: 0.05 } },
+};
+
+const gridItem = {
+  hidden: { opacity: 0, scale: 0.95 },
+  show: { opacity: 1, scale: 1, transition: { duration: 0.25 } },
+};
+
+type ViewMode = 'list' | 'grid';
+
 export function MembersPage() {
-  const { currentUser } = useAppStore();
+  const { currentUser, setSelectedMemberId, setCurrentView } = useAppStore();
   const [users, setUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [roleFilter, setRoleFilter] = useState<string>('all');
   const [statusFilter, setStatusFilter] = useState<string>('all');
+  const [exporting, setExporting] = useState(false);
+  const [viewMode, setViewMode] = useState<ViewMode>('list');
 
   const canApprove = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
   const canChangeRole = currentUser && ['PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role);
@@ -102,12 +128,17 @@ export function MembersPage() {
     } catch (e) { console.error(e); }
   };
 
+  const handleViewProfile = (userId: string) => {
+    setSelectedMemberId(userId);
+    setCurrentView('profile');
+  };
+
   // Member count stats
   const stats = useMemo(() => ({
     total: users.length,
     active: users.filter(u => u.membershipStatus === 'ACTIVE').length,
     pending: users.filter(u => u.membershipStatus === 'PENDING').length,
-    rejected: users.filter(u => u.membershipStatus === 'REJECTED').length,
+    alumni: users.filter(u => u.membershipStatus === 'REJECTED' || u.membershipStatus === 'NON_MEMBER').length,
   }), [users]);
 
   return (
@@ -124,13 +155,77 @@ export function MembersPage() {
         {/* Blur Orbs */}
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute -left-8 -bottom-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
-            <Users className="h-6 w-6 text-emerald-400" />
+        <div className="relative flex items-center justify-between">
+          <div className="flex items-center gap-4">
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
+              <Users className="h-6 w-6 text-emerald-400" />
+            </div>
+            <div>
+              <h1 className="text-2xl font-bold text-white">Members</h1>
+              <p className="text-sm text-gray-400">Club member directory and management</p>
+            </div>
           </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Members</h1>
-            <p className="text-sm text-gray-400">Club member directory and management</p>
+          <div className="flex items-center gap-2">
+            {/* View Toggle */}
+            <div className="flex items-center rounded-lg border border-white/10 bg-white/[0.03] p-0.5">
+              <button
+                onClick={() => setViewMode('list')}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                  viewMode === 'list'
+                    ? 'bg-emerald-500/15 text-emerald-400'
+                    : 'text-gray-500 hover:text-gray-400'
+                }`}
+              >
+                <List className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">List</span>
+              </button>
+              <button
+                onClick={() => setViewMode('grid')}
+                className={`flex items-center gap-1.5 rounded-md px-2.5 py-1.5 text-xs transition-all ${
+                  viewMode === 'grid'
+                    ? 'bg-emerald-500/15 text-emerald-400'
+                    : 'text-gray-500 hover:text-gray-400'
+                }`}
+              >
+                <LayoutGrid className="h-3.5 w-3.5" />
+                <span className="hidden sm:inline">Grid</span>
+              </button>
+            </div>
+            <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+              <Button
+                variant="outline"
+                className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
+                disabled={exporting}
+                onClick={() => {
+                  setExporting(true);
+                  setTimeout(() => {
+                    exportToCSV(
+                      users.map(u => ({
+                        Name: u.name,
+                        Email: u.email,
+                        Role: ROLE_LABELS[u.role] || u.role,
+                        Department: u.department || 'N/A',
+                        Status: MEMBERSHIP_STATUS_LABELS[u.membershipStatus] || u.membershipStatus,
+                        Joined: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
+                      })),
+                      'members-export',
+                      [
+                        { key: 'Name', label: 'Name' },
+                        { key: 'Email', label: 'Email' },
+                        { key: 'Role', label: 'Role' },
+                        { key: 'Department', label: 'Department' },
+                        { key: 'Status', label: 'Status' },
+                        { key: 'Joined', label: 'Joined' },
+                      ]
+                    );
+                    setExporting(false);
+                  }, 300);
+                }}
+              >
+                {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
+                Export CSV
+              </Button>
+            </motion.div>
           </div>
         </div>
       </motion.div>
@@ -150,11 +245,12 @@ export function MembersPage() {
           <div><p className="text-lg font-bold text-white">{stats.pending}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider">Pending</p></div>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="flex items-center gap-3 rounded-lg border border-white/5 bg-[#111]/60 px-4 py-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-red-500/10"><UserX className="h-4 w-4 text-red-400" /></div>
-          <div><p className="text-lg font-bold text-white">{stats.rejected}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider">Rejected</p></div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10"><GraduationCap className="h-4 w-4 text-violet-400" /></div>
+          <div><p className="text-lg font-bold text-white">{stats.alumni}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider">Alumni</p></div>
         </motion.div>
       </div>
 
+      {/* Filters */}
       <div className="flex flex-wrap gap-3">
         <div className="relative flex-1 min-w-[200px]">
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
@@ -176,18 +272,22 @@ export function MembersPage() {
         </Select>
       </div>
 
-      {loading ? <div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 animate-pulse rounded-lg bg-white/5" />)}</div> : (
+      {loading ? (
+        <div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 animate-pulse rounded-lg bg-white/5" />)}</div>
+      ) : viewMode === 'list' ? (
+        /* LIST VIEW */
         <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
           {users.map((user) => {
             const avatarColor = ROLE_AVATAR_COLORS[user.role] || ROLE_AVATAR_COLORS.MEMBER;
             const deptColor = DEPARTMENT_COLORS[user.department || 'Other'] || DEPARTMENT_COLORS['Other'];
+            const initials = user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
             return (
               <motion.div key={user.id} variants={item} layout whileHover={{ y: -2, transition: { duration: 0.15 } }}>
-                <Card className="border-white/5 bg-[#111]/60 backdrop-blur transition-all hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5">
-                  <CardContent className="flex items-center gap-4 py-4">
-                    {/* Role-specific gradient avatar */}
-                    <div className={`flex h-10 w-10 items-center justify-center rounded-full border ${avatarColor} text-sm font-bold`}>
-                      {user.name?.charAt(0) || '?'}
+                <Card className="border-white/5 bg-[#111]/60 backdrop-blur transition-all hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 group">
+                  <CardContent className="flex items-center gap-4 py-4 px-5">
+                    {/* Gradient avatar with initials */}
+                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-gradient-to-br ${avatarColor} text-sm font-bold`}>
+                      {initials}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -203,15 +303,37 @@ export function MembersPage() {
                           </Badge>
                         )}
                       </div>
-                      {/* Joined time */}
+                      {/* Member since date */}
                       {user.createdAt && (
-                        <div className="flex items-center gap-1 mt-1">
-                          <Clock className="h-3 w-3 text-gray-600" />
-                          <p className="text-[10px] text-gray-600">Joined {timeAgo(user.createdAt)}</p>
+                        <div className="flex items-center gap-1.5 mt-1">
+                          <Calendar className="h-3 w-3 text-gray-600" />
+                          <p className="text-[10px] text-gray-600">Member since {formatDate(user.createdAt)} &middot; {timeAgo(user.createdAt)}</p>
                         </div>
                       )}
                     </div>
-                    <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2">
+                      {/* Quick action: View Profile */}
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-8 px-2 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                        onClick={() => handleViewProfile(user.id)}
+                      >
+                        <Eye className="h-3.5 w-3.5 mr-1" />
+                        <span className="hidden sm:inline text-xs">Profile</span>
+                      </Button>
+                      {/* Quick action: Assign Role (admin only) */}
+                      {canChangeRole && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-8 px-2 text-gray-500 hover:text-amber-400 hover:bg-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          onClick={() => handleViewProfile(user.id)}
+                        >
+                          <UserCog className="h-3.5 w-3.5 mr-1" />
+                          <span className="hidden sm:inline text-xs">Role</span>
+                        </Button>
+                      )}
                       {canChangeRole ? (
                         <Select value={user.role} onValueChange={(v) => handleRoleChange(user.id, v as UserRole)}>
                           <SelectTrigger className="h-8 w-[140px] border-white/10 bg-white/5 text-xs text-white"><SelectValue /></SelectTrigger>
@@ -234,6 +356,84 @@ export function MembersPage() {
           })}
           {users.length === 0 && (
             <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="py-12 text-center">
+              <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-white/5 mb-4">
+                <Users className="h-8 w-8 text-gray-600" />
+              </div>
+              <p className="text-gray-500">No members found</p>
+            </motion.div>
+          )}
+        </motion.div>
+      ) : (
+        /* GRID VIEW */
+        <motion.div variants={gridContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+          {users.map((user) => {
+            const avatarColor = ROLE_AVATAR_COLORS[user.role] || ROLE_AVATAR_COLORS.MEMBER;
+            const deptColor = DEPARTMENT_COLORS[user.department || 'Other'] || DEPARTMENT_COLORS['Other'];
+            const initials = user.name?.split(' ').map(n => n[0]).join('').toUpperCase().slice(0, 2) || '?';
+            return (
+              <motion.div key={user.id} variants={gridItem} layout>
+                <Card className="border-white/5 bg-[#111]/60 backdrop-blur transition-all hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 group h-full">
+                  <CardContent className="flex flex-col items-center py-6 px-5 text-center">
+                    {/* Gradient avatar with initials */}
+                    <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 bg-gradient-to-br ${avatarColor} text-xl font-bold mb-3`}>
+                      {initials}
+                    </div>
+                    <div className="flex items-center gap-2 mb-1">
+                      <p className="font-semibold text-white">{user.name}</p>
+                      <MembershipBadge status={user.membershipStatus} />
+                    </div>
+                    {/* Role badge */}
+                    <Badge variant="outline" className="border-white/10 text-[10px] text-gray-400 mb-2">
+                      {ROLE_LABELS[user.role]}
+                    </Badge>
+                    {/* Department badge */}
+                    {user.department && (
+                      <Badge variant="outline" className={`text-[9px] border mb-2 ${deptColor}`}>
+                        {user.department}
+                      </Badge>
+                    )}
+                    <p className="text-xs text-gray-500 mb-2 truncate w-full">{user.email}</p>
+                    {/* Member since */}
+                    {user.createdAt && (
+                      <div className="flex items-center gap-1.5 mb-3">
+                        <Calendar className="h-3 w-3 text-gray-600" />
+                        <p className="text-[10px] text-gray-600">Since {formatDate(user.createdAt)}</p>
+                      </div>
+                    )}
+                    {/* Quick Actions */}
+                    <div className="flex items-center gap-2 mt-auto pt-2 border-t border-white/5 w-full justify-center">
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        className="h-7 px-2 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 text-xs"
+                        onClick={() => handleViewProfile(user.id)}
+                      >
+                        <Eye className="h-3 w-3 mr-1" />View
+                      </Button>
+                      {canChangeRole && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-gray-500 hover:text-amber-400 hover:bg-amber-500/10 text-xs"
+                          onClick={() => handleViewProfile(user.id)}
+                        >
+                          <UserCog className="h-3 w-3 mr-1" />Role
+                        </Button>
+                      )}
+                      {canApprove && user.membershipStatus === 'PENDING' && (
+                        <>
+                          <Button size="sm" onClick={() => handleApprove(user.id, 'APPROVED')} className="bg-emerald-600 text-white h-7 text-xs px-2"><CheckCircle className="h-3 w-3" /></Button>
+                          <Button size="sm" onClick={() => handleApprove(user.id, 'REJECTED')} variant="destructive" className="h-7 text-xs px-2"><XCircle className="h-3 w-3" /></Button>
+                        </>
+                      )}
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })}
+          {users.length === 0 && (
+            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="col-span-full py-12 text-center">
               <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-white/5 mb-4">
                 <Users className="h-8 w-8 text-gray-600" />
               </div>

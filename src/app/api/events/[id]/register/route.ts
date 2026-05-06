@@ -9,7 +9,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { userId } = body;
+    const { userId, transactionId } = body;
 
     if (!userId) {
       return errorResponse("userId is required");
@@ -47,11 +47,19 @@ export async function POST(
       }
     }
 
+    // For PAID events, require transaction ID
+    if (event.fee > 0 && !transactionId) {
+      return errorResponse("Transaction ID is required for paid events");
+    }
+
+    // Determine registration status: free events auto-approve, paid events stay pending until payment verified
+    const registrationStatus = event.fee > 0 ? "PENDING" : "APPROVED";
+
     const registration = await db.eventRegistration.create({
       data: {
         userId,
         eventId: id,
-        status: "PENDING",
+        status: registrationStatus,
       },
       include: {
         user: {
@@ -60,6 +68,8 @@ export async function POST(
             name: true,
             email: true,
             avatar: true,
+            role: true,
+            membershipStatus: true,
           },
         },
         event: {
@@ -78,17 +88,52 @@ export async function POST(
       data: { currentSeats: { increment: 1 } },
     });
 
+    // For PAID events, create a Payment record so it appears in Verify Payments
+    let payment = null;
+    if (event.fee > 0 && transactionId) {
+      payment = await db.payment.create({
+        data: {
+          userId,
+          amount: event.fee,
+          type: "EVENT",
+          status: "PENDING",
+          transactionId,
+          eventId: id,
+        },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+            },
+          },
+          event: {
+            select: {
+              id: true,
+              title: true,
+            },
+          },
+        },
+      });
+    }
+
     // Create notification
+    const notificationMessage = event.fee > 0
+      ? `You have registered for "${event.title}". Your payment (৳${event.fee}) is pending verification. You'll be approved once payment is confirmed.`
+      : `You have registered for "${event.title}". Your registration has been approved!`;
+
     await db.notification.create({
       data: {
         userId,
         title: "Event Registration",
-        message: `You have registered for "${event.title}". Your registration is pending approval.`,
-        type: "INFO",
+        message: notificationMessage,
+        type: event.fee > 0 ? "INFO" : "SUCCESS",
       },
     });
 
-    return successResponse({ registration }, 201);
+    return successResponse({ registration, payment }, 201);
   } catch {
     return serverErrorResponse();
   }

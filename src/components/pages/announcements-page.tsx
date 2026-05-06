@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Megaphone, Plus, AlertTriangle, Loader2, Pin,
-  Clock, ChevronDown, ChevronUp, Eye, User,
+  Clock, ChevronDown, ChevronUp, Eye, User, Trash2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { Card, CardContent } from '@/components/ui/card';
@@ -13,6 +13,7 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
+import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction, AlertDialogTrigger } from '@/components/ui/alert-dialog';
 import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
@@ -97,6 +98,7 @@ export function AnnouncementsPage() {
   const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
   const [expandedIds, setExpandedIds] = useState<Set<string>>(new Set());
   const [showPreview, setShowPreview] = useState(false);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
 
   const canCreate = currentUser && ['PRESIDENT', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
@@ -172,6 +174,21 @@ export function AnnouncementsPage() {
     EVENT: announcements.filter(a => a.type === 'EVENT').length,
     URGENT: announcements.filter(a => a.type === 'URGENT').length,
   }), [announcements]);
+
+  const handleDelete = async (id: string) => {
+    setDeletingId(id);
+    try {
+      const r = await fetch(`/api/announcements/${id}`, { method: 'DELETE' });
+      const d = await r.json();
+      if (d.success) {
+        setAnnouncements(prev => prev.filter(a => a.id !== id));
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setDeletingId(null);
+    }
+  };
 
   const isContentLong = (content: string) => content.length > 150;
 
@@ -376,73 +393,118 @@ export function AnnouncementsPage() {
           </p>
         </motion.div>
       ) : (
-        <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
-          {filtered.map((ann) => {
-            const styles = TYPE_STYLES[ann.type] || TYPE_STYLES.GENERAL;
-            const isExpanded = expandedIds.has(ann.id);
-            const contentLong = isContentLong(ann.content);
-            const displayContent = contentLong && !isExpanded
-              ? ann.content.slice(0, 150) + '...'
-              : ann.content;
-            const authorName = users[ann.createdBy] || ann.authorName || 'Unknown';
+        <AnimatePresence mode="popLayout">
+          <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
+            {filtered.map((ann) => {
+              const styles = TYPE_STYLES[ann.type] || TYPE_STYLES.GENERAL;
+              const isExpanded = expandedIds.has(ann.id);
+              const contentLong = isContentLong(ann.content);
+              const displayContent = contentLong && !isExpanded
+                ? ann.content.slice(0, 150) + '...'
+                : ann.content;
+              const authorName = users[ann.createdBy] || ann.authorName || 'Unknown';
+              const isDeleting = deletingId === ann.id;
 
-            return (
-              <motion.div key={ann.id} variants={item} layout>
-                <Card className={`border-white/5 border-l-2 ${styles.border} backdrop-blur overflow-hidden transition-all hover:border-white/10 ${
-                  ann.type === 'URGENT' ? 'bg-[#111]/80' : 'bg-[#111]/60'
-                }`}>
-                  {/* Gradient overlay */}
-                  <div className={`absolute inset-0 bg-gradient-to-r ${styles.gradient} pointer-events-none`} />
-                  <CardContent className="relative pt-5 pb-4 px-5">
-                    <div className="flex items-start gap-3">
-                      {/* Icon */}
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${styles.icon}`}>
-                        {ann.type === 'URGENT' ? <AlertTriangle className="h-5 w-5" /> : <Megaphone className="h-5 w-5" />}
-                      </div>
-                      {/* Content */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 mb-1 flex-wrap">
-                          {ann.type === 'URGENT' && (
-                            <Pin className="h-3.5 w-3.5 text-red-400 shrink-0" />
-                          )}
-                          <h3 className="font-semibold text-white">{ann.title}</h3>
-                          <Badge variant="outline" className={`text-[10px] shrink-0 ${styles.badge}`}>
-                            {ann.type}
-                          </Badge>
+              return (
+                <motion.div
+                  key={ann.id}
+                  variants={item}
+                  layout
+                  exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0, transition: { duration: 0.3 } }}
+                >
+                  <Card className={`border-white/5 border-l-2 ${styles.border} backdrop-blur overflow-hidden transition-all hover:border-white/10 ${
+                    ann.type === 'URGENT' ? 'bg-[#111]/80' : 'bg-[#111]/60'
+                  } ${isDeleting ? 'opacity-50' : ''}`}>
+                    {/* Gradient overlay */}
+                    <div className={`absolute inset-0 bg-gradient-to-r ${styles.gradient} pointer-events-none`} />
+                    <CardContent className="relative pt-5 pb-4 px-5">
+                      <div className="flex items-start gap-3">
+                        {/* Icon */}
+                        <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${styles.icon}`}>
+                          {ann.type === 'URGENT' ? <AlertTriangle className="h-5 w-5" /> : <Megaphone className="h-5 w-5" />}
                         </div>
-                        <p className="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed">
-                          {displayContent}
-                        </p>
-                        {contentLong && (
-                          <button
-                            onClick={() => toggleExpand(ann.id)}
-                            className="mt-1 flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
-                          >
-                            {isExpanded ? (
-                              <>Show less <ChevronUp className="h-3 w-3" /></>
-                            ) : (
-                              <>Read more <ChevronDown className="h-3 w-3" /></>
+                        {/* Content */}
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center gap-2 mb-1 flex-wrap">
+                            {ann.type === 'URGENT' && (
+                              <Pin className="h-3.5 w-3.5 text-red-400 shrink-0" />
                             )}
-                          </button>
-                        )}
-                        <div className="flex items-center gap-3 mt-2.5 text-[11px] text-gray-600">
-                          <span className="flex items-center gap-1">
-                            <User className="h-3 w-3" />
-                            {authorName}
-                          </span>
-                          <span className="flex items-center gap-1">
-                            <Clock className="h-3 w-3" />
-                            {timeAgo(ann.createdAt)}
-                          </span>
+                            <h3 className="font-semibold text-white">{ann.title}</h3>
+                            <Badge variant="outline" className={`text-[10px] shrink-0 ${styles.badge}`}>
+                              {ann.type}
+                            </Badge>
+                          </div>
+                          <p className="text-sm text-gray-400 whitespace-pre-wrap leading-relaxed">
+                            {displayContent}
+                          </p>
+                          {contentLong && (
+                            <button
+                              onClick={() => toggleExpand(ann.id)}
+                              className="mt-1 flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
+                            >
+                              {isExpanded ? (
+                                <>Show less <ChevronUp className="h-3 w-3" /></>
+                              ) : (
+                                <>Read more <ChevronDown className="h-3 w-3" /></>
+                              )}
+                            </button>
+                          )}
+                          <div className="flex items-center justify-between mt-2.5">
+                            <div className="flex items-center gap-3 text-[11px] text-gray-600">
+                              <span className="flex items-center gap-1">
+                                <User className="h-3 w-3" />
+                                {authorName}
+                              </span>
+                              <span className="flex items-center gap-1">
+                                <Clock className="h-3 w-3" />
+                                {timeAgo(ann.createdAt)}
+                              </span>
+                            </div>
+                            {canCreate && (
+                              <AlertDialog>
+                                <AlertDialogTrigger asChild>
+                                  <Button
+                                    variant="ghost"
+                                    size="sm"
+                                    className="h-7 w-7 p-0 text-gray-600 hover:text-red-400 hover:bg-red-500/10"
+                                    disabled={isDeleting}
+                                  >
+                                    {isDeleting ? (
+                                      <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                                    ) : (
+                                      <Trash2 className="h-3.5 w-3.5" />
+                                    )}
+                                  </Button>
+                                </AlertDialogTrigger>
+                                <AlertDialogContent className="border-white/10 bg-[#1a1a2e] text-white">
+                                  <AlertDialogHeader>
+                                    <AlertDialogTitle className="text-white">Delete Announcement</AlertDialogTitle>
+                                    <AlertDialogDescription className="text-gray-400">
+                                      Are you sure you want to delete this announcement? This action cannot be undone.
+                                    </AlertDialogDescription>
+                                  </AlertDialogHeader>
+                                  <AlertDialogFooter>
+                                    <AlertDialogCancel className="border-white/10 text-gray-400 hover:bg-white/5">Cancel</AlertDialogCancel>
+                                    <AlertDialogAction
+                                      className="bg-red-600 text-white hover:bg-red-500"
+                                      onClick={() => handleDelete(ann.id)}
+                                    >
+                                      Delete
+                                    </AlertDialogAction>
+                                  </AlertDialogFooter>
+                                </AlertDialogContent>
+                              </AlertDialog>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
-        </motion.div>
+                    </CardContent>
+                  </Card>
+                </motion.div>
+              );
+            })}
+          </motion.div>
+        </AnimatePresence>
       )}
     </motion.div>
   );

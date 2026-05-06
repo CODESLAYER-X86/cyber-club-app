@@ -535,6 +535,201 @@ async function main() {
     }
   }
 
+  // Create demo committee members
+  const presidentUser2 = await db.user.findUnique({ where: { email: "president@cybersecclub.com" } });
+  const vpUser2 = await db.user.findUnique({ where: { email: "vp@cybersecclub.com" } });
+  const gsUser2 = await db.user.findUnique({ where: { email: "gs@cybersecclub.com" } });
+  const treasurerUser2 = await db.user.findUnique({ where: { email: "treasurer@cybersecclub.com" } });
+  const mediaUser2 = await db.user.findUnique({ where: { email: "media@cybersecclub.com" } });
+
+  const committeeMembers = [
+    {
+      name: "Sarah Chen",
+      role: "President",
+      description: "Leading the club's strategic vision and partnerships. Passionate about making cybersecurity accessible to all students.",
+      department: "Computer Science",
+      email: "president@cybersecclub.com",
+      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/sarahchen", github: "https://github.com/sarahchen" }),
+      order: 1,
+      isActive: true,
+    },
+    {
+      name: "Marcus Johnson",
+      role: "Vice President",
+      description: "Driving innovation and cross-team collaboration. Expert in penetration testing and security research.",
+      department: "Information Security",
+      email: "vp@cybersecclub.com",
+      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/marcusjohnson", github: "https://github.com/marcusjohnson" }),
+      order: 2,
+      isActive: true,
+    },
+    {
+      name: "Emily Rodriguez",
+      role: "General Secretary",
+      description: "Managing operations and member engagement. Keeping the club organized and running smoothly.",
+      department: "Cybersecurity",
+      email: "gs@cybersecclub.com",
+      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/emilyrodriguez", twitter: "https://twitter.com/emilyrsec" }),
+      order: 3,
+      isActive: true,
+    },
+    {
+      name: "David Kim",
+      role: "Treasurer",
+      description: "Overseeing financial governance and budgets. Ensuring transparent and responsible use of club resources.",
+      department: "Finance & IT",
+      email: "treasurer@cybersecclub.com",
+      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/davidkim" }),
+      order: 4,
+      isActive: true,
+    },
+    {
+      name: "Aisha Patel",
+      role: "Media Lead",
+      description: "Creating compelling content and social presence. Bringing the club's stories to life through visual media.",
+      department: "Digital Media",
+      email: "media@cybersecclub.com",
+      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/aishapatel", twitter: "https://twitter.com/aishamedia", github: "https://github.com/aishapatel" }),
+      order: 5,
+      isActive: true,
+    },
+  ];
+
+  for (const m of committeeMembers) {
+    const existing = await db.committeeMember.findFirst({ where: { name: m.name, role: m.role } });
+    if (!existing) {
+      await db.committeeMember.create({ data: m });
+    }
+  }
+  console.log("✅ Committee Members seeded");
+
+  // Create demo gallery images
+  if (mediaUser2) {
+    const galleryImages = [
+      {
+        title: "Ethical Hacking Workshop 2024",
+        description: "Students learning reconnaissance and vulnerability scanning techniques in our popular hands-on workshop.",
+        imageUrl: "/uploads/gallery/placeholder-workshop-1.jpg",
+        category: "WORKSHOP",
+        uploadedBy: mediaUser2.id,
+      },
+      {
+        title: "CTF Competition Finals",
+        description: "Teams competing in the final round of our annual Capture The Flag competition.",
+        imageUrl: "/uploads/gallery/placeholder-ctf-1.jpg",
+        category: "CTF",
+        uploadedBy: mediaUser2.id,
+      },
+      {
+        title: "Career Panel Discussion",
+        description: "Industry professionals sharing insights about cybersecurity careers and certifications.",
+        imageUrl: "/uploads/gallery/placeholder-seminar-1.jpg",
+        category: "SEMINAR",
+        uploadedBy: mediaUser2.id,
+      },
+      {
+        title: "Monthly Meetup - Threat Intel",
+        description: "Community discussion on emerging threats and recent CVEs at our monthly meetup.",
+        imageUrl: "/uploads/gallery/placeholder-meetup-1.jpg",
+        category: "MEETUP",
+        uploadedBy: mediaUser2.id,
+      },
+      {
+        title: "Network Security Lab Setup",
+        description: "Our new network security lab with enterprise-grade equipment for hands-on training.",
+        imageUrl: "/uploads/gallery/placeholder-training-1.jpg",
+        category: "EVENT",
+        uploadedBy: mediaUser2.id,
+      },
+      {
+        title: "Club Annual Gathering 2024",
+        description: "The whole CyberSec Club community coming together for our annual celebration.",
+        imageUrl: "/uploads/gallery/placeholder-general-1.jpg",
+        category: "GENERAL",
+        uploadedBy: mediaUser2.id,
+      },
+    ];
+
+    for (const g of galleryImages) {
+      const existing = await db.galleryImage.findFirst({ where: { title: g.title } });
+      if (!existing) {
+        await db.galleryImage.create({ data: g });
+      }
+    }
+    console.log("✅ Gallery Images seeded");
+  }
+
+  // Create demo achievements
+  if (presidentUser2 && mediaUser2) {
+    const achievements = [
+      {
+        title: "National CTF Championship 2024",
+        description: "Our team won first place in the National Capture The Flag competition, defeating 50+ teams from across the country.",
+        category: "COMPETITION",
+        achievedBy: "CyberSec CTF Team",
+        achievedDate: new Date("2024-11-15"),
+        status: "APPROVED",
+        submittedBy: mediaUser2.id,
+        approvedBy: presidentUser2.id,
+      },
+      {
+        title: "Best Cybersecurity Club Award",
+        description: "Recognized as the Best Cybersecurity Club at the National Student Organizations Conference 2024.",
+        category: "ACADEMIC",
+        achievedBy: "CyberSec Club",
+        achievedDate: new Date("2024-09-20"),
+        status: "APPROVED",
+        submittedBy: mediaUser2.id,
+        approvedBy: presidentUser2.id,
+      },
+      {
+        title: "500+ Active Members Milestone",
+        description: "Reached the milestone of 500+ active members, making us the largest cybersecurity student community in the region.",
+        category: "COMMUNITY",
+        achievedBy: "CyberSec Club",
+        achievedDate: new Date("2024-06-01"),
+        status: "APPROVED",
+        submittedBy: mediaUser2.id,
+        approvedBy: presidentUser2.id,
+      },
+      {
+        title: "Industry Partnership with SecureTech",
+        description: "Established a partnership with SecureTech Inc. for providing internship opportunities and workshop resources.",
+        category: "INDUSTRY",
+        achievedBy: "Partnership Team",
+        achievedDate: new Date("2025-01-10"),
+        status: "PENDING",
+        submittedBy: mediaUser2.id,
+      },
+      {
+        title: "100+ CompTIA Security+ Certified",
+        description: "Over 100 club members have earned CompTIA Security+ certification through our study groups and training programs.",
+        category: "CERTIFICATION",
+        achievedBy: "Training Committee",
+        achievedDate: new Date("2025-02-28"),
+        status: "PENDING",
+        submittedBy: mediaUser2.id,
+      },
+      {
+        title: "Regional Hackathon Winners",
+        description: "Our team secured first place in the Regional Cybersecurity Hackathon, solving real-world security challenges in record time.",
+        category: "COMPETITION",
+        achievedBy: "Hackathon Squad",
+        achievedDate: new Date("2025-03-15"),
+        status: "PENDING",
+        submittedBy: mediaUser2.id,
+      },
+    ];
+
+    for (const a of achievements) {
+      const existing = await db.achievement.findFirst({ where: { title: a.title } });
+      if (!existing) {
+        await db.achievement.create({ data: a });
+      }
+    }
+    console.log("✅ Achievements seeded");
+  }
+
   console.log("🎉 Seeding complete!");
 }
 

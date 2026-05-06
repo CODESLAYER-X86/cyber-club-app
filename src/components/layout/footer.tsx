@@ -7,8 +7,10 @@ import type { AppView } from '@/types';
 
 const quickLinks: { label: string; view: AppView }[] = [
   { label: 'Home', view: 'landing' },
-  { label: 'Events', view: 'events' },
   { label: 'About', view: 'about' },
+  { label: 'Events', view: 'events' },
+  { label: 'Gallery', view: 'gallery' },
+  { label: 'Achievements', view: 'achievements' },
   { label: 'Join Club', view: 'register' },
 ];
 
