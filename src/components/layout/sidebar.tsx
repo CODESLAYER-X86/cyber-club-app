@@ -91,6 +91,7 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   'All Dashboards': 'Access all role dashboards',
   'Assigned Events': 'Events assigned for verification',
   Users: 'Manage platform users',
+  Settings: 'App settings and preferences',
 };
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
@@ -106,12 +107,14 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Payments', view: 'finance', icon: 'CreditCard' },
     { label: 'Profile', view: 'profile', icon: 'User' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   MEDIA: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Events', view: 'events', icon: 'PenSquare' },
     { label: 'Content', view: 'announcements', icon: 'FileText' },
     { label: 'Analytics', view: 'analytics', icon: 'BarChart3' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   TREASURER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
@@ -119,6 +122,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Expenses', view: 'expenses', icon: 'Receipt' },
     { label: 'Verify Payments', view: 'verify-payments', icon: 'CheckCircle' },
     { label: 'Reports', view: 'analytics', icon: 'FileText' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   GS: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
@@ -127,12 +131,14 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Approve Expenses', view: 'expenses', icon: 'CheckSquare' },
     { label: 'Reports', view: 'analytics', icon: 'FileText' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   VP: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Analytics', view: 'analytics', icon: 'TrendingUp' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Members', view: 'members', icon: 'Users' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   PRESIDENT: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
@@ -142,11 +148,13 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Audit Logs', view: 'audit-logs', icon: 'ClipboardList' },
     { label: 'Roles', view: 'roles', icon: 'ShieldCheck' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   VERIFIER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Verify Payments', view: 'verify-payments', icon: 'CheckCircle' },
     { label: 'Assigned Events', view: 'events', icon: 'Calendar' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   PLATFORM_ADMIN: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
@@ -154,6 +162,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'System', view: 'audit-logs', icon: 'Settings' },
     { label: 'Audit Logs', view: 'audit-logs', icon: 'ClipboardList' },
     { label: 'All Dashboards', view: 'analytics', icon: 'BarChart3' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
 };
 

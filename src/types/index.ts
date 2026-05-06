@@ -222,7 +222,8 @@ export type AppView =
   | "profile"
   | "announcements"
   | "analytics"
-  | "about";
+  | "about"
+  | "settings";
 
 export interface NavItem {
   label: string;
