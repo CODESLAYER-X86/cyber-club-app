@@ -35,7 +35,7 @@ export function LoginPage() {
       });
       const data = await res.json();
       if (data.success && data.data) {
-        login(data.data);
+        login(data.data.user || data.data);
       } else {
         setError(data.error || 'Login failed');
       }
@@ -59,7 +59,7 @@ export function LoginPage() {
       });
       const data = await res.json();
       if (data.success && data.data) {
-        login(data.data);
+        login(data.data.user || data.data);
       } else {
         setError(data.error || 'Login failed');
       }

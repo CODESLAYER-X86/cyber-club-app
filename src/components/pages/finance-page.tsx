@@ -15,7 +15,7 @@ export function FinancePage() {
   const [budgets, setBudgets] = useState<{ id: string; title: string; amount: number; expenses: { amount: number; status: string }[] }[]>([]);
 
   useEffect(() => {
-    fetch('/api/stats').then(r => r.json()).then(d => { if (d.success) setStats(d.data); }).catch(() => {});
+    fetch('/api/stats').then(r => r.json()).then(d => { if (d.success && d.data) { const s = d.data.stats || d.data; setStats({ totalMembers: s.totalMembers ?? 0, totalFunds: s.totalFunds ?? 0, activeEvents: s.activeEvents ?? 0, pendingApprovals: s.pendingApprovals ?? 0 }); } }).catch(() => {});
     fetch('/api/budgets').then(r => r.json()).then(d => { if (d.success) setBudgets(d.data || []); }).catch(() => {});
   }, []);
 
