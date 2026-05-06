@@ -1,0 +1,56 @@
+import { db } from "@/lib/db";
+import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { NextRequest } from "next/server";
+
+export async function GET() {
+  try {
+    const announcements = await db.announcement.findMany({
+      orderBy: { createdAt: "desc" },
+    });
+
+    return successResponse({ announcements });
+  } catch {
+    return serverErrorResponse();
+  }
+}
+
+export async function POST(request: NextRequest) {
+  try {
+    const body = await request.json();
+    const { title, content, type = "GENERAL", createdBy } = body;
+
+    if (!title || !content || !createdBy) {
+      return errorResponse("title, content, and createdBy are required");
+    }
+
+    const announcement = await db.announcement.create({
+      data: {
+        title,
+        content,
+        type,
+        createdBy,
+      },
+    });
+
+    // Notify all active members
+    const activeMembers = await db.user.findMany({
+      where: { membershipStatus: "ACTIVE" },
+      select: { id: true },
+    });
+
+    if (activeMembers.length > 0) {
+      await db.notification.createMany({
+        data: activeMembers.map((member) => ({
+          userId: member.id,
+          title: `Announcement: ${title}`,
+          message: content.substring(0, 100) + (content.length > 100 ? "..." : ""),
+          type: type === "URGENT" ? "WARNING" : "INFO",
+        })),
+      });
+    }
+
+    return successResponse({ announcement }, 201);
+  } catch {
+    return serverErrorResponse();
+  }
+}

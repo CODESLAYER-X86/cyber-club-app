@@ -1,0 +1,549 @@
+import { db } from "@/lib/db";
+import { hash } from "crypto";
+
+async function main() {
+  console.log("🌱 Seeding database...");
+
+  // Create demo users for each role
+  const users = [
+    {
+      email: "admin@cybersecclub.com",
+      name: "System Admin",
+      password: "admin123",
+      role: "PLATFORM_ADMIN",
+      membershipStatus: "ACTIVE",
+      department: "IT",
+    },
+    {
+      email: "president@cybersecclub.com",
+      name: "Sarah Chen",
+      password: "president123",
+      role: "PRESIDENT",
+      membershipStatus: "ACTIVE",
+      department: "Computer Science",
+      studentId: "CS2024001",
+    },
+    {
+      email: "vp@cybersecclub.com",
+      name: "Marcus Johnson",
+      password: "vp123",
+      role: "VP",
+      membershipStatus: "ACTIVE",
+      department: "Information Security",
+      studentId: "IS2024015",
+    },
+    {
+      email: "gs@cybersecclub.com",
+      name: "Emily Rodriguez",
+      password: "gs123",
+      role: "GS",
+      membershipStatus: "ACTIVE",
+      department: "Cybersecurity",
+      studentId: "CY2024022",
+    },
+    {
+      email: "treasurer@cybersecclub.com",
+      name: "David Kim",
+      password: "treasurer123",
+      role: "TREASURER",
+      membershipStatus: "ACTIVE",
+      department: "Finance & IT",
+      studentId: "FI2024008",
+    },
+    {
+      email: "media@cybersecclub.com",
+      name: "Aisha Patel",
+      password: "media123",
+      role: "MEDIA",
+      membershipStatus: "ACTIVE",
+      department: "Digital Media",
+      studentId: "DM2024031",
+    },
+    {
+      email: "verifier@cybersecclub.com",
+      name: "James Wilson",
+      password: "verifier123",
+      role: "VERIFIER",
+      membershipStatus: "ACTIVE",
+      department: "Network Security",
+      studentId: "NS2024012",
+    },
+    {
+      email: "member1@university.edu",
+      name: "Alex Thompson",
+      password: "member123",
+      role: "MEMBER",
+      membershipStatus: "ACTIVE",
+      department: "Computer Science",
+      studentId: "CS2024045",
+    },
+    {
+      email: "member2@university.edu",
+      name: "Priya Sharma",
+      password: "member123",
+      role: "MEMBER",
+      membershipStatus: "ACTIVE",
+      department: "Information Technology",
+      studentId: "IT2024067",
+    },
+    {
+      email: "pending@university.edu",
+      name: "New Applicant",
+      password: "pending123",
+      role: "GUEST",
+      membershipStatus: "PENDING",
+      department: "Software Engineering",
+      studentId: "SE2024089",
+      transactionId: "TXN-2025-001",
+    },
+    {
+      email: "guest@university.edu",
+      name: "Guest User",
+      password: "guest123",
+      role: "GUEST",
+      membershipStatus: "NON_MEMBER",
+      department: "Electrical Engineering",
+    },
+  ];
+
+  for (const u of users) {
+    await db.user.upsert({
+      where: { email: u.email },
+      update: {},
+      create: {
+        email: u.email,
+        name: u.name,
+        password: u.password, // In production, this would be hashed
+        role: u.role,
+        membershipStatus: u.membershipStatus,
+        department: u.department,
+        studentId: u.studentId || null,
+        transactionId: u.transactionId || null,
+      },
+    });
+  }
+
+  console.log("✅ Users seeded");
+
+  // Create demo events
+  const mediaUser = await db.user.findUnique({ where: { email: "media@cybersecclub.com" } });
+  const verifierUser = await db.user.findUnique({ where: { email: "verifier@cybersecclub.com" } });
+  const presidentUser = await db.user.findUnique({ where: { email: "president@cybersecclub.com" } });
+
+  if (mediaUser && verifierUser) {
+    const events = [
+      {
+        title: "Intro to Ethical Hacking",
+        description: "Learn the fundamentals of ethical hacking and penetration testing. This hands-on workshop covers reconnaissance, vulnerability scanning, and basic exploitation techniques using industry-standard tools.",
+        type: "PUBLIC",
+        category: "WORKSHOP",
+        startDate: new Date("2025-08-15T10:00:00Z"),
+        endDate: new Date("2025-08-15T16:00:00Z"),
+        venue: "Lab 301, CS Building",
+        fee: 0,
+        maxSeats: 50,
+        currentSeats: 32,
+        status: "UPCOMING",
+        requiresAssessment: true,
+        passingScore: 60,
+        verifierId: verifierUser.id,
+        createdBy: mediaUser.id,
+      },
+      {
+        title: "CTF Challenge: Capture the Flag",
+        description: "Test your cybersecurity skills in our Capture The Flag competition! Solve challenges across web exploitation, cryptography, reverse engineering, and forensics to earn points and climb the leaderboard.",
+        type: "MEMBER_ONLY",
+        category: "CTF",
+        startDate: new Date("2025-09-01T09:00:00Z"),
+        endDate: new Date("2025-09-01T18:00:00Z"),
+        venue: "Virtual (Discord)",
+        fee: 0,
+        maxSeats: 100,
+        currentSeats: 45,
+        status: "UPCOMING",
+        requiresAssessment: false,
+        verifierId: verifierUser.id,
+        createdBy: mediaUser.id,
+      },
+      {
+        title: "Network Security Masterclass",
+        description: "An advanced training session on network security fundamentals including firewall configuration, IDS/IPS setup, VPN tunneling, and network monitoring with SIEM tools.",
+        type: "PAID",
+        category: "TRAINING",
+        startDate: new Date("2025-09-20T10:00:00Z"),
+        endDate: new Date("2025-09-22T17:00:00Z"),
+        venue: "Auditorium A, IT Building",
+        fee: 500,
+        maxSeats: 30,
+        currentSeats: 18,
+        status: "UPCOMING",
+        requiresAssessment: true,
+        passingScore: 70,
+        verifierId: verifierUser.id,
+        createdBy: mediaUser.id,
+      },
+      {
+        title: "Cybersecurity Career Panel",
+        description: "Join industry professionals as they share insights about careers in cybersecurity. Learn about different career paths, required certifications, and how to break into the field.",
+        type: "PUBLIC",
+        category: "SEMINAR",
+        startDate: new Date("2025-07-20T14:00:00Z"),
+        endDate: new Date("2025-07-20T17:00:00Z"),
+        venue: "Main Hall",
+        fee: 0,
+        maxSeats: 200,
+        currentSeats: 156,
+        status: "COMPLETED",
+        requiresAssessment: false,
+        verifierId: verifierUser.id,
+        createdBy: mediaUser.id,
+      },
+      {
+        title: "Monthly Meetup: Threat Intelligence",
+        description: "Our monthly meetup focusing on threat intelligence sharing, recent CVEs, and community discussions on emerging cyber threats. Open to all members.",
+        type: "MEMBER_ONLY",
+        category: "MEETUP",
+        startDate: new Date("2025-08-05T18:00:00Z"),
+        endDate: new Date("2025-08-05T20:00:00Z"),
+        venue: "Student Lounge",
+        fee: 0,
+        maxSeats: 40,
+        currentSeats: 22,
+        status: "UPCOMING",
+        requiresAssessment: false,
+        verifierId: verifierUser.id,
+        createdBy: mediaUser.id,
+      },
+    ];
+
+    for (const e of events) {
+      const existing = await db.event.findFirst({ where: { title: e.title } });
+      if (!existing) {
+        await db.event.create({ data: e });
+      }
+    }
+    console.log("✅ Events seeded");
+  }
+
+  // Create demo payments
+  const member1 = await db.user.findUnique({ where: { email: "member1@university.edu" } });
+  const member2 = await db.user.findUnique({ where: { email: "member2@university.edu" } });
+  const pendingUser = await db.user.findUnique({ where: { email: "pending@university.edu" } });
+  const treasurerUser = await db.user.findUnique({ where: { email: "treasurer@cybersecclub.com" } });
+
+  if (member1 && member2 && pendingUser && treasurerUser) {
+    // Membership payments
+    const payments = [
+      {
+        userId: member1.id,
+        amount: 500,
+        type: "MEMBERSHIP",
+        status: "VERIFIED",
+        transactionId: "TXN-MEM-001",
+        verifiedBy: treasurerUser.id,
+      },
+      {
+        userId: member2.id,
+        amount: 500,
+        type: "MEMBERSHIP",
+        status: "VERIFIED",
+        transactionId: "TXN-MEM-002",
+        verifiedBy: treasurerUser.id,
+      },
+      {
+        userId: pendingUser.id,
+        amount: 500,
+        type: "MEMBERSHIP",
+        status: "PENDING",
+        transactionId: "TXN-2025-001",
+      },
+    ];
+
+    for (const p of payments) {
+      const existing = await db.payment.findFirst({ where: { transactionId: p.transactionId } });
+      if (!existing) {
+        await db.payment.create({ data: p });
+      }
+    }
+
+    // Event payments
+    const networkEvent = await db.event.findFirst({ where: { title: "Network Security Masterclass" } });
+    if (networkEvent) {
+      const eventPayments = [
+        {
+          userId: member1.id,
+          amount: 500,
+          type: "EVENT",
+          status: "VERIFIED",
+          transactionId: "TXN-EVT-001",
+          eventId: networkEvent.id,
+          verifiedBy: treasurerUser.id,
+        },
+        {
+          userId: member2.id,
+          amount: 500,
+          type: "EVENT",
+          status: "PENDING",
+          transactionId: "TXN-EVT-002",
+          eventId: networkEvent.id,
+        },
+      ];
+
+      for (const p of eventPayments) {
+        const existing = await db.payment.findFirst({ where: { transactionId: p.transactionId } });
+        if (!existing) {
+          await db.payment.create({ data: p });
+        }
+      }
+    }
+    console.log("✅ Payments seeded");
+  }
+
+  // Create demo budgets and expenses
+  if (treasurerUser && presidentUser) {
+    const budget = await db.budget.upsert({
+      where: { id: "budget-2025-q3" },
+      update: {},
+      create: {
+        id: "budget-2025-q3",
+        title: "Q3 2025 Operations Budget",
+        amount: 50000,
+        category: "OPERATIONS",
+        period: "2025-Q3",
+        createdBy: treasurerUser.id,
+      },
+    });
+
+    const expenses = [
+      {
+        title: "Workshop Materials",
+        amount: 3500,
+        category: "MATERIALS",
+        description: "Printed handouts, USB drives, and practice lab setup materials",
+        status: "APPROVED",
+        budgetId: budget.id,
+        createdBy: treasurerUser.id,
+        approvedBy: presidentUser.id,
+      },
+      {
+        title: "CTF Platform License",
+        amount: 8000,
+        category: "SOFTWARE",
+        description: "Annual license for CTF competition platform",
+        status: "APPROVED",
+        budgetId: budget.id,
+        createdBy: treasurerUser.id,
+        approvedBy: presidentUser.id,
+      },
+      {
+        title: "Guest Speaker Honorarium",
+        amount: 5000,
+        category: "EVENTS",
+        description: "Honorarium for cybersecurity industry guest speaker",
+        status: "PENDING",
+        budgetId: budget.id,
+        createdBy: treasurerUser.id,
+      },
+      {
+        title: "Network Equipment",
+        amount: 12000,
+        category: "EQUIPMENT",
+        description: "Routers, switches, and cables for network security lab",
+        status: "PENDING",
+        budgetId: budget.id,
+        createdBy: treasurerUser.id,
+      },
+    ];
+
+    for (const e of expenses) {
+      const existing = await db.expense.findFirst({ where: { title: e.title, budgetId: e.budgetId } });
+      if (!existing) {
+        await db.expense.create({ data: e });
+      }
+    }
+    console.log("✅ Budgets & Expenses seeded");
+  }
+
+  // Create demo certificates
+  if (member1 && member2) {
+    const careerPanel = await db.event.findFirst({ where: { title: "Cybersecurity Career Panel" } });
+    if (careerPanel) {
+      const certificates = [
+        {
+          certificateCode: "CSC-2025-00001",
+          userId: member1.id,
+          eventId: careerPanel.id,
+          type: "PARTICIPATION",
+          status: "VALID",
+          issuedAt: new Date("2025-07-21T10:00:00Z"),
+        },
+        {
+          certificateCode: "CSC-2025-00002",
+          userId: member2.id,
+          eventId: careerPanel.id,
+          type: "PARTICIPATION",
+          status: "VALID",
+          issuedAt: new Date("2025-07-21T10:00:00Z"),
+        },
+      ];
+
+      for (const c of certificates) {
+        const existing = await db.certificate.findFirst({ where: { certificateCode: c.certificateCode } });
+        if (!existing) {
+          await db.certificate.create({ data: c });
+        }
+      }
+    }
+    console.log("✅ Certificates seeded");
+  }
+
+  // Create demo notifications
+  if (member1) {
+    const notifs = [
+      {
+        userId: member1.id,
+        title: "Event Registration Confirmed",
+        message: "Your registration for 'Intro to Ethical Hacking' has been confirmed!",
+        type: "SUCCESS",
+        read: false,
+      },
+      {
+        userId: member1.id,
+        title: "New Event Available",
+        message: "A new CTF Challenge event has been posted. Register now!",
+        type: "INFO",
+        read: false,
+      },
+      {
+        userId: member1.id,
+        title: "Certificate Ready",
+        message: "Your participation certificate for 'Cybersecurity Career Panel' is now available.",
+        type: "SUCCESS",
+        read: true,
+      },
+    ];
+
+    for (const n of notifs) {
+      await db.notification.create({ data: n });
+    }
+    console.log("✅ Notifications seeded");
+  }
+
+  // Create demo announcements
+  if (presidentUser) {
+    const announcements = [
+      {
+        title: "Welcome to Fall 2025 Semester!",
+        content: "We're excited to kick off another semester of cybersecurity learning. Check out our upcoming events and workshops!",
+        type: "GENERAL",
+        createdBy: presidentUser.id,
+      },
+      {
+        title: "CTF Competition Registration Open",
+        content: "Registration for our annual CTF competition is now open. Limited spots available - register today!",
+        type: "EVENT",
+        createdBy: presidentUser.id,
+      },
+    ];
+
+    for (const a of announcements) {
+      const existing = await db.announcement.findFirst({ where: { title: a.title } });
+      if (!existing) {
+        await db.announcement.create({ data: a });
+      }
+    }
+    console.log("✅ Announcements seeded");
+  }
+
+  // Create demo audit logs
+  const adminUser = await db.user.findUnique({ where: { email: "admin@cybersecclub.com" } });
+  if (adminUser && treasurerUser && presidentUser) {
+    const logs = [
+      {
+        userId: treasurerUser.id,
+        action: "PAYMENT_VERIFIED",
+        details: "Verified membership payment for Alex Thompson (TXN-MEM-001)",
+      },
+      {
+        userId: presidentUser.id,
+        action: "EXPENSE_APPROVED",
+        details: "Approved expense: Workshop Materials (₹3,500)",
+      },
+      {
+        userId: adminUser.id,
+        action: "ROLE_ASSIGNED",
+        details: "Assigned TREASURER role to David Kim",
+      },
+      {
+        userId: treasurerUser.id,
+        action: "BUDGET_CREATED",
+        details: "Created Q3 2025 Operations Budget (₹50,000)",
+      },
+    ];
+
+    for (const l of logs) {
+      await db.auditLog.create({ data: l });
+    }
+    console.log("✅ Audit Logs seeded");
+  }
+
+  // Create demo event registrations
+  if (member1 && member2) {
+    const ethicalHacking = await db.event.findFirst({ where: { title: "Intro to Ethical Hacking" } });
+    const ctf = await db.event.findFirst({ where: { title: "CTF Challenge: Capture the Flag" } });
+    const meetup = await db.event.findFirst({ where: { title: "Monthly Meetup: Threat Intelligence" } });
+
+    if (ethicalHacking && ctf && meetup) {
+      const registrations = [
+        { userId: member1.id, eventId: ethicalHacking.id, status: "APPROVED" },
+        { userId: member2.id, eventId: ethicalHacking.id, status: "PENDING" },
+        { userId: member1.id, eventId: ctf.id, status: "APPROVED" },
+        { userId: member2.id, eventId: ctf.id, status: "APPROVED" },
+        { userId: member1.id, eventId: meetup.id, status: "APPROVED" },
+      ];
+
+      for (const r of registrations) {
+        const existing = await db.eventRegistration.findFirst({
+          where: { userId: r.userId, eventId: r.eventId },
+        });
+        if (!existing) {
+          await db.eventRegistration.create({ data: r });
+        }
+      }
+      console.log("✅ Event Registrations seeded");
+    }
+  }
+
+  // Create demo attendance
+  if (member1 && member2) {
+    const careerPanel = await db.event.findFirst({ where: { title: "Cybersecurity Career Panel" } });
+    if (careerPanel) {
+      const attendanceRecords = [
+        { userId: member1.id, eventId: careerPanel.id, status: "PRESENT" },
+        { userId: member2.id, eventId: careerPanel.id, status: "PRESENT" },
+      ];
+
+      for (const a of attendanceRecords) {
+        const existing = await db.attendance.findFirst({
+          where: { userId: a.userId, eventId: a.eventId },
+        });
+        if (!existing) {
+          await db.attendance.create({ data: a });
+        }
+      }
+      console.log("✅ Attendance seeded");
+    }
+  }
+
+  console.log("🎉 Seeding complete!");
+}
+
+main()
+  .then(async () => {
+    await db.$disconnect();
+  })
+  .catch(async (e) => {
+    console.error(e);
+    await db.$disconnect();
+    process.exit(1);
+  });
