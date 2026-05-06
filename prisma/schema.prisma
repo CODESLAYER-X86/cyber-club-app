@@ -1,0 +1,220 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  password         String
+  role             String   @default("GUEST") // PLATFORM_ADMIN, PRESIDENT, VP, GS, TREASURER, MEDIA, VERIFIER, MEMBER, GUEST
+  membershipStatus String   @default("NON_MEMBER") // NON_MEMBER, PENDING, ACTIVE, REJECTED
+  avatar           String?
+  studentId        String?
+  department       String?
+  phone            String?
+  bio              String?
+  transactionId    String?
+  paymentProof     String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  eventRegistrations  EventRegistration[]
+  certificates        Certificate[]
+  payments            Payment[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  createdEvents       Event[]              @relation("EventCreator")
+  verifiedPayments    Payment[]            @relation("PaymentVerifier")
+  approvedExpenses    Expense[]            @relation("ExpenseApprover")
+  createdExpenses     Expense[]            @relation("ExpenseCreator")
+  createdBudgets      Budget[]             @relation("BudgetCreator")
+  assessments         AssessmentSubmission[]
+  attendance          Attendance[]
+  assignedEvents      Event[]              @relation("EventVerifier")
+}
+
+model Event {
+  id                 String   @id @default(cuid())
+  title              String
+  description        String
+  type               String   @default("PUBLIC") // PUBLIC, MEMBER_ONLY, PAID, LIMITED
+  category           String   @default("WORKSHOP") // WORKSHOP, SEMINAR, TRAINING, CTF, MEETUP
+  startDate          DateTime
+  endDate            DateTime
+  venue              String
+  fee                Float    @default(0)
+  maxSeats           Int?
+  currentSeats       Int      @default(0)
+  poster             String?
+  status             String   @default("UPCOMING") // UPCOMING, ONGOING, COMPLETED, CANCELLED
+  requiresAssessment Boolean  @default(false)
+  passingScore       Float?
+  verifierId         String?
+  createdBy          String
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  creator        User                 @relation("EventCreator", fields: [createdBy], references: [id])
+  verifier       User?                @relation("EventVerifier", fields: [verifierId], references: [id])
+  registrations  EventRegistration[]
+  attendance     Attendance[]
+  certificates   Certificate[]
+  assessments    Assessment[]
+  payments       Payment[]
+}
+
+model EventRegistration {
+  id           String   @id @default(cuid())
+  userId       String
+  eventId      String
+  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  registeredAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId        String
+  amount        Float
+  type          String   @default("MEMBERSHIP") // MEMBERSHIP, EVENT, OTHER
+  status        String   @default("PENDING") // PENDING, VERIFIED, REJECTED
+  transactionId String
+  proofUrl      String?
+  eventId       String?
+  verifiedBy    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user       User    @relation(fields: [userId], references: [id])
+  event      Event?  @relation(fields: [eventId], references: [id])
+  verifier   User?   @relation("PaymentVerifier", fields: [verifiedBy], references: [id])
+}
+
+model Budget {
+  id          String   @id @default(cuid())
+  title       String
+  amount      Float
+  category    String
+  period      String
+  createdBy   String
+  createdAt   DateTime @default(now())
+
+  creator    User      @relation("BudgetCreator", fields: [createdBy], references: [id])
+  expenses   Expense[]
+}
+
+model Expense {
+  id          String   @id @default(cuid())
+  title       String
+  amount      Float
+  category    String
+  description String?
+  proofUrl    String?
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  budgetId    String
+  createdBy   String
+  approvedBy  String?
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  budget   Budget @relation(fields: [budgetId], references: [id])
+  creator  User   @relation("ExpenseCreator", fields: [createdBy], references: [id])
+  approver User?  @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+}
+
+model Attendance {
+  id       String   @id @default(cuid())
+  userId   String
+  eventId  String
+  status   String   @default("PRESENT") // PRESENT, ABSENT, LATE
+  markedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+}
+
+model Certificate {
+  id              String   @id @default(cuid())
+  certificateCode String   @unique
+  userId          String
+  eventId         String
+  type            String   @default("PARTICIPATION") // PARTICIPATION, ACHIEVEMENT, EXCELLENCE
+  score           Float?
+  status          String   @default("VALID") // VALID, REVOKED
+  issuedAt        DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+}
+
+model Assessment {
+  id           String   @id @default(cuid())
+  eventId      String
+  title        String
+  questions    String   // JSON string
+  maxScore     Float
+  passingScore Float
+  createdAt    DateTime @default(now())
+
+  event       Event                 @relation(fields: [eventId], references: [id])
+  submissions AssessmentSubmission[]
+}
+
+model AssessmentSubmission {
+  id            String   @id @default(cuid())
+  userId        String
+  assessmentId  String
+  answers       String   // JSON string
+  score         Float?
+  status        String   @default("SUBMITTED") // SUBMITTED, GRADED
+  submittedAt   DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id])
+  assessment  Assessment  @relation(fields: [assessmentId], references: [id])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, WARNING, SUCCESS, ERROR
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+}
+
+model Announcement {
+  id        String   @id @default(cuid())
+  title     String
+  content   String
+  type      String   @default("GENERAL") // GENERAL, EVENT, URGENT
+  createdBy String
+  createdAt DateTime @default(now())
+}
