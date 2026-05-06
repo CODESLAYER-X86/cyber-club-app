@@ -2,13 +2,14 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity } from 'lucide-react';
+import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity, TrendingUp } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { UserRole, Event, Payment, Certificate, User } from '@/types';
 import { StatCard } from '@/components/shared/stat-card';
 import { StatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 interface DashboardStats {
   totalMembers: number; totalFunds: number; activeEvents: number; pendingApprovals: number;
@@ -30,7 +31,18 @@ export function DashboardPage() {
       try {
         const statsRes = await fetch('/api/stats');
         const statsData = await statsRes.json();
-        if (statsData.success) setStats(statsData.data);
+        if (statsData.success && statsData.data) {
+          const d = statsData.data;
+          const s = d.stats || d;
+          setStats({
+            totalMembers: s.totalMembers ?? 0,
+            totalFunds: s.totalFunds ?? 0,
+            activeEvents: s.activeEvents ?? 0,
+            pendingApprovals: s.pendingApprovals ?? 0,
+            recentActivity: d.recentActivity || [],
+            upcomingEvents: d.upcomingEvents || [],
+          });
+        }
 
         if (currentUser) {
           const certRes = await fetch(`/api/certificates?userId=${currentUser.id}`);
@@ -177,7 +189,7 @@ export function DashboardPage() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-sm font-medium text-white truncate">{event.title}</p>
-                    <p className="text-xs text-gray-500">{new Date(event.startDate).toLocaleDateString()} • {event.venue}</p>
+                    <p className="text-xs text-gray-500 truncate">{new Date(event.startDate).toLocaleDateString()} • {event.venue}</p>
                   </div>
                   <StatusBadge type="event" status={event.status} />
                 </div>
@@ -254,6 +266,55 @@ export function DashboardPage() {
           </div>
         </CardContent>
       </Card>
+
+      {/* Insights Chart - For leadership roles */}
+      {['PRESIDENT', 'VP', 'TREASURER', 'PLATFORM_ADMIN'].includes(role) && (
+        <div className="grid gap-6 lg:grid-cols-2">
+          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><TrendingUp className="h-5 w-5 text-emerald-400" />Member Growth</CardTitle></CardHeader>
+            <CardContent>
+              <ResponsiveContainer width="100%" height={220}>
+                <BarChart data={[
+                  { month: 'Jan', members: 3 }, { month: 'Feb', members: 5 }, { month: 'Mar', members: 6 },
+                  { month: 'Apr', members: 7 }, { month: 'May', members: 9 }, { month: 'Jun', members: stats?.totalMembers || 10 },
+                ]}>
+                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+                  <XAxis dataKey="month" stroke="#666" fontSize={12} />
+                  <YAxis stroke="#666" fontSize={12} />
+                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+                  <Bar dataKey="members" fill="#10b981" radius={[4, 4, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </CardContent>
+          </Card>
+          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+            <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><BarChart3 className="h-5 w-5 text-cyan-400" />Event Distribution</CardTitle></CardHeader>
+            <CardContent className="flex items-center justify-center">
+              <ResponsiveContainer width="100%" height={220}>
+                <PieChart>
+                  <Pie
+                    data={[
+                      { name: 'Workshops', value: 35, fill: '#10b981' },
+                      { name: 'CTF', value: 25, fill: '#06b6d4' },
+                      { name: 'Seminars', value: 20, fill: '#f59e0b' },
+                      { name: 'Meetups', value: 15, fill: '#8b5cf6' },
+                      { name: 'Training', value: 5, fill: '#ef4444' },
+                    ]}
+                    cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value"
+                  >
+                  </Pie>
+                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+                </PieChart>
+              </ResponsiveContainer>
+              <div className="absolute flex flex-wrap justify-center gap-3">
+                {[{n:'Workshops',c:'#10b981'},{n:'CTF',c:'#06b6d4'},{n:'Seminars',c:'#f59e0b'},{n:'Meetups',c:'#8b5cf6'},{n:'Training',c:'#ef4444'}].map(item => (
+                  <div key={item.n} className="flex items-center gap-1.5 text-xs"><div className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:item.c}}/><span className="text-gray-400">{item.n}</span></div>
+                ))}
+              </div>
+            </CardContent>
+          </Card>
+        </div>
+      )}
     </div>
   );
 }

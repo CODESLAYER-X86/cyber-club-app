@@ -28,6 +28,7 @@ import {
   ChevronLeft,
   ChevronRight,
   Lock,
+  UserCheck,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { UserRole, AppView, NavItem } from '@/types';
@@ -61,6 +62,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Settings,
   ShieldCheck,
   Lock,
+  UserCheck,
 };
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
@@ -92,6 +94,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   GS: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Approve Members', view: 'member-approval', icon: 'UserCheck' },
     { label: 'Members', view: 'members', icon: 'Users' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Approve Expenses', view: 'expenses', icon: 'CheckSquare' },
@@ -105,6 +108,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   PRESIDENT: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Approve Members', view: 'member-approval', icon: 'UserCheck' },
     { label: 'Members', view: 'members', icon: 'Users' },
     { label: 'Finance', view: 'finance', icon: 'DollarSign' },
     { label: 'Events', view: 'events', icon: 'Calendar' },

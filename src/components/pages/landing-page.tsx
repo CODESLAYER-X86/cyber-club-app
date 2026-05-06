@@ -19,7 +19,7 @@ export function LandingPage() {
 
   useEffect(() => {
     fetch('/api/events?status=UPCOMING').then(r => r.json()).then(d => { if (d.success) setEvents((d.data || []).slice(0, 3)); }).catch(() => {});
-    fetch('/api/stats').then(r => r.json()).then(d => { if (d.success) setStats(d.data); }).catch(() => {});
+    fetch('/api/stats').then(r => r.json()).then(d => { if (d.success && d.data) { const s = d.data.stats || d.data; setStats({ totalMembers: s.totalMembers ?? 0, totalFunds: s.totalFunds ?? 0, activeEvents: s.activeEvents ?? 0, pendingApprovals: s.pendingApprovals ?? 0 }); } }).catch(() => {});
   }, []);
 
   return (

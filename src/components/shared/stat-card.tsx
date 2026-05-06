@@ -1,28 +1,23 @@
 'use client';
 
-import { type ReactNode } from 'react';
+import { type ComponentType, type SVGProps } from 'react';
 import { motion } from 'framer-motion';
 import { TrendingUp, TrendingDown, Minus } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
 
 export interface StatCardProps {
-  icon: ReactNode;
+  icon: ComponentType<SVGProps<SVGSVGElement> & { className?: string }>;
   label: string;
   value: string | number;
-  trend?: {
-    value: number;
-    label?: string;
-  };
+  trend?: 'up' | 'down' | 'neutral';
+  trendValue?: number;
+  trendLabel?: string;
   className?: string;
   delay?: number;
 }
 
-export function StatCard({ icon, label, value, trend, className, delay = 0 }: StatCardProps) {
-  const isPositive = trend && trend.value > 0;
-  const isNegative = trend && trend.value < 0;
-  const isNeutral = trend && trend.value === 0;
-
+export function StatCard({ icon: Icon, label, value, trend, trendValue, trendLabel, className, delay = 0 }: StatCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
@@ -44,25 +39,27 @@ export function StatCard({ icon, label, value, trend, className, delay = 0 }: St
         <CardContent className="relative p-5">
           <div className="flex items-start justify-between">
             <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-500/20 bg-emerald-500/10 text-emerald-400">
-              {icon}
+              <Icon className="h-5 w-5" />
             </div>
 
             {trend && (
               <div
                 className={cn(
                   'flex items-center gap-1 rounded-full px-2 py-0.5 text-xs font-medium',
-                  isPositive && 'bg-emerald-500/15 text-emerald-400',
-                  isNegative && 'bg-red-500/15 text-red-400',
-                  isNeutral && 'bg-gray-500/15 text-gray-400'
+                  trend === 'up' && 'bg-emerald-500/15 text-emerald-400',
+                  trend === 'down' && 'bg-red-500/15 text-red-400',
+                  trend === 'neutral' && 'bg-gray-500/15 text-gray-400'
                 )}
               >
-                {isPositive && <TrendingUp className="h-3 w-3" />}
-                {isNegative && <TrendingDown className="h-3 w-3" />}
-                {isNeutral && <Minus className="h-3 w-3" />}
-                <span>
-                  {isPositive && '+'}
-                  {trend.value}%
-                </span>
+                {trend === 'up' && <TrendingUp className="h-3 w-3" />}
+                {trend === 'down' && <TrendingDown className="h-3 w-3" />}
+                {trend === 'neutral' && <Minus className="h-3 w-3" />}
+                {trendValue !== undefined && (
+                  <span>
+                    {trend === 'up' && '+'}
+                    {trendValue}%
+                  </span>
+                )}
               </div>
             )}
           </div>
@@ -72,8 +69,8 @@ export function StatCard({ icon, label, value, trend, className, delay = 0 }: St
             <p className="mt-1 text-xs text-gray-500">{label}</p>
           </div>
 
-          {trend?.label && (
-            <p className="mt-2 text-[11px] text-gray-600">{trend.label}</p>
+          {trendLabel && (
+            <p className="mt-2 text-[11px] text-gray-600">{trendLabel}</p>
           )}
         </CardContent>
       </Card>

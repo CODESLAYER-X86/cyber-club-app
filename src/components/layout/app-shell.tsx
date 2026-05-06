@@ -17,6 +17,7 @@ import { EventsPage } from '@/components/pages/events-page';
 import { EventDetailPage } from '@/components/pages/event-detail-page';
 import { CreateEventPage } from '@/components/pages/create-event-page';
 import { MembersPage } from '@/components/pages/members-page';
+import { MemberApprovalPage } from '@/components/pages/member-approval-page';
 import { FinancePage } from '@/components/pages/finance-page';
 import { BudgetsPage } from '@/components/pages/budgets-page';
 import { ExpensesPage } from '@/components/pages/expenses-page';
@@ -40,7 +41,7 @@ const PAGE_MAP: Record<AppView, React.ComponentType> = {
   'event-detail': EventDetailPage,
   'create-event': CreateEventPage,
   members: MembersPage,
-  'member-approval': MembersPage,
+  'member-approval': MemberApprovalPage,
   finance: FinancePage,
   budgets: BudgetsPage,
   expenses: ExpensesPage,
