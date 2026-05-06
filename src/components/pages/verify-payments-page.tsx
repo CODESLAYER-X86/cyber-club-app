@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { CheckCircle, XCircle, CreditCard, Search } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Payment } from '@/types';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { PaymentBadge } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -23,7 +23,7 @@ export function VerifyPaymentsPage() {
     try {
       const params = new URLSearchParams({ status: 'PENDING' });
       if (typeFilter !== 'all') params.set('type', typeFilter);
-      const r = await fetch(`/api/payments?${params}`); const d = await r.json(); if (d.success) setPayments(d.data || []);
+      const r = await fetch(`/api/payments?${params}`); const d = await r.json(); if (d.success) setPayments(d.data.payments || []);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
   useEffect(() => { loadPayments(); }, [typeFilter]);
@@ -67,7 +67,7 @@ export function VerifyPaymentsPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-white">{payment.user?.name || 'Unknown'}</p>
-                      <StatusBadge type="payment" status={payment.status} />
+                      <PaymentBadge status={payment.status} />
                     </div>
                     <p className="text-xs text-gray-500">{payment.type} • ৳{payment.amount.toLocaleString()} • TXN: {payment.transactionId}</p>
                     <p className="text-xs text-gray-600">{new Date(payment.createdAt).toLocaleString()}</p>

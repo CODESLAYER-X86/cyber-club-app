@@ -15,18 +15,24 @@ export interface StatCardProps {
   trendLabel?: string;
   className?: string;
   delay?: number;
+  progress?: number; // 0-100 for progress bar indicator
+  progressColor?: string; // custom progress bar color
 }
 
-export function StatCard({ icon: Icon, label, value, trend, trendValue, trendLabel, className, delay = 0 }: StatCardProps) {
+export function StatCard({ icon: Icon, label, value, trend, trendValue, trendLabel, className, delay = 0, progress, progressColor }: StatCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
+      className="group relative"
     >
+      {/* Animated gradient border on hover */}
+      <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-emerald-500/0 via-cyan-500/0 to-emerald-500/0 opacity-0 transition-all duration-500 group-hover:from-emerald-500/40 group-hover:via-cyan-500/40 group-hover:to-emerald-500/40 group-hover:opacity-100 blur-[1px]" />
+
       <Card
         className={cn(
-          'group relative overflow-hidden border-white/5 bg-[#111] py-0 transition-all duration-300',
+          'relative overflow-hidden border-white/5 bg-[#111] py-0 transition-all duration-300',
           'hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5',
           className
         )}
@@ -68,6 +74,24 @@ export function StatCard({ icon: Icon, label, value, trend, trendValue, trendLab
             <p className="text-2xl font-bold tracking-tight text-white">{value}</p>
             <p className="mt-1 text-xs text-gray-500">{label}</p>
           </div>
+
+          {progress !== undefined && (
+            <div className="mt-3">
+              <div className="mb-1 flex items-center justify-between">
+                <span className="text-[10px] text-gray-600">Progress</span>
+                <span className="text-[10px] font-medium" style={{ color: progressColor || '#10b981' }}>{progress}%</span>
+              </div>
+              <div className="h-1.5 w-full overflow-hidden rounded-full bg-white/5">
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${progress}%` }}
+                  transition={{ duration: 1, delay: delay + 0.3, ease: 'easeOut' }}
+                  className="h-full rounded-full"
+                  style={{ backgroundColor: progressColor || '#10b981' }}
+                />
+              </div>
+            </div>
+          )}
 
           {trendLabel && (
             <p className="mt-2 text-[11px] text-gray-600">{trendLabel}</p>

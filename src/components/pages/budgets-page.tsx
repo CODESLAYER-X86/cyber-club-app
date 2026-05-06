@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Wallet, Plus, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { StatCard } from '@/components/shared/stat-card';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { ExpenseBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,7 +26,7 @@ export function BudgetsPage() {
 
   const loadBudgets = async () => {
     setLoading(true);
-    try { const r = await fetch('/api/budgets'); const d = await r.json(); if (d.success) setBudgets(d.data || []); } catch (e) { console.error(e); } finally { setLoading(false); }
+    try { const r = await fetch('/api/budgets'); const d = await r.json(); if (d.success) setBudgets(d.data.budgets || []); } catch (e) { console.error(e); } finally { setLoading(false); }
   };
   useEffect(() => { loadBudgets(); }, []);
 
@@ -92,7 +92,7 @@ export function BudgetsPage() {
                         {budget.expenses.slice(0, 3).map(exp => (
                           <div key={exp.id} className="flex items-center justify-between text-xs">
                             <span className="text-gray-400">{exp.title}</span>
-                            <div className="flex items-center gap-2"><span className="text-white">৳{exp.amount}</span><StatusBadge type="expense" status={exp.status} /></div>
+                            <div className="flex items-center gap-2"><span className="text-white">৳{exp.amount}</span><ExpenseBadge status={exp.status} /></div>
                           </div>
                         ))}
                       </div>

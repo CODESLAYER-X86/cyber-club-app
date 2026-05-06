@@ -64,8 +64,10 @@ const EXPENSE_COLORS: Record<ExpenseStatus, string> = {
 // Label formatters
 // ──────────────────────────────────────────
 
-const formatLabel = (status: string): string =>
-  status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+const formatLabel = (status: string | undefined | null): string => {
+  if (!status) return 'Unknown';
+  return status.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase());
+};
 
 // ──────────────────────────────────────────
 // Status Badge Components

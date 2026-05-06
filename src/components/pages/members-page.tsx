@@ -6,7 +6,7 @@ import { Users, Search, Shield, CheckCircle, XCircle } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { User, UserRole } from '@/types';
 import { ROLE_LABELS, MEMBERSHIP_STATUS_LABELS } from '@/types';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { MembershipBadge } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -32,7 +32,7 @@ export function MembersPage() {
         if (roleFilter !== 'all') params.set('role', roleFilter);
         if (statusFilter !== 'all') params.set('membershipStatus', statusFilter);
         if (search) params.set('search', search);
-        const r = await fetch(`/api/users?${params}`); const d = await r.json(); if (d.success) setUsers(d.data || []);
+        const r = await fetch(`/api/users?${params}`); const d = await r.json(); if (d.success) setUsers(d.data.users || []);
       } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
@@ -89,7 +89,7 @@ export function MembersPage() {
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2">
                       <p className="font-medium text-white">{user.name}</p>
-                      <StatusBadge type="membership" status={user.membershipStatus} />
+                      <MembershipBadge status={user.membershipStatus} />
                     </div>
                     <p className="text-xs text-gray-500">{user.email} • {user.department || 'N/A'}</p>
                   </div>

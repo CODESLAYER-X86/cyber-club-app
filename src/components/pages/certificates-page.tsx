@@ -6,7 +6,7 @@ import { Award, Shield, Search, ExternalLink } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Certificate } from '@/types';
 import { CERTIFICATE_TYPE_LABELS } from '@/types';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { CertificateStatusBadge } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -25,7 +25,7 @@ export function CertificatesPage() {
       try {
         const isAdmin = ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
         const r = await fetch(`/api/certificates?userId=${currentUser.id}`);
-        const d = await r.json(); if (d.success) setCertificates(d.data || []);
+        const d = await r.json(); if (d.success) setCertificates(d.data.certificates || []);
       } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
@@ -55,7 +55,7 @@ export function CertificatesPage() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/20">
                       <Award className="h-6 w-6 text-emerald-400" />
                     </div>
-                    <StatusBadge type="certificate" status={cert.status} />
+                    <CertificateStatusBadge status={cert.status} />
                   </div>
                   <h3 className="font-semibold text-white">{cert.event?.title || 'Unknown Event'}</h3>
                   <div className="mt-3 flex flex-wrap items-center gap-2">

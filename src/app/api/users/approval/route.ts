@@ -17,6 +17,7 @@ export async function GET() {
         phone: true,
         transactionId: true,
         paymentProof: true,
+        membershipStatus: true,
         createdAt: true,
       },
       orderBy: { createdAt: "asc" },

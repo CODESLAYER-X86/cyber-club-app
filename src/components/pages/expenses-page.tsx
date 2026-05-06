@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { Receipt, Plus, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Expense, ExpenseStatus } from '@/types';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { ExpenseBadge } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,12 +31,12 @@ export function ExpensesPage() {
     setLoading(true);
     try {
       const params = statusFilter !== 'all' ? `?status=${statusFilter}` : '';
-      const r = await fetch(`/api/expenses${params}`); const d = await r.json(); if (d.success) setExpenses(d.data || []);
+      const r = await fetch(`/api/expenses${params}`); const d = await r.json(); if (d.success) setExpenses(d.data.expenses || []);
     } catch (e) { console.error(e); } finally { setLoading(false); }
   };
   useEffect(() => { loadExpenses(); }, [statusFilter]);
 
-  useEffect(() => { fetch('/api/budgets').then(r => r.json()).then(d => { if (d.success) setBudgets((d.data || []).map((b: { id: string; title: string }) => ({ id: b.id, title: b.title }))); }).catch(() => {}); }, []);
+  useEffect(() => { fetch('/api/budgets').then(r => r.json()).then(d => { if (d.success) setBudgets((d.data.budgets || []).map((b: { id: string; title: string }) => ({ id: b.id, title: b.title }))); }).catch(() => {}); }, []);
 
   const handleCreate = async (e: React.FormEvent) => {
     e.preventDefault(); if (!currentUser) return; setCreating(true);
@@ -96,7 +96,7 @@ export function ExpensesPage() {
                     <p className="text-xs text-gray-500">{expense.category} • ৳{expense.amount.toLocaleString()}</p>
                     {expense.description && <p className="text-xs text-gray-600 mt-0.5">{expense.description}</p>}
                   </div>
-                  <StatusBadge type="expense" status={expense.status} />
+                  <ExpenseBadge status={expense.status} />
                   {canApprove && expense.status === 'PENDING' && (
                     <div className="flex gap-2">
                       <Button size="sm" onClick={() => handleApprove(expense.id, 'APPROVED')} className="bg-emerald-600 text-white h-8 text-xs"><CheckCircle className="mr-1 h-3 w-3" />Approve</Button>

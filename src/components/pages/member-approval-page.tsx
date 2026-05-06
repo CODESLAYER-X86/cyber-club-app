@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { UserCheck, UserX, Search, Clock, Mail, Building2, Hash } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { User } from '@/types';
-import { StatusBadge } from '@/components/shared/status-badge';
+import { MembershipBadge } from '@/components/shared/status-badge';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -19,7 +19,7 @@ export function MemberApprovalPage() {
 
   const loadPending = async () => {
     setLoading(true);
-    try { const r = await fetch('/api/users/approval'); const d = await r.json(); if (d.success) setPendingUsers(d.data || []); } catch (e) { console.error(e); } finally { setLoading(false); }
+    try { const r = await fetch('/api/users/approval'); const d = await r.json(); if (d.success) setPendingUsers(d.data.users || []); } catch (e) { console.error(e); } finally { setLoading(false); }
   };
   useEffect(() => { loadPending(); }, []);
 
@@ -80,7 +80,7 @@ export function MemberApprovalPage() {
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 mb-1">
                         <h3 className="text-lg font-semibold text-white">{user.name}</h3>
-                        <StatusBadge type="membership" status={user.membershipStatus} />
+                        <MembershipBadge status={user.membershipStatus} />
                       </div>
                       <div className="grid gap-2 sm:grid-cols-2 mt-3">
                         <div className="flex items-center gap-2 text-sm text-gray-400">

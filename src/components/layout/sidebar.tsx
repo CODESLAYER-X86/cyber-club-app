@@ -37,6 +37,7 @@ import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip';
 import { cn } from '@/lib/utils';
 
 const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -63,6 +64,33 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   ShieldCheck,
   Lock,
   UserCheck,
+};
+
+const NAV_DESCRIPTIONS: Record<string, string> = {
+  Home: 'Return to the homepage',
+  Events: 'Browse and manage events',
+  About: 'Learn about CyberSec Club',
+  Join: 'Apply for club membership',
+  Dashboard: 'Overview and key metrics',
+  Certificates: 'View your earned certificates',
+  Payments: 'Payment history and dues',
+  Profile: 'Manage your profile settings',
+  Content: 'Manage announcements and content',
+  Analytics: 'View engagement analytics',
+  Budgets: 'Manage club budgets',
+  Expenses: 'Track and approve expenses',
+  'Verify Payments': 'Verify member payment proofs',
+  Reports: 'Financial and activity reports',
+  'Approve Members': 'Review and approve new member applications',
+  Members: 'View and manage member directory',
+  'Approve Expenses': 'Review pending expense approvals',
+  Finance: 'Club financial overview',
+  'Audit Logs': 'View system audit trail',
+  Roles: 'Assign and manage member roles',
+  System: 'Platform system settings',
+  'All Dashboards': 'Access all role dashboards',
+  'Assigned Events': 'Events assigned for verification',
+  Users: 'Manage platform users',
 };
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
@@ -141,11 +169,40 @@ const ROLE_COLORS: Record<UserRole, string> = {
   GUEST: 'bg-gray-500/20 text-gray-400 border-gray-500/30',
 };
 
+const ROLE_GLOW_COLORS: Record<UserRole, string> = {
+  PLATFORM_ADMIN: 'shadow-red-500/20',
+  PRESIDENT: 'shadow-amber-500/20',
+  VP: 'shadow-purple-500/20',
+  GS: 'shadow-cyan-500/20',
+  TREASURER: 'shadow-emerald-500/20',
+  MEDIA: 'shadow-pink-500/20',
+  VERIFIER: 'shadow-orange-500/20',
+  MEMBER: 'shadow-blue-500/20',
+  GUEST: 'shadow-gray-500/10',
+};
+
 export function Sidebar() {
-  const { currentUser, currentView, sidebarOpen, toggleSidebar, setCurrentView, setSidebarOpen } = useAppStore();
+  const { currentUser, currentView, sidebarOpen, toggleSidebar, setCurrentView, setSidebarOpen, notifications } = useAppStore();
 
   const role = currentUser?.role ?? 'GUEST';
   const navItems = useMemo(() => NAV_ITEMS[role] ?? NAV_ITEMS.GUEST, [role]);
+
+  const unreadNotificationCount = useMemo(
+    () => notifications.filter((n) => !n.read).length,
+    [notifications]
+  );
+
+  // Get badge counts for specific nav items
+  const getBadgeCount = (item: NavItem): number => {
+    if (item.label === 'Approve Members' && ['PRESIDENT', 'GS'].includes(role)) {
+      // We'll show the unread notification count as a proxy for pending items
+      return unreadNotificationCount;
+    }
+    if (item.label === 'Notifications') {
+      return unreadNotificationCount;
+    }
+    return 0;
+  };
 
   return (
     <>
@@ -171,12 +228,21 @@ export function Sidebar() {
         }}
         className={cn(
           'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-white/5 bg-[#0a0a0a] md:relative md:z-auto',
-          'transition-transform duration-300',
+          'transition-transform duration-300 overflow-hidden',
           !sidebarOpen && 'max-md:-translate-x-full max-md:w-[260px]'
         )}
       >
+        {/* Animated scan line effect */}
+        <div className="pointer-events-none absolute inset-0 z-10 overflow-hidden">
+          <motion.div
+            animate={{ y: ['-100%', '100vh'] }}
+            transition={{ duration: 8, repeat: Infinity, ease: 'linear' }}
+            className="absolute left-0 right-0 h-[2px] bg-gradient-to-r from-transparent via-emerald-500/[0.07] to-transparent"
+          />
+        </div>
+
         {/* Logo area */}
-        <div className="flex h-16 items-center gap-3 border-b border-white/5 px-4">
+        <div className="relative z-20 flex h-16 items-center gap-3 border-b border-white/5 px-4">
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20">
             <Shield className="h-5 w-5 text-emerald-400" />
           </div>
@@ -200,7 +266,7 @@ export function Sidebar() {
           </AnimatePresence>
         </div>
 
-        {/* Role badge */}
+        {/* Role badge with glow */}
         <AnimatePresence>
           {sidebarOpen && currentUser && (
             <motion.div
@@ -211,8 +277,9 @@ export function Sidebar() {
             >
               <div
                 className={cn(
-                  'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium',
-                  ROLE_COLORS[role]
+                  'flex items-center gap-2 rounded-lg border px-3 py-2 text-xs font-medium shadow-lg',
+                  ROLE_COLORS[role],
+                  ROLE_GLOW_COLORS[role]
                 )}
               >
                 <Lock className="h-3.5 w-3.5 shrink-0" />
@@ -223,13 +290,15 @@ export function Sidebar() {
         </AnimatePresence>
 
         {/* Navigation */}
-        <ScrollArea className="flex-1 px-3 py-3">
+        <ScrollArea className="relative z-20 flex-1 px-3 py-3">
           <nav className="flex flex-col gap-1">
             {navItems.map((item) => {
               const Icon = ICON_MAP[item.icon] ?? Home;
               const isActive = currentView === item.view;
+              const badgeCount = getBadgeCount(item);
+              const description = NAV_DESCRIPTIONS[item.label] || '';
 
-              return (
+              const navButton = (
                 <button
                   key={item.view}
                   onClick={() => {
@@ -273,27 +342,78 @@ export function Sidebar() {
                     )}
                   </AnimatePresence>
 
-                  {/* Tooltip for collapsed state */}
-                  {!sidebarOpen && (
-                    <span className="absolute left-full z-50 ml-2 hidden whitespace-nowrap rounded-md bg-[#1a1a2e] px-2 py-1 text-xs text-white shadow-lg group-hover:block">
-                      {item.label}
-                    </span>
+                  {/* Badge for notification counts */}
+                  {badgeCount > 0 && sidebarOpen && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="ml-auto flex h-5 min-w-5 items-center justify-center rounded-full bg-emerald-500 px-1.5 text-[10px] font-bold text-white"
+                    >
+                      {badgeCount > 99 ? '99+' : badgeCount}
+                    </motion.span>
+                  )}
+
+                  {/* Small badge dot when collapsed */}
+                  {badgeCount > 0 && !sidebarOpen && (
+                    <span className="absolute right-1.5 top-1.5 h-2 w-2 rounded-full bg-emerald-500" />
                   )}
                 </button>
+              );
+
+              // When sidebar is collapsed, use tooltip component for descriptions
+              if (!sidebarOpen) {
+                return (
+                  <Tooltip key={item.view} delayDuration={200}>
+                    <TooltipTrigger asChild>
+                      {navButton}
+                    </TooltipTrigger>
+                    <TooltipContent side="right" className="border-white/10 bg-[#1a1a2e] text-white">
+                      <p className="font-medium">{item.label}</p>
+                      {description && <p className="text-xs text-gray-400">{description}</p>}
+                    </TooltipContent>
+                  </Tooltip>
+                );
+              }
+
+              // When sidebar is expanded, show tooltip on hover with description
+              return (
+                <Tooltip key={item.view} delayDuration={500}>
+                  <TooltipTrigger asChild>
+                    {navButton}
+                  </TooltipTrigger>
+                  {description && (
+                    <TooltipContent side="right" className="border-white/10 bg-[#1a1a2e] text-gray-300">
+                      <p className="text-xs">{description}</p>
+                    </TooltipContent>
+                  )}
+                </Tooltip>
               );
             })}
           </nav>
         </ScrollArea>
 
-        <Separator className="bg-white/5" />
+        <Separator className="relative z-20 bg-white/5" />
 
-        {/* Collapse toggle */}
-        <div className="flex items-center justify-center p-3">
+        {/* Version and collapse toggle */}
+        <div className="relative z-20 flex items-center justify-between p-3">
+          {sidebarOpen && (
+            <motion.span
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="text-[10px] tracking-wider text-gray-600 font-mono"
+            >
+              CyberSec v1.0.0
+            </motion.span>
+          )}
           <Button
             variant="ghost"
             size="icon"
             onClick={toggleSidebar}
-            className="h-8 w-8 text-gray-500 hover:bg-white/5 hover:text-gray-300"
+            className={cn(
+              'h-8 w-8 text-gray-500 hover:bg-white/5 hover:text-gray-300',
+              !sidebarOpen && 'mx-auto'
+            )}
           >
             {sidebarOpen ? (
               <ChevronLeft className="h-4 w-4" />

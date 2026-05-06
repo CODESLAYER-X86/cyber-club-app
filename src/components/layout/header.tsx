@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Search,
@@ -12,6 +12,7 @@ import {
   User,
   Settings,
   ChevronRight,
+  Clock,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { AppView } from '@/types';
@@ -103,6 +104,15 @@ export function Header() {
     isAuthenticated,
   } = useAppStore();
 
+  const [currentTime, setCurrentTime] = useState(new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setCurrentTime(new Date());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
+
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
     [notifications]
@@ -121,6 +131,8 @@ export function Header() {
       .toUpperCase()
       .slice(0, 2);
   }, [userName]);
+
+  const timeString = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
     <motion.header
@@ -172,13 +184,24 @@ export function Header() {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Search bar */}
+      {/* Search bar with Ctrl+K hint */}
       <div className="relative hidden max-w-xs flex-1 md:flex">
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
         <Input
           placeholder="Search..."
-          className="h-9 rounded-lg border-white/10 bg-white/5 pl-9 text-sm text-gray-300 placeholder:text-gray-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
+          className="h-9 rounded-lg border-white/10 bg-white/5 pl-9 pr-14 text-sm text-gray-300 placeholder:text-gray-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
         />
+        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded bg-white/5 px-1.5 py-0.5">
+          <kbd className="text-[10px] font-mono text-gray-500">Ctrl</kbd>
+          <span className="text-[10px] text-gray-600">+</span>
+          <kbd className="text-[10px] font-mono text-gray-500">K</kbd>
+        </div>
+      </div>
+
+      {/* Real-time Clock */}
+      <div className="hidden items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 lg:flex">
+        <Clock className="h-3.5 w-3.5 text-emerald-400" />
+        <span className="text-xs font-mono tabular-nums text-gray-400">{timeString}</span>
       </div>
 
       {/* Theme toggle */}
@@ -191,7 +214,7 @@ export function Header() {
         {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
       </Button>
 
-      {/* Notifications */}
+      {/* Notifications with animated bell */}
       {isAuthenticated && (
         <Button
           variant="ghost"
@@ -199,7 +222,19 @@ export function Header() {
           onClick={() => setCurrentView('notifications')}
           className="relative h-9 w-9 text-gray-400 hover:bg-white/5 hover:text-gray-200"
         >
-          <Bell className="h-4 w-4" />
+          <motion.div
+            animate={unreadCount > 0 ? {
+              rotate: [0, -15, 15, -10, 10, 0],
+            } : {}}
+            transition={unreadCount > 0 ? {
+              duration: 0.6,
+              repeat: Infinity,
+              repeatDelay: 3,
+              ease: 'easeInOut',
+            } : {}}
+          >
+            <Bell className="h-4 w-4" />
+          </motion.div>
           {unreadCount > 0 && (
             <motion.span
               initial={{ scale: 0 }}
@@ -209,19 +244,41 @@ export function Header() {
               {unreadCount > 9 ? '9+' : unreadCount}
             </motion.span>
           )}
+          {/* Pulse ring for unread notifications */}
+          {unreadCount > 0 && (
+            <motion.span
+              animate={{
+                scale: [1, 1.5],
+                opacity: [0.5, 0],
+              }}
+              transition={{
+                duration: 2,
+                repeat: Infinity,
+                ease: 'easeOut',
+              }}
+              className="absolute -right-0.5 -top-0.5 h-4 w-4 rounded-full bg-emerald-500"
+            />
+          )}
         </Button>
       )}
 
-      {/* User menu */}
+      {/* User menu with online status indicator */}
       {isAuthenticated && currentUser ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
             <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5">
-              <Avatar className="h-8 w-8 border border-emerald-500/30">
-                <AvatarFallback className="bg-emerald-500/20 text-xs font-semibold text-emerald-400">
-                  {initials}
-                </AvatarFallback>
-              </Avatar>
+              <div className="relative">
+                <Avatar className="h-8 w-8 border border-emerald-500/30">
+                  <AvatarFallback className="bg-emerald-500/20 text-xs font-semibold text-emerald-400">
+                    {initials}
+                  </AvatarFallback>
+                </Avatar>
+                {/* Online status indicator */}
+                <span className="absolute -bottom-0.5 -right-0.5 flex h-3 w-3 items-center justify-center">
+                  <span className="absolute h-full w-full rounded-full bg-emerald-500 opacity-30 animate-ping" />
+                  <span className="relative h-2.5 w-2.5 rounded-full border-2 border-[#0a0a0a] bg-emerald-500" />
+                </span>
+              </div>
               <span className="hidden text-sm font-medium text-gray-300 md:block">
                 {currentUser.name}
               </span>
@@ -233,7 +290,10 @@ export function Header() {
           >
             <DropdownMenuLabel className="font-normal">
               <div className="flex flex-col space-y-1">
-                <p className="text-sm font-medium text-white">{currentUser.name}</p>
+                <div className="flex items-center gap-2">
+                  <p className="text-sm font-medium text-white">{currentUser.name}</p>
+                  <span className="flex h-2 w-2 rounded-full bg-emerald-500" />
+                </div>
                 <p className="text-xs text-gray-500">{currentUser.email}</p>
               </div>
             </DropdownMenuLabel>

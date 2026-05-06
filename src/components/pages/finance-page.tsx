@@ -16,7 +16,7 @@ export function FinancePage() {
 
   useEffect(() => {
     fetch('/api/stats').then(r => r.json()).then(d => { if (d.success && d.data) { const s = d.data.stats || d.data; setStats({ totalMembers: s.totalMembers ?? 0, totalFunds: s.totalFunds ?? 0, activeEvents: s.activeEvents ?? 0, pendingApprovals: s.pendingApprovals ?? 0 }); } }).catch(() => {});
-    fetch('/api/budgets').then(r => r.json()).then(d => { if (d.success) setBudgets(d.data || []); }).catch(() => {});
+    fetch('/api/budgets').then(r => r.json()).then(d => { if (d.success) setBudgets(d.data.budgets || []); }).catch(() => {});
   }, []);
 
   const chartData = budgets.map(b => ({
