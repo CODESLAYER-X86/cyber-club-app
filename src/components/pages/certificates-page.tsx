@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Award, Shield, Search, ExternalLink, Download, Star, CheckCircle, XCircle, FileCheck } from 'lucide-react';
+import { Award, Shield, Search, ExternalLink, Download, Star, CheckCircle, XCircle, FileCheck, Share2, Linkedin, Twitter, Copy, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Certificate, CertificateType, CertificateStatus } from '@/types';
 import { CERTIFICATE_TYPE_LABELS } from '@/types';
@@ -11,6 +11,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 const container = {
   hidden: { opacity: 0 },
@@ -28,6 +29,9 @@ export function CertificatesPage() {
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [hoveredId, setHoveredId] = useState<string | null>(null);
+  const [shareOpen, setShareOpen] = useState<string | null>(null);
+  const [copiedId, setCopiedId] = useState<string | null>(null);
+  const canExport = currentUser && ['PRESIDENT', 'TREASURER', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
   useEffect(() => {
     if (!currentUser) return;
@@ -40,6 +44,24 @@ export function CertificatesPage() {
     };
     load();
   }, [currentUser]);
+
+  const handleLinkedInShare = (code: string) => {
+    const url = `${window.location.origin}/?cert=${code}`;
+    window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+  };
+
+  const handleTwitterShare = (code: string, type: CertificateType) => {
+    const url = `${window.location.origin}/?cert=${code}`;
+    const text = `I earned a ${CERTIFICATE_TYPE_LABELS[type]} certificate from CyberSec Club! 🛡️🔐`;
+    window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
+  };
+
+  const handleCopyLink = async (code: string) => {
+    const url = `${window.location.origin}/?cert=${code}`;
+    await navigator.clipboard.writeText(url);
+    setCopiedId(code);
+    setTimeout(() => setCopiedId(null), 2000);
+  };
 
   const filtered = certificates.filter(c => !search || c.certificateCode.toLowerCase().includes(search.toLowerCase()) || c.event?.title?.toLowerCase().includes(search.toLowerCase()));
 
@@ -166,8 +188,46 @@ export function CertificatesPage() {
                           </div>
                           <p className="text-xs text-gray-500">{new Date(cert.issuedAt).toLocaleDateString()}</p>
                         </div>
-                        {/* Download button */}
-                        <div className="mt-3 flex justify-end">
+                        {/* Authority Info */}
+                        {(cert.issuer || cert.approver || cert.revoker) && (
+                          <div className="mt-2 pt-2 border-t border-white/5 space-y-1">
+                            {cert.issuer && (
+                              <p className="text-[10px] text-gray-500"><span className="text-gray-600">Issued by:</span> {cert.issuer.name}</p>
+                            )}
+                            {cert.approver && (
+                              <p className="text-[10px] text-cyan-400/70"><span className="text-gray-600">Approved by:</span> {cert.approver.name}</p>
+                            )}
+                            {cert.revoker && (
+                              <p className="text-[10px] text-red-400/70"><span className="text-gray-600">Revoked by:</span> {cert.revoker.name}</p>
+                            )}
+                            {cert.revocationReason && (
+                              <p className="text-[10px] text-red-400/50"><span className="text-gray-600">Reason:</span> {cert.revocationReason}</p>
+                            )}
+                          </div>
+                        )}
+                        {/* Action buttons */}
+                        <div className="mt-3 flex justify-end gap-2">
+                          <Popover open={shareOpen === cert.id} onOpenChange={(open) => setShareOpen(open ? cert.id : null)}>
+                            <PopoverTrigger asChild>
+                              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
+                                <Share2 className="mr-1 h-3 w-3" /> Share
+                              </Button>
+                            </PopoverTrigger>
+                            <PopoverContent className="w-52 border-white/10 bg-[#1a1a2e] text-white p-2" align="end">
+                              <div className="space-y-1">
+                                <button onClick={() => { handleLinkedInShare(cert.certificateCode); setShareOpen(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-[#0A66C2]/20 hover:text-white transition-colors">
+                                  <Linkedin className="h-4 w-4 text-[#0A66C2]" /> Share on LinkedIn
+                                </button>
+                                <button onClick={() => { handleTwitterShare(cert.certificateCode, cert.type); setShareOpen(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-sky-500/20 hover:text-white transition-colors">
+                                  <Twitter className="h-4 w-4 text-sky-400" /> Share on X
+                                </button>
+                                <button onClick={() => handleCopyLink(cert.certificateCode)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors">
+                                  {copiedId === cert.certificateCode ? <CheckCircle className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                                  {copiedId === cert.certificateCode ? 'Copied!' : 'Copy Link'}
+                                </button>
+                              </div>
+                            </PopoverContent>
+                          </Popover>
                           <Button variant="ghost" size="sm" className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
                             <Download className="mr-1 h-3 w-3" /> Download
                           </Button>

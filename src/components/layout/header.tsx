@@ -1,7 +1,7 @@
 'use client';
 
 import { useMemo, useState, useEffect } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
   Bell,
@@ -13,6 +13,13 @@ import {
   Settings,
   ChevronRight,
   Clock,
+  Shield,
+  Calendar,
+  Info,
+  Image,
+  Trophy,
+  Home,
+  X,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { AppView } from '@/types';
@@ -55,6 +62,8 @@ const VIEW_TITLES: Record<AppView, string> = {
   'verify-payments': 'Verify Payments',
   certificates: 'Certificates',
   'certificate-verify': 'Verify Certificate',
+  'certificate-public': 'Certificate',
+  'certificate-authority': 'Certificate Authority',
   assessments: 'Assessments',
   notifications: 'Notifications',
   'audit-logs': 'Audit Logs',
@@ -64,6 +73,8 @@ const VIEW_TITLES: Record<AppView, string> = {
   analytics: 'Analytics',
   about: 'About',
   settings: 'Settings',
+  gallery: 'Gallery',
+  achievements: 'Achievements',
 };
 
 const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = {
@@ -82,6 +93,8 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
   'verify-payments': [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Verify Payments' }],
   certificates: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Certificates' }],
   'certificate-verify': [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Certificates', parent: 'certificates' }, { label: 'Verify' }],
+  'certificate-public': [{ label: 'Home', parent: 'landing' }, { label: 'Certificate' }],
+  'certificate-authority': [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Certificate Authority' }],
   assessments: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Assessments' }],
   notifications: [{ label: 'Notifications' }],
   'audit-logs': [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Audit Logs' }],
@@ -91,7 +104,18 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
   analytics: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Analytics' }],
   about: [{ label: 'About' }],
   settings: [{ label: 'Settings' }],
+  gallery: [{ label: 'Gallery' }],
+  achievements: [{ label: 'Achievements' }],
 };
+
+/* ─── Public Navigation Links ─── */
+const PUBLIC_NAV_LINKS: { label: string; view: AppView; icon: React.ElementType }[] = [
+  { label: 'Home', view: 'landing', icon: Home },
+  { label: 'About', view: 'about', icon: Info },
+  { label: 'Events', view: 'events', icon: Calendar },
+  { label: 'Gallery', view: 'gallery', icon: Image },
+  { label: 'Achievements', view: 'achievements', icon: Trophy },
+];
 
 export function Header() {
   const {
@@ -109,6 +133,10 @@ export function Header() {
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [searchOpen, setSearchOpen] = useState(false);
+  const [mobileNavOpen, setMobileNavOpen] = useState(false);
+
+  // Determine if we're in full-page mode (public pages without sidebar)
+  const isFullPageMode = !isAuthenticated && ['landing', 'login', 'register', 'certificate-public', 'about', 'gallery', 'achievements', 'events'].includes(currentView);
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -159,44 +187,107 @@ export function Header() {
         'sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-white/5 bg-[#0a0a0a]/80 px-4 backdrop-blur-xl md:px-6'
       )}
     >
-      {/* Mobile menu toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggleSidebar}
-        className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden"
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
+      {/* Mobile menu toggle (sidebar mode) */}
+      {!isFullPageMode && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+          className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
 
-      {/* Breadcrumbs */}
-      <div className="hidden sm:block">
-        <Breadcrumb>
-          <BreadcrumbList>
-            {breadcrumbs.map((crumb, index) => (
-              <span key={index} className="contents">
-                <BreadcrumbItem>
-                  {index < breadcrumbs.length - 1 && crumb.parent ? (
-                    <BreadcrumbLink
-                      asChild
-                      className="cursor-pointer text-gray-500 hover:text-emerald-400"
-                      onClick={() => setCurrentView(crumb.parent as AppView)}
-                    >
-                      <span>{crumb.label}</span>
-                    </BreadcrumbLink>
-                  ) : (
-                    <BreadcrumbPage className="text-gray-200">{crumb.label}</BreadcrumbPage>
+      {/* Public page: Logo + Navigation */}
+      {isFullPageMode ? (
+        <>
+          {/* Logo */}
+          <button
+            onClick={() => setCurrentView('landing')}
+            className="flex items-center gap-2.5 shrink-0"
+          >
+            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20">
+              <Shield className="h-4.5 w-4.5 text-emerald-400" />
+            </div>
+            <span className="hidden text-sm font-bold text-white sm:block">
+              CyberSec<span className="text-emerald-400">Club</span>
+            </span>
+          </button>
+
+          {/* Desktop Navigation */}
+          <nav className="hidden md:flex items-center gap-1 ml-4">
+            {PUBLIC_NAV_LINKS.map((link) => {
+              const isActive = currentView === link.view;
+              return (
+                <button
+                  key={link.view}
+                  onClick={() => setCurrentView(link.view)}
+                  className={cn(
+                    'relative px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+                    isActive
+                      ? 'text-emerald-400 bg-emerald-500/10'
+                      : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
                   )}
-                </BreadcrumbItem>
-                {index < breadcrumbs.length - 1 && <BreadcrumbSeparator className="text-gray-600" />}
-              </span>
-            ))}
-          </BreadcrumbList>
-        </Breadcrumb>
-      </div>
+                >
+                  {isActive && (
+                    <motion.div
+                      layoutId="header-active-nav"
+                      className="absolute inset-0 rounded-lg bg-emerald-500/10 border border-emerald-500/20"
+                      transition={{ type: 'spring', stiffness: 500, damping: 30 }}
+                    />
+                  )}
+                  <span className="relative flex items-center gap-1.5">
+                    <link.icon className="h-3.5 w-3.5" />
+                    {link.label}
+                  </span>
+                </button>
+              );
+            })}
+          </nav>
 
-      {/* Page title on mobile */}
-      <h1 className="text-sm font-semibold text-gray-200 sm:hidden">{title}</h1>
+          {/* Mobile nav toggle */}
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={() => setMobileNavOpen(!mobileNavOpen)}
+            className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden ml-auto"
+          >
+            {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
+          </Button>
+        </>
+      ) : (
+        <>
+          {/* Breadcrumbs */}
+          <div className="hidden sm:block">
+            <Breadcrumb>
+              <BreadcrumbList>
+                {breadcrumbs.map((crumb, index) => (
+                  <span key={index} className="contents">
+                    <BreadcrumbItem>
+                      {index < breadcrumbs.length - 1 && crumb.parent ? (
+                        <BreadcrumbLink
+                          asChild
+                          className="cursor-pointer text-gray-500 hover:text-emerald-400"
+                          onClick={() => setCurrentView(crumb.parent as AppView)}
+                        >
+                          <span>{crumb.label}</span>
+                        </BreadcrumbLink>
+                      ) : (
+                        <BreadcrumbPage className="text-gray-200">{crumb.label}</BreadcrumbPage>
+                      )}
+                    </BreadcrumbItem>
+                    {index < breadcrumbs.length - 1 && <BreadcrumbSeparator className="text-gray-600" />}
+                  </span>
+                ))}
+              </BreadcrumbList>
+            </Breadcrumb>
+          </div>
+
+          {/* Page title on mobile */}
+          <h1 className="text-sm font-semibold text-gray-200 sm:hidden">{title}</h1>
+        </>
+      )}
 
       {/* Spacer */}
       <div className="flex-1" />
@@ -342,16 +433,74 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <Button
-          onClick={() => setCurrentView('login')}
-          variant="ghost"
-          size="sm"
-          className="text-sm text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300"
-        >
-          Sign In
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            onClick={() => setCurrentView('register')}
+            variant="outline"
+            size="sm"
+            className="hidden sm:inline-flex border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 hover:border-emerald-500/30"
+          >
+            Join Club
+          </Button>
+          <Button
+            onClick={() => setCurrentView('login')}
+            size="sm"
+            className="bg-emerald-600 text-white hover:bg-emerald-500 shadow-lg shadow-emerald-500/20"
+          >
+            Sign In
+          </Button>
+        </div>
       )}
     </motion.header>
+
+    {/* Mobile navigation dropdown for public pages */}
+    <AnimatePresence>
+      {isFullPageMode && mobileNavOpen && (
+        <motion.div
+          initial={{ opacity: 0, height: 0 }}
+          animate={{ opacity: 1, height: 'auto' }}
+          exit={{ opacity: 0, height: 0 }}
+          transition={{ duration: 0.2 }}
+          className="fixed top-16 left-0 right-0 z-20 border-b border-white/5 bg-[#0a0a0a]/95 backdrop-blur-xl md:hidden"
+        >
+          <nav className="flex flex-col gap-1 p-4">
+            {PUBLIC_NAV_LINKS.map((link) => {
+              const isActive = currentView === link.view;
+              return (
+                <button
+                  key={link.view}
+                  onClick={() => { setCurrentView(link.view); setMobileNavOpen(false); }}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg px-4 py-3 text-sm font-medium transition-all',
+                    isActive
+                      ? 'bg-emerald-500/10 text-emerald-400 border-l-2 border-emerald-400'
+                      : 'text-gray-400 hover:bg-white/5 hover:text-gray-200'
+                  )}
+                >
+                  <link.icon className="h-4 w-4" />
+                  {link.label}
+                </button>
+              );
+            })}
+            <div className="mt-3 flex gap-2 border-t border-white/5 pt-3">
+              <Button
+                onClick={() => { setCurrentView('register'); setMobileNavOpen(false); }}
+                variant="outline"
+                className="flex-1 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
+              >
+                Join Club
+              </Button>
+              <Button
+                onClick={() => { setCurrentView('login'); setMobileNavOpen(false); }}
+                className="flex-1 bg-emerald-600 text-white hover:bg-emerald-500"
+              >
+                Sign In
+              </Button>
+            </div>
+          </nav>
+        </motion.div>
+      )}
+    </AnimatePresence>
 
       {/* Global Search Command */}
       <SearchCommand open={searchOpen} onOpenChange={setSearchOpen} />

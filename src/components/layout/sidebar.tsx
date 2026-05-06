@@ -29,6 +29,8 @@ import {
   ChevronRight,
   Lock,
   UserCheck,
+  Image,
+  Trophy,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { UserRole, AppView, NavItem } from '@/types';
@@ -64,6 +66,8 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   ShieldCheck,
   Lock,
   UserCheck,
+  Image,
+  Trophy,
 };
 
 const NAV_DESCRIPTIONS: Record<string, string> = {
@@ -92,18 +96,25 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   'Assigned Events': 'Events assigned for verification',
   Users: 'Manage platform users',
   Settings: 'App settings and preferences',
+  'Certificate Authority': 'Issue, approve, and manage certificates',
+  Gallery: 'Event photos and media gallery',
+  Achievements: 'Club achievements and accolades',
 };
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   GUEST: [
     { label: 'Home', view: 'landing', icon: 'Home' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
+    { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'About', view: 'about', icon: 'Info' },
     { label: 'Join', view: 'register', icon: 'UserPlus' },
   ],
   MEMBER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
+    { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Payments', view: 'finance', icon: 'CreditCard' },
     { label: 'Profile', view: 'profile', icon: 'User' },
@@ -112,6 +123,8 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   MEDIA: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Events', view: 'events', icon: 'PenSquare' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
+    { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'Content', view: 'announcements', icon: 'FileText' },
     { label: 'Analytics', view: 'analytics', icon: 'BarChart3' },
     { label: 'Settings', view: 'settings', icon: 'Settings' },
@@ -119,6 +132,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   TREASURER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Budgets', view: 'budgets', icon: 'Wallet' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Expenses', view: 'expenses', icon: 'Receipt' },
     { label: 'Verify Payments', view: 'verify-payments', icon: 'CheckCircle' },
     { label: 'Reports', view: 'analytics', icon: 'FileText' },
@@ -127,8 +141,11 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   GS: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Approve Members', view: 'member-approval', icon: 'UserCheck' },
+    { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
     { label: 'Members', view: 'members', icon: 'Users' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
+    { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'Approve Expenses', view: 'expenses', icon: 'CheckSquare' },
     { label: 'Reports', view: 'analytics', icon: 'FileText' },
     { label: 'Settings', view: 'settings', icon: 'Settings' },
@@ -137,15 +154,20 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Analytics', view: 'analytics', icon: 'TrendingUp' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
+    { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'Members', view: 'members', icon: 'Users' },
     { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   PRESIDENT: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Approve Members', view: 'member-approval', icon: 'UserCheck' },
+    { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
     { label: 'Members', view: 'members', icon: 'Users' },
     { label: 'Finance', view: 'finance', icon: 'DollarSign' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
+    { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'Audit Logs', view: 'audit-logs', icon: 'ClipboardList' },
     { label: 'Roles', view: 'roles', icon: 'ShieldCheck' },
     { label: 'Settings', view: 'settings', icon: 'Settings' },
@@ -154,11 +176,15 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Verify Payments', view: 'verify-payments', icon: 'CheckCircle' },
     { label: 'Assigned Events', view: 'events', icon: 'Calendar' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   PLATFORM_ADMIN: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
     { label: 'Users', view: 'members', icon: 'Users' },
+    { label: 'Gallery', view: 'gallery', icon: 'Image' },
+    { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'System', view: 'audit-logs', icon: 'Settings' },
     { label: 'Audit Logs', view: 'audit-logs', icon: 'ClipboardList' },
     { label: 'All Dashboards', view: 'analytics', icon: 'BarChart3' },
@@ -233,11 +259,12 @@ export function Sidebar() {
         initial={false}
         animate={{
           width: sidebarOpen ? 260 : 72,
-          x: 0,
         }}
         className={cn(
-          'fixed left-0 top-0 z-50 flex h-screen flex-col border-r border-white/5 bg-[#0a0a0a] md:relative md:z-auto',
-          'transition-transform duration-300 overflow-hidden',
+          'shrink-0 flex h-screen flex-col border-r border-white/5 bg-[#0a0a0a]',
+          // Mobile: fixed overlay positioned sidebar
+          'fixed left-0 top-0 z-50 md:static md:z-auto',
+          // Mobile: hide when closed
           !sidebarOpen && 'max-md:-translate-x-full max-md:w-[260px]'
         )}
       >

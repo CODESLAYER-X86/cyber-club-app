@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
-import { Shield, Brain, Trophy, Users, Calendar, ArrowRight, ChevronRight, Lock, Zap, Globe, MapPin, UserPlus } from 'lucide-react';
+import { Shield, Brain, Trophy, Users, Calendar, ArrowRight, ChevronRight, Lock, Zap, Globe, MapPin, UserPlus, Quote, Handshake } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS } from '@/types';
@@ -126,15 +126,138 @@ function StatItem({ value, label, suffix = '+' }: { value: number; label: string
   );
 }
 
+/* ─── Why Join Feature Data (explicit Tailwind classes - NO dynamic construction) ─── */
+const whyJoinFeatures = [
+  {
+    icon: Shield,
+    title: 'Hands-on Training',
+    desc: 'Real-world workshops on ethical hacking, penetration testing, and security tools.',
+    sub: 'Practical Skills',
+    cardHoverBorder: 'hover:border-emerald-500/30',
+    cardHoverShadow: 'hover:shadow-emerald-500/20',
+    iconBg: 'bg-emerald-500/10',
+    iconBorder: 'border-emerald-500/20',
+    iconHoverBg: 'group-hover:bg-emerald-500/15',
+    iconHoverBorder: 'group-hover:border-emerald-500/30',
+    iconHoverShadow: 'group-hover:shadow-emerald-500/20',
+    iconText: 'text-emerald-400',
+    subText: 'text-emerald-400/60',
+    blurHover: 'group-hover:bg-emerald-500/20',
+  },
+  {
+    icon: Brain,
+    title: 'CTF Competitions',
+    desc: 'Regular Capture The Flag challenges to sharpen your skills in web, crypto, and forensics.',
+    sub: 'Competitive Edge',
+    cardHoverBorder: 'hover:border-cyan-500/30',
+    cardHoverShadow: 'hover:shadow-cyan-500/20',
+    iconBg: 'bg-cyan-500/10',
+    iconBorder: 'border-cyan-500/20',
+    iconHoverBg: 'group-hover:bg-cyan-500/15',
+    iconHoverBorder: 'group-hover:border-cyan-500/30',
+    iconHoverShadow: 'group-hover:shadow-cyan-500/20',
+    iconText: 'text-cyan-400',
+    subText: 'text-cyan-400/60',
+    blurHover: 'group-hover:bg-cyan-500/20',
+  },
+  {
+    icon: Trophy,
+    title: 'Certifications',
+    desc: 'Earn verifiable certificates that demonstrate your cybersecurity competencies.',
+    sub: 'Industry Ready',
+    cardHoverBorder: 'hover:border-amber-500/30',
+    cardHoverShadow: 'hover:shadow-amber-500/20',
+    iconBg: 'bg-amber-500/10',
+    iconBorder: 'border-amber-500/20',
+    iconHoverBg: 'group-hover:bg-amber-500/15',
+    iconHoverBorder: 'group-hover:border-amber-500/30',
+    iconHoverShadow: 'group-hover:shadow-amber-500/20',
+    iconText: 'text-amber-400',
+    subText: 'text-amber-400/60',
+    blurHover: 'group-hover:bg-amber-500/20',
+  },
+  {
+    icon: Users,
+    title: 'Community',
+    desc: 'Connect with like-minded security enthusiasts and industry professionals.',
+    sub: 'Network & Grow',
+    cardHoverBorder: 'hover:border-violet-500/30',
+    cardHoverShadow: 'hover:shadow-violet-500/20',
+    iconBg: 'bg-violet-500/10',
+    iconBorder: 'border-violet-500/20',
+    iconHoverBg: 'group-hover:bg-violet-500/15',
+    iconHoverBorder: 'group-hover:border-violet-500/30',
+    iconHoverShadow: 'group-hover:shadow-violet-500/20',
+    iconText: 'text-violet-400',
+    subText: 'text-violet-400/60',
+    blurHover: 'group-hover:bg-violet-500/20',
+  },
+];
+
+/* ─── Testimonials Data ─── */
+const testimonials = [
+  {
+    name: 'Aisha Rahman',
+    role: 'Cybersecurity Student',
+    initials: 'AR',
+    avatarGradient: 'from-emerald-500 to-cyan-500',
+    quote: 'Joining CyberSec Club was the best decision of my university life. The CTF competitions pushed me beyond my limits and I landed my first internship because of the skills I gained here.',
+  },
+  {
+    name: 'David Kim',
+    role: 'Ethical Hacking Major',
+    initials: 'DK',
+    avatarGradient: 'from-amber-500 to-orange-500',
+    quote: 'The hands-on workshops are incredible. From basic network scanning to advanced exploitation techniques, every session added real value to my career. The mentors are world-class.',
+  },
+  {
+    name: 'Fatima Al-Zahra',
+    role: 'Information Security Researcher',
+    initials: 'FA',
+    avatarGradient: 'from-violet-500 to-purple-500',
+    quote: 'The community here is unlike anything else. Everyone helps each other grow, and the certificates I earned are recognized by industry professionals. I got my OSCP partly thanks to this club.',
+  },
+];
+
+/* ─── Partners & Sponsors Data ─── */
+const partners = [
+  { name: 'SecureNet', gradient: 'from-emerald-400 to-cyan-400', subtext: 'Enterprise Security' },
+  { name: 'HackDefend', gradient: 'from-cyan-400 to-teal-400', subtext: 'Threat Intelligence' },
+  { name: 'CryptoShield', gradient: 'from-amber-400 to-orange-400', subtext: 'Cryptography Labs' },
+  { name: 'NetGuard', gradient: 'from-rose-400 to-pink-400', subtext: 'Network Defense' },
+  { name: 'CyberForge', gradient: 'from-violet-400 to-purple-400', subtext: 'Security Training' },
+  { name: 'DataVault', gradient: 'from-emerald-400 to-teal-400', subtext: 'Data Protection' },
+];
+
 export function LandingPage() {
   const { setCurrentView } = useAppStore();
   const [events, setEvents] = useState<Event[]>([]);
-  const [stats, setStats] = useState({ totalMembers: 0, totalFunds: 0, activeEvents: 0, pendingApprovals: 0 });
+  const [stats, setStats] = useState({ totalMembers: 0, totalFunds: 0, activeEvents: 0, pendingApprovals: 0, totalEvents: 0, totalCertificates: 0 });
+  const [apiStatsLoaded, setApiStatsLoaded] = useState(false);
 
   useEffect(() => {
     fetch('/api/events?status=UPCOMING').then(r => r.json()).then(d => { if (d.success) setEvents((d.data.events || []).slice(0, 3)); }).catch(() => {});
-    fetch('/api/stats').then(r => r.json()).then(d => { if (d.success && d.data) { const s = d.data.stats || d.data; setStats({ totalMembers: s.totalMembers ?? 0, totalFunds: s.totalFunds ?? 0, activeEvents: s.activeEvents ?? 0, pendingApprovals: s.pendingApprovals ?? 0 }); } }).catch(() => {});
+    fetch('/api/stats').then(r => r.json()).then(d => {
+      if (d.success && d.data) {
+        const s = d.data.stats || d.data;
+        setStats({
+          totalMembers: s.totalMembers ?? 0,
+          totalFunds: s.totalFunds ?? 0,
+          activeEvents: s.activeEvents ?? 0,
+          pendingApprovals: s.pendingApprovals ?? 0,
+          totalEvents: s.totalEvents ?? 0,
+          totalCertificates: s.totalCertificates ?? 0,
+        });
+        setApiStatsLoaded(true);
+      }
+    }).catch(() => {});
   }, []);
+
+  // Use real data from API with fallback to hardcoded values
+  const displayMembers = apiStatsLoaded ? stats.totalMembers : 500;
+  const displayEvents = apiStatsLoaded ? stats.totalEvents : 50;
+  const displayCtfWins = 25; // CTF wins not in API, keep hardcoded
+  const displayCertificates = apiStatsLoaded ? stats.totalCertificates : 100;
 
   return (
     <div className="flex flex-1 flex-col">
@@ -219,13 +342,13 @@ export function LandingPage() {
             transition={{ duration: 0.6 }}
             className="flex flex-wrap items-center justify-center gap-8 md:gap-0 md:justify-between"
           >
-            <StatItem value={500} label="Members" />
+            <StatItem value={displayMembers} label="Members" />
             <div className="hidden md:block h-10 w-px bg-white/10" />
-            <StatItem value={50} label="Events" />
+            <StatItem value={displayEvents} label="Events" />
             <div className="hidden md:block h-10 w-px bg-white/10" />
-            <StatItem value={25} label="CTF Wins" />
+            <StatItem value={displayCtfWins} label="CTF Wins" />
             <div className="hidden md:block h-10 w-px bg-white/10" />
-            <StatItem value={100} label="Certificates" />
+            <StatItem value={displayCertificates} label="Certificates" />
           </motion.div>
         </div>
       </section>
@@ -238,20 +361,15 @@ export function LandingPage() {
             <p className="mt-3 text-gray-500 max-w-lg mx-auto">Everything you need to kickstart your cybersecurity career — from hands-on workshops to industry-recognized certifications.</p>
           </motion.div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {[
-              { icon: Shield, title: 'Hands-on Training', desc: 'Real-world workshops on ethical hacking, penetration testing, and security tools.', sub: 'Practical Skills', color: 'emerald', glow: 'shadow-emerald-500/20' },
-              { icon: Brain, title: 'CTF Competitions', desc: 'Regular Capture The Flag challenges to sharpen your skills in web, crypto, and forensics.', sub: 'Competitive Edge', color: 'cyan', glow: 'shadow-cyan-500/20' },
-              { icon: Trophy, title: 'Certifications', desc: 'Earn verifiable certificates that demonstrate your cybersecurity competencies.', sub: 'Industry Ready', color: 'amber', glow: 'shadow-amber-500/20' },
-              { icon: Users, title: 'Community', desc: 'Connect with like-minded security enthusiasts and industry professionals.', sub: 'Network & Grow', color: 'violet', glow: 'shadow-violet-500/20' },
-            ].map((f, i) => (
+            {whyJoinFeatures.map((f, i) => (
               <motion.div key={f.title} {...fadeUp} transition={{ delay: i * 0.1 }}>
-                <Card className={`group h-full border-white/5 bg-[#111]/60 backdrop-blur transition-all duration-300 hover:border-${f.color}-500/30 hover:shadow-xl hover:${f.glow} hover:bg-[#111]/80`}>
+                <Card className={`group h-full border-white/5 bg-[#111]/60 backdrop-blur transition-all duration-300 ${f.cardHoverBorder} hover:shadow-xl ${f.cardHoverShadow} hover:bg-[#111]/80`}>
                   <CardContent className="pt-6">
-                    <div className={`relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl bg-${f.color}-500/10 border border-${f.color}-500/20 transition-all duration-300 group-hover:shadow-lg group-hover:${f.glow} group-hover:bg-${f.color}-500/15 group-hover:border-${f.color}-500/30`}>
-                      <f.icon className={`h-7 w-7 text-${f.color}-400 transition-transform duration-300 group-hover:scale-110`} />
-                      <div className={`absolute inset-0 rounded-2xl bg-${f.color}-500/0 blur-xl transition-all duration-300 group-hover:bg-${f.color}-500/20`} />
+                    <div className={`relative mb-5 flex h-14 w-14 items-center justify-center rounded-2xl ${f.iconBg} border ${f.iconBorder} transition-all duration-300 ${f.iconHoverShadow} ${f.iconHoverBg} ${f.iconHoverBorder}`}>
+                      <f.icon className={`h-7 w-7 ${f.iconText} transition-transform duration-300 group-hover:scale-110`} />
+                      <div className={`absolute inset-0 rounded-2xl bg-cyan-500/0 blur-xl transition-all duration-300 ${f.blurHover}`} />
                     </div>
-                    <span className={`text-[10px] font-bold uppercase tracking-widest text-${f.color}-400/60 mb-1 block`}>{f.sub}</span>
+                    <span className={`text-[10px] font-bold uppercase tracking-widest ${f.subText} mb-1 block`}>{f.sub}</span>
                     <h3 className="text-lg font-semibold text-white group-hover:text-emerald-300 transition-colors">{f.title}</h3>
                     <p className="mt-2 text-sm text-gray-500 leading-relaxed">{f.desc}</p>
                   </CardContent>
@@ -339,6 +457,72 @@ export function LandingPage() {
         </div>
       </section>
 
+      {/* ═══════════════ TESTIMONIALS ═══════════════ */}
+      <section className="relative px-4 py-28">
+        <div className="mx-auto max-w-6xl">
+          <motion.div {...fadeUp} className="mb-16 text-center">
+            <h2 className="text-3xl font-bold text-white md:text-4xl">What Our <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Members</span> Say</h2>
+            <p className="mt-3 text-gray-500 max-w-lg mx-auto">Hear from cybersecurity students who transformed their careers through our club.</p>
+          </motion.div>
+          <div className="grid gap-6 md:grid-cols-3">
+            {testimonials.map((t, i) => (
+              <motion.div key={t.name} {...fadeUp} transition={{ delay: i * 0.1 }}>
+                <Card className="group h-full border-white/5 bg-[#111]/60 backdrop-blur transition-all duration-300 hover:border-emerald-500/20 hover:shadow-xl hover:shadow-emerald-500/5 hover:bg-[#111]/80">
+                  <CardContent className="pt-6">
+                    {/* Quote icon */}
+                    <Quote className="h-8 w-8 text-emerald-500/20 mb-4" />
+
+                    {/* Testimonial text */}
+                    <p className="text-gray-400 text-sm leading-relaxed mb-6">&ldquo;{t.quote}&rdquo;</p>
+
+                    {/* Author info */}
+                    <div className="flex items-center gap-3 border-t border-white/5 pt-4">
+                      <div className={`flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br ${t.avatarGradient} text-white text-sm font-bold shrink-0`}>
+                        {t.initials}
+                      </div>
+                      <div>
+                        <p className="text-sm font-semibold text-white">{t.name}</p>
+                        <p className="text-xs text-gray-500">{t.role}</p>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ═══════════════ PARTNERS & SPONSORS ═══════════════ */}
+      <section className="relative px-4 py-20 border-t border-white/5">
+        <div className="mx-auto max-w-6xl">
+          <motion.div {...fadeUp} className="mb-12 text-center">
+            <div className="flex items-center justify-center gap-2 mb-3">
+              <Handshake className="h-5 w-5 text-emerald-400" />
+              <h2 className="text-2xl font-bold text-white">Partners & Sponsors</h2>
+            </div>
+            <p className="text-gray-500 text-sm max-w-md mx-auto">Industry leaders who support our mission to build the next generation of cybersecurity professionals.</p>
+          </motion.div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
+            {partners.map((p, i) => (
+              <motion.div
+                key={p.name}
+                initial={{ opacity: 0, y: 20 }}
+                whileInView={{ opacity: 1, y: 0 }}
+                viewport={{ once: true }}
+                transition={{ delay: i * 0.08, duration: 0.4 }}
+                className="group flex flex-col items-center gap-2 rounded-xl border border-white/5 bg-[#111]/40 py-6 px-3 transition-all duration-300 hover:border-white/10 hover:bg-[#111]/60"
+              >
+                <span className={`text-lg font-extrabold bg-gradient-to-r ${p.gradient} bg-clip-text text-transparent group-hover:scale-105 transition-transform`}>
+                  {p.name}
+                </span>
+                <span className="text-[10px] text-gray-600 uppercase tracking-wider">{p.subtext}</span>
+              </motion.div>
+            ))}
+          </div>
+        </div>
+      </section>
+
       {/* ═══════════════ CTA SECTION ═══════════════ */}
       <section className="relative px-4 py-28">
         <motion.div
@@ -361,7 +545,7 @@ export function LandingPage() {
               <Shield className="h-8 w-8 text-emerald-400" />
             </motion.div>
             <h2 className="text-3xl font-bold text-white md:text-4xl">Ready to Start Your Journey?</h2>
-            <p className="mt-4 text-gray-400 max-w-md mx-auto">Join 500+ members who are already building their cybersecurity skills and defending the digital frontier.</p>
+            <p className="mt-4 text-gray-400 max-w-md mx-auto">Join {displayMembers}+ members who are already building their cybersecurity skills and defending the digital frontier.</p>
 
             {/* Pulsing CTA button */}
             <div className="relative mt-8 inline-block">
@@ -390,6 +574,8 @@ export function LandingPage() {
           <div className="flex gap-6 text-xs text-gray-500">
             <button onClick={() => setCurrentView('about')} className="hover:text-emerald-400 transition-colors">About</button>
             <button onClick={() => setCurrentView('events')} className="hover:text-emerald-400 transition-colors">Events</button>
+            <button onClick={() => setCurrentView('gallery')} className="hover:text-emerald-400 transition-colors">Gallery</button>
+            <button onClick={() => setCurrentView('achievements')} className="hover:text-emerald-400 transition-colors">Achievements</button>
             <button onClick={() => setCurrentView('login')} className="hover:text-emerald-400 transition-colors">Login</button>
           </div>
           <p className="text-xs text-gray-600">&copy; 2025 CyberSec Club. All rights reserved.</p>

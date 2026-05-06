@@ -21,6 +21,17 @@ export const metadata: Metadata = {
   icons: {
     icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
   },
+  openGraph: {
+    title: "CyberSec Club - Verified Certificate",
+    description: "View and verify a certificate issued by CyberSec Club",
+    type: "website",
+    siteName: "CyberSec Club",
+  },
+  twitter: {
+    card: "summary_large_image",
+    title: "CyberSec Club - Verified Certificate",
+    description: "View and verify a certificate issued by CyberSec Club",
+  },
 };
 
 export default function RootLayout({

@@ -1,6 +1,5 @@
 'use client';
 
-import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/use-app-store';
 import { Sidebar } from './sidebar';
@@ -32,6 +31,10 @@ import { ProfilePage } from '@/components/pages/profile-page';
 import { AnalyticsPage } from '@/components/pages/analytics-page';
 import { AnnouncementsPage } from '@/components/pages/announcements-page';
 import { SettingsPage } from '@/components/pages/settings-page';
+import { CertificatePublicPage } from '@/components/pages/certificate-public-page';
+import { CertificateAuthorityPage } from '@/components/pages/certificate-authority-page';
+import { GalleryPage } from '@/components/pages/gallery-page';
+import { AchievementsPage } from '@/components/pages/achievements-page';
 
 const PAGE_MAP: Record<AppView, React.ComponentType> = {
   landing: LandingPage,
@@ -50,6 +53,8 @@ const PAGE_MAP: Record<AppView, React.ComponentType> = {
   'verify-payments': VerifyPaymentsPage,
   certificates: CertificatesPage,
   'certificate-verify': CertificateVerifyPage,
+  'certificate-public': CertificatePublicPage,
+  'certificate-authority': CertificateAuthorityPage,
   assessments: CertificatesPage,
   notifications: NotificationsPage,
   'audit-logs': AuditLogsPage,
@@ -58,6 +63,8 @@ const PAGE_MAP: Record<AppView, React.ComponentType> = {
   announcements: AnnouncementsPage,
   analytics: AnalyticsPage,
   settings: SettingsPage,
+  gallery: GalleryPage,
+  achievements: AchievementsPage,
 };
 
 function MatrixBackground() {
@@ -78,15 +85,25 @@ function MatrixBackground() {
   );
 }
 
+// Views that should NEVER show the sidebar - truly standalone full-page views
+// For unauthenticated users, public pages (about, gallery, achievements, events) use full-page layout
+// with header navigation instead of sidebar, providing a consistent public browsing experience
+const FULL_PAGE_VIEWS: Set<AppView> = new Set([
+  'landing', 'login', 'register', 'certificate-public',
+  'about', 'gallery', 'achievements', 'events'
+]);
+
 export function AppShell() {
   const { currentView, isAuthenticated } = useAppStore();
 
-  const publicViews: AppView[] = ['landing', 'login', 'register', 'about'];
-  const isPublicView = publicViews.includes(currentView);
-
   const PageComponent = PAGE_MAP[currentView] || LandingPage;
 
-  if (isPublicView || !isAuthenticated) {
+  // Determine if this view should use the full-page layout (no sidebar)
+  // Unauthenticated users get full-page layout for all public pages
+  // Authenticated users always get the sidebar layout (with header + sidebar)
+  const showFullPageLayout = !isAuthenticated && FULL_PAGE_VIEWS.has(currentView);
+
+  if (showFullPageLayout) {
     return (
       <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100">
         <MatrixBackground />
@@ -105,12 +122,13 @@ export function AppShell() {
     );
   }
 
+  // Sidebar layout - used for ALL authenticated views AND for guest views that need navigation
   return (
     <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100">
       <MatrixBackground />
-      <div className="relative z-10 flex flex-1">
+      <div className="relative z-10 flex flex-1 min-h-0">
         <Sidebar />
-        <div className="flex flex-1 flex-col overflow-hidden">
+        <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
           <Header />
           <main className="flex-1 overflow-y-auto p-4 md:p-6">
             <AnimatePresence mode="wait">

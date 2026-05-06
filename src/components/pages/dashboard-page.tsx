@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity, TrendingUp, Bell, Info } from 'lucide-react';
+import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity, TrendingUp, Bell, Info, Clock, UserCheck, Wallet, ShieldCheck, Ban, Receipt, Megaphone } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { UserRole, Event, Payment, Certificate, User } from '@/types';
 import { StatCard } from '@/components/shared/stat-card';
@@ -15,6 +15,49 @@ interface DashboardStats {
   totalMembers: number; totalFunds: number; activeEvents: number; pendingApprovals: number;
   recentActivity: { action: string; details: string; createdAt: string }[];
   upcomingEvents: Event[];
+}
+
+interface AuditLogEntry {
+  id: string;
+  action: string;
+  details: string;
+  createdAt: string;
+  user?: { name: string; email: string };
+}
+
+const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string; label: string }> = {
+  PAYMENT_VERIFIED: { icon: Wallet, color: '#10b981', label: 'Payment Verified' },
+  EXPENSE_APPROVED: { icon: Receipt, color: '#10b981', label: 'Expense Approved' },
+  ROLE_ASSIGNED: { icon: ShieldCheck, color: '#f59e0b', label: 'Role Assigned' },
+  BUDGET_CREATED: { icon: DollarSign, color: '#06b6d4', label: 'Budget Created' },
+  PAYMENT_REJECTED: { icon: Ban, color: '#ef4444', label: 'Payment Rejected' },
+  EXPENSE_REJECTED: { icon: Ban, color: '#ef4444', label: 'Expense Rejected' },
+  USER_APPROVED: { icon: UserCheck, color: '#10b981', label: 'User Approved' },
+  USER_REJECTED: { icon: Ban, color: '#ef4444', label: 'User Rejected' },
+  ANNOUNCEMENT_CREATED: { icon: Megaphone, color: '#8b5cf6', label: 'Announcement Created' },
+  EVENT_CREATED: { icon: Calendar, color: '#06b6d4', label: 'Event Created' },
+};
+
+function timeAgo(date: string): string {
+  const now = new Date();
+  const then = new Date(date);
+  const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+  if (seconds < 60) return 'just now';
+  const minutes = Math.floor(seconds / 60);
+  if (minutes < 60) return `${minutes}m ago`;
+  const hours = Math.floor(minutes / 60);
+  if (hours < 24) return `${hours}h ago`;
+  const days = Math.floor(hours / 24);
+  if (days < 2) return 'yesterday';
+  return `${days}d ago`;
+}
+
+function getDaysUntil(dateStr: string): number {
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const target = new Date(dateStr);
+  target.setHours(0, 0, 0, 0);
+  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
 }
 
 function getGreeting(): string {
@@ -38,6 +81,7 @@ export function DashboardPage() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
+  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -58,6 +102,11 @@ export function DashboardPage() {
             upcomingEvents: d.upcomingEvents || [],
           });
         }
+
+        // Fetch audit logs for activity feed
+        const auditRes = await fetch('/api/audit-logs?limit=5');
+        const auditData = await auditRes.json();
+        if (auditData.success) setAuditLogs(auditData.data.auditLogs || []);
 
         if (currentUser) {
           const certRes = await fetch(`/api/certificates?userId=${currentUser.id}`);
@@ -240,37 +289,151 @@ export function DashboardPage() {
           </CardContent>
         </Card>
 
-        {/* Role-specific quick actions / recent activity */}
+        {/* Recent Activity Feed */}
         <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-lg font-semibold text-white">
-              {['PRESIDENT', 'GS'].includes(role) ? 'Pending Approvals' : role === 'TREASURER' ? 'Recent Transactions' : 'Recent Activity'}
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+              <Activity className="h-5 w-5 text-emerald-400" />
+              Recent Activity
             </CardTitle>
+            <Button variant="ghost" size="sm" onClick={() => setCurrentView('audit-logs')} className="text-xs text-emerald-400">View All</Button>
           </CardHeader>
           <CardContent>
-            <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
-              {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && pendingUsers.length > 0 ? pendingUsers.map((u) => (
-                <div key={u.id} className="flex items-center gap-3 rounded-lg border border-amber-500/10 bg-amber-500/5 p-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-400 text-sm font-bold">{u.name?.charAt(0)}</div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-medium text-white">{u.name}</p>
-                    <p className="text-xs text-gray-500">{u.email} • {u.department}</p>
-                  </div>
-                  <MembershipBadge status={u.membershipStatus} />
+            <div className="space-y-0 max-h-80 overflow-y-auto custom-scrollbar">
+              {auditLogs.length > 0 ? auditLogs.map((log, index) => {
+                const config = ACTION_CONFIG[log.action] || { icon: Activity, color: '#6b7280', label: log.action };
+                const IconComp = config.icon;
+                const isLast = index === auditLogs.length - 1;
+                return (
+                  <motion.div
+                    key={log.id}
+                    initial={{ opacity: 0, x: -10 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    transition={{ delay: index * 0.05 }}
+                    className="flex gap-3 relative"
+                  >
+                    {/* Timeline line */}
+                    {!isLast && (
+                      <div className="absolute left-[15px] top-8 bottom-0 w-px bg-gradient-to-b from-white/10 to-transparent" />
+                    )}
+                    {/* Icon */}
+                    <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full z-10" style={{ backgroundColor: `${config.color}15` }}>
+                      <IconComp className="h-3.5 w-3.5" style={{ color: config.color }} />
+                    </div>
+                    {/* Content */}
+                    <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
+                      <p className="text-sm text-white">{config.label}</p>
+                      <p className="text-xs text-gray-500 truncate">{log.details}</p>
+                      <div className="flex items-center gap-2 mt-0.5">
+                        <span className="text-[10px] text-gray-600">{log.user?.name || 'System'}</span>
+                        <span className="text-[10px] text-gray-700">•</span>
+                        <span className="text-[10px] text-gray-600">{timeAgo(log.createdAt)}</span>
+                      </div>
+                    </div>
+                  </motion.div>
+                );
+              }) : (
+                <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                  <Activity className="mb-2 h-8 w-8 text-gray-600" />
+                  <p className="text-sm">No recent activity</p>
                 </div>
-              )) : (stats?.recentActivity || []).length > 0 ? (stats?.recentActivity || []).slice(0, 5).map((a, i) => (
-                <div key={i} className="flex items-start gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                  <Activity className="mt-0.5 h-4 w-4 shrink-0 text-gray-500" />
-                  <div>
-                    <p className="text-sm text-white">{a.action}</p>
-                    <p className="text-xs text-gray-500">{a.details}</p>
-                    <p className="mt-1 text-[10px] text-gray-600">{new Date(a.createdAt).toLocaleString()}</p>
-                  </div>
-                </div>
-              )) : <p className="py-8 text-center text-sm text-gray-500">No recent activity</p>}
+              )}
             </div>
           </CardContent>
         </Card>
+      </div>
+
+      {/* Upcoming Deadlines & Pending Approvals Row */}
+      <div className="grid gap-6 lg:grid-cols-2">
+        {/* Upcoming Deadlines */}
+        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+          <CardHeader className="flex flex-row items-center justify-between pb-2">
+            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+              <Clock className="h-5 w-5 text-amber-400" />
+              Upcoming Deadlines
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+              {(() => {
+                const now = new Date();
+                const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+                const upcomingDeadlines = (stats?.upcomingEvents || []).filter(e => {
+                  const eventDate = new Date(e.startDate);
+                  return eventDate >= now && eventDate <= nextWeek;
+                });
+                if (upcomingDeadlines.length === 0) {
+                  return (
+                    <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                      <Clock className="mb-2 h-8 w-8 text-gray-600" />
+                      <p className="text-sm">No deadlines in the next 7 days</p>
+                    </div>
+                  );
+                }
+                return upcomingDeadlines.map((event, index) => {
+                  const daysLeft = getDaysUntil(event.startDate);
+                  const urgencyColor = daysLeft <= 1 ? '#ef4444' : daysLeft <= 3 ? '#f59e0b' : '#6b7280';
+                  const urgencyLabel = daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft} days`;
+                  const urgencyBg = daysLeft <= 1 ? 'bg-red-500/10 border-red-500/20' : daysLeft <= 3 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-gray-500/10 border-gray-500/20';
+                  return (
+                    <motion.div
+                      key={event.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors cursor-pointer"
+                      onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}
+                    >
+                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${urgencyColor}15` }}>
+                        <Clock className="h-5 w-5" style={{ color: urgencyColor }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-medium text-white truncate">{event.title}</p>
+                        <p className="text-xs text-gray-500">{new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+                      </div>
+                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${urgencyBg}`} style={{ color: urgencyColor }}>
+                        {urgencyLabel}
+                      </span>
+                    </motion.div>
+                  );
+                });
+              })()}
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Pending Approvals (for admin roles) */}
+        {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && (
+          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+                <AlertTriangle className="h-5 w-5 text-amber-400" />
+                Pending Approvals
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setCurrentView('member-approval')} className="text-xs text-amber-400">View All</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+                {pendingUsers.length > 0 ? pendingUsers.map((u) => (
+                  <div key={u.id} className="flex items-center gap-3 rounded-lg border border-amber-500/10 bg-amber-500/5 p-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-400 text-sm font-bold">{u.name?.charAt(0)}</div>
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-medium text-white">{u.name}</p>
+                      <p className="text-xs text-gray-500">{u.email} • {u.department}</p>
+                    </div>
+                    <MembershipBadge status={u.membershipStatus} />
+                  </div>
+                )) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                    <CheckCircle className="mb-2 h-8 w-8 text-emerald-600" />
+                    <p className="text-sm">All caught up!</p>
+                    <p className="text-xs text-gray-600">No pending approvals</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Quick Actions */}
