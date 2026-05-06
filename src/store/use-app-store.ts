@@ -29,6 +29,7 @@ interface AppState {
   setTheme: (theme: "light" | "dark") => void;
   setNotifications: (notifications: AppNotification[]) => void;
   markNotificationRead: (id: string) => void;
+  updateCurrentUser: (updates: Partial<User>) => void;
 }
 
 export const useAppStore = create<AppState>((set) => ({
@@ -78,5 +79,12 @@ export const useAppStore = create<AppState>((set) => ({
       notifications: state.notifications.map((n) =>
         n.id === id ? { ...n, read: true } : n
       ),
+    })),
+
+  updateCurrentUser: (updates) =>
+    set((state) => ({
+      currentUser: state.currentUser
+        ? { ...state.currentUser, ...updates }
+        : null,
     })),
 }));
