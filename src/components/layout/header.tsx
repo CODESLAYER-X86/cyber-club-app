@@ -37,6 +37,7 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { cn } from '@/lib/utils';
+import { SearchCommand } from '@/components/shared/search-command';
 
 const VIEW_TITLES: Record<AppView, string> = {
   landing: 'Home',
@@ -62,6 +63,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   announcements: 'Announcements',
   analytics: 'Analytics',
   about: 'About',
+  settings: 'Settings',
 };
 
 const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = {
@@ -88,6 +90,7 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
   announcements: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Announcements' }],
   analytics: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Analytics' }],
   about: [{ label: 'About' }],
+  settings: [{ label: 'Settings' }],
 };
 
 export function Header() {
@@ -105,12 +108,25 @@ export function Header() {
   } = useAppStore();
 
   const [currentTime, setCurrentTime] = useState(new Date());
+  const [searchOpen, setSearchOpen] = useState(false);
 
   useEffect(() => {
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
     return () => clearInterval(timer);
+  }, []);
+
+  // Global Ctrl+K / Cmd+K listener
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
+        e.preventDefault();
+        setSearchOpen((prev) => !prev);
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
   }, []);
 
   const unreadCount = useMemo(
@@ -135,6 +151,7 @@ export function Header() {
   const timeString = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   return (
+    <>
     <motion.header
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
@@ -184,19 +201,21 @@ export function Header() {
       {/* Spacer */}
       <div className="flex-1" />
 
-      {/* Search bar with Ctrl+K hint */}
-      <div className="relative hidden max-w-xs flex-1 md:flex">
+      {/* Search bar with Ctrl+K hint - clickable */}
+      <button
+        onClick={() => setSearchOpen(true)}
+        className="relative hidden max-w-xs flex-1 md:flex"
+      >
         <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-        <Input
-          placeholder="Search..."
-          className="h-9 rounded-lg border-white/10 bg-white/5 pl-9 pr-14 text-sm text-gray-300 placeholder:text-gray-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
-        />
+        <div className="h-9 w-full rounded-lg border border-white/10 bg-white/5 pl-9 pr-14 text-sm text-gray-500 flex items-center">
+          Search...
+        </div>
         <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded bg-white/5 px-1.5 py-0.5">
           <kbd className="text-[10px] font-mono text-gray-500">Ctrl</kbd>
           <span className="text-[10px] text-gray-600">+</span>
           <kbd className="text-[10px] font-mono text-gray-500">K</kbd>
         </div>
-      </div>
+      </button>
 
       {/* Real-time Clock */}
       <div className="hidden items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 lg:flex">
@@ -306,7 +325,7 @@ export function Header() {
               Profile
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => setCurrentView('dashboard')}
+              onClick={() => setCurrentView('settings')}
               className="cursor-pointer gap-2 text-gray-300 focus:bg-white/5 focus:text-emerald-400"
             >
               <Settings className="h-4 w-4" />
@@ -333,5 +352,9 @@ export function Header() {
         </Button>
       )}
     </motion.header>
+
+      {/* Global Search Command */}
+      <SearchCommand open={searchOpen} onOpenChange={setSearchOpen} />
+    </>
   );
 }

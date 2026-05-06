@@ -670,6 +670,425 @@ Stage Summary:
 - 1 API endpoint added (PATCH /api/users/[id])
 - 1 store action added (updateCurrentUser)
 - Profile page: real stats, functional edit with API save, bio field, activity timeline, enhanced avatar, security card
-- Notifications page: filter tabs, date grouping, colored borders, time-ago, sound toggle, mark-all animation, empty state
-- Dark cybersecurity theme maintained with emerald/cyan accents throughout
+
+---
+Task ID: 10
+Agent: Main Coordinator
+Task: Phase 3 QA testing, styling enhancements, and new features
+
+Work Log:
+- Reviewed /home/z/my-project/worklog.md for full project history (985 lines, 10+ task entries)
+- Performed comprehensive QA testing using agent-browser across all pages:
+  - Landing page ✅
+  - Login page ✅ (President, Member quick login)
+  - Dashboard (President view) ✅
+  - Events page ✅
+  - Members page ✅
+  - Finance page ✅
+  - Audit Logs page ✅
+  - Roles page ✅
+  - Member Approval page ✅
+  - Settings page ✅ (NEW)
+  - Certificates page ✅
+  - Profile page ✅
+  - Analytics page ✅ (ENHANCED)
+  - Announcements page ✅ (ENHANCED)
+  - Global Search (Ctrl+K) ✅ (NEW)
+- Zero errors found on any page - application is fully stable
+
+Styling Enhancements Completed (5 pages enhanced):
+1. **Events Page** - Added gradient header banner with Calendar icon and SVG pattern overlay, category-specific colored left borders on event cards (WORKSHOP=emerald, CTF=cyan, SEMINAR=amber, MEETUP=violet, TRAINING=rose), hover glow effects matching category color, gradient progress bar (emerald→cyan), Featured badge on top events by registration count, staggered entrance animations
+
+2. **Members Page** - Added gradient header banner with Users icon, role-specific gradient avatar backgrounds (PRESIDENT=amber, VP=purple, GS=cyan, TREASURER=emerald, MEDIA=pink, etc.), department badges with colored backgrounds, member count stats bar (Total/Active/Pending/Rejected), hover lift animation on cards, "joined X ago" time display
+
+3. **Finance Page** - Added gradient header banner with DollarSign icon and Export button, recent transactions section (fetches from /api/payments with colored status indicators), SVG donut/ring chart for Fund Utilization with animated emerald→cyan gradient stroke, restructured 3-column responsive grid layout
+
+4. **Certificates Page** - Added gradient header banner with Award icon, certificate stats summary (Total/Valid/Revoked), decorative "Excellence" ribbon on excellence certificates, 3D tilt/perspective hover effect (rotateY/rotateX transforms), Download button on each card, print-ready white border glow on hover
+
+5. **Create Event Page** - Added gradient header banner with Plus icon, 4 form sections with icon headers (Basic Info, Date & Venue, Capacity & Pricing, Assessment), section dividers, visual step indicators with completion states, live preview card on desktop (sticky, shows real-time form data with badges and gradient progress bar)
+
+6. **Announcements Page** - Added gradient header banner with Megaphone icon, filter tabs (All/General/Event/Urgent with count badges), pinned indicator for urgent, time-ago display, author name from API, gradient left borders by type, expand/collapse for long content, enhanced create dialog with preview and character counters
+
+New Features Added:
+1. **Global Search (Ctrl+K)** - Full command palette search dialog:
+   - Opens via search bar click or Ctrl+K/Cmd+K keyboard shortcut
+   - Searches across 3 categories: Pages (16 navigation views), Events (live API search), Members (admin only, live API search)
+   - Results grouped by category with colored headers
+   - Debounced API search (300ms) with loading spinners
+   - Click events navigates to event-detail with selectedEventId set
+   - Keyboard navigation hints, empty state, resets on close
+   - Created /src/components/shared/search-command.tsx
+
+2. **Settings Page** - Full settings page with 5 sections:
+   - Profile section: Edit name/phone/bio with save (PATCH to API)
+   - Appearance section: Theme toggle, sidebar default state toggle
+   - Notifications section: Email/push/sound toggles (visual)
+   - Security section: Password change form with strength indicator, 2FA toggle, active sessions
+   - Danger Zone: Deactivate account (AlertDialog confirmation), export data
+   - Created /src/components/pages/settings-page.tsx
+
+3. **Enhanced Analytics Page** - Complete rewrite with real API data:
+   - Gradient header banner with BarChart3 icon
+   - KPI row: Total Members, Active Events, Total Revenue, Member Retention Rate
+   - Member Growth: AreaChart with gradient fill using real user registration dates
+   - Event Category Distribution: PieChart with center label from real events data
+   - Revenue Overview: BarChart with gradient fill from real verified payments
+   - Registration Trends: AreaChart with violet gradient from event data
+   - Top Events Table: Top 5 by registration count with category badges and fill rate progress bars
+   - Department Distribution: Horizontal BarChart from real user data
+
+4. **Sidebar Integration** - Added "Settings" nav item to all 8 authenticated roles with Settings icon and description tooltip
+
+5. **Type System** - Added "settings" to AppView type union in /src/types/index.ts
+
+6. **Header Integration** - Updated Settings dropdown item to navigate to 'settings' view instead of 'dashboard', added settings to VIEW_TITLES and VIEW_BREADCRUMBS
+
+Stage Summary:
+- QA: All 15+ pages tested, zero errors
+- 6 pages significantly restyled with gradient headers, better cards, and visual details
+- 3+ major new features added (Global Search, Settings Page, Enhanced Analytics)
+- 1 new shared component created (SearchCommand)
+- 1 new page component created (SettingsPage)
+- Sidebar enhanced with Settings navigation for all roles
+- Analytics page now uses real API data instead of hardcoded mock values
+- Announcements page enhanced with filters, expand/collapse, and better cards
 - Lint passes cleanly (0 errors), dev server compiles without errors
+- All framer-motion animations preserved and extended
+
+## Current Project Status
+
+### Completed Across All Phases
+- **33+ bugs fixed** (18 critical runtime crashes, 12 visual badge issues, 3+ data/API issues)
+- **14+ components significantly restyled/enhanced** (landing, dashboard, sidebar, header, about, profile, notifications, footer, events, members, finance, certificates, create-event, announcements, analytics)
+- **9+ new features added** (registration, event registration, certificate verification, profile editing, footer, enhanced notifications, global search, settings page, enhanced analytics)
+- **5+ new API routes created** (/api/auth/register, PATCH /api/users/[id], etc.)
+- **Application tested end-to-end** via agent-browser with zero errors across all pages
+- **Lint passes cleanly** with 0 errors
+
+### Unresolved Issues / Risks
+1. Password stored in plaintext - production needs bcrypt
+2. No JWT/session-based auth - user state in Zustand (client-side only)
+3. Some API endpoints lack proper RBAC authorization checks
+4. Could add data export (CSV/Excel) for reports
+5. Could add WebSocket-based real-time notifications
+6. Could add assessment system for event prerequisites
+7. Could add mobile-specific responsive optimizations
+8. Could add unit tests and E2E tests
+
+### Priority Recommendations for Next Phase
+1. Add password hashing (bcrypt) for production security
+2. Implement proper session/JWT authentication
+3. Add data export (CSV/Excel) for reports
+4. Add WebSocket-based real-time notifications
+5. Add mobile-specific responsive optimizations
+6. Add unit tests and E2E tests
+
+---
+Task ID: 9-c
+Agent: Analytics & Announcements Enhancement Agent
+Task: Enhanced Analytics Page and Announcements Page with real data, gradient headers, new charts, and improved UX
+
+Work Log:
+
+1. **Analytics Page** (`/src/components/pages/analytics-page.tsx`) - Complete rewrite:
+
+   - **Gradient Header Banner**: BarChart3 icon, "Analytics" title, subtitle "Club performance insights and trends", SVG pattern overlay (diamond grid pattern), emerald/cyan blur orbs, consistent with notifications page pattern
+   
+   - **Real Data from APIs**: Fetches from 4 endpoints in parallel:
+     - `/api/stats` → totalMembers, activeMembers, activeEvents, totalFunds, totalEvents, totalCertificates
+     - `/api/events` → event categories, registration counts, top events
+     - `/api/payments` → verified payment revenue data
+     - `/api/users` → member growth over time, department distribution
+     - All data correctly extracted from nested `d.data.stats || d.data` and `d.data.events/payments/users` structures
+   
+   - **KPI Row** (4 StatCards at top):
+     - Total Members with growth indicator (+N this month)
+     - Active Events with total events count
+     - Total Revenue (৳ amount) from verified payments
+     - Member Retention Rate (activeMembers/totalMembers * 100) with contextual trend
+   
+   - **Enhanced Member Growth Chart**: 
+     - Changed from LineChart to AreaChart with gradient fill under the line
+     - Uses real user registration dates to calculate cumulative monthly growth over last 6 months
+     - Gradient fill via `linearGradient` definition (emerald from 30% opacity to 0%)
+     - Custom dot and activeDot styling
+   
+   - **Enhanced Event Category Distribution**:
+     - Calculated from real events data instead of hardcoded
+     - Center label showing total events count using custom `renderCenterLabel` function
+     - Better legend with actual counts in parentheses
+   
+   - **New "Registration Trends" Chart**:
+     - AreaChart with violet gradient fill
+     - Shows event registration trends over last 6 months
+     - Uses `_count.registrations` from events API data
+   
+   - **New "Top Events" Table**:
+     - Shows top 5 events by registration count
+     - Columns: Event title, Category (colored badges), Date, Registration count, Fill rate (progress bar + percentage)
+     - Category colors: WORKSHOP=emerald, CTF=cyan, SEMINAR=amber, TRAINING=red, MEETUP=violet
+     - Staggered row entrance animations
+   
+   - **New "Department Distribution" Chart**:
+     - Horizontal BarChart (layout="vertical") showing member distribution by department
+     - 8-color palette for department bars
+     - Dynamic height based on number of departments
+     - Sorted by count descending
+   
+   - **Revenue Chart Enhancement**: 
+     - Gradient bar fill (emerald → cyan) via `linearGradient` definition
+     - Currency formatter (৳) in tooltip
+     - Real verified payment data aggregated by month
+   
+   - Loading skeletons for all chart areas
+   - Empty states for charts when no data available
+   - Staggered entrance animations (container/item variants)
+   - Responsive grid layouts (2-col on lg, 1-col on mobile)
+
+2. **Announcements Page** (`/src/components/pages/announcements-page.tsx`) - Major enhancement:
+
+   - **Gradient Header Banner**: Megaphone icon, "Announcements" title, subtitle "Club news and updates", SVG pattern overlay, emerald/cyan blur orbs
+   
+   - **Announcement Type Filter Tabs**:
+     - All, General, Event, Urgent tabs with count badges
+     - Active tab has emerald background/border styling
+     - Inactive tabs have subtle white/5 background
+     - Badge counts dynamically calculated from announcements data
+   
+   - **Enhanced Announcement Cards**:
+     - Pin icon indicator for URGENT announcements (Pin icon)
+     - Time-ago display ("2h ago", "yesterday", "3d ago") via `timeAgo()` utility
+     - Author name display fetched from /api/users (user ID → name mapping)
+     - Gradient left borders based on type: GENERAL=gray, EVENT=emerald, URGENT=red (border-l-2)
+     - Type-specific background gradient overlays
+     - Expand/collapse for long content (>150 chars): shows first 150 chars with "Read more" button, "Show less" to collapse
+     - Staggered entrance animations (container/item variants)
+     - User/Clock icons next to author name and time-ago
+   
+   - **Enhanced Create Dialog**:
+     - Preview mode: shows announcement as it will appear before posting
+     - Character counter for title (max 100) and content (max 1000) with red warning when exceeding
+     - Two-button layout: "Preview" (outline) + "Post" (emerald)
+     - Preview card shows type badge, title, content, author name, and "Just now" timestamp
+     - "Edit" button to return from preview to form
+     - Input fields with placeholders
+   
+   - **Empty State**: Megaphone icon with contextual message based on active filter
+   - Loading skeletons for initial load
+
+Files Modified:
+- /src/components/pages/analytics-page.tsx (complete rewrite)
+- /src/components/pages/announcements-page.tsx (major enhancement)
+
+Stage Summary:
+- 2 page components significantly enhanced
+- Analytics page: gradient header, 4 KPI StatCards, 6 charts/tables (member growth area, event categories pie, revenue bar, registration trends area, top events table, department distribution horizontal bar) - all with real API data
+- Announcements page: gradient header, filter tabs, enhanced cards with pin/time-ago/author/gradient borders/expand-collapse, enhanced create dialog with preview and character counters
+- All existing functionality preserved - no breaking changes
+- Lint passes cleanly (0 errors, 0 warnings)
+- Dev server compiles without errors
+
+---
+Task ID: 9-a
+Agent: Styling Enhancement Agent
+Task: Enhance styling of 5 page components with gradient headers, visual details, and animations
+
+Work Log:
+
+1. **Events Page** (`/src/components/pages/events-page.tsx`) Enhancements:
+   - Added gradient header banner with Calendar icon, "Events" title, subtitle "Discover and join cybersecurity events", SVG pattern overlay, blur orbs, and framer-motion fade-in animation
+   - Moved Create Event button into the header banner for better layout
+   - Added category-specific colored left borders on event cards: WORKSHOP=emerald, CTF=cyan, SEMINAR=amber, MEETUP=violet, TRAINING=rose (via CATEGORY_COLORS map with 5 properties each)
+   - Added hover glow effect on event cards matching category color (emerald/cyan/amber/violet/rose glow orbs)
+   - Improved seat progress bar to use gradient (from-emerald-500 to-cyan-500) instead of solid emerald color
+   - Added "Featured" badge with Star icon on events with the most registrations (top 2 by currentSeats)
+   - Added staggered entrance animations for grid cards using container/item variants
+   - Added enhanced list view with slide-in animations and whileHover lift
+   - Added improved empty state with Calendar icon and gradient background
+   - Removed unused Filter import
+
+2. **Members Page** (`/src/components/pages/members-page.tsx`) Enhancements:
+   - Added gradient header banner with Users icon, "Members" title, subtitle "Club member directory and management", SVG pattern overlay, blur orbs
+   - Added role-specific gradient avatar backgrounds: PRESIDENT=amber, VP=purple, GS=cyan, TREASURER=emerald, MEDIA=pink, VERIFIER=blue, MEMBER=gray, GUEST=gray, PLATFORM_ADMIN=red
+   - Added department badges with colored backgrounds: Computer Science=emerald, IT=cyan, Electrical Engineering=amber, Software Engineering=violet, Cybersecurity=rose, Other=gray
+   - Added member count stats bar at top with 4 cards: Total (UserPlus), Active (UserCheck), Pending (Hourglass), Rejected (UserX) - calculated from users array
+   - Added hover lift animation on member cards using whileHover={{ y: -2 }}
+   - Added "joined X ago" time display using createdAt with timeAgo helper function
+   - Added staggered animations for member list using container/item variants
+   - Added enhanced empty state with Users icon
+
+3. **Finance Page** (`/src/components/pages/finance-page.tsx`) Enhancements:
+   - Added gradient header banner with DollarSign icon, "Finance Overview" title, subtitle "Financial health at a glance", SVG pattern overlay, blur orbs
+   - Added Export button with Download icon in the header banner (visual only)
+   - Added recent transactions section fetching from /api/payments with limit 5
+   - Each transaction shows: colored status indicator (emerald=VERIFIED, amber=PENDING, red=REJECTED), user name, payment type, transaction ID, amount
+   - Added "Fund Utilization" donut/ring chart using SVG with emerald-to-cyan gradient stroke, animated strokeDashoffset with framer-motion
+   - Shows percentage, total budget, total spent, and remaining below the ring
+   - Restructured layout to 3-column grid: chart takes 2 cols, utilization ring takes 1 col
+   - Added staggered entrance animations for transaction items
+
+4. **Certificates Page** (`/src/components/pages/certificates-page.tsx`) Enhancements:
+   - Added gradient header banner with Award icon, "Certificates" title, subtitle "Your earned certifications and achievements", SVG pattern overlay, blur orbs
+   - Added certificate stats summary with 3 cards: Total (FileCheck), Valid (CheckCircle), Revoked (XCircle) - computed from certificates array
+   - Added decorative ribbon/badge effect on excellence certificates: rotated amber gradient banner with "Excellence" text at top-right corner
+   - Added hover tilt/3D perspective effect using CSS transforms: rotateY=3°, rotateX=-2°, scale=1.02 on hover
+   - Added Download button (visual only) on each certificate card
+   - Added print-ready visual styling on hover: white border glow (border-2 border-white/20), shadow-xl with emerald glow
+   - Excellence certificates show Star icon (amber) instead of Award icon, amber accent colors
+   - Added staggered animations for certificate grid using container/item variants
+   - Added CertificateTypeBadge import
+
+5. **Create Event Page** (`/src/components/pages/create-event-page.tsx`) Enhancements:
+   - Added gradient header banner with Plus icon, "Create New Event" title, subtitle "Set up a new club event or workshop", SVG pattern overlay, blur orbs
+   - Moved Back button into the header banner
+   - Grouped form fields into 4 sections with section headers: "Basic Information" (FileText), "Date & Venue" (Calendar), "Capacity & Pricing" (Users), "Assessment" (ClipboardCheck)
+   - Each section header has icon in rounded-lg container, title, and description
+   - Added section dividers (border-t border-white/5) between groups
+   - Added live preview card on the right side (desktop only, lg:col-span-2 out of 5)
+   - Preview shows: status/category/type badges, title, description, date, venue, fee, seat count, gradient progress bar, assessment badge
+   - Preview has gradient top border and sticky positioning
+   - Added visual form step indicators at the top: 4 steps with completion checkmarks
+   - Steps highlight based on which form field is being edited
+   - Step indicators show completion state (checkmark when section is filled)
+   - Enhanced success state with Check icon in gradient container
+
+Files Modified:
+- /src/components/pages/events-page.tsx
+- /src/components/pages/members-page.tsx
+- /src/components/pages/finance-page.tsx
+- /src/components/pages/certificates-page.tsx
+- /src/components/pages/create-event-page.tsx
+
+Stage Summary:
+- 5 page components significantly enhanced with gradient headers, visual details, and animations
+- Each page has consistent gradient header banner with SVG pattern overlay and blur orbs
+- Events: category-colored borders, Featured badges, gradient progress bars, hover glows
+- Members: role-colored avatars, department badges, stats bar, joined time, hover lift
+- Finance: recent transactions, SVG donut utilization ring, export button, responsive grid
+- Certificates: stats summary, excellence ribbon, 3D hover tilt, download buttons, print-ready glow
+- Create Event: section groups with headers, step indicators, live preview, dividers
+- All existing functionality preserved - no breaking changes
+- Lint passes cleanly (0 errors, 0 warnings)
+- Dev server compiles without errors
+
+---
+Task ID: 9-b
+Agent: Feature Development Agent
+Task: Add Global Search Feature (Ctrl+K) and Settings Page
+
+Work Log:
+
+Task 1: Global Search Feature (Ctrl+K)
+
+1. Created `/src/components/shared/search-command.tsx`:
+   - Full command palette / search dialog using shadcn/ui CommandDialog component
+   - Custom search input with emerald Search icon and ESC keyboard hint
+   - Searches across three categories:
+     - **Pages**: Static list of 16 navigation views (Dashboard, Events, Members, Finance, etc.)
+     - **Events**: Live search via `/api/events?search=...` API endpoint
+     - **Members**: Live search via `/api/users?search=...` API endpoint (admin only - PRESIDENT, GS, PLATFORM_ADMIN, TREASURER, VP roles)
+   - Results grouped by category with colored headers:
+     - Pages: cyan header with Shield icon
+     - Events: emerald header with Calendar icon
+     - Members: amber header with Users icon
+   - Each result is clickable:
+     - Pages → `setCurrentView(view)`
+     - Events → `setSelectedEventId(event.id)` + `setCurrentView('event-detail')`
+     - Members → `setCurrentView('members')`
+   - Debounced API search calls (300ms) with cleanup on unmount
+   - Loading spinner (Loader2) while searching each category
+   - Empty state with Search icon and helpful message
+   - Keyboard navigation hints in footer (↑↓ Navigate, ↵ Select, ESC Close)
+   - CyberSec branding footer with Lock icon
+   - Quick navigation mode when no query entered (shows top 6 pages)
+   - AnimatePresence transitions between search states
+   - Resets query and results when dialog closes
+   - Dark theme with emerald/cyan accents, custom scrollbar
+
+2. Updated `/src/components/layout/header.tsx`:
+   - Imported SearchCommand component
+   - Added `searchOpen` state for controlling dialog visibility
+   - Made search bar clickable (`onClick={() => setSearchOpen(true)}`)
+   - Changed search bar from Input to button with div for better click handling
+   - Added global keyboard listener for Ctrl+K / Cmd+K with `useEffect`
+   - Returns fragment `<>` wrapping header and SearchCommand (dialog renders in portal)
+   - Updated Settings dropdown menu item from `setCurrentView('dashboard')` to `setCurrentView('settings')`
+   - Added 'settings' to VIEW_TITLES and VIEW_BREADCRUMBS
+
+3. Updated `/src/types/index.ts`:
+   - Added `"settings"` to the AppView type union
+
+4. Created `/src/hooks/use-toast.ts`:
+   - Standard shadcn/ui toast hook implementation
+   - Supports ADD_TOAST, UPDATE_TOAST, DISMISS_TOAST, REMOVE_TOAST actions
+   - Toast limit of 5, auto-remove delay of 5000ms
+   - Required by Settings page for toast notifications
+
+Task 2: Settings Page
+
+1. Created `/src/components/pages/settings-page.tsx`:
+   - Five sections with gradient top borders:
+
+   **Profile Section** (emerald→cyan gradient):
+   - Displays current user role, email, department badges
+   - Editable name and phone fields (Input components)
+   - Editable bio field (Textarea component)
+   - Save button that PATCHes to `/api/users/[id]` with name, phone, bio
+   - Updates Zustand store via `updateCurrentUser()` on success
+   - Loading spinner on save button
+   - Error handling with toast notifications
+
+   **Appearance Section** (cyan→emerald gradient):
+   - Theme toggle (Dark/Light) using Switch component, linked to Zustand store
+   - Sidebar default state toggle (Expanded/Collapsed) using Switch component, linked to Zustand store
+   - Labels show active state with emerald-400 color
+
+   **Notifications Section** (amber→emerald gradient):
+   - Email notifications toggle (visual only)
+   - Push notifications toggle (visual only)
+   - Notification sound toggle (visual only)
+   - All use Switch components with emerald accent color
+
+   **Security Section** (emerald→amber gradient):
+   - Change password form with current/new/confirm password fields
+   - Show/hide password toggles (Eye/EyeOff icons) on all three fields
+   - Password strength indicator with animated progress bar (Weak/Fair/Medium/Strong)
+   - Password match/mismatch visual feedback
+   - Two-factor authentication toggle (visual only) with Fingerprint icon
+   - Active sessions display with 3 mock sessions:
+     - Current session (Chrome 120, Dhaka) with "Current" badge
+     - Mobile session (Safari 17, 2h ago) with Revoke button
+     - Desktop session (Firefox 121, 1d ago) with Revoke button
+   - Device type icons (Monitor for Desktop, Smartphone for Mobile)
+
+   **Danger Zone** (red gradient border):
+   - Export data button (visual only, shows toast)
+   - Deactivate account button with AlertDialog confirmation:
+     - Warning icon and title
+     - Detailed description of consequences
+     - Cancel and confirm buttons
+     - Confirm shows "feature disabled" toast (demo mode)
+
+   - Staggered entrance animations using framer-motion containerVariants/itemVariants
+   - Consistent dark theme with emerald/cyan accents
+
+2. Updated `/src/components/layout/app-shell.tsx`:
+   - Imported SettingsPage component
+   - Added `settings: SettingsPage` to PAGE_MAP
+
+3. Updated `/src/components/layout/sidebar.tsx`:
+   - Added "Settings" nav item to all 8 authenticated roles:
+     MEMBER, MEDIA, TREASURER, GS, VP, PRESIDENT, VERIFIER, PLATFORM_ADMIN
+   - Added "Settings" description to NAV_DESCRIPTIONS: "App settings and preferences"
+   - Settings icon already existed in ICON_MAP
+
+Stage Summary:
+- 1 new page component created (settings-page.tsx)
+- 1 new shared component created (search-command.tsx)
+- 1 new hook created (use-toast.ts)
+- 1 type updated (AppView + "settings")
+- 4 existing components updated (header.tsx, sidebar.tsx, app-shell.tsx, types/index.ts)
+- Global search with Ctrl+K works across Pages, Events, Members
+- Settings page with 5 sections: Profile, Appearance, Notifications, Security, Danger Zone
+- Lint passes cleanly (0 errors, 0 warnings)
+- Dev server compiles without errors

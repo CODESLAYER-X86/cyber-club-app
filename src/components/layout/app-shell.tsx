@@ -31,6 +31,7 @@ import { RolesPage } from '@/components/pages/roles-page';
 import { ProfilePage } from '@/components/pages/profile-page';
 import { AnalyticsPage } from '@/components/pages/analytics-page';
 import { AnnouncementsPage } from '@/components/pages/announcements-page';
+import { SettingsPage } from '@/components/pages/settings-page';
 
 const PAGE_MAP: Record<AppView, React.ComponentType> = {
   landing: LandingPage,
@@ -56,6 +57,7 @@ const PAGE_MAP: Record<AppView, React.ComponentType> = {
   profile: ProfilePage,
   announcements: AnnouncementsPage,
   analytics: AnalyticsPage,
+  settings: SettingsPage,
 };
 
 function MatrixBackground() {
