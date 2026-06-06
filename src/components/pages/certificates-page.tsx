@@ -3,6 +3,7 @@
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Award, Shield, Search, ExternalLink, Download, Star, CheckCircle, XCircle, FileCheck, Share2, Linkedin, Twitter, Copy, Loader2 } from 'lucide-react';
+import { toast } from '@/hooks/use-toast';
 import { useAppStore } from '@/store/use-app-store';
 import type { Certificate, CertificateType, CertificateStatus } from '@/types';
 import { CERTIFICATE_TYPE_LABELS } from '@/types';
@@ -31,6 +32,7 @@ export function CertificatesPage() {
   const [hoveredId, setHoveredId] = useState<string | null>(null);
   const [shareOpen, setShareOpen] = useState<string | null>(null);
   const [copiedId, setCopiedId] = useState<string | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
   const canExport = currentUser && ['PRESIDENT', 'TREASURER', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
   useEffect(() => {
@@ -228,8 +230,54 @@ export function CertificatesPage() {
                               </div>
                             </PopoverContent>
                           </Popover>
-                          <Button variant="ghost" size="sm" className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
-                            <Download className="mr-1 h-3 w-3" /> Download
+                          <Button variant="ghost" size="sm" disabled={downloadingId === cert.id} onClick={async () => {
+                            setDownloadingId(cert.id);
+                            try {
+                              const res = await fetch(`/api/certificates/${cert.certificateCode}/og`);
+                              if (!res.ok) throw new Error('Failed to generate certificate');
+                              const svgText = await res.text();
+                              // Create a canvas to convert SVG to PNG
+                              const img = new Image();
+                              const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+                              const url = URL.createObjectURL(svgBlob);
+                              img.onload = () => {
+                                const canvas = document.createElement('canvas');
+                                canvas.width = 1200;
+                                canvas.height = 630;
+                                const ctx = canvas.getContext('2d');
+                                if (ctx) {
+                                  ctx.drawImage(img, 0, 0);
+                                  canvas.toBlob((blob) => {
+                                    if (blob) {
+                                      const pngUrl = URL.createObjectURL(blob);
+                                      const a = document.createElement('a');
+                                      a.href = pngUrl;
+                                      a.download = `certificate-${cert.certificateCode}.png`;
+                                      a.click();
+                                      URL.revokeObjectURL(pngUrl);
+                                    }
+                                    URL.revokeObjectURL(url);
+                                  }, 'image/png');
+                                }
+                              };
+                              img.src = url;
+                              // Also offer SVG download as fallback
+                              const a = document.createElement('a');
+                              const svgUrl2 = URL.createObjectURL(svgBlob);
+                              a.href = svgUrl2;
+                              a.download = `certificate-${cert.certificateCode}.svg`;
+                              a.click();
+                              URL.revokeObjectURL(svgUrl2);
+                              toast({ title: 'Certificate downloaded', description: 'Your certificate has been downloaded.' });
+                            } catch (e) {
+                              console.error(e);
+                              toast({ title: 'Download failed', description: 'Could not download certificate.', variant: 'destructive' });
+                            } finally {
+                              setDownloadingId(null);
+                            }
+                          }} className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
+                            {downloadingId === cert.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}
+                            Download
                           </Button>
                         </div>
                       </CardContent>

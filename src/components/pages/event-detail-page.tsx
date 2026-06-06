@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventRegistration, User as UserType } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, ROLE_LABELS } from '@/types';
@@ -194,6 +194,29 @@ export function EventDetailPage() {
           {canDelete && (
             <Button variant="outline" size="sm" onClick={() => setDeleteDialogOpen(true)} className="border-red-500/20 bg-red-500/5 text-red-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/40">
               <Trash2 className="mr-2 h-4 w-4" /> Delete
+            </Button>
+          )}
+          {/* Mark as Completed Button */}
+          {isAdmin && (event.status === 'UPCOMING' || event.status === 'ONGOING') && (
+            <Button variant="outline" size="sm" onClick={async () => {
+              try {
+                const res = await fetch(`/api/events/${event.id}`, {
+                  method: 'PATCH',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ status: 'COMPLETED' }),
+                });
+                const d = await res.json();
+                if (d.success) {
+                  toast({ title: 'Event completed', description: 'Event marked as completed. Certificates can now be issued.' });
+                  loadEvent();
+                } else {
+                  toast({ title: 'Failed', description: d.error || 'Could not update event', variant: 'destructive' });
+                }
+              } catch {
+                toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+              }
+            }} className="border-cyan-500/20 bg-cyan-500/5 text-cyan-400 hover:text-white hover:bg-cyan-500/20 hover:border-cyan-500/40">
+              <Flag className="mr-2 h-4 w-4" /> Mark Completed
             </Button>
           )}
         </div>
