@@ -282,7 +282,7 @@ export function GalleryPage() {
           imageUrl,
           category: uploadForm.category,
           uploadedBy: currentUser.id,
-          eventId: uploadForm.eventId || undefined,
+          eventId: uploadForm.eventId && uploadForm.eventId !== 'none' ? uploadForm.eventId : undefined,
         }),
       });
 
