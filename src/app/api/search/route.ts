@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -12,7 +12,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [events, users, certificates] = await Promise.all([
-      db.event.findMany({
+      prisma.event.findMany({
         where: {
           OR: [
             { title: { contains: query } },
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { startDate: "desc" },
       }),
-      db.user.findMany({
+      prisma.user.findMany({
         where: {
           OR: [
             { name: { contains: query } },
@@ -49,7 +49,7 @@ export async function GET(request: NextRequest) {
           avatar: true,
         },
       }),
-      db.certificate.findMany({
+      prisma.certificate.findMany({
         where: {
           OR: [
             { certificateCode: { contains: query } },

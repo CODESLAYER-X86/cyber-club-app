@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -32,7 +32,7 @@ export async function GET(request: NextRequest) {
       ];
     }
 
-    const events = await db.event.findMany({
+    const events = await prisma.event.findMany({
       where,
       include: {
         creator: {
@@ -91,7 +91,7 @@ export async function POST(request: NextRequest) {
       return errorResponse("title, description, startDate, endDate, venue, and createdBy are required");
     }
 
-    const event = await db.event.create({
+    const event = await prisma.event.create({
       data: {
         title,
         description,

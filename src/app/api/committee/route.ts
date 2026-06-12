@@ -1,16 +1,16 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
+import { requireSession } from "@/lib/auth";
 import { NextRequest } from "next/server";
 
 const CREATE_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
 
 export async function GET() {
   try {
-    const members = await db.committeeMember.findMany({
+    const members = await prisma.committeeMember.findMany({
       where: { isActive: true },
       orderBy: { order: "asc" },
     });
-
     return successResponse({ members });
   } catch {
     return serverErrorResponse();
@@ -19,28 +19,18 @@ export async function GET() {
 
 export async function POST(request: NextRequest) {
   try {
+    // Get role from server session — NEVER from client body
+    const { session, error } = await requireSession(CREATE_ROLES);
+    if (error) return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can create committee members");
+
     const body = await request.json();
-    const {
-      name,
-      role,
-      description,
-      imageUrl,
-      department,
-      email,
-      socialLinks,
-      order,
-      requesterRole,
-    } = body;
+    const { name, role, description, imageUrl, department, email, socialLinks, order } = body;
 
     if (!name || !role || !description) {
       return errorResponse("name, role, and description are required");
     }
 
-    if (!requesterRole || !CREATE_ROLES.includes(requesterRole)) {
-      return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can create committee members");
-    }
-
-    const member = await db.committeeMember.create({
+    const member = await prisma.committeeMember.create({
       data: {
         name,
         role,

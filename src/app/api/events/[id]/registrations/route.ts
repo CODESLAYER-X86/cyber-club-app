@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -10,7 +10,7 @@ export async function GET(
     const { id } = await params;
 
     // Verify event exists
-    const event = await db.event.findUnique({
+    const event = await prisma.event.findUnique({
       where: { id },
       select: { id: true, title: true, status: true },
     });
@@ -19,7 +19,7 @@ export async function GET(
       return notFoundResponse("Event not found");
     }
 
-    const registrations = await db.eventRegistration.findMany({
+    const registrations = await prisma.eventRegistration.findMany({
       where: { eventId: id },
       include: {
         user: {

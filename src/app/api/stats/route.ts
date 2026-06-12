@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, serverErrorResponse } from "@/lib/api-utils";
 
 export async function GET() {
@@ -14,30 +14,30 @@ export async function GET() {
       totalEvents,
       totalCertificates,
     ] = await Promise.all([
-      db.user.count({
+      prisma.user.count({
         where: { membershipStatus: { in: ["ACTIVE", "PENDING"] } },
       }),
-      db.user.count({
+      prisma.user.count({
         where: { membershipStatus: "ACTIVE" },
       }),
-      db.user.count({
+      prisma.user.count({
         where: { membershipStatus: "PENDING" },
       }),
-      db.payment.aggregate({
+      prisma.payment.aggregate({
         where: { status: "VERIFIED" },
         _sum: { amount: true },
       }),
-      db.event.count({
+      prisma.event.count({
         where: { status: { in: ["UPCOMING", "ONGOING"] } },
       }),
-      db.payment.count({
+      prisma.payment.count({
         where: { status: "PENDING" },
       }),
-      db.user.count({
+      prisma.user.count({
         where: { membershipStatus: "PENDING" },
       }),
-      db.event.count(),
-      db.certificate.count({
+      prisma.event.count(),
+      prisma.certificate.count({
         where: { status: "VALID" },
       }),
     ]);
@@ -45,7 +45,7 @@ export async function GET() {
     const totalFunds = totalFundsResult._sum.amount ?? 0;
 
     // Get recent activity
-    const recentAuditLogs = await db.auditLog.findMany({
+    const recentAuditLogs = await prisma.auditLog.findMany({
       take: 5,
       orderBy: { createdAt: "desc" },
       include: {
@@ -62,7 +62,7 @@ export async function GET() {
     });
 
     // Get upcoming events
-    const upcomingEvents = await db.event.findMany({
+    const upcomingEvents = await prisma.event.findMany({
       where: { status: "UPCOMING" },
       take: 5,
       orderBy: { startDate: "asc" },

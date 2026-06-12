@@ -215,13 +215,13 @@ export function SettingsPage() {
 
   return (
     <motion.div
-      variants={containerVariants}
+      variants={containerVariants as any}
       initial="hidden"
       animate="visible"
       className="space-y-6"
     >
       {/* Page Header */}
-      <motion.div variants={itemVariants} className="flex items-center justify-between">
+      <motion.div variants={itemVariants as any} className="flex items-center justify-between">
         <div>
           <h1 className="text-2xl font-bold text-white">Settings</h1>
           <p className="text-sm text-gray-500 mt-1">Manage your account and application preferences</p>
@@ -229,7 +229,7 @@ export function SettingsPage() {
       </motion.div>
 
       {/* Profile Section */}
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants as any}>
         <Card className="border-white/5 bg-[#111] overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-emerald-500 to-cyan-500" />
           <CardHeader>
@@ -307,7 +307,7 @@ export function SettingsPage() {
       </motion.div>
 
       {/* Appearance Section */}
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants as any}>
         <Card className="border-white/5 bg-[#111] overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-cyan-500 to-emerald-500" />
           <CardHeader>
@@ -384,7 +384,7 @@ export function SettingsPage() {
       </motion.div>
 
       {/* Notifications Section */}
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants as any}>
         <Card className="border-white/5 bg-[#111] overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-amber-500 to-emerald-500" />
           <CardHeader>
@@ -446,7 +446,7 @@ export function SettingsPage() {
       </motion.div>
 
       {/* Security Section */}
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants as any}>
         <Card className="border-white/5 bg-[#111] overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-emerald-500 to-amber-500" />
           <CardHeader>
@@ -646,7 +646,7 @@ export function SettingsPage() {
       </motion.div>
 
       {/* Danger Zone */}
-      <motion.div variants={itemVariants}>
+      <motion.div variants={itemVariants as any}>
         <Card className="border-red-500/20 bg-[#111] overflow-hidden">
           <div className="h-1 bg-gradient-to-r from-red-600 to-red-500" />
           <CardHeader>

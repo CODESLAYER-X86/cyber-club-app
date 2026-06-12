@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
       where.userId = userId;
     }
 
-    const payments = await db.payment.findMany({
+    const payments = await prisma.payment.findMany({
       where,
       include: {
         user: {
@@ -68,7 +68,7 @@ export async function POST(request: NextRequest) {
       return errorResponse("userId, amount, and transactionId are required");
     }
 
-    const payment = await db.payment.create({
+    const payment = await prisma.payment.create({
       data: {
         userId,
         amount,

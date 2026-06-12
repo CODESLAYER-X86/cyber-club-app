@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { code } = await params;
 
-    const certificate = await db.certificate.findUnique({
+    const certificate = await prisma.certificate.findUnique({
       where: { certificateCode: code },
       include: {
         user: {

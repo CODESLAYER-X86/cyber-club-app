@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       where.category = category;
     }
 
-    const achievements = await db.achievement.findMany({
+    const achievements = await prisma.achievement.findMany({
       where,
       include: {
         submitter: {
@@ -54,7 +54,7 @@ export async function POST(request: NextRequest) {
       return errorResponse("title, description, submittedBy, and achievedDate are required");
     }
 
-    const achievement = await db.achievement.create({
+    const achievement = await prisma.achievement.create({
       data: {
         title,
         description,

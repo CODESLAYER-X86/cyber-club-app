@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import {
   successResponse,
   errorResponse,
@@ -30,7 +30,7 @@ export async function PATCH(
     }
 
     // Find the certificate
-    const certificate = await db.certificate.findUnique({
+    const certificate = await prisma.certificate.findUnique({
       where: { id: certificateId },
       include: {
         user: {
@@ -55,7 +55,7 @@ export async function PATCH(
     }
 
     // Update the certificate
-    const updatedCertificate = await db.certificate.update({
+    const updatedCertificate = await prisma.certificate.update({
       where: { id: certificateId },
       data: {
         approvedBy: performedBy,
@@ -81,7 +81,7 @@ export async function PATCH(
     });
 
     // Create audit log entry
-    await db.certificateAuditLog.create({
+    await prisma.certificateAuditLog.create({
       data: {
         certificateId,
         action: "APPROVED",
@@ -95,7 +95,7 @@ export async function PATCH(
     });
 
     // Create notification for the certificate holder
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
         userId: certificate.userId,
         title: "Certificate Approved",

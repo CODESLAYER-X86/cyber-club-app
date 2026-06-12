@@ -1,10 +1,11 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import {
   errorResponse,
   notFoundResponse,
   serverErrorResponse,
   successResponse,
 } from "@/lib/api-utils";
+import { requireSession } from "@/lib/auth";
 import { NextRequest } from "next/server";
 
 const ALLOWED_ROLES = ["MEDIA", "PRESIDENT", "PLATFORM_ADMIN"];
@@ -15,32 +16,20 @@ export async function DELETE(
 ) {
   try {
     const { id, photoId } = await params;
-    const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get("userId");
-
-    if (!userId) {
-      return errorResponse("userId is required for authorization");
-    }
-
-    // RBAC check
-    const user = await db.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    if (!user || !ALLOWED_ROLES.includes(user.role)) {
+    const { session, error: authError } = await requireSession(ALLOWED_ROLES);
+    if (authError) {
       return errorResponse("Only MEDIA, PRESIDENT, or PLATFORM_ADMIN can delete photos", 403);
     }
 
-    const photo = await db.galleryPhoto.findUnique({
+    const photo = await prisma.galleryImage.findUnique({
       where: { id: photoId },
     });
 
-    if (!photo || photo.albumId !== id) {
-      return notFoundResponse("Photo not found in this album");
+    if (!photo || photo.eventId !== id) {
+      return notFoundResponse("Photo not found in this event");
     }
 
-    await db.galleryPhoto.delete({ where: { id: photoId } });
+    await prisma.galleryImage.delete({ where: { id: photoId } });
 
     return successResponse({ message: "Photo deleted successfully" });
   } catch {

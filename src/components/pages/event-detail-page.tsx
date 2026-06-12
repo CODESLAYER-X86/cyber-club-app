@@ -16,14 +16,14 @@ import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
 
-interface EventDetailData extends Event {
+type EventDetailData = Omit<Event, 'registrations'> & {
   creator?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role'>;
   verifier?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role'>;
   registrations?: (EventRegistration & {
     user?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role' | 'membershipStatus'>;
   })[];
   _count?: { registrations: number };
-}
+};
 
 export function EventDetailPage() {
   const { currentUser, selectedEventId, setCurrentView } = useAppStore();

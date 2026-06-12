@@ -12,7 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Separator } from '@/components/ui/separator';
 
-interface CertificateVerifyResult extends Certificate {
+interface CertificateVerifyResult extends Omit<Certificate, 'user' | 'event'> {
   user?: { id: string; name: string; email: string };
   event?: { id: string; title: string; category: string; startDate: string; endDate: string };
 }

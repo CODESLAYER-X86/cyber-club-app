@@ -829,7 +829,7 @@ function GalleryCard({
 
   return (
     <motion.div
-      variants={itemVariants}
+      variants={itemVariants as any}
       className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111] transition-shadow hover:shadow-lg hover:shadow-emerald-500/5"
     >
       {/* Image */}

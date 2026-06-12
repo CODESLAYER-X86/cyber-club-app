@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, notFoundResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -9,7 +9,7 @@ export async function GET(
   try {
     const { id } = await params;
 
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id },
       select: {
         id: true,
@@ -56,7 +56,7 @@ export async function PATCH(
   try {
     const { id } = await params;
 
-    const user = await db.user.findUnique({ where: { id } });
+    const user = await prisma.user.findUnique({ where: { id } });
     if (!user) {
       return notFoundResponse("User not found");
     }
@@ -74,7 +74,7 @@ export async function PATCH(
       return errorResponse("No valid fields to update");
     }
 
-    const updatedUser = await db.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id },
       data: updateData,
       select: {

@@ -1,63 +1,77 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import {
   successResponse,
   errorResponse,
   notFoundResponse,
+  forbiddenResponse,
   serverErrorResponse,
 } from "@/lib/api-utils";
+import { requireSession } from "@/lib/auth";
 import { NextRequest } from "next/server";
 
 const ALLOWED_ROLES = ["MEDIA", "PRESIDENT", "PLATFORM_ADMIN"];
 
+// POST /api/gallery/:eventId/photos — add a gallery image to an event
 export async function POST(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id } = await params;
+    const { id: eventId } = await params;
+
+    const { session, error } = await requireSession(ALLOWED_ROLES);
+    if (error) return forbiddenResponse("Only MEDIA, PRESIDENT, or PLATFORM_ADMIN can add photos");
+
     const body = await request.json();
-    const { url, caption, createdBy } = body;
+    const { imageUrl, title, description, category } = body;
 
-    if (!url || !createdBy) {
-      return errorResponse("url and createdBy are required");
+    if (!imageUrl || !title) {
+      return errorResponse("imageUrl and title are required");
     }
 
-    // RBAC check
-    const user = await db.user.findUnique({
-      where: { id: createdBy },
-      select: { role: true },
-    });
-
-    if (!user || !ALLOWED_ROLES.includes(user.role)) {
-      return errorResponse("Only MEDIA, PRESIDENT, or PLATFORM_ADMIN can add photos", 403);
+    // Verify event exists (the :id here is the event the photos belong to)
+    const event = await prisma.event.findUnique({ where: { id: eventId } });
+    if (!event) {
+      return notFoundResponse("Event not found");
     }
 
-    const album = await db.galleryAlbum.findUnique({ where: { id } });
-    if (!album) {
-      return notFoundResponse("Album not found");
-    }
-
-    const photo = await db.galleryPhoto.create({
+    const photo = await prisma.galleryImage.create({
       data: {
-        albumId: id,
-        url,
-        caption: caption || null,
-        createdBy,
+        imageUrl,
+        title,
+        description: description || null,
+        category: category || "EVENT",
+        eventId,
+        uploadedBy: (session!.user as { id: string }).id,
       },
       include: {
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-            role: true,
-          },
+        uploader: {
+          select: { id: true, name: true, email: true, avatar: true, role: true },
         },
       },
     });
 
     return successResponse({ photo }, 201);
+  } catch {
+    return serverErrorResponse();
+  }
+}
+
+// GET /api/gallery/:eventId/photos — list photos for an event
+export async function GET(
+  _request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const { id: eventId } = await params;
+    const photos = await prisma.galleryImage.findMany({
+      where: { eventId },
+      include: {
+        uploader: { select: { id: true, name: true, avatar: true } },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+    return successResponse({ photos });
   } catch {
     return serverErrorResponse();
   }

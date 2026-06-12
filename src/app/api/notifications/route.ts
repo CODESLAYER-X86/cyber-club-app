@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -10,7 +10,7 @@ export async function GET(request: NextRequest) {
       return errorResponse("userId query parameter is required");
     }
 
-    const notifications = await db.notification.findMany({
+    const notifications = await prisma.notification.findMany({
       where: { userId },
       orderBy: { createdAt: "desc" },
     });

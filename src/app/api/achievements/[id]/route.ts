@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -18,7 +18,7 @@ export async function PATCH(
       return forbiddenResponse("Only PRESIDENT, VP, or PLATFORM_ADMIN can update achievement status");
     }
 
-    const achievement = await db.achievement.findUnique({
+    const achievement = await prisma.achievement.findUnique({
       where: { id },
     });
 
@@ -34,7 +34,7 @@ export async function PATCH(
     if (status) updateData.status = status;
     if (approvedBy) updateData.approvedBy = approvedBy;
 
-    const updatedAchievement = await db.achievement.update({
+    const updatedAchievement = await prisma.achievement.update({
       where: { id },
       data: updateData,
       include: {
@@ -76,7 +76,7 @@ export async function DELETE(
       return forbiddenResponse("Only PRESIDENT or PLATFORM_ADMIN can delete achievements");
     }
 
-    const achievement = await db.achievement.findUnique({
+    const achievement = await prisma.achievement.findUnique({
       where: { id },
     });
 
@@ -84,7 +84,7 @@ export async function DELETE(
       return notFoundResponse("Achievement not found");
     }
 
-    await db.achievement.delete({
+    await prisma.achievement.delete({
       where: { id },
     });
 

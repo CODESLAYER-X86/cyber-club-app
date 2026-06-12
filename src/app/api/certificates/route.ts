@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import {
   successResponse,
   errorResponse,
@@ -36,7 +36,7 @@ export async function GET(request: NextRequest) {
     let certificates;
     if (search) {
       // When searching, we need to filter by code or user name
-      certificates = await db.certificate.findMany({
+      certificates = await prisma.certificate.findMany({
         where: {
           ...where,
           OR: [
@@ -87,7 +87,7 @@ export async function GET(request: NextRequest) {
           c.user?.name?.toLowerCase().includes(search.toLowerCase())
       );
     } else {
-      certificates = await db.certificate.findMany({
+      certificates = await prisma.certificate.findMany({
         where,
         include: {
           user: {
@@ -171,7 +171,7 @@ export async function POST(request: NextRequest) {
     // Generate unique certificate code
     const certificateCode = `CSC-${uuidv4().split("-")[0].toUpperCase()}-${uuidv4().split("-")[1].toUpperCase()}`;
 
-    const certificate = await db.certificate.create({
+    const certificate = await prisma.certificate.create({
       data: {
         certificateCode,
         userId,
@@ -209,7 +209,7 @@ export async function POST(request: NextRequest) {
     });
 
     // Create CertificateAuditLog entry
-    await db.certificateAuditLog.create({
+    await prisma.certificateAuditLog.create({
       data: {
         certificateId: certificate.id,
         action: "ISSUED",
@@ -233,7 +233,7 @@ export async function POST(request: NextRequest) {
         ? `You have been issued a ${type.toLowerCase()} certificate for "${certificate.event.title}". It is pending President approval. Code: ${certificateCode}`
         : `You have been issued a ${type.toLowerCase()} certificate for "${certificate.event.title}". Code: ${certificateCode}`;
 
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
         userId,
         title:

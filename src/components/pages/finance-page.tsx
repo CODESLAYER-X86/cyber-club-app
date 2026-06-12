@@ -30,7 +30,7 @@ const PAYMENT_TYPE_CONFIG: Record<string, { color: string; bg: string; icon: str
 function generateMonthlyRevenue(payments: Payment[]) {
   const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
   const now = new Date();
-  const data = [];
+  const data: { month: string; revenue: number; }[] = [];
 
   for (let i = 5; i >= 0; i--) {
     const monthIdx = (now.getMonth() - i + 12) % 12;

@@ -1,6 +1,6 @@
 import { unlink } from "fs/promises";
 import path from "path";
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -13,7 +13,7 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    const galleryImage = await db.galleryImage.findUnique({
+    const galleryImage = await prisma.galleryImage.findUnique({
       where: { id },
       include: {
         uploader: {
@@ -43,7 +43,7 @@ export async function DELETE(
     }
 
     // Delete from database
-    await db.galleryImage.delete({
+    await prisma.galleryImage.delete({
       where: { id },
     });
 
