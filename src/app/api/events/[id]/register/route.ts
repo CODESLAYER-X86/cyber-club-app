@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -15,7 +15,7 @@ export async function POST(
       return errorResponse("userId is required");
     }
 
-    const event = await db.event.findUnique({ where: { id } });
+    const event = await prisma.event.findUnique({ where: { id } });
     if (!event) {
       return notFoundResponse("Event not found");
     }
@@ -26,7 +26,7 @@ export async function POST(
     }
 
     // Check if already registered
-    const existing = await db.eventRegistration.findUnique({
+    const existing = await prisma.eventRegistration.findUnique({
       where: { userId_eventId: { userId, eventId: id } },
     });
 
@@ -41,7 +41,7 @@ export async function POST(
 
     // Check membership for MEMBER_ONLY type
     if (event.type === "MEMBER_ONLY") {
-      const user = await db.user.findUnique({ where: { id: userId } });
+      const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user || user.membershipStatus !== "ACTIVE") {
         return errorResponse("Only active members can register for this event");
       }
@@ -55,7 +55,7 @@ export async function POST(
     // Determine registration status: free events auto-approve, paid events stay pending until payment verified
     const registrationStatus = event.fee > 0 ? "PENDING" : "APPROVED";
 
-    const registration = await db.eventRegistration.create({
+    const registration = await prisma.eventRegistration.create({
       data: {
         userId,
         eventId: id,
@@ -83,15 +83,15 @@ export async function POST(
     });
 
     // Increment current seats
-    await db.event.update({
+    await prisma.event.update({
       where: { id },
       data: { currentSeats: { increment: 1 } },
     });
 
     // For PAID events, create a Payment record so it appears in Verify Payments
-    let payment = null;
+    let payment: unknown = null;
     if (event.fee > 0 && transactionId) {
-      payment = await db.payment.create({
+      payment = await prisma.payment.create({
         data: {
           userId,
           amount: event.fee,
@@ -124,7 +124,7 @@ export async function POST(
       ? `You have registered for "${event.title}". Your payment (৳${event.fee}) is pending verification. You'll be approved once payment is confirmed.`
       : `You have registered for "${event.title}". Your registration has been approved!`;
 
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
         userId,
         title: "Event Registration",

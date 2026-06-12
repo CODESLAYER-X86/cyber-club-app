@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import {
   successResponse,
   errorResponse,
@@ -17,7 +17,7 @@ export async function GET(
     const { userId, eventId } = await params;
 
     // Verify user exists
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { id: true, name: true },
     });
@@ -27,7 +27,7 @@ export async function GET(
     }
 
     // Verify event exists and get details
-    const event = await db.event.findUnique({
+    const event = await prisma.event.findUnique({
       where: { id: eventId },
       select: {
         id: true,
@@ -46,7 +46,7 @@ export async function GET(
     const eventCompleted = event.status === "COMPLETED";
 
     // Check 2: User must have APPROVED registration
-    const registration = await db.eventRegistration.findUnique({
+    const registration = await prisma.eventRegistration.findUnique({
       where: {
         userId_eventId: { userId, eventId },
       },
@@ -54,7 +54,7 @@ export async function GET(
     const registrationApproved = registration?.status === "APPROVED";
 
     // Check 3: User must have PRESENT or LATE attendance
-    const attendance = await db.attendance.findUnique({
+    const attendance = await prisma.attendance.findUnique({
       where: {
         userId_eventId: { userId, eventId },
       },
@@ -68,7 +68,7 @@ export async function GET(
       assessmentPassed = false;
       if (event.passingScore !== null && event.passingScore !== undefined) {
         // Find assessments for this event
-        const assessments = await db.assessment.findMany({
+        const assessments = await prisma.assessment.findMany({
           where: { eventId },
           select: { id: true },
         });
@@ -77,7 +77,7 @@ export async function GET(
           const assessmentIds = assessments.map((a) => a.id);
 
           // Check if user has a graded submission with passing score
-          const passingSubmission = await db.assessmentSubmission.findFirst({
+          const passingSubmission = await prisma.assessmentSubmission.findFirst({
             where: {
               userId,
               assessmentId: { in: assessmentIds },
@@ -92,7 +92,7 @@ export async function GET(
     }
 
     // Check 5: User must NOT already have a certificate for this event
-    const existingCertificate = await db.certificate.findFirst({
+    const existingCertificate = await prisma.certificate.findFirst({
       where: {
         userId,
         eventId,

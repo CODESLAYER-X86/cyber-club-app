@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -21,7 +21,7 @@ export async function POST(
       return forbiddenResponse("Only PRESIDENT, VP, or PLATFORM_ADMIN can approve achievements");
     }
 
-    const achievement = await db.achievement.findUnique({
+    const achievement = await prisma.achievement.findUnique({
       where: { id },
     });
 
@@ -33,7 +33,7 @@ export async function POST(
       return errorResponse("Achievement is already approved");
     }
 
-    const updatedAchievement = await db.achievement.update({
+    const updatedAchievement = await prisma.achievement.update({
       where: { id },
       data: {
         status: "APPROVED",
@@ -58,7 +58,7 @@ export async function POST(
     });
 
     // Notify the submitter
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
         userId: achievement.submittedBy,
         title: "Achievement Approved",

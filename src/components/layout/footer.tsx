@@ -48,7 +48,7 @@ export function Footer() {
 
   return (
     <motion.footer
-      variants={containerVariants}
+      variants={containerVariants as any}
       initial="hidden"
       whileInView="visible"
       viewport={{ once: true, margin: '-50px' }}
@@ -57,7 +57,7 @@ export function Footer() {
       <div className="mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 sm:grid-cols-2 lg:grid-cols-4">
           {/* Column 1: Brand */}
-          <motion.div variants={itemVariants} className="space-y-4">
+          <motion.div variants={itemVariants as any} className="space-y-4">
             <div className="flex items-center gap-2.5">
               <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
                 <Shield className="h-5 w-5 text-emerald-400" />
@@ -86,7 +86,7 @@ export function Footer() {
           </motion.div>
 
           {/* Column 2: Quick Links */}
-          <motion.div variants={itemVariants} className="space-y-4">
+          <motion.div variants={itemVariants as any} className="space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
               Quick Links
             </h3>
@@ -105,7 +105,7 @@ export function Footer() {
           </motion.div>
 
           {/* Column 3: Resources */}
-          <motion.div variants={itemVariants} className="space-y-4">
+          <motion.div variants={itemVariants as any} className="space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
               Resources
             </h3>
@@ -124,7 +124,7 @@ export function Footer() {
           </motion.div>
 
           {/* Column 4: Legal */}
-          <motion.div variants={itemVariants} className="space-y-4">
+          <motion.div variants={itemVariants as any} className="space-y-4">
             <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-300">
               Legal
             </h3>
@@ -146,7 +146,7 @@ export function Footer() {
 
       {/* Bottom bar */}
       <motion.div
-        variants={itemVariants}
+        variants={itemVariants as any}
         className="border-t border-white/5"
       >
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-5 sm:flex-row sm:px-6 lg:px-8">

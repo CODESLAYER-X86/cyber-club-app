@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, serverErrorResponse } from "@/lib/api-utils";
 
 const LEADERSHIP_ROLES = ["PRESIDENT", "VP", "GS", "TREASURER", "MEDIA", "VERIFIER"];
@@ -15,7 +15,7 @@ const ROLE_ORDER: Record<string, number> = {
 
 export async function GET() {
   try {
-    const users = await db.user.findMany({
+    const users = await prisma.user.findMany({
       where: {
         role: { in: LEADERSHIP_ROLES },
         membershipStatus: "ACTIVE",

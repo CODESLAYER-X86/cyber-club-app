@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -25,7 +25,7 @@ export async function PATCH(
       return errorResponse("You do not have permission to update registration status", 403);
     }
 
-    const registration = await db.eventRegistration.findUnique({
+    const registration = await prisma.eventRegistration.findUnique({
       where: { id: regId },
       include: { user: true, event: true },
     });
@@ -38,7 +38,7 @@ export async function PATCH(
       return errorResponse("Registration does not belong to this event");
     }
 
-    const updatedRegistration = await db.eventRegistration.update({
+    const updatedRegistration = await prisma.eventRegistration.update({
       where: { id: regId },
       data: { status },
       include: {
@@ -57,7 +57,7 @@ export async function PATCH(
 
     // If registration is cancelled/rejected, decrement current seats
     if ((status === "CANCELLED" || status === "REJECTED") && registration.status === "APPROVED") {
-      await db.event.update({
+      await prisma.event.update({
         where: { id: eventId },
         data: { currentSeats: { decrement: 1 } },
       });
@@ -70,7 +70,7 @@ export async function PATCH(
       CANCELLED: `Your registration for "${registration.event.title}" has been cancelled.`,
     };
 
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
         userId: registration.userId,
         title: "Registration Update",

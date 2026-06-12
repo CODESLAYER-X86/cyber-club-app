@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -31,7 +31,7 @@ export async function GET(request: NextRequest) {
       return forbiddenResponse("User ID is required for export");
     }
 
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true },
     });
@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
 
     switch (type) {
       case "members": {
-        const members = await db.user.findMany({
+        const members = await prisma.user.findMany({
           select: {
             name: true,
             email: true,
@@ -73,7 +73,7 @@ export async function GET(request: NextRequest) {
       }
 
       case "events": {
-        const events = await db.event.findMany({
+        const events = await prisma.event.findMany({
           select: {
             title: true,
             category: true,
@@ -105,7 +105,7 @@ export async function GET(request: NextRequest) {
       }
 
       case "payments": {
-        const payments = await db.payment.findMany({
+        const payments = await prisma.payment.findMany({
           select: {
             user: { select: { name: true } },
             amount: true,
@@ -133,7 +133,7 @@ export async function GET(request: NextRequest) {
       }
 
       case "certificates": {
-        const certificates = await db.certificate.findMany({
+        const certificates = await prisma.certificate.findMany({
           select: {
             user: { select: { name: true } },
             event: { select: { title: true } },

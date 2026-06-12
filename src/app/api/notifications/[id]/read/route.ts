@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -9,7 +9,7 @@ export async function PATCH(
   try {
     const { id } = await params;
 
-    const notification = await db.notification.findUnique({
+    const notification = await prisma.notification.findUnique({
       where: { id },
     });
 
@@ -17,7 +17,7 @@ export async function PATCH(
       return notFoundResponse("Notification not found");
     }
 
-    const updatedNotification = await db.notification.update({
+    const updatedNotification = await prisma.notification.update({
       where: { id },
       data: { read: true },
     });

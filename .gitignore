@@ -52,3 +52,9 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Agent/Workspace directories
+.agent
+.superpowers
+.x86-kit
+*.tar

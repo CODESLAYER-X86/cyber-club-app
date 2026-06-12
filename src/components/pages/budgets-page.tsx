@@ -24,7 +24,7 @@ interface BudgetWithExpenses {
   amount: number;
   category: string;
   period: string;
-  expenses: { id: string; title: string; amount: number; status: string }[];
+  expenses: { id: string; title: string; amount: number; status: "PENDING" | "APPROVED" | "REJECTED" }[];
 }
 
 const CATEGORY_CONFIG: Record<string, { icon: typeof Wallet; label: string; badgeClass: string; borderClass: string; iconBg: string; iconColor: string }> = {

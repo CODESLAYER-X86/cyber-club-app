@@ -1,11 +1,11 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
 // GET pending member approval requests
 export async function GET() {
   try {
-    const pendingUsers = await db.user.findMany({
+    const pendingUsers = await prisma.user.findMany({
       where: { membershipStatus: "PENDING" },
       select: {
         id: true,
@@ -45,7 +45,7 @@ export async function PATCH(request: NextRequest) {
       return errorResponse("Action must be APPROVE or REJECT");
     }
 
-    const user = await db.user.findUnique({ where: { id: userId } });
+    const user = await prisma.user.findUnique({ where: { id: userId } });
     if (!user) {
       return errorResponse("User not found", 404);
     }
@@ -62,13 +62,13 @@ export async function PATCH(request: NextRequest) {
       updateData.role = "MEMBER";
     }
 
-    const updatedUser = await db.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: updateData,
     });
 
     // Create notification for the user
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
         userId,
         title: normalizedAction === "APPROVE" ? "Membership Approved" : "Membership Rejected",
@@ -81,7 +81,7 @@ export async function PATCH(request: NextRequest) {
     });
 
     // Log to audit log
-    await db.auditLog.create({
+    await prisma.auditLog.create({
       data: {
         userId: approverId,
         action: `MEMBER_${normalizedAction}`,

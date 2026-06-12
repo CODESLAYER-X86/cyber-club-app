@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -21,7 +21,7 @@ export async function GET(request: NextRequest) {
     }
 
     const [auditLogs, total] = await Promise.all([
-      db.auditLog.findMany({
+      prisma.auditLog.findMany({
         where,
         include: {
           user: {
@@ -38,7 +38,7 @@ export async function GET(request: NextRequest) {
         take: limit,
         skip: offset,
       }),
-      db.auditLog.count({ where }),
+      prisma.auditLog.count({ where }),
     ]);
 
     return successResponse({ auditLogs, total, limit, offset });

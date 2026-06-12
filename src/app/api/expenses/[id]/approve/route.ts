@@ -1,6 +1,9 @@
-import { db } from "@/lib/db";
-import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
+import prisma from "@/lib/db";
+import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
+import { requireSession } from "@/lib/auth";
 import { NextRequest } from "next/server";
+
+const APPROVE_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
 
 export async function PATCH(
   request: NextRequest,
@@ -8,87 +11,70 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+
+    // Get approver identity from session — not from client body
+    const { session, error } = await requireSession(APPROVE_ROLES);
+    if (error) return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can approve expenses");
+
+    const approverId = (session!.user as { id: string }).id;
+
     const body = await request.json();
-    const { action, approvedBy, status, approverId } = body;
+    const { action } = body;
 
-    // Accept both field name formats: action/approvedBy (API format) or status/approverId (legacy)
-    const effectiveAction = action || (status === 'APPROVED' ? 'APPROVE' : status === 'REJECTED' ? 'REJECT' : status);
-    const effectiveApprover = approvedBy || approverId;
+    const normalizedAction =
+      action === "APPROVED" ? "APPROVE"
+      : action === "REJECTED" ? "REJECT"
+      : action;
 
-    if (!effectiveAction || !effectiveApprover) {
-      return errorResponse("action and approvedBy are required");
-    }
-
-    // Accept both APPROVE/APPROVED and REJECT/REJECTED formats
-    const normalizedAction = effectiveAction === "APPROVED" ? "APPROVE" : effectiveAction === "REJECTED" ? "REJECT" : effectiveAction;
     if (!["APPROVE", "REJECT"].includes(normalizedAction)) {
-      return errorResponse("Action must be APPROVE or REJECT");
+      return errorResponse("action must be APPROVE or REJECT");
     }
 
-    const expense = await db.expense.findUnique({
+    const expense = await prisma.expense.findUnique({
       where: { id },
-      include: { creator: true },
+      include: { creator: { select: { id: true, name: true } } },
     });
 
-    if (!expense) {
-      return notFoundResponse("Expense not found");
-    }
+    if (!expense) return notFoundResponse("Expense not found");
+    if (expense.status !== "PENDING") return errorResponse("Expense is not in PENDING status");
 
-    if (expense.status !== "PENDING") {
-      return errorResponse("Expense is not in PENDING status");
+    // ANTI-FRAUD: Treasurer cannot approve their own expense submissions
+    if (expense.createdBy === approverId) {
+      console.warn(`[SECURITY] Self-approval attempt: userId=${approverId} expenseId=${id}`);
+      return forbiddenResponse("You cannot approve your own expense submission");
     }
 
     const newStatus = normalizedAction === "APPROVE" ? "APPROVED" : "REJECTED";
 
-    const updatedExpense = await db.expense.update({
+    const updatedExpense = await prisma.expense.update({
       where: { id },
-      data: {
-        status: newStatus,
-        approvedBy: effectiveApprover,
-      },
+      data: { status: newStatus, approvedBy: approverId },
       include: {
-        budget: {
-          select: {
-            id: true,
-            title: true,
-          },
-        },
-        creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
-        approver: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
-        },
+        budget: { select: { id: true, title: true } },
+        creator: { select: { id: true, name: true, email: true } },
+        approver: { select: { id: true, name: true, email: true } },
       },
     });
 
-    // Create notification
-    await db.notification.create({
+    // Notify the expense creator
+    await prisma.notification.create({
       data: {
         userId: expense.createdBy,
         title: normalizedAction === "APPROVE" ? "Expense Approved" : "Expense Rejected",
         message:
           normalizedAction === "APPROVE"
-            ? `Your expense "${expense.title}" for ${expense.amount} has been approved.`
-            : `Your expense "${expense.title}" for ${expense.amount} has been rejected.`,
+            ? `Your expense "${expense.title}" (${expense.amount}) has been approved.`
+            : `Your expense "${expense.title}" (${expense.amount}) has been rejected.`,
         type: normalizedAction === "APPROVE" ? "SUCCESS" : "WARNING",
       },
     });
 
-    // Log to audit log
-    await db.auditLog.create({
+    // Audit log
+    await prisma.auditLog.create({
       data: {
-        userId: effectiveApprover,
-        action: `EXPENSE_${normalizedAction === "APPROVE" ? "APPROVED" : "REJECTED"}`,
-        details: `${normalizedAction === "APPROVE" ? "Approved" : "Rejected"} expense "${expense.title}" (${expense.amount}) submitted by ${expense.creator.name}`,
+        userId: approverId as string,
+        action: `EXPENSE_${newStatus}`,
+        details: `${newStatus} expense "${expense.title}" (${expense.amount}) by ${expense.creator.name}`,
       },
     });
 

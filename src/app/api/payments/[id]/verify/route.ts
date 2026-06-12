@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -19,7 +19,7 @@ export async function PATCH(
       return errorResponse("Action must be VERIFY or REJECT");
     }
 
-    const payment = await db.payment.findUnique({
+    const payment = await prisma.payment.findUnique({
       where: { id },
       include: { user: true },
     });
@@ -34,7 +34,7 @@ export async function PATCH(
 
     const newStatus = action === "VERIFY" ? "VERIFIED" : "REJECTED";
 
-    const updatedPayment = await db.payment.update({
+    const updatedPayment = await prisma.payment.update({
       where: { id },
       data: {
         status: newStatus,
@@ -60,7 +60,7 @@ export async function PATCH(
 
     // If it's a membership payment that was verified, update user status
     if (action === "VERIFY" && payment.type === "MEMBERSHIP" && payment.user.membershipStatus === "NON_MEMBER") {
-      await db.user.update({
+      await prisma.user.update({
         where: { id: payment.userId },
         data: { membershipStatus: "PENDING" },
       });
@@ -69,14 +69,14 @@ export async function PATCH(
     // If it's an EVENT payment, update the corresponding registration status
     if (payment.type === "EVENT" && payment.eventId) {
       const newRegStatus = action === "VERIFY" ? "APPROVED" : "REJECTED";
-      await db.eventRegistration.updateMany({
+      await prisma.eventRegistration.updateMany({
         where: { userId: payment.userId, eventId: payment.eventId },
         data: { status: newRegStatus },
       });
     }
 
     // Create notification
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
         userId: payment.userId,
         title: action === "VERIFY" ? "Payment Verified" : "Payment Rejected",
@@ -89,7 +89,7 @@ export async function PATCH(
     });
 
     // Log to audit log
-    await db.auditLog.create({
+    await prisma.auditLog.create({
       data: {
         userId: verifiedBy,
         action: `PAYMENT_${action === "VERIFY" ? "VERIFIED" : "REJECTED"}`,

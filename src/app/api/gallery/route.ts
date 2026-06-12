@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       where.eventId = eventId;
     }
 
-    const galleryImages = await db.galleryImage.findMany({
+    const galleryImages = await prisma.galleryImage.findMany({
       where,
       include: {
         uploader: {
@@ -53,7 +53,7 @@ export async function POST(request: NextRequest) {
       return errorResponse("title, imageUrl, and uploadedBy are required");
     }
 
-    const galleryImage = await db.galleryImage.create({
+    const galleryImage = await prisma.galleryImage.create({
       data: {
         title,
         imageUrl,

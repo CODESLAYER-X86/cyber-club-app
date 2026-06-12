@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import {
   successResponse,
   errorResponse,
@@ -23,7 +23,7 @@ export async function PATCH(
       return errorResponse("userId is required");
     }
 
-    const user = await db.user.findUnique({
+    const user = await prisma.user.findUnique({
       where: { id: userId },
       select: { role: true, name: true },
     });
@@ -34,7 +34,7 @@ export async function PATCH(
       );
     }
 
-    const achievement = await db.clubAchievement.findUnique({
+    const achievement = await prisma.achievement.findUnique({
       where: { id },
     });
 
@@ -46,13 +46,13 @@ export async function PATCH(
       return errorResponse("Only pending achievements can be rejected");
     }
 
-    const updated = await db.clubAchievement.update({
+    const updated = await prisma.achievement.update({
       where: { id },
       data: {
         status: "REJECTED",
       },
       include: {
-        creator: {
+        submitter: {
           select: { id: true, name: true, avatar: true },
         },
         approver: {
@@ -62,9 +62,9 @@ export async function PATCH(
     });
 
     // Notify the creator
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
-        userId: achievement.createdBy,
+        userId: achievement.submittedBy,
         title: "Achievement Rejected",
         message: `"${achievement.title}" has been rejected.`,
         type: "WARNING",

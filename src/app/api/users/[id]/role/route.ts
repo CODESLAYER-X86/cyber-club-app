@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, forbiddenResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -34,7 +34,7 @@ export async function PATCH(
     }
 
     // Check if the updater has permission
-    const updater = await db.user.findUnique({ where: { id: updatedBy } });
+    const updater = await prisma.user.findUnique({ where: { id: updatedBy } });
     if (!updater) {
       return errorResponse("Updater not found", 404);
     }
@@ -43,18 +43,18 @@ export async function PATCH(
       return forbiddenResponse("Only PRESIDENT and PLATFORM_ADMIN can update roles");
     }
 
-    const targetUser = await db.user.findUnique({ where: { id } });
+    const targetUser = await prisma.user.findUnique({ where: { id } });
     if (!targetUser) {
       return notFoundResponse("User not found");
     }
 
-    const updatedUser = await db.user.update({
+    const updatedUser = await prisma.user.update({
       where: { id },
       data: { role },
     });
 
     // Log to audit log
-    await db.auditLog.create({
+    await prisma.auditLog.create({
       data: {
         userId: updatedBy,
         action: "ROLE_UPDATE",
@@ -63,7 +63,7 @@ export async function PATCH(
     });
 
     // Notify the user
-    await db.notification.create({
+    await prisma.notification.create({
       data: {
         userId: id,
         title: "Role Updated",

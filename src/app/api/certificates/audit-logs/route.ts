@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       where.performedBy = performedBy;
     }
 
-    const auditLogs = await db.certificateAuditLog.findMany({
+    const auditLogs = await prisma.certificateAuditLog.findMany({
       where,
       include: {
         performer: {

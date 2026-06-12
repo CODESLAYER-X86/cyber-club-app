@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -18,7 +18,7 @@ export async function PATCH(
       return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can update committee members");
     }
 
-    const member = await db.committeeMember.findUnique({
+    const member = await prisma.committeeMember.findUnique({
       where: { id },
     });
 
@@ -41,7 +41,7 @@ export async function PATCH(
       data.socialLinks = JSON.stringify(socialLinks);
     }
 
-    const updatedMember = await db.committeeMember.update({
+    const updatedMember = await prisma.committeeMember.update({
       where: { id },
       data,
     });
@@ -67,7 +67,7 @@ export async function DELETE(
       return forbiddenResponse("Only PRESIDENT or PLATFORM_ADMIN can delete committee members");
     }
 
-    const member = await db.committeeMember.findUnique({
+    const member = await prisma.committeeMember.findUnique({
       where: { id },
     });
 
@@ -75,7 +75,7 @@ export async function DELETE(
       return notFoundResponse("Committee member not found");
     }
 
-    await db.committeeMember.delete({
+    await prisma.committeeMember.delete({
       where: { id },
     });
 

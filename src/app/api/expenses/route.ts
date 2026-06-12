@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -18,7 +18,7 @@ export async function GET(request: NextRequest) {
       where.budgetId = budgetId;
     }
 
-    const expenses = await db.expense.findMany({
+    const expenses = await prisma.expense.findMany({
       where,
       include: {
         budget: {
@@ -63,7 +63,7 @@ export async function POST(request: NextRequest) {
       return errorResponse("title, amount, category, budgetId, and createdBy are required");
     }
 
-    const expense = await db.expense.create({
+    const expense = await prisma.expense.create({
       data: {
         title,
         amount,

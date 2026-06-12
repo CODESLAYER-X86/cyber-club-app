@@ -1,10 +1,10 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
 export async function GET() {
   try {
-    const announcements = await db.announcement.findMany({
+    const announcements = await prisma.announcement.findMany({
       orderBy: { createdAt: "desc" },
     });
 
@@ -23,7 +23,7 @@ export async function POST(request: NextRequest) {
       return errorResponse("title, content, and createdBy are required");
     }
 
-    const announcement = await db.announcement.create({
+    const announcement = await prisma.announcement.create({
       data: {
         title,
         content,
@@ -33,13 +33,13 @@ export async function POST(request: NextRequest) {
     });
 
     // Notify all active members
-    const activeMembers = await db.user.findMany({
+    const activeMembers = await prisma.user.findMany({
       where: { membershipStatus: "ACTIVE" },
       select: { id: true },
     });
 
     if (activeMembers.length > 0) {
-      await db.notification.createMany({
+      await prisma.notification.createMany({
         data: activeMembers.map((member) => ({
           userId: member.id,
           title: `Announcement: ${title}`,

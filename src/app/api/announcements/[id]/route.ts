@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
@@ -10,7 +10,7 @@ export async function DELETE(
     const { id } = await params;
 
     // Check if the announcement exists
-    const announcement = await db.announcement.findUnique({
+    const announcement = await prisma.announcement.findUnique({
       where: { id },
     });
 
@@ -19,7 +19,7 @@ export async function DELETE(
     }
 
     // Delete the announcement
-    await db.announcement.delete({
+    await prisma.announcement.delete({
       where: { id },
     });
 

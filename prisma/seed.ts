@@ -1,4 +1,4 @@
-import { db } from "@/lib/db";
+import prisma from "@/lib/db";
 import { hash } from "crypto";
 
 async function main() {
@@ -107,7 +107,7 @@ async function main() {
   ];
 
   for (const u of users) {
-    await db.user.upsert({
+    await prisma.user.upsert({
       where: { email: u.email },
       update: {},
       create: {
@@ -126,9 +126,9 @@ async function main() {
   console.log("✅ Users seeded");
 
   // Create demo events
-  const mediaUser = await db.user.findUnique({ where: { email: "media@cybersecclub.com" } });
-  const verifierUser = await db.user.findUnique({ where: { email: "verifier@cybersecclub.com" } });
-  const presidentUser = await db.user.findUnique({ where: { email: "president@cybersecclub.com" } });
+  const mediaUser = await prisma.user.findUnique({ where: { email: "media@cybersecclub.com" } });
+  const verifierUser = await prisma.user.findUnique({ where: { email: "verifier@cybersecclub.com" } });
+  const presidentUser = await prisma.user.findUnique({ where: { email: "president@cybersecclub.com" } });
 
   if (mediaUser && verifierUser) {
     const events = [
@@ -217,19 +217,19 @@ async function main() {
     ];
 
     for (const e of events) {
-      const existing = await db.event.findFirst({ where: { title: e.title } });
+      const existing = await prisma.event.findFirst({ where: { title: e.title } });
       if (!existing) {
-        await db.event.create({ data: e });
+        await prisma.event.create({ data: e });
       }
     }
     console.log("✅ Events seeded");
   }
 
   // Create demo payments
-  const member1 = await db.user.findUnique({ where: { email: "member1@university.edu" } });
-  const member2 = await db.user.findUnique({ where: { email: "member2@university.edu" } });
-  const pendingUser = await db.user.findUnique({ where: { email: "pending@university.edu" } });
-  const treasurerUser = await db.user.findUnique({ where: { email: "treasurer@cybersecclub.com" } });
+  const member1 = await prisma.user.findUnique({ where: { email: "member1@university.edu" } });
+  const member2 = await prisma.user.findUnique({ where: { email: "member2@university.edu" } });
+  const pendingUser = await prisma.user.findUnique({ where: { email: "pending@university.edu" } });
+  const treasurerUser = await prisma.user.findUnique({ where: { email: "treasurer@cybersecclub.com" } });
 
   if (member1 && member2 && pendingUser && treasurerUser) {
     // Membership payments
@@ -260,14 +260,14 @@ async function main() {
     ];
 
     for (const p of payments) {
-      const existing = await db.payment.findFirst({ where: { transactionId: p.transactionId } });
+      const existing = await prisma.payment.findFirst({ where: { transactionId: p.transactionId } });
       if (!existing) {
-        await db.payment.create({ data: p });
+        await prisma.payment.create({ data: p });
       }
     }
 
     // Event payments
-    const networkEvent = await db.event.findFirst({ where: { title: "Network Security Masterclass" } });
+    const networkEvent = await prisma.event.findFirst({ where: { title: "Network Security Masterclass" } });
     if (networkEvent) {
       const eventPayments = [
         {
@@ -290,9 +290,9 @@ async function main() {
       ];
 
       for (const p of eventPayments) {
-        const existing = await db.payment.findFirst({ where: { transactionId: p.transactionId } });
+        const existing = await prisma.payment.findFirst({ where: { transactionId: p.transactionId } });
         if (!existing) {
-          await db.payment.create({ data: p });
+          await prisma.payment.create({ data: p });
         }
       }
     }
@@ -301,7 +301,7 @@ async function main() {
 
   // Create demo budgets and expenses
   if (treasurerUser && presidentUser) {
-    const budget = await db.budget.upsert({
+    const budget = await prisma.budget.upsert({
       where: { id: "budget-2025-q3" },
       update: {},
       create: {
@@ -356,9 +356,9 @@ async function main() {
     ];
 
     for (const e of expenses) {
-      const existing = await db.expense.findFirst({ where: { title: e.title, budgetId: e.budgetId } });
+      const existing = await prisma.expense.findFirst({ where: { title: e.title, budgetId: e.budgetId } });
       if (!existing) {
-        await db.expense.create({ data: e });
+        await prisma.expense.create({ data: e });
       }
     }
     console.log("✅ Budgets & Expenses seeded");
@@ -366,7 +366,7 @@ async function main() {
 
   // Create demo certificates
   if (member1 && member2) {
-    const careerPanel = await db.event.findFirst({ where: { title: "Cybersecurity Career Panel" } });
+    const careerPanel = await prisma.event.findFirst({ where: { title: "Cybersecurity Career Panel" } });
     if (careerPanel) {
       const certificates = [
         {
@@ -388,9 +388,9 @@ async function main() {
       ];
 
       for (const c of certificates) {
-        const existing = await db.certificate.findFirst({ where: { certificateCode: c.certificateCode } });
+        const existing = await prisma.certificate.findFirst({ where: { certificateCode: c.certificateCode } });
         if (!existing) {
-          await db.certificate.create({ data: c });
+          await prisma.certificate.create({ data: c });
         }
       }
     }
@@ -424,7 +424,7 @@ async function main() {
     ];
 
     for (const n of notifs) {
-      await db.notification.create({ data: n });
+      await prisma.notification.create({ data: n });
     }
     console.log("✅ Notifications seeded");
   }
@@ -447,16 +447,16 @@ async function main() {
     ];
 
     for (const a of announcements) {
-      const existing = await db.announcement.findFirst({ where: { title: a.title } });
+      const existing = await prisma.announcement.findFirst({ where: { title: a.title } });
       if (!existing) {
-        await db.announcement.create({ data: a });
+        await prisma.announcement.create({ data: a });
       }
     }
     console.log("✅ Announcements seeded");
   }
 
   // Create demo audit logs
-  const adminUser = await db.user.findUnique({ where: { email: "admin@cybersecclub.com" } });
+  const adminUser = await prisma.user.findUnique({ where: { email: "admin@cybersecclub.com" } });
   if (adminUser && treasurerUser && presidentUser) {
     const logs = [
       {
@@ -482,16 +482,16 @@ async function main() {
     ];
 
     for (const l of logs) {
-      await db.auditLog.create({ data: l });
+      await prisma.auditLog.create({ data: l });
     }
     console.log("✅ Audit Logs seeded");
   }
 
   // Create demo event registrations
   if (member1 && member2) {
-    const ethicalHacking = await db.event.findFirst({ where: { title: "Intro to Ethical Hacking" } });
-    const ctf = await db.event.findFirst({ where: { title: "CTF Challenge: Capture the Flag" } });
-    const meetup = await db.event.findFirst({ where: { title: "Monthly Meetup: Threat Intelligence" } });
+    const ethicalHacking = await prisma.event.findFirst({ where: { title: "Intro to Ethical Hacking" } });
+    const ctf = await prisma.event.findFirst({ where: { title: "CTF Challenge: Capture the Flag" } });
+    const meetup = await prisma.event.findFirst({ where: { title: "Monthly Meetup: Threat Intelligence" } });
 
     if (ethicalHacking && ctf && meetup) {
       const registrations = [
@@ -503,11 +503,11 @@ async function main() {
       ];
 
       for (const r of registrations) {
-        const existing = await db.eventRegistration.findFirst({
+        const existing = await prisma.eventRegistration.findFirst({
           where: { userId: r.userId, eventId: r.eventId },
         });
         if (!existing) {
-          await db.eventRegistration.create({ data: r });
+          await prisma.eventRegistration.create({ data: r });
         }
       }
       console.log("✅ Event Registrations seeded");
@@ -516,7 +516,7 @@ async function main() {
 
   // Create demo attendance
   if (member1 && member2) {
-    const careerPanel = await db.event.findFirst({ where: { title: "Cybersecurity Career Panel" } });
+    const careerPanel = await prisma.event.findFirst({ where: { title: "Cybersecurity Career Panel" } });
     if (careerPanel) {
       const attendanceRecords = [
         { userId: member1.id, eventId: careerPanel.id, status: "PRESENT" },
@@ -524,11 +524,11 @@ async function main() {
       ];
 
       for (const a of attendanceRecords) {
-        const existing = await db.attendance.findFirst({
+        const existing = await prisma.attendance.findFirst({
           where: { userId: a.userId, eventId: a.eventId },
         });
         if (!existing) {
-          await db.attendance.create({ data: a });
+          await prisma.attendance.create({ data: a });
         }
       }
       console.log("✅ Attendance seeded");
@@ -536,11 +536,11 @@ async function main() {
   }
 
   // Create demo committee members
-  const presidentUser2 = await db.user.findUnique({ where: { email: "president@cybersecclub.com" } });
-  const vpUser2 = await db.user.findUnique({ where: { email: "vp@cybersecclub.com" } });
-  const gsUser2 = await db.user.findUnique({ where: { email: "gs@cybersecclub.com" } });
-  const treasurerUser2 = await db.user.findUnique({ where: { email: "treasurer@cybersecclub.com" } });
-  const mediaUser2 = await db.user.findUnique({ where: { email: "media@cybersecclub.com" } });
+  const presidentUser2 = await prisma.user.findUnique({ where: { email: "president@cybersecclub.com" } });
+  const vpUser2 = await prisma.user.findUnique({ where: { email: "vp@cybersecclub.com" } });
+  const gsUser2 = await prisma.user.findUnique({ where: { email: "gs@cybersecclub.com" } });
+  const treasurerUser2 = await prisma.user.findUnique({ where: { email: "treasurer@cybersecclub.com" } });
+  const mediaUser2 = await prisma.user.findUnique({ where: { email: "media@cybersecclub.com" } });
 
   const committeeMembers = [
     {
@@ -596,9 +596,9 @@ async function main() {
   ];
 
   for (const m of committeeMembers) {
-    const existing = await db.committeeMember.findFirst({ where: { name: m.name, role: m.role } });
+    const existing = await prisma.committeeMember.findFirst({ where: { name: m.name, role: m.role } });
     if (!existing) {
-      await db.committeeMember.create({ data: m });
+      await prisma.committeeMember.create({ data: m });
     }
   }
   console.log("✅ Committee Members seeded");
@@ -651,9 +651,9 @@ async function main() {
     ];
 
     for (const g of galleryImages) {
-      const existing = await db.galleryImage.findFirst({ where: { title: g.title } });
+      const existing = await prisma.galleryImage.findFirst({ where: { title: g.title } });
       if (!existing) {
-        await db.galleryImage.create({ data: g });
+        await prisma.galleryImage.create({ data: g });
       }
     }
     console.log("✅ Gallery Images seeded");
@@ -722,9 +722,9 @@ async function main() {
     ];
 
     for (const a of achievements) {
-      const existing = await db.achievement.findFirst({ where: { title: a.title } });
+      const existing = await prisma.achievement.findFirst({ where: { title: a.title } });
       if (!existing) {
-        await db.achievement.create({ data: a });
+        await prisma.achievement.create({ data: a });
       }
     }
     console.log("✅ Achievements seeded");
@@ -735,10 +735,10 @@ async function main() {
 
 main()
   .then(async () => {
-    await db.$disconnect();
+    await prisma.$disconnect();
   })
   .catch(async (e) => {
     console.error(e);
-    await db.$disconnect();
+    await prisma.$disconnect();
     process.exit(1);
   });
