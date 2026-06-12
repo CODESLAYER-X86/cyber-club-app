@@ -8,13 +8,6 @@ import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardDescription } from '@/components/ui/card';
 
-const DEMO_ACCOUNTS = [
-  { label: 'President', email: 'president@cybersecclub.com', password: 'president123', color: 'text-amber-400' },
-  { label: 'Treasurer', email: 'treasurer@cybersecclub.com', password: 'treasurer123', color: 'text-emerald-400' },
-  { label: 'Media', email: 'media@cybersecclub.com', password: 'media123', color: 'text-pink-400' },
-  { label: 'Member', email: 'member1@university.edu', password: 'member123', color: 'text-cyan-400' },
-  { label: 'Guest', email: 'guest@university.edu', password: 'guest123', color: 'text-gray-400' },
-];
 
 export function LoginPage() {
   const [email, setEmail] = useState('');
@@ -46,29 +39,6 @@ export function LoginPage() {
     }
   };
 
-  const quickLogin = async (acc: typeof DEMO_ACCOUNTS[0]) => {
-    setEmail(acc.email);
-    setPassword(acc.password);
-    setError('');
-    setLoading(true);
-    try {
-      const res = await fetch('/api/auth/login', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: acc.email, password: acc.password }),
-      });
-      const data = await res.json();
-      if (data.success && data.data) {
-        login(data.data.user || data.data);
-      } else {
-        setError(data.error || 'Login failed');
-      }
-    } catch {
-      setError('Network error.');
-    } finally {
-      setLoading(false);
-    }
-  };
 
   return (
     <div className="flex min-h-screen flex-col items-center justify-center px-4">
@@ -132,19 +102,6 @@ export function LoginPage() {
               </Button>
             </form>
 
-            <div className="mt-6">
-              <div className="relative flex items-center justify-center">
-                <div className="absolute inset-0 flex items-center"><div className="w-full border-t border-white/10" /></div>
-                <span className="relative bg-[#111] px-3 text-xs text-gray-500">Quick Demo Login</span>
-              </div>
-              <div className="mt-3 grid grid-cols-5 gap-2">
-                {DEMO_ACCOUNTS.map((acc) => (
-                  <button key={acc.label} onClick={() => quickLogin(acc)} className="flex flex-col items-center gap-1 rounded-lg border border-white/5 bg-white/5 px-2 py-2 text-[10px] font-medium transition-all hover:border-emerald-500/30 hover:bg-emerald-500/10">
-                    <span className={acc.color}>{acc.label}</span>
-                  </button>
-                ))}
-              </div>
-            </div>
 
             <p className="mt-6 text-center text-xs text-gray-500">
               Don&apos;t have an account?{' '}
