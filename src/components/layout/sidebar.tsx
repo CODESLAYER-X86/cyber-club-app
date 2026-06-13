@@ -278,7 +278,10 @@ export function Sidebar() {
         </div>
 
         {/* Logo area */}
-        <div className="relative z-20 flex h-16 items-center gap-3 border-b border-white/5 px-4">
+        <button
+          onClick={() => setCurrentView('landing')}
+          className="relative z-20 flex h-16 items-center gap-3 border-b border-white/5 px-4 cursor-pointer hover:bg-white/[0.02] transition-colors duration-200 text-left w-full focus:outline-none"
+        >
           <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
             <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
           </div>
@@ -300,7 +303,7 @@ export function Sidebar() {
               </motion.div>
             )}
           </AnimatePresence>
-        </div>
+        </button>
 
         {/* Role badge with glow */}
         <AnimatePresence>

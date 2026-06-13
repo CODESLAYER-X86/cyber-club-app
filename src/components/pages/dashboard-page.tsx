@@ -252,7 +252,7 @@ export function DashboardPage() {
       {/* Main Content Grid */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Upcoming Events */}
-        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+        <Card className={`border-white/5 bg-[#111]/60 backdrop-blur ${role === 'GUEST' ? 'lg:col-span-2' : ''}`}>
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-lg font-semibold text-white">Upcoming Events</CardTitle>
             <Button variant="ghost" size="sm" onClick={() => setCurrentView('events')} className="text-xs text-emerald-400">View All</Button>
@@ -290,57 +290,59 @@ export function DashboardPage() {
         </Card>
 
         {/* Recent Activity Feed */}
-        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
-              <Activity className="h-5 w-5 text-emerald-400" />
-              Recent Activity
-            </CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setCurrentView('audit-logs')} className="text-xs text-emerald-400">View All</Button>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-0 max-h-80 overflow-y-auto custom-scrollbar">
-              {auditLogs.length > 0 ? auditLogs.map((log, index) => {
-                const config = ACTION_CONFIG[log.action] || { icon: Activity, color: '#6b7280', label: log.action };
-                const IconComp = config.icon;
-                const isLast = index === auditLogs.length - 1;
-                return (
-                  <motion.div
-                    key={log.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="flex gap-3 relative"
-                  >
-                    {/* Timeline line */}
-                    {!isLast && (
-                      <div className="absolute left-[15px] top-8 bottom-0 w-px bg-gradient-to-b from-white/10 to-transparent" />
-                    )}
-                    {/* Icon */}
-                    <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full z-10" style={{ backgroundColor: `${config.color}15` }}>
-                      <IconComp className="h-3.5 w-3.5" style={{ color: config.color }} />
-                    </div>
-                    {/* Content */}
-                    <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
-                      <p className="text-sm text-white">{config.label}</p>
-                      <p className="text-xs text-gray-500 truncate">{log.details}</p>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <span className="text-[10px] text-gray-600">{log.user?.name || 'System'}</span>
-                        <span className="text-[10px] text-gray-700">•</span>
-                        <span className="text-[10px] text-gray-600">{timeAgo(log.createdAt)}</span>
+        {role !== 'GUEST' && (
+          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+                <Activity className="h-5 w-5 text-emerald-400" />
+                Recent Activity
+              </CardTitle>
+              <Button variant="ghost" size="sm" onClick={() => setCurrentView('audit-logs')} className="text-xs text-emerald-400">View All</Button>
+            </CardHeader>
+            <CardContent>
+              <div className="space-y-0 max-h-80 overflow-y-auto custom-scrollbar">
+                {auditLogs.length > 0 ? auditLogs.map((log, index) => {
+                  const config = ACTION_CONFIG[log.action] || { icon: Activity, color: '#6b7280', label: log.action };
+                  const IconComp = config.icon;
+                  const isLast = index === auditLogs.length - 1;
+                  return (
+                    <motion.div
+                      key={log.id}
+                      initial={{ opacity: 0, x: -10 }}
+                      animate={{ opacity: 1, x: 0 }}
+                      transition={{ delay: index * 0.05 }}
+                      className="flex gap-3 relative"
+                    >
+                      {/* Timeline line */}
+                      {!isLast && (
+                        <div className="absolute left-[15px] top-8 bottom-0 w-px bg-gradient-to-b from-white/10 to-transparent" />
+                      )}
+                      {/* Icon */}
+                      <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full z-10" style={{ backgroundColor: `${config.color}15` }}>
+                        <IconComp className="h-3.5 w-3.5" style={{ color: config.color }} />
                       </div>
-                    </div>
-                  </motion.div>
-                );
-              }) : (
-                <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-                  <Activity className="mb-2 h-8 w-8 text-gray-600" />
-                  <p className="text-sm">No recent activity</p>
-                </div>
-              )}
-            </div>
-          </CardContent>
-        </Card>
+                      {/* Content */}
+                      <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
+                        <p className="text-sm text-white">{config.label}</p>
+                        <p className="text-xs text-gray-500 truncate">{log.details}</p>
+                        <div className="flex items-center gap-2 mt-0.5">
+                          <span className="text-[10px] text-gray-600">{log.user?.name || 'System'}</span>
+                          <span className="text-[10px] text-gray-700">•</span>
+                          <span className="text-[10px] text-gray-600">{timeAgo(log.createdAt)}</span>
+                        </div>
+                      </div>
+                    </motion.div>
+                  );
+                }) : (
+                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+                    <Activity className="mb-2 h-8 w-8 text-gray-600" />
+                    <p className="text-sm">No recent activity</p>
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
+        )}
       </div>
 
       {/* Upcoming Deadlines & Pending Approvals Row */}
