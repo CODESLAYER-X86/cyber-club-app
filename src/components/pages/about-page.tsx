@@ -806,7 +806,7 @@ export function AboutPage() {
             <h1 className="text-4xl font-extrabold text-white md:text-5xl lg:text-6xl">
               About{' '}
               <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                CyberSec Club
+                Cyber Security Club
               </span>
             </h1>
             <p className="mx-auto mt-3 text-lg font-medium tracking-wide text-emerald-400/80 md:text-xl">
@@ -893,7 +893,7 @@ export function AboutPage() {
             <div className="flex items-center justify-center gap-4">
               <div>
                 <h2 className="text-3xl font-bold text-white">Leadership Team</h2>
-                <p className="mt-2 text-gray-500">The people steering CyberSec Club forward</p>
+                <p className="mt-2 text-gray-500">The people steering Cyber Security Club forward</p>
               </div>
               {canManage && (
                 <Button
@@ -1190,7 +1190,7 @@ export function AboutPage() {
 
       {/* ── Footer ── */}
       <footer className="mt-auto border-t border-white/5 px-4 py-8 text-center text-xs text-gray-600">
-        &copy; 2025 CyberSec Club. All rights reserved.
+        &copy; 2025 Cyber Security Club. All rights reserved.
       </footer>
 
       {/* ── Add Member Dialog ── */}

@@ -54,7 +54,7 @@ export function CertificatesPage() {
 
   const handleTwitterShare = (code: string, type: CertificateType) => {
     const url = `${window.location.origin}/?cert=${code}`;
-    const text = `I earned a ${CERTIFICATE_TYPE_LABELS[type]} certificate from CyberSec Club! 🛡️🔐`;
+    const text = `I earned a ${CERTIFICATE_TYPE_LABELS[type]} certificate from Cyber Security Club! 🛡️🔐`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
   };
 

@@ -201,7 +201,7 @@ const testimonials = [
     role: 'Cybersecurity Student',
     initials: 'AR',
     avatarGradient: 'from-emerald-500 to-cyan-500',
-    quote: 'Joining CyberSec Club was the best decision of my university life. The CTF competitions pushed me beyond my limits and I landed my first internship because of the skills I gained here.',
+    quote: 'Joining Cyber Security Club was the best decision of my university life. The CTF competitions pushed me beyond my limits and I landed my first internship because of the skills I gained here.',
   },
   {
     name: 'David Kim',
@@ -299,7 +299,7 @@ export function LandingPage() {
           transition={{ delay: 0.15, duration: 0.7 }}
           className="relative text-5xl font-black tracking-tight md:text-7xl lg:text-8xl"
         >
-          <span className="bg-gradient-to-r from-white via-white to-gray-300 bg-clip-text text-transparent">CyberSec</span>{' '}
+          <span className="bg-gradient-to-r from-white via-white to-gray-300 bg-clip-text text-transparent">Cyber Security</span>{' '}
           <span className="bg-gradient-to-r from-emerald-400 via-emerald-300 to-cyan-400 bg-clip-text text-transparent">Club</span>
         </motion.h1>
 
@@ -357,7 +357,7 @@ export function LandingPage() {
       <section className="relative px-4 py-28">
         <div className="mx-auto max-w-6xl">
           <motion.div {...fadeUp} className="mb-16 text-center">
-            <h2 className="text-3xl font-bold text-white md:text-4xl">Why Join <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">CyberSec Club</span>?</h2>
+            <h2 className="text-3xl font-bold text-white md:text-4xl">Why Join <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">Cyber Security Club</span>?</h2>
             <p className="mt-3 text-gray-500 max-w-lg mx-auto">Everything you need to kickstart your cybersecurity career — from hands-on workshops to industry-recognized certifications.</p>
           </motion.div>
           <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
@@ -557,7 +557,7 @@ export function LandingPage() {
                 onClick={() => setCurrentView('register')}
                 className="relative bg-emerald-600 px-10 py-7 text-lg font-bold text-white shadow-2xl shadow-emerald-500/30 hover:bg-emerald-500 hover:shadow-emerald-500/50 transition-all"
               >
-                Join CyberSec Club <ArrowRight className="ml-2 h-5 w-5" />
+                Join Cyber Security Club <ArrowRight className="ml-2 h-5 w-5" />
               </Button>
             </div>
           </div>
@@ -569,7 +569,7 @@ export function LandingPage() {
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 md:flex-row md:justify-between">
           <div className="flex items-center gap-2">
             <Shield className="h-5 w-5 text-emerald-400" />
-            <span className="text-sm font-bold text-white">CyberSec Club</span>
+            <span className="text-sm font-bold text-white">Cyber Security Club</span>
           </div>
           <div className="flex gap-6 text-xs text-gray-500">
             <button onClick={() => setCurrentView('about')} className="hover:text-emerald-400 transition-colors">About</button>
@@ -578,7 +578,7 @@ export function LandingPage() {
             <button onClick={() => setCurrentView('achievements')} className="hover:text-emerald-400 transition-colors">Achievements</button>
             <button onClick={() => setCurrentView('login')} className="hover:text-emerald-400 transition-colors">Login</button>
           </div>
-          <p className="text-xs text-gray-600">&copy; 2025 CyberSec Club. All rights reserved.</p>
+          <p className="text-xs text-gray-600">&copy; 2025 Cyber Security Club. All rights reserved.</p>
         </div>
       </footer>
     </div>

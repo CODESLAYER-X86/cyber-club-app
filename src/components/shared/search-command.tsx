@@ -70,7 +70,7 @@ const PAGES: PageItem[] = [
   { label: 'Budgets', view: 'budgets', icon: CreditCard, description: 'Manage budgets' },
   { label: 'Expenses', view: 'expenses', icon: Receipt, description: 'Track expenses' },
   { label: 'Verify Payments', view: 'verify-payments', icon: CheckCircle, description: 'Verify payment proofs' },
-  { label: 'About', view: 'about', icon: Globe, description: 'About CyberSec Club' },
+  { label: 'About', view: 'about', icon: Globe, description: 'About Cyber Security Club' },
 ];
 
 const EVENT_CATEGORY_ICONS: Record<string, React.ComponentType<{ className?: string }>> = {
@@ -196,7 +196,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     <CommandDialog
       open={open}
       onOpenChange={onOpenChange}
-      title="Search CyberSec Platform"
+      title="Search Cyber Security Club Platform"
       description="Search across pages, events, and members"
       className="border-white/10 bg-[#0d0d0d] text-gray-200 sm:max-w-xl"
     >
@@ -449,7 +449,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
         </div>
         <div className="flex items-center gap-1.5 text-[10px] text-gray-700">
           <Shield className="h-3 w-3" />
-          <span className="font-mono">CyberSec Search</span>
+          <span className="font-mono">Cyber Security Search</span>
         </div>
       </div>
     </CommandDialog>

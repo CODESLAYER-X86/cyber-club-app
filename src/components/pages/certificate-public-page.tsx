@@ -65,7 +65,7 @@ export function CertificatePublicPage() {
   const isValid = cert?.status === 'VALID';
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/?cert=${cert?.certificateCode || ''}` : '';
   const shareText = cert
-    ? `I earned a ${CERTIFICATE_TYPE_LABELS[cert.type]} certificate from CyberSec Club! 🛡️🔐`
+    ? `I earned a ${CERTIFICATE_TYPE_LABELS[cert.type]} certificate from Cyber Security Club! 🛡️🔐`
     : '';
 
   const handleLinkedInShare = () => {
@@ -217,7 +217,7 @@ export function CertificatePublicPage() {
                 </motion.div>
                 <div className="text-center">
                   <h1 className="text-2xl font-bold bg-gradient-to-r from-emerald-300 to-cyan-300 bg-clip-text text-transparent">
-                    CyberSec Club
+                    Cyber Security Club
                   </h1>
                   <p className="text-[10px] text-gray-500 uppercase tracking-[0.2em]">Verified Certificate</p>
                 </div>

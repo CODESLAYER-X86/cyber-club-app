@@ -14,23 +14,23 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "CyberSec Club - Cybersecurity Community Platform",
-  description: "Defend. Learn. Lead. Join our cybersecurity community and master the art of digital defense.",
-  keywords: ["CyberSec", "Cybersecurity", "CTF", "Ethical Hacking", "Club", "Security Training"],
-  authors: [{ name: "CyberSec Club" }],
+  title: "Cyber Security Club - Cybersecurity Community Platform",
+  description: "Defend. Learn. Lead. Join our cybersecurity community at Dhaka International University and master the art of digital defense.",
+  keywords: ["Cyber Security Club", "Cybersecurity", "CTF", "Ethical Hacking", "Club", "Security Training", "Dhaka International University", "DIU"],
+  authors: [{ name: "Cyber Security Club" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.png",
   },
   openGraph: {
-    title: "CyberSec Club - Verified Certificate",
-    description: "View and verify a certificate issued by CyberSec Club",
+    title: "Cyber Security Club - Verified Certificate",
+    description: "View and verify a certificate issued by Cyber Security Club",
     type: "website",
-    siteName: "CyberSec Club",
+    siteName: "Cyber Security Club",
   },
   twitter: {
     card: "summary_large_image",
-    title: "CyberSec Club - Verified Certificate",
-    description: "View and verify a certificate issued by CyberSec Club",
+    title: "Cyber Security Club - Verified Certificate",
+    description: "View and verify a certificate issued by Cyber Security Club",
   },
 };
 

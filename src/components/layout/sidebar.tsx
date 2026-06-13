@@ -73,7 +73,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
 const NAV_DESCRIPTIONS: Record<string, string> = {
   Home: 'Return to the homepage',
   Events: 'Browse and manage events',
-  About: 'Learn about CyberSec Club',
+  About: 'Learn about Cyber Security Club',
   Join: 'Apply for club membership',
   Dashboard: 'Overview and key metrics',
   Certificates: 'View your earned certificates',
@@ -292,7 +292,7 @@ export function Sidebar() {
                 className="flex flex-col overflow-hidden"
               >
                 <span className="text-sm font-bold tracking-wide text-white whitespace-nowrap">
-                  CyberSec Club
+                  Cyber Security Club
                 </span>
                 <span className="text-[10px] tracking-widest text-emerald-400/70 uppercase whitespace-nowrap">
                   Security Platform
