@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, forbiddenResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 const ADMIN_ROLES = ["PRESIDENT", "PLATFORM_ADMIN"];
 
@@ -11,10 +12,10 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { role, updatedBy } = body;
+    const { role } = body;
 
-    if (!role || !updatedBy) {
-      return errorResponse("role and updatedBy are required");
+    if (!role) {
+      return errorResponse("role is required");
     }
 
     const validRoles = [
@@ -33,19 +34,49 @@ export async function PATCH(
       return errorResponse(`Invalid role. Must be one of: ${validRoles.join(", ")}`);
     }
 
-    // Check if the updater has permission
-    const updater = await prisma.user.findUnique({ where: { id: updatedBy } });
+    // Authenticate the updater from server session
+    const updater = await getSupabaseUser(ADMIN_ROLES);
     if (!updater) {
-      return errorResponse("Updater not found", 404);
-    }
-
-    if (!ADMIN_ROLES.includes(updater.role)) {
       return forbiddenResponse("Only PRESIDENT and PLATFORM_ADMIN can update roles");
     }
 
     const targetUser = await prisma.user.findUnique({ where: { id } });
     if (!targetUser) {
       return notFoundResponse("User not found");
+    }
+
+    // Role restriction checks for President role
+    if (updater.role === "PRESIDENT") {
+      if (role === "PLATFORM_ADMIN" || role === "PRESIDENT") {
+        return forbiddenResponse("Presidents cannot assign President or Platform Admin roles");
+      }
+      if (targetUser.role === "PLATFORM_ADMIN" || targetUser.role === "PRESIDENT") {
+        return forbiddenResponse("Presidents cannot modify President or Platform Admin roles");
+      }
+    }
+
+    // Enforce single-person roles: PRESIDENT, VP, GS, TREASURER
+    const SINGLE_PERSON_ROLES = ["PRESIDENT", "VP", "GS", "TREASURER"];
+    if (SINGLE_PERSON_ROLES.includes(role)) {
+      const existingUser = await prisma.user.findFirst({
+        where: { role },
+      });
+      if (existingUser && existingUser.id !== id) {
+        // Demote existing user to MEMBER
+        await prisma.user.update({
+          where: { id: existingUser.id },
+          data: { role: "MEMBER" },
+        });
+
+        // Log the auto-demotion
+        await prisma.auditLog.create({
+          data: {
+            userId: updater.userId,
+            action: "ROLE_UPDATE",
+            details: `Auto-demoted ${existingUser.name} (${existingUser.email}) from ${role} to MEMBER due to new assignment to ${targetUser.name}`,
+          },
+        });
+      }
     }
 
     const updatedUser = await prisma.user.update({
@@ -56,7 +87,7 @@ export async function PATCH(
     // Log to audit log
     await prisma.auditLog.create({
       data: {
-        userId: updatedBy,
+        userId: updater.userId,
         action: "ROLE_UPDATE",
         details: `Changed role of ${targetUser.name} (${targetUser.email}) from ${targetUser.role} to ${role}`,
       },
@@ -74,7 +105,8 @@ export async function PATCH(
 
     const { password: _, ...userWithoutPassword } = updatedUser;
     return successResponse({ user: userWithoutPassword });
-  } catch {
+  } catch (error) {
+    console.error("Role update error:", error);
     return serverErrorResponse();
   }
 }

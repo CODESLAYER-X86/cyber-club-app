@@ -47,7 +47,7 @@ function generateMonthlyRevenue(payments: Payment[]) {
 }
 
 export function FinancePage() {
-  const { setCurrentView } = useAppStore();
+  const { currentUser, setCurrentView } = useAppStore();
   const [stats, setStats] = useState({ totalMembers: 0, totalFunds: 0, activeEvents: 0, pendingApprovals: 0, totalCertificates: 0 });
   const [budgets, setBudgets] = useState<{ id: string; title: string; amount: number; expenses: { amount: number; status: string }[] }[]>([]);
   const [recentPayments, setRecentPayments] = useState<Payment[]>([]);
@@ -276,9 +276,11 @@ export function FinancePage() {
         <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
           <CardHeader className="flex flex-row items-center justify-between pb-2">
             <CardTitle className="text-white text-sm">Budget Utilization</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setCurrentView('budgets')} className="text-emerald-400 hover:text-emerald-300 text-xs">
-              Manage →
-            </Button>
+            {currentUser && ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role) && (
+              <Button variant="ghost" size="sm" onClick={() => setCurrentView('budgets')} className="text-emerald-400 hover:text-emerald-300 text-xs">
+                Manage →
+              </Button>
+            )}
           </CardHeader>
           <CardContent>
             <div className="space-y-4">
@@ -327,9 +329,11 @@ export function FinancePage() {
             </div>
             <CardTitle className="text-white text-sm">Recent Transactions</CardTitle>
           </div>
-          <Button variant="ghost" size="sm" onClick={() => setCurrentView('verify-payments')} className="text-emerald-400 hover:text-emerald-300 text-xs">
-            View All →
-          </Button>
+          {currentUser && ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN', 'VERIFIER'].includes(currentUser.role) && (
+            <Button variant="ghost" size="sm" onClick={() => setCurrentView('verify-payments')} className="text-emerald-400 hover:text-emerald-300 text-xs">
+              View All →
+            </Button>
+          )}
         </CardHeader>
         <CardContent>
           {recentPayments.length > 0 ? (
