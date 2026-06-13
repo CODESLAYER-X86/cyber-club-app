@@ -5,7 +5,7 @@ import {
   serverErrorResponse,
   successResponse,
 } from "@/lib/api-utils";
-import { requireSession } from "@/lib/auth";
+import { getSupabaseUser } from "@/lib/supabase-server";
 import { NextRequest } from "next/server";
 
 const ALLOWED_ROLES = ["MEDIA", "PRESIDENT", "PLATFORM_ADMIN"];
@@ -16,8 +16,8 @@ export async function DELETE(
 ) {
   try {
     const { id, photoId } = await params;
-    const { session, error: authError } = await requireSession(ALLOWED_ROLES);
-    if (authError) {
+    const caller = await getSupabaseUser(ALLOWED_ROLES);
+    if (!caller) {
       return errorResponse("Only MEDIA, PRESIDENT, or PLATFORM_ADMIN can delete photos", 403);
     }
 

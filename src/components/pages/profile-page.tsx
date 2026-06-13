@@ -3,12 +3,12 @@
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  User, Mail, Hash, Building2, Phone, Edit3, Save, Calendar,
+  Mail, Hash, Building2, Phone, Edit3, Save, Calendar,
   Award, CreditCard, Shield, Clock, Camera, Activity, Lock,
   CheckCircle2, XCircle, Loader2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
-import { ROLE_LABELS, MEMBERSHIP_STATUS_LABELS } from '@/types';
+import { ROLE_LABELS, MEMBERSHIP_STATUS_LABELS, User } from '@/types';
 import { MembershipBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -60,7 +60,9 @@ const item = {
 };
 
 export function ProfilePage() {
-  const { currentUser, updateCurrentUser } = useAppStore();
+  const { currentUser, selectedMemberId, setSelectedMemberId, setCurrentView, updateCurrentUser } = useAppStore();
+  const [profileUser, setProfileUser] = useState<User | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
   const [editing, setEditing] = useState(false);
   const [saving, setSaving] = useState(false);
   const [form, setForm] = useState({ name: '', phone: '', bio: '' });
@@ -69,28 +71,36 @@ export function ProfilePage() {
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
   const [twoFactor, setTwoFactor] = useState(false);
 
-  // Sync form with currentUser
-  useEffect(() => {
-    if (currentUser) {
-      setForm({
-        name: currentUser.name || '',
-        phone: currentUser.phone || '',
-        bio: currentUser.bio || '',
-      });
-    }
-  }, [currentUser]);
+  const isViewingSelf = !selectedMemberId || selectedMemberId === currentUser?.id;
+  const userToShow = isViewingSelf ? currentUser : profileUser;
 
-  // Fetch stats
-  const fetchStats = useCallback(async () => {
-    if (!currentUser) return;
+  // Clear selectedMemberId on unmount
+  useEffect(() => {
+    return () => {
+      setSelectedMemberId(null);
+    };
+  }, [setSelectedMemberId]);
+
+  // Fetch stats and user info dynamically
+  const fetchProfileUser = useCallback(async () => {
+    const targetId = selectedMemberId || currentUser?.id;
+    if (!targetId) return;
+    setProfileLoading(true);
     setStatsLoading(true);
     try {
-      // Use the user detail endpoint which returns registrations, certificates, and payments
-      const userRes = await fetch(`/api/users/${currentUser.id}`);
+      const userRes = await fetch(`/api/users/${targetId}`);
       const userData = await userRes.json();
 
       if (userData.success && userData.data?.user) {
         const user = userData.data.user;
+        if (!isViewingSelf) {
+          setProfileUser(user);
+        }
+        setForm({
+          name: user.name || '',
+          phone: user.phone || '',
+          bio: user.bio || '',
+        });
         setStats({
           eventsAttended: user.eventRegistrations?.length || 0,
           certificates: user.certificates?.length || 0,
@@ -98,11 +108,12 @@ export function ProfilePage() {
         });
       }
     } catch (e) {
-      console.error('Failed to fetch profile stats', e);
+      console.error('Failed to fetch profile user details', e);
     } finally {
+      setProfileLoading(false);
       setStatsLoading(false);
     }
-  }, [currentUser]);
+  }, [selectedMemberId, currentUser?.id, isViewingSelf]);
 
   // Fetch recent activity
   const fetchActivity = useCallback(async () => {
@@ -110,7 +121,6 @@ export function ProfilePage() {
       const res = await fetch('/api/stats');
       const data = await res.json();
       if (data.success && data.data?.recentActivity) {
-        // Filter to only show this user's activity or show all (global)
         setRecentActivity(data.data.recentActivity.slice(0, 5));
       }
     } catch (e) {
@@ -119,9 +129,9 @@ export function ProfilePage() {
   }, []);
 
   useEffect(() => {
-    fetchStats();
+    fetchProfileUser();
     fetchActivity();
-  }, [fetchStats, fetchActivity]);
+  }, [fetchProfileUser, fetchActivity]);
 
   const handleSave = async () => {
     if (!currentUser) return;
@@ -149,17 +159,28 @@ export function ProfilePage() {
   };
 
   const handleCancelEdit = () => {
-    if (currentUser) {
+    const defaultUser = isViewingSelf ? currentUser : profileUser;
+    if (defaultUser) {
       setForm({
-        name: currentUser.name || '',
-        phone: currentUser.phone || '',
-        bio: currentUser.bio || '',
+        name: defaultUser.name || '',
+        phone: defaultUser.phone || '',
+        bio: defaultUser.bio || '',
       });
     }
     setEditing(false);
   };
 
+  if (profileLoading && !userToShow) {
+    return (
+      <div className="py-16 text-center">
+        <Loader2 className="mx-auto h-8 w-8 animate-spin text-emerald-400" />
+        <p className="mt-2 text-sm text-gray-500">Loading member details...</p>
+      </div>
+    );
+  }
+
   if (!currentUser) return <div className="py-16 text-center text-gray-500">Please sign in</div>;
+  if (!userToShow) return <div className="py-16 text-center text-gray-500">Member not found</div>;
 
   return (
     <motion.div
@@ -171,31 +192,47 @@ export function ProfilePage() {
       {/* Header */}
       <motion.div variants={item} className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-white">Profile</h1>
-          <p className="text-sm text-gray-500">Manage your account settings</p>
+          <h1 className="text-2xl font-bold text-white">{isViewingSelf ? 'Profile' : 'Member Profile'}</h1>
+          <p className="text-sm text-gray-500">{isViewingSelf ? 'Manage your account settings' : 'View member information and activity'}</p>
         </div>
         <div className="flex gap-2">
-          {editing && (
-            <Button onClick={handleCancelEdit} variant="ghost" size="sm" className="text-gray-400 hover:text-white">
-              Cancel
+          {!isViewingSelf && (
+            <Button
+              onClick={() => {
+                setSelectedMemberId(null);
+                setCurrentView('members');
+              }}
+              variant="outline"
+              className="border-white/10 text-gray-400 hover:text-white"
+            >
+              Back to directory
             </Button>
           )}
-          <Button
-            onClick={editing ? handleSave : () => setEditing(true)}
-            disabled={saving}
-            variant={editing ? 'default' : 'outline'}
-            className={editing
-              ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
-              : 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'}
-          >
-            {saving ? (
-              <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</>
-            ) : editing ? (
-              <><Save className="mr-2 h-4 w-4" />Save Changes</>
-            ) : (
-              <><Edit3 className="mr-2 h-4 w-4" />Edit Profile</>
-            )}
-          </Button>
+          {isViewingSelf && (
+            <>
+              {editing && (
+                <Button onClick={handleCancelEdit} variant="ghost" size="sm" className="text-gray-400 hover:text-white">
+                  Cancel
+                </Button>
+              )}
+              <Button
+                onClick={editing ? handleSave : () => setEditing(true)}
+                disabled={saving}
+                variant={editing ? 'default' : 'outline'}
+                className={editing
+                  ? 'bg-emerald-600 hover:bg-emerald-700 text-white'
+                  : 'border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10'}
+              >
+                {saving ? (
+                  <><Loader2 className="mr-2 h-4 w-4 animate-spin" />Saving...</>
+                ) : editing ? (
+                  <><Save className="mr-2 h-4 w-4" />Save Changes</>
+                ) : (
+                  <><Edit3 className="mr-2 h-4 w-4" />Edit Profile</>
+                )}
+              </Button>
+            </>
+          )}
         </div>
       </motion.div>
 
@@ -214,7 +251,7 @@ export function ProfilePage() {
                 {/* Gradient ring */}
                 <div className="rounded-full p-[3px] bg-gradient-to-br from-emerald-400 via-cyan-400 to-emerald-500">
                   <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#111] text-emerald-400 text-4xl font-bold border-2 border-[#111]">
-                    {currentUser.name?.charAt(0)?.toUpperCase() || '?'}
+                    {userToShow.name?.charAt(0)?.toUpperCase() || '?'}
                   </div>
                 </div>
                 {/* Status dot */}
@@ -222,7 +259,7 @@ export function ProfilePage() {
                   <div className="h-full w-full rounded-full bg-emerald-500 animate-pulse" />
                 </div>
                 {/* Change avatar button */}
-                {!editing && (
+                {isViewingSelf && !editing && (
                   <button className="absolute inset-0 flex items-center justify-center rounded-full bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
                     <Camera className="h-6 w-6 text-white" />
                   </button>
@@ -238,15 +275,15 @@ export function ProfilePage() {
                       placeholder="Your name"
                     />
                   ) : (
-                    <h2 className="text-2xl font-bold text-white">{currentUser.name}</h2>
+                    <h2 className="text-2xl font-bold text-white">{userToShow.name}</h2>
                   )}
                 </div>
-                <p className="text-sm text-gray-500 mt-0.5">{currentUser.email}</p>
+                <p className="text-sm text-gray-500 mt-0.5">{userToShow.email}</p>
                 <div className="flex flex-wrap gap-2 mt-2">
                   <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
-                    {ROLE_LABELS[currentUser.role]}
+                    {ROLE_LABELS[userToShow.role]}
                   </Badge>
-                  <MembershipBadge status={currentUser.membershipStatus} />
+                  <MembershipBadge status={userToShow.membershipStatus} />
                 </div>
               </div>
             </div>
@@ -263,10 +300,12 @@ export function ProfilePage() {
                     placeholder="Tell us about yourself..."
                   />
                 </div>
-              ) : currentUser.bio ? (
-                <p className="text-sm text-gray-400 leading-relaxed">{currentUser.bio}</p>
+              ) : userToShow.bio ? (
+                <p className="text-sm text-gray-400 leading-relaxed">{userToShow.bio}</p>
               ) : (
-                <p className="text-sm text-gray-600 italic">No bio added yet. Click Edit Profile to add one.</p>
+                <p className="text-sm text-gray-600 italic">
+                  {isViewingSelf ? 'No bio added yet. Click Edit Profile to add one.' : 'No bio added yet.'}
+                </p>
               )}
             </div>
 
@@ -280,28 +319,28 @@ export function ProfilePage() {
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">Email</p>
-                  <p className="text-sm text-white">{currentUser.email}</p>
+                  <p className="text-sm text-white">{userToShow.email}</p>
                 </div>
               </div>
-              {currentUser.studentId && (
+              {userToShow.studentId && (
                 <div className="flex items-center gap-3 rounded-lg p-3 bg-white/[0.02] border border-white/5">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
                     <Hash className="h-4 w-4 text-emerald-400" />
                   </div>
                   <div>
                     <p className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">Student ID</p>
-                    <p className="text-sm text-white">{currentUser.studentId}</p>
+                    <p className="text-sm text-white">{userToShow.studentId}</p>
                   </div>
                 </div>
               )}
-              {currentUser.department && (
+              {userToShow.department && (
                 <div className="flex items-center gap-3 rounded-lg p-3 bg-white/[0.02] border border-white/5">
                   <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
                     <Building2 className="h-4 w-4 text-amber-400" />
                   </div>
                   <div>
                     <p className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">Department</p>
-                    <p className="text-sm text-white">{currentUser.department}</p>
+                    <p className="text-sm text-white">{userToShow.department}</p>
                   </div>
                 </div>
               )}
@@ -319,7 +358,7 @@ export function ProfilePage() {
                       placeholder="Phone number"
                     />
                   ) : (
-                    <p className="text-sm text-white">{currentUser.phone || 'Not set'}</p>
+                    <p className="text-sm text-white">{userToShow.phone || 'Not set'}</p>
                   )}
                 </div>
               </div>
@@ -329,7 +368,7 @@ export function ProfilePage() {
                 </div>
                 <div>
                   <p className="text-[10px] text-gray-600 uppercase tracking-wider font-medium">Joined</p>
-                  <p className="text-sm text-white">{new Date(currentUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
+                  <p className="text-sm text-white">{new Date(userToShow.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</p>
                 </div>
               </div>
             </div>
@@ -443,7 +482,7 @@ export function ProfilePage() {
                   </div>
                   <div>
                     <p className="text-sm text-white font-medium">Account Status</p>
-                    <p className="text-xs text-gray-500">Your account is active</p>
+                    <p className="text-xs text-gray-500">{isViewingSelf ? 'Your account is active' : 'This account is active'}</p>
                   </div>
                 </div>
                 <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-[10px]">
@@ -459,44 +498,48 @@ export function ProfilePage() {
                   </div>
                   <div>
                     <p className="text-sm text-white font-medium">Last Login</p>
-                    <p className="text-xs text-gray-500">{new Date(currentUser.updatedAt).toLocaleString()}</p>
+                    <p className="text-xs text-gray-500">{new Date(userToShow.updatedAt).toLocaleString()}</p>
                   </div>
                 </div>
               </div>
 
               {/* Two-factor auth */}
-              <div className="flex items-center justify-between rounded-lg p-3 bg-white/[0.02] border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10">
-                    <Lock className="h-4 w-4 text-violet-400" />
+              {isViewingSelf && (
+                <div className="flex items-center justify-between rounded-lg p-3 bg-white/[0.02] border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10">
+                      <Lock className="h-4 w-4 text-violet-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-white font-medium">Two-Factor Auth</p>
+                      <p className="text-xs text-gray-500">{twoFactor ? 'Enabled' : 'Disabled'}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-white font-medium">Two-Factor Auth</p>
-                    <p className="text-xs text-gray-500">{twoFactor ? 'Enabled' : 'Disabled'}</p>
-                  </div>
+                  <Switch
+                    checked={twoFactor}
+                    onCheckedChange={setTwoFactor}
+                    className="data-[state=checked]:bg-emerald-600"
+                  />
                 </div>
-                <Switch
-                  checked={twoFactor}
-                  onCheckedChange={setTwoFactor}
-                  className="data-[state=checked]:bg-emerald-600"
-                />
-              </div>
+              )}
 
               {/* Password */}
-              <div className="flex items-center justify-between rounded-lg p-3 bg-white/[0.02] border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
-                    <Shield className="h-4 w-4 text-amber-400" />
+              {isViewingSelf && (
+                <div className="flex items-center justify-between rounded-lg p-3 bg-white/[0.02] border border-white/5">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
+                      <Shield className="h-4 w-4 text-amber-400" />
+                    </div>
+                    <div>
+                      <p className="text-sm text-white font-medium">Password</p>
+                      <p className="text-xs text-gray-500">Last changed recently</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-white font-medium">Password</p>
-                    <p className="text-xs text-gray-500">Last changed recently</p>
-                  </div>
+                  <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-white h-7">
+                    Change
+                  </Button>
                 </div>
-                <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-white h-7">
-                  Change
-                </Button>
-              </div>
+              )}
             </CardContent>
           </Card>
         </motion.div>

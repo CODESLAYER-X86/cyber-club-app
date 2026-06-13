@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
-import { requireSession } from "@/lib/auth";
+import { getSupabaseUser } from "@/lib/supabase-server";
 import { NextRequest } from "next/server";
 
 const APPROVE_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
@@ -13,10 +13,10 @@ export async function PATCH(
     const { id } = await params;
 
     // Get approver identity from session — not from client body
-    const { session, error } = await requireSession(APPROVE_ROLES);
-    if (error) return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can approve expenses");
+    const caller = await getSupabaseUser(APPROVE_ROLES);
+    if (!caller) return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can approve expenses");
 
-    const approverId = (session!.user as { id: string }).id;
+    const approverId = caller.userId;
 
     const body = await request.json();
     const { action } = body;

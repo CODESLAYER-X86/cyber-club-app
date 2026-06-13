@@ -1,6 +1,6 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
-import { requireSession } from "@/lib/auth";
+import { getSupabaseUser } from "@/lib/supabase-server";
 import { NextRequest } from "next/server";
 
 const CREATE_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
@@ -20,8 +20,8 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     // Get role from server session — NEVER from client body
-    const { session, error } = await requireSession(CREATE_ROLES);
-    if (error) return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can create committee members");
+    const caller = await getSupabaseUser(CREATE_ROLES);
+    if (!caller) return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can create committee members");
 
     const body = await request.json();
     const { name, role, description, imageUrl, department, email, socialLinks, order } = body;
