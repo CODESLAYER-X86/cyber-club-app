@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { Hash, Building2, Phone, CreditCard, AlertCircle, Loader2, CheckCircle, FileText } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
@@ -29,6 +29,22 @@ export function ApplyMembershipPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [membershipFee, setMembershipFee] = useState<number>(100);
+
+  useEffect(() => {
+    const fetchConfig = async () => {
+      try {
+        const res = await fetch('/api/config');
+        const data = await res.json();
+        if (data.success && data.data) {
+          setMembershipFee(data.data.membershipFee);
+        }
+      } catch (error) {
+        console.error('Failed to fetch config:', error);
+      }
+    };
+    fetchConfig();
+  }, []);
 
   const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
@@ -179,7 +195,7 @@ export function ApplyMembershipPage() {
 
             <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-4">
               <div className="flex items-center gap-2 text-sm font-medium text-emerald-400">
-                <CreditCard className="h-4 w-4" /> Membership Fee: ৳500
+                <CreditCard className="h-4 w-4" /> Membership Fee: ৳{membershipFee}
               </div>
               <p className="mt-1 text-xs text-gray-500">
                 Please pay via bKash/Nagad and enter your transaction ID below.

@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   User,
@@ -96,6 +96,27 @@ const MOCK_SESSIONS: SessionItem[] = [
 export function SettingsPage() {
   const { currentUser, updateCurrentUser, theme, setTheme, sidebarOpen, setSidebarOpen } = useAppStore();
   const { toast } = useToast();
+
+  // Club settings state (only for President)
+  const [membershipFee, setMembershipFee] = useState<number | string>('');
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+
+  useEffect(() => {
+    if (currentUser?.role === 'PRESIDENT') {
+      const fetchConfig = async () => {
+        try {
+          const res = await fetch('/api/config');
+          const data = await res.json();
+          if (data.success && data.data) {
+            setMembershipFee(data.data.membershipFee);
+          }
+        } catch (error) {
+          console.error('Failed to fetch config:', error);
+        }
+      };
+      fetchConfig();
+    }
+  }, [currentUser]);
 
   // Profile form state
   const [name, setName] = useState(currentUser?.name ?? '');
@@ -211,6 +232,47 @@ export function SettingsPage() {
       title: 'Export Started',
       description: 'Your data export will be ready shortly. You\'ll receive an email when it\'s done.',
     });
+  };
+
+  const handleSaveClubSettings = async () => {
+    const feeNum = parseFloat(membershipFee as string);
+    if (isNaN(feeNum) || feeNum < 100 || feeNum > 1000) {
+      toast({
+        title: 'Invalid Fee',
+        description: 'Membership fee must be a number between 100 and 1000.',
+        variant: 'destructive',
+      });
+      return;
+    }
+    setIsSavingConfig(true);
+    try {
+      const res = await fetch('/api/config', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ membershipFee: feeNum }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          title: 'Settings Saved',
+          description: 'Club configuration updated successfully.',
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: data.message || 'Failed to save settings.',
+          variant: 'destructive',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Failed to save settings. Please try again.',
+        variant: 'destructive',
+      });
+    } finally {
+      setIsSavingConfig(false);
+    }
   };
 
   return (
@@ -534,6 +596,56 @@ export function SettingsPage() {
           </CardContent>
         </Card>
       </motion.div>
+
+      {/* Club Settings (President Only) */}
+      {currentUser?.role === 'PRESIDENT' && (
+        <motion.div variants={itemVariants as any}>
+          <Card className="border-white/5 bg-[#111] overflow-hidden">
+            <div className="h-1 bg-gradient-to-r from-amber-500 to-yellow-500" />
+            <CardHeader>
+              <div className="flex items-center gap-3">
+                <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10">
+                  <Shield className="h-5 w-5 text-amber-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-white">Club Settings</CardTitle>
+                  <CardDescription className="text-gray-500">Manage club-wide global configurations</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="membershipFee" className="text-gray-400">Membership Fee (৳)</Label>
+                <div className="flex gap-3 max-w-md">
+                  <Input
+                    id="membershipFee"
+                    type="number"
+                    min="100"
+                    max="1000"
+                    placeholder="100"
+                    value={membershipFee}
+                    onChange={(e) => setMembershipFee(e.target.value)}
+                    className="border-white/10 bg-white/5 text-white"
+                  />
+                  <Button
+                    onClick={handleSaveClubSettings}
+                    disabled={isSavingConfig}
+                    className="bg-amber-600 text-white hover:bg-amber-500 shrink-0"
+                  >
+                    {isSavingConfig ? (
+                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                    ) : (
+                      <Save className="h-4 w-4 mr-2" />
+                    )}
+                    Save Settings
+                  </Button>
+                </div>
+                <p className="text-[11px] text-gray-600">The membership fee must be between ৳100 and ৳1000. Changes will apply immediately to new applicants.</p>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
 
       {/* Danger Zone */}
       <motion.div variants={itemVariants as any}>

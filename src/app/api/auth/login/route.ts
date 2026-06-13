@@ -27,6 +27,10 @@ export async function POST(request: NextRequest) {
       return errorResponse("Your account has been rejected. Contact an admin.", 403);
     }
 
+    if (!user.password) {
+      return errorResponse("Please sign in using Google", 401);
+    }
+
     const passwordMatch = await bcrypt.compare(password, user.password);
     if (!passwordMatch) {
       console.warn(`[SECURITY] Failed login: ${email} (wrong password)`);

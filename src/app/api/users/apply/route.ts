@@ -40,11 +40,17 @@ export async function POST(req: NextRequest) {
       },
     });
 
+    // Fetch membership fee from system configuration
+    const feeConfig = await prisma.systemConfig.findUnique({
+      where: { key: "membership_fee" },
+    });
+    const membershipFee = feeConfig ? parseFloat(feeConfig.value) : 100;
+
     // Create a payment record for the membership fee
     await prisma.payment.create({
       data: {
         userId,
-        amount: 500, // Or whatever the dynamic fee is later
+        amount: membershipFee,
         type: "MEMBERSHIP",
         status: "PENDING",
         transactionId,
