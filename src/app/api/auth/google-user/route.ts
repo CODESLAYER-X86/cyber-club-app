@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { cookies } from 'next/headers';
 import { NextResponse } from 'next/server';
 import prisma from '@/lib/db';
+import { isPlatformAdminEmail } from '@/lib/auth';
 
 /**
  * GET /api/auth/google-user
@@ -60,5 +61,17 @@ export async function GET() {
     return NextResponse.json({ success: false, error: 'User not found in database' }, { status: 404 });
   }
 
-  return NextResponse.json({ success: true, data: { user: dbUser } });
+  // Enforce platform admin role in real-time (env-controlled, never stale)
+  const resolvedRole = isPlatformAdminEmail(dbUser.email)
+    ? 'PLATFORM_ADMIN'
+    : dbUser.role === 'PLATFORM_ADMIN'
+    ? 'MEMBER' // demote if email removed from env
+    : dbUser.role;
+
+  // Sync role to DB if it drifted
+  if (resolvedRole !== dbUser.role) {
+    await prisma.user.update({ where: { id: dbUser.id }, data: { role: resolvedRole } });
+  }
+
+  return NextResponse.json({ success: true, data: { user: { ...dbUser, role: resolvedRole } } });
 }

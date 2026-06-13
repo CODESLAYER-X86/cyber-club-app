@@ -2,6 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse, type NextRequest } from 'next/server';
 import { cookies } from 'next/headers';
 import prisma from '@/lib/db';
+import { isPlatformAdminEmail } from '@/lib/auth';
 
 /**
  * Supabase Google OAuth callback.
@@ -61,6 +62,9 @@ export async function GET(request: NextRequest) {
   }
 
   try {
+    // Determine role: platform admin is env-controlled, never from DB alone
+    const adminRole = isPlatformAdminEmail(email) ? 'PLATFORM_ADMIN' : null;
+
     // Find or create the user in our Prisma DB
     const existing = await prisma.user.findUnique({ where: { email } });
     if (!existing) {
@@ -68,14 +72,23 @@ export async function GET(request: NextRequest) {
         data: {
           email,
           name,
-          password: '', // Google users have no password — empty string never matches bcrypt
+          password: '', // Google users have no password
           avatar,
-          role: 'GUEST',
+          role: adminRole ?? 'GUEST',
           membershipStatus: 'NON_MEMBER',
         },
       });
+    } else {
+      // Enforce platform admin role on every sign-in (handles env var changes)
+      const expectedRole = adminRole ?? (existing.role === 'PLATFORM_ADMIN' ? 'MEMBER' : existing.role);
+      if (existing.role !== expectedRole) {
+        await prisma.user.update({ where: { email }, data: { role: expectedRole } });
+      }
+      // Always refresh avatar from Google
+      if (avatar && existing.avatar !== avatar) {
+        await prisma.user.update({ where: { email }, data: { avatar } });
+      }
     }
-    // If user exists, just let them sign in — their existing role/status is preserved
   } catch (e) {
     console.error('[Google OAuth] DB upsert error:', e);
     // Non-fatal: user may already exist — continue to redirect
