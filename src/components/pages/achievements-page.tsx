@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Achievement, AchievementCategory, AchievementStatus } from '@/types';
+import { uploadToSupabase } from '@/lib/upload';
 
 // ──────────────────────────────────────────
 // Constants
@@ -278,14 +279,7 @@ export function AchievementsPage() {
       let imageUrl: string | undefined;
       // Upload image if selected
       if (selectedFile) {
-        const formData = new FormData();
-        formData.append('file', selectedFile);
-        formData.append('folder', 'achievements');
-        const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-        const uploadData = await uploadRes.json();
-        if (uploadData.success) {
-          imageUrl = uploadData.data.url;
-        }
+        imageUrl = await uploadToSupabase(selectedFile, 'achievements');
       }
 
       // Create achievement

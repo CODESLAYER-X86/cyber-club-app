@@ -54,6 +54,7 @@ import {
 } from '@/components/ui/alert-dialog';
 import { useAppStore } from '@/store/use-app-store';
 import type { CommitteeMember } from '@/types';
+import { uploadToSupabase } from '@/lib/upload';
 
 /* ──────────── Animation helpers ──────────── */
 
@@ -409,21 +410,9 @@ export function AboutPage() {
 
   // Upload image
   const uploadImage = async (file: File): Promise<string | null> => {
-    const formDataToSend = new FormData();
-    formDataToSend.append('file', file);
-    formDataToSend.append('folder', 'committee');
-
     try {
       setUploadingImage(true);
-      const res = await fetch('/api/upload', {
-        method: 'POST',
-        body: formDataToSend,
-      });
-      const data = await res.json();
-      if (data.success) {
-        return data.data.url;
-      }
-      return null;
+      return await uploadToSupabase(file, 'committee');
     } catch {
       return null;
     } finally {
