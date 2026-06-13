@@ -47,6 +47,11 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
           throw new RejectedError();
         }
 
+        if (!user.password) {
+          console.warn(`[SECURITY] Failed login: ${email} (no password set, Google OAuth user)`);
+          return null;
+        }
+
         const passwordMatch = await bcryptjs.compare(
           credentials.password as string,
           user.password
