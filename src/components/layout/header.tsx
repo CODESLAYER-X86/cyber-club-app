@@ -13,7 +13,6 @@ import {
   Settings,
   ChevronRight,
   Clock,
-  Shield,
   Calendar,
   Info,
   Image,
@@ -207,8 +206,8 @@ export function Header() {
             onClick={() => setCurrentView('landing')}
             className="flex items-center gap-2.5 shrink-0"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/20">
-              <Shield className="h-4.5 w-4.5 text-emerald-400" />
+            <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
+              <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
             </div>
             <span className="hidden text-sm font-bold text-white sm:block">
               Cyber Security <span className="text-emerald-400">Club</span>

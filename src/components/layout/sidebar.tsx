@@ -3,7 +3,6 @@
 import { useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Shield,
   Home,
   Calendar,
   Info,
@@ -279,8 +278,8 @@ export function Sidebar() {
 
         {/* Logo area */}
         <div className="relative z-20 flex h-16 items-center gap-3 border-b border-white/5 px-4">
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/20">
-            <Shield className="h-5 w-5 text-emerald-400" />
+          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
+            <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
           </div>
           <AnimatePresence>
             {sidebarOpen && (

@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Shield, Github, Twitter, MessageCircle, Heart } from 'lucide-react';
+import { Github, Twitter, MessageCircle, Heart } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { AppView } from '@/types';
 
@@ -59,8 +59,8 @@ export function Footer() {
           {/* Column 1: Brand */}
           <motion.div variants={itemVariants as any} className="space-y-4">
             <div className="flex items-center gap-2.5">
-              <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
-                <Shield className="h-5 w-5 text-emerald-400" />
+              <div className="flex h-9 w-9 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
+                <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
               </div>
               <span className="text-lg font-bold text-white">
                 Cyber Security <span className="text-emerald-400">Club</span>
