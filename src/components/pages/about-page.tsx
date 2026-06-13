@@ -800,8 +800,8 @@ export function AboutPage() {
 
         <div className="relative mx-auto max-w-4xl text-center">
           <motion.div {...fadeUp}>
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-3xl border border-emerald-500/20 bg-emerald-500/10">
-              <Shield className="h-10 w-10 text-emerald-400" />
+            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
+              <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
             </div>
             <h1 className="text-4xl font-extrabold text-white md:text-5xl lg:text-6xl">
               About{' '}

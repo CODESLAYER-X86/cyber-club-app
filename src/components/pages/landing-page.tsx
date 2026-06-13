@@ -286,10 +286,10 @@ export function LandingPage() {
           initial={{ scale: 0.5, opacity: 0, rotate: -10 }}
           animate={{ scale: 1, opacity: 1, rotate: 0 }}
           transition={{ duration: 0.8, type: 'spring', stiffness: 100 }}
-          className="relative flex h-32 w-32 items-center justify-center rounded-3xl border border-emerald-500/20 bg-emerald-500/10 shadow-2xl shadow-emerald-500/20"
+          className="relative flex h-32 w-32 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20 bg-emerald-500/10 shadow-2xl shadow-emerald-500/20"
         >
-          <div className="absolute inset-0 rounded-3xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/10 blur-xl" />
-          <Shield className="relative h-16 w-16 text-emerald-400" />
+          <div className="absolute inset-0 rounded-full bg-gradient-to-br from-emerald-500/20 to-cyan-500/10 blur-xl" />
+          <img src="/logo.png" alt="Cyber Security Club Logo" className="relative h-24 w-24 object-cover rounded-full" />
         </motion.div>
 
         {/* Main heading with gradient */}
@@ -540,9 +540,9 @@ export function LandingPage() {
               whileInView={{ scale: 1, opacity: 1 }}
               viewport={{ once: true }}
               transition={{ delay: 0.2, duration: 0.5 }}
-              className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10"
+              className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20 bg-emerald-500/10"
             >
-              <Shield className="h-8 w-8 text-emerald-400" />
+              <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
             </motion.div>
             <h2 className="text-3xl font-bold text-white md:text-4xl">Ready to Start Your Journey?</h2>
             <p className="mt-4 text-gray-400 max-w-md mx-auto">Join {displayMembers}+ members who are already building their cybersecurity skills and defending the digital frontier.</p>
@@ -568,7 +568,9 @@ export function LandingPage() {
       <footer className="border-t border-white/5 px-4 py-8 mt-auto">
         <div className="mx-auto flex max-w-6xl flex-col items-center gap-4 md:flex-row md:justify-between">
           <div className="flex items-center gap-2">
-            <Shield className="h-5 w-5 text-emerald-400" />
+            <div className="flex h-5 w-5 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
+              <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
+            </div>
             <span className="text-sm font-bold text-white">Cyber Security Club</span>
           </div>
           <div className="flex gap-6 text-xs text-gray-500">
