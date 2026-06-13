@@ -20,16 +20,22 @@ export function LoginPage() {
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
+    setError('');
     try {
       const supabase = createSupabaseBrowser();
-      await supabase.auth.signInWithOAuth({
+      const { error: oauthError } = await supabase.auth.signInWithOAuth({
         provider: 'google',
         options: {
           redirectTo: `${window.location.origin}/auth/callback`,
         },
       });
-      // Browser will redirect — no need to setGoogleLoading(false)
-    } catch {
+      if (oauthError) {
+        setError(oauthError.message || 'Google sign-in failed. Please try again.');
+        setGoogleLoading(false);
+      }
+      // On success the browser redirects — loading state stays until redirect
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Unexpected error. Please try again.');
       setGoogleLoading(false);
     }
   };

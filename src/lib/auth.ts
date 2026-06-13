@@ -73,8 +73,8 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
       // On first sign-in, populate token from DB user
       if (user) {
         token.id = user.id;
-        token.role = (user as unknown as { role: string }).role ?? "MEMBER";
-        token.membershipStatus = (user as unknown as { membershipStatus: string }).membershipStatus ?? "PENDING";
+        token.role = (user as unknown as { role: string }).role ?? "GUEST";
+        token.membershipStatus = (user as unknown as { membershipStatus: string }).membershipStatus ?? "NON_MEMBER";
         token.lastRefresh = Date.now();
       }
 
