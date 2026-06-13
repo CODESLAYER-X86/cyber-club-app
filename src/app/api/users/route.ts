@@ -1,15 +1,15 @@
-import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
-import { requireSession } from "@/lib/auth";
+import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { getSupabaseUser } from "@/lib/supabase-server";
 import prisma from "@/lib/db";
 import { NextRequest } from "next/server";
+
+const ALLOWED_ROLES = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER"];
 
 // GET /api/users — protected, only admins/officers
 export async function GET(request: NextRequest) {
   try {
-    const { session, error } = await requireSession([
-      "PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER",
-    ]);
-    if (error) return forbiddenResponse(error === "UNAUTHORIZED" ? "Unauthorized" : "Forbidden");
+    const caller = await getSupabaseUser(ALLOWED_ROLES);
+    if (!caller) return errorResponse("Forbidden", 403);
 
     const searchParams = request.nextUrl.searchParams;
     const role = searchParams.get("role");

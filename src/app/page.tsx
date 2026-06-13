@@ -21,30 +21,26 @@ export default function Home() {
       return;
     }
 
-    // Google OAuth redirect — load user from Supabase session
-    if (params.get('google_auth') === '1') {
+    // Always check for an active session on mount to persist login state across page refreshes
+    const isGoogleAuthRedirect = params.get('google_auth') === '1';
+    if (isGoogleAuthRedirect) {
       // Clean URL immediately so refresh doesn't re-trigger
       window.history.replaceState({}, '', '/');
-
-      fetch('/api/auth/google-user')
-        .then((r) => r.json())
-        .then((data) => {
-          if (data.success && data.data?.user) {
-            login(data.data.user);
-          } else {
-            // Session missing or user not found — send to login
-            setCurrentView('login');
-          }
-        })
-        .catch(() => setCurrentView('login'));
-      return;
     }
 
-    // Error param from callback (e.g. Google denied)
-    if (params.get('error')) {
-      window.history.replaceState({}, '', '/');
-      setCurrentView('login');
-    }
+    fetch('/api/auth/google-user')
+      .then((r) => r.json())
+      .then((data) => {
+        if (data.success && data.data?.user) {
+          login(data.data.user);
+        } else if (isGoogleAuthRedirect) {
+          // Only redirect to login if the explicit google_auth redirect failed
+          setCurrentView('login');
+        }
+      })
+      .catch(() => {
+        if (isGoogleAuthRedirect) setCurrentView('login');
+      });
   }, [setCurrentView, setCertificateShareCode, login]);
 
   return <AppShell />;

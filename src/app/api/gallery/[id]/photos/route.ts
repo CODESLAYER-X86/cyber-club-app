@@ -6,7 +6,7 @@ import {
   forbiddenResponse,
   serverErrorResponse,
 } from "@/lib/api-utils";
-import { requireSession } from "@/lib/auth";
+import { getSupabaseUser } from "@/lib/supabase-server";
 import { NextRequest } from "next/server";
 
 const ALLOWED_ROLES = ["MEDIA", "PRESIDENT", "PLATFORM_ADMIN"];
@@ -19,8 +19,8 @@ export async function POST(
   try {
     const { id: eventId } = await params;
 
-    const { session, error } = await requireSession(ALLOWED_ROLES);
-    if (error) return forbiddenResponse("Only MEDIA, PRESIDENT, or PLATFORM_ADMIN can add photos");
+    const caller = await getSupabaseUser(ALLOWED_ROLES);
+    if (!caller) return forbiddenResponse("Only MEDIA, PRESIDENT, or PLATFORM_ADMIN can add photos");
 
     const body = await request.json();
     const { imageUrl, title, description, category } = body;
@@ -42,7 +42,7 @@ export async function POST(
         description: description || null,
         category: category || "EVENT",
         eventId,
-        uploadedBy: (session!.user as { id: string }).id,
+        uploadedBy: caller.userId,
       },
       include: {
         uploader: {
