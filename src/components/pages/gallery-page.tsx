@@ -19,6 +19,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { toast } from '@/hooks/use-toast';
+import { uploadToSupabase } from '@/lib/upload';
 import type { GalleryImage, GalleryCategory, Event } from '@/types';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -258,19 +259,8 @@ export function GalleryPage() {
 
     setUploading(true);
     try {
-      // Step 1: Upload file
-      const formData = new FormData();
-      formData.append('file', selectedFile);
-      formData.append('folder', 'gallery');
-
-      const uploadRes = await fetch('/api/upload', { method: 'POST', body: formData });
-      const uploadData = await uploadRes.json();
-
-      if (!uploadData.success) {
-        throw new Error(uploadData.error || 'Upload failed');
-      }
-
-      const imageUrl: string = uploadData.data.url;
+      // Step 1: Upload file directly to Supabase Storage
+      const imageUrl = await uploadToSupabase(selectedFile, 'gallery');
 
       // Step 2: Create gallery entry
       const galleryRes = await fetch('/api/gallery', {
