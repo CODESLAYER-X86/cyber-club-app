@@ -73,7 +73,7 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   Home: 'Return to the homepage',
   Events: 'Browse and manage events',
   About: 'Learn about Cyber Security Club',
-  Join: 'Apply for club membership',
+  'Apply for Membership': 'Apply for club membership',
   Dashboard: 'Overview and key metrics',
   Certificates: 'View your earned certificates',
   Payments: 'Payment history and dues',
@@ -107,7 +107,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'About', view: 'about', icon: 'Info' },
-    { label: 'Join', view: 'register', icon: 'UserPlus' },
+    { label: 'Apply for Membership', view: 'apply-membership', icon: 'FileText' },
   ],
   MEMBER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },

@@ -34,6 +34,7 @@ export interface User {
   id: string;
   email: string;
   name: string;
+  password?: string;
   role: UserRole;
   membershipStatus: MembershipStatus;
   avatar?: string;
@@ -43,6 +44,9 @@ export interface User {
   bio?: string;
   transactionId?: string;
   paymentProof?: string;
+  paymentMethod?: string;
+  paymentDate?: string;
+  rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
 }
@@ -287,6 +291,7 @@ export type AppView =
   | "landing"
   | "login"
   | "register"
+  | "apply-membership"
   | "dashboard"
   | "events"
   | "event-detail"
