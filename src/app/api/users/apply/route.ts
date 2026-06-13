@@ -1,32 +1,15 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
-import { cookies } from "next/headers";
-import { jwtVerify } from "jose";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function POST(req: NextRequest) {
   try {
-    const cookieStore = await cookies();
-    const tokenCookie = cookieStore.get("csc_token")?.value;
-    
-    if (!tokenCookie) {
+    const caller = await getSupabaseUser();
+    if (!caller) {
       return errorResponse("Unauthorized", 401);
     }
-
-    let payload;
-    try {
-      const secret = new TextEncoder().encode(process.env.AUTH_SECRET);
-      const verified = await jwtVerify(tokenCookie, secret);
-      payload = verified.payload;
-    } catch {
-      return errorResponse("Invalid token", 401);
-    }
-
-    if (!payload.id) {
-      return errorResponse("Unauthorized", 401);
-    }
-
-    const userId = payload.id as string;
+    const userId = caller.userId;
     
     const body = await req.json();
     const { studentId, department, phone, transactionId } = body;
