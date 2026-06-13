@@ -59,7 +59,7 @@ export function CertificateVerifyPage() {
   const [copied, setCopied] = useState(false);
 
   const shareUrl = typeof window !== 'undefined' && result ? `${window.location.origin}/?cert=${result.certificateCode}` : '';
-  const shareText = result ? `I earned a ${CERTIFICATE_TYPE_LABELS[result.type]} certificate from CyberSec Club! 🛡️🔐` : '';
+  const shareText = result ? `I earned a ${CERTIFICATE_TYPE_LABELS[result.type]} certificate from Cyber Security Club! 🛡️🔐` : '';
 
   const handleLinkedInShare = () => {
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank', 'width=600,height=400');

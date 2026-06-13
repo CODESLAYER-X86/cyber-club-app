@@ -53,7 +53,7 @@ export function LoginPage() {
             <Shield className="h-8 w-8 text-emerald-400" />
           </div>
           <h1 className="text-2xl font-bold text-white">Welcome Back</h1>
-          <p className="mt-1 text-sm text-gray-500">Sign in to CyberSec Club Platform</p>
+          <p className="mt-1 text-sm text-gray-500">Sign in to Cyber Security Club Platform</p>
         </div>
 
         <Card className="border-white/10 bg-[#111]/80 backdrop-blur-xl">

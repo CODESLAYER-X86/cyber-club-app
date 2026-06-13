@@ -22,7 +22,7 @@ export async function GET(
         <rect width="1200" height="630" fill="#0a0a0a"/>
         <text x="600" y="280" text-anchor="middle" font-family="sans-serif" font-size="48" fill="#ef4444">Certificate Not Found</text>
         <text x="600" y="340" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#6b7280">The certificate code is invalid or has been revoked</text>
-        <text x="600" y="420" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#4b5563">CyberSec Club</text>
+        <text x="600" y="420" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#4b5563">Cyber Security Club</text>
       </svg>`;
       return new Response(notFoundSvg, {
         headers: {
@@ -70,7 +70,7 @@ export async function GET(
     <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke="#10b981" stroke-width="1"/>
     <text x="60" y="75" text-anchor="middle" font-family="sans-serif" font-size="28" fill="#10b981">&#x2713;</text>
   </g>
-  <text x="600" y="210" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#6b7280" letter-spacing="6">CYBERSEC CLUB</text>
+  <text x="600" y="210" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#6b7280" letter-spacing="6">CYBER SECURITY CLUB</text>
   <text x="600" y="240" text-anchor="middle" font-family="sans-serif" font-size="14" fill="#4b5563">VERIFIED CERTIFICATE</text>
   <text x="600" y="290" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#6b7280">This is to certify that</text>
   <text x="600" y="340" text-anchor="middle" font-family="sans-serif" font-size="42" font-weight="bold" fill="url(#textGrad)">${name}</text>

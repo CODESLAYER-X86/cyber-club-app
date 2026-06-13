@@ -63,7 +63,7 @@ export function Footer() {
                 <Shield className="h-5 w-5 text-emerald-400" />
               </div>
               <span className="text-lg font-bold text-white">
-                CyberSec<span className="text-emerald-400">Club</span>
+                Cyber Security <span className="text-emerald-400">Club</span>
               </span>
             </div>
             <p className="text-sm leading-relaxed text-gray-500">
@@ -151,11 +151,10 @@ export function Footer() {
       >
         <div className="mx-auto flex max-w-7xl flex-col items-center justify-between gap-2 px-4 py-5 sm:flex-row sm:px-6 lg:px-8">
           <p className="text-xs text-gray-600">
-            &copy; 2025 CyberSec Club. All rights reserved.
+            &copy; 2025 Cyber Security Club. All rights reserved.
           </p>
-          <p className="flex items-center gap-1 text-xs text-gray-600">
-            Made with{' '}
-            <Heart className="h-3 w-3 text-emerald-400" /> by CyberSec Team
+          <p className="text-xs text-gray-600">
+            Created By <span className="font-mono text-emerald-400">CODESLAYER_X86</span>
           </p>
         </div>
       </motion.div>

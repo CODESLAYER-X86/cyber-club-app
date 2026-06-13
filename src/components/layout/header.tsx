@@ -211,7 +211,7 @@ export function Header() {
               <Shield className="h-4.5 w-4.5 text-emerald-400" />
             </div>
             <span className="hidden text-sm font-bold text-white sm:block">
-              CyberSec<span className="text-emerald-400">Club</span>
+              Cyber Security <span className="text-emerald-400">Club</span>
             </span>
           </button>
 
