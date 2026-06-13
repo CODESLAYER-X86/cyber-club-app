@@ -14,9 +14,7 @@ export async function GET() {
       totalEvents,
       totalCertificates,
     ] = await Promise.all([
-      prisma.user.count({
-        where: { membershipStatus: { in: ["ACTIVE", "PENDING"] } },
-      }),
+      prisma.user.count(),
       prisma.user.count({
         where: { membershipStatus: "ACTIVE" },
       }),
