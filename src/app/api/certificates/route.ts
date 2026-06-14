@@ -27,6 +27,83 @@ export async function GET(request: NextRequest) {
 
     if (eventId) {
       where.eventId = eventId;
+
+      // Auto-create/Self-heal missing certificates for approved registrations
+      const approvedRegistrations = await prisma.eventRegistration.findMany({
+        where: { eventId, status: "APPROVED" },
+      });
+
+      const existingCertificates = await prisma.certificate.findMany({
+        where: { eventId },
+      });
+
+      const existingUserIds = new Set(existingCertificates.map((c) => c.userId));
+      const missingRegs = approvedRegistrations.filter((r) => !existingUserIds.has(r.userId));
+
+      if (missingRegs.length > 0) {
+        // Fetch event to construct certificate code and check category
+        const event = await prisma.event.findUnique({
+          where: { id: eventId },
+          select: { category: true, status: true, requiresAssessment: true, passingScore: true }
+        });
+        const category = event?.category || "EVENT";
+
+        // Fetch matching attendance records to determine initial status
+        const attendances = await prisma.attendance.findMany({
+          where: { eventId, userId: { in: missingRegs.map(r => r.userId) } }
+        });
+
+        // Fetch assessments if required to determine ELIGIBLE status
+        let assessments: { id: string }[] = [];
+        if (event?.requiresAssessment && event.passingScore !== null && event.passingScore !== undefined) {
+          assessments = await prisma.assessment.findMany({
+            where: { eventId },
+            select: { id: true },
+          });
+        }
+
+        await Promise.all(
+          missingRegs.map(async (reg) => {
+            const certificateCode = `CSC-2026-${category}-${uuidv4().split("-")[0].toUpperCase()}`;
+            const att = attendances.find(a => a.userId === reg.userId);
+
+            let initialStatus = "REGISTERED";
+            if (att && (att.status === "PRESENT" || att.status === "LATE")) {
+              initialStatus = "PRESENT";
+
+              // Perform eligibility checks to see if we can promote it to ELIGIBLE
+              let assessmentPassed = true;
+              if (event?.requiresAssessment && event.passingScore !== null && event.passingScore !== undefined && assessments.length > 0) {
+                assessmentPassed = false;
+                const assessmentIds = assessments.map((a) => a.id);
+                const passingSubmission = await prisma.assessmentSubmission.findFirst({
+                  where: {
+                    userId: reg.userId,
+                    assessmentId: { in: assessmentIds },
+                    status: "GRADED",
+                    score: { gte: event.passingScore },
+                  },
+                });
+                assessmentPassed = !!passingSubmission;
+              }
+
+              if (event?.status === "COMPLETED" && assessmentPassed) {
+                initialStatus = "ELIGIBLE";
+              }
+            }
+
+            await prisma.certificate.create({
+              data: {
+                certificateCode,
+                userId: reg.userId,
+                eventId,
+                type: "PARTICIPATION",
+                status: initialStatus,
+              }
+            });
+          })
+        );
+      }
     }
 
     if (type) {

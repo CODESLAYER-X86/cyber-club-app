@@ -732,7 +732,7 @@ export function AchievementsPage() {
                       <div className="flex items-center justify-between pt-2 border-t border-white/5">
                         <div className="flex items-center gap-1.5 text-xs text-gray-500">
                           {achievement.submitter?.avatar ? (
-                            <img src={achievement.submitter.avatar} alt="" className="h-4 w-4 rounded-full object-cover" />
+                            <img src={achievement.submitter.avatar} alt="Submitter avatar" className="h-4 w-4 rounded-full object-cover" />
                           ) : (
                             <div className="h-4 w-4 rounded-full bg-emerald-500/20 flex items-center justify-center">
                               <User className="h-2.5 w-2.5 text-emerald-400" />

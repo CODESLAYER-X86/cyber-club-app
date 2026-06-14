@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Save, Loader2, Sparkles, Image as ImageIcon, CheckCircle, Paintbrush, FileText, Check } from 'lucide-react';
+import { ArrowLeft, Save, Loader2, Sparkles, Image as ImageIcon, Paintbrush, SwitchCamera } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -26,21 +26,23 @@ interface LayoutConfig {
   orgLogo: string;
   eventLogo: string;
   signatures: SignatureConfig[];
+  collabMode?: boolean;
 }
 
 export function CertificateDesigner() {
-  const { currentUser, selectedEventId, setCurrentView } = useAppStore();
+  const { selectedEventId, setCurrentView } = useAppStore();
   const [saving, setSaving] = useState(false);
   const [eventTitle, setEventTitle] = useState('Dynamic Event Title');
   const [loading, setLoading] = useState(true);
 
   // Layout states
   const [bgImage, setBgImage] = useState('');
-  const [primaryColor, setPrimaryColor] = useState('#10b981'); // default emerald
-  const [secondaryColor, setSecondaryColor] = useState('#06b6d4'); // default cyan
+  const [primaryColor, setPrimaryColor] = useState('#10b981'); // fallback default
+  const [secondaryColor, setSecondaryColor] = useState('#06b6d4'); // fallback default
   const [title, setTitle] = useState('CERTIFICATE OF PARTICIPATION');
   const [orgLogo, setOrgLogo] = useState('');
   const [eventLogo, setEventLogo] = useState('');
+  const [collabMode, setCollabMode] = useState(false);
 
   // Signatures
   const [signatures, setSignatures] = useState<SignatureConfig[]>([
@@ -54,6 +56,16 @@ export function CertificateDesigner() {
     const fetchEvent = async () => {
       setLoading(true);
       try {
+        // Fetch default colors set globally by the President
+        const configRes = await fetch('/api/config');
+        const configData = await configRes.json();
+        let defaultPrimary = '#10b981';
+        let defaultSecondary = '#06b6d4';
+        if (configData.success && configData.data) {
+          defaultPrimary = configData.data.defaultPrimaryColor || '#10b981';
+          defaultSecondary = configData.data.defaultSecondaryColor || '#06b6d4';
+        }
+
         const res = await fetch(`/api/events/${selectedEventId}`);
         const data = await res.json();
         if (data.success && data.data.event) {
@@ -63,17 +75,22 @@ export function CertificateDesigner() {
             try {
               const layout: LayoutConfig = JSON.parse(ev.certificateLayout);
               setBgImage(layout.bgImage || '');
-              setPrimaryColor(layout.primaryColor || '#10b981');
-              setSecondaryColor(layout.secondaryColor || '#06b6d4');
+              setPrimaryColor(layout.primaryColor || defaultPrimary);
+              setSecondaryColor(layout.secondaryColor || defaultSecondary);
               setTitle(layout.title || 'CERTIFICATE OF PARTICIPATION');
               setOrgLogo(layout.orgLogo || '');
               setEventLogo(layout.eventLogo || '');
+              setCollabMode(layout.collabMode ?? false);
               if (layout.signatures && Array.isArray(layout.signatures)) {
                 setSignatures(layout.signatures);
               }
             } catch (e) {
               console.error('Failed to parse certificate layout JSON:', e);
             }
+          } else {
+            // Set President default colors
+            setPrimaryColor(defaultPrimary);
+            setSecondaryColor(defaultSecondary);
           }
         }
       } catch (e) {
@@ -101,9 +118,10 @@ export function CertificateDesigner() {
       primaryColor,
       secondaryColor,
       title,
-      orgLogo,
-      eventLogo,
+      orgLogo: collabMode ? orgLogo : '',
+      eventLogo: collabMode ? eventLogo : '',
       signatures,
+      collabMode,
     };
 
     try {
@@ -230,25 +248,37 @@ export function CertificateDesigner() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Organization Logo URL</label>
-                    <Input
-                      value={orgLogo}
-                      onChange={e => setOrgLogo(e.target.value)}
-                      placeholder="https://example.com/club-logo.png (optional)"
-                      className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
-                    />
+                  <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                    <div>
+                      <p className="text-xs font-semibold text-gray-200">Collaboration Mode</p>
+                      <p className="text-[10px] text-gray-500">Enable if this event is in partnership with other clubs/orgs</p>
+                    </div>
+                    <Switch checked={collabMode} onCheckedChange={setCollabMode} />
                   </div>
 
-                  <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Event Logo URL</label>
-                    <Input
-                      value={eventLogo}
-                      onChange={e => setEventLogo(e.target.value)}
-                      placeholder="https://example.com/event-logo.png (optional)"
-                      className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
-                    />
-                  </div>
+                  {collabMode && (
+                    <div className="space-y-4 pt-2 border-t border-white/5">
+                      <div className="space-y-2">
+                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Collaborator Logo URL</label>
+                        <Input
+                          value={orgLogo}
+                          onChange={e => setOrgLogo(e.target.value)}
+                          placeholder="https://example.com/collaborator-logo.png (optional)"
+                          className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
+                        />
+                      </div>
+
+                      <div className="space-y-2">
+                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Co-Host/Sponsor Logo URL</label>
+                        <Input
+                          value={eventLogo}
+                          onChange={e => setEventLogo(e.target.value)}
+                          placeholder="https://example.com/cohost-logo.png (optional)"
+                          className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
+                        />
+                      </div>
+                    </div>
+                  )}
                 </TabsContent>
 
                 <TabsContent value="signatures" className="space-y-4 pt-2">
@@ -283,13 +313,55 @@ export function CertificateDesigner() {
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[10px] text-gray-500 uppercase font-semibold">Signature Image URL</label>
-                            <Input
-                              value={sig.image}
-                              onChange={e => updateSignature(i, 'image', e.target.value)}
-                              placeholder="https://example.com/signature-line.png (optional)"
-                              className="h-8 text-xs border-white/10 bg-white/5 text-white placeholder:text-gray-700"
-                            />
+                            <label className="text-[10px] text-gray-500 uppercase font-semibold block">Signature Image (Transparent PNG, max 100x100)</label>
+                            <div className="flex gap-2 items-center">
+                              {sig.image ? (
+                                <div className="relative border border-white/10 bg-black/40 rounded p-1 flex items-center justify-center shrink-0">
+                                  <img src={sig.image} alt="Signature Preview" className="h-10 w-10 object-contain" />
+                                  <button
+                                    onClick={() => updateSignature(i, 'image', '')}
+                                    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 text-[8px] leading-none hover:bg-red-500"
+                                    type="button"
+                                  >
+                                    ✕
+                                  </button>
+                                </div>
+                              ) : (
+                                <Input
+                                  type="file"
+                                  accept="image/png"
+                                  onChange={(e) => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+
+                                    const img = new Image();
+                                    const objectUrl = URL.createObjectURL(file);
+                                    img.onload = () => {
+                                      if (img.width > 100 || img.height > 100) {
+                                        toast({
+                                          title: "Invalid Signature Resolution",
+                                          description: `Signature image resolution must not exceed 100x100 pixels (uploaded: ${img.width}x${img.height}).`,
+                                          variant: "destructive"
+                                        });
+                                        URL.revokeObjectURL(objectUrl);
+                                        return;
+                                      }
+
+                                      const reader = new FileReader();
+                                      reader.onload = (event) => {
+                                        if (event.target?.result) {
+                                          updateSignature(i, 'image', event.target.result as string);
+                                        }
+                                      };
+                                      reader.readAsDataURL(file);
+                                      URL.revokeObjectURL(objectUrl);
+                                    };
+                                    img.src = objectUrl;
+                                  }}
+                                  className="h-8 text-xs border-white/10 bg-white/5 text-white cursor-pointer file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
+                                />
+                              )}
+                            </div>
                           </div>
                         </div>
                       )}
@@ -308,7 +380,7 @@ export function CertificateDesigner() {
             <span className="text-xs text-gray-500 flex items-center gap-1"><Sparkles className="h-3 w-3 text-emerald-400" /> Real-time rendering</span>
           </div>
 
-          <div className="w-full aspect-[1200/630] rounded-xl overflow-hidden border border-white/10 bg-[#070707] shadow-2xl relative">
+          <div className="w-full aspect-[1200/630] rounded-xl overflow-hidden border border-white/10 bg-[#000000] shadow-2xl relative">
             <svg viewBox="0 0 1200 630" className="w-full h-full select-none">
               <defs>
                 <linearGradient id="borderGradPreview" x1="0%" y1="0%" x2="100%" y2="100%">
@@ -334,7 +406,7 @@ export function CertificateDesigner() {
                 <image x="0" y="0" width="1200" height="630" href={bgImage} preserveAspectRatio="xMidYMid slice" />
               ) : (
                 <>
-                  <rect width="1200" height="630" fill="#0a0a0a" />
+                  <rect width="1200" height="630" fill="#000000" />
                   <rect width="1200" height="630" fill="url(#gridPreview)" />
                 </>
               )}
@@ -346,11 +418,11 @@ export function CertificateDesigner() {
               <path d="M 30 600 L 30 570 M 30 600 L 60 600" stroke={primaryColor} strokeWidth="2" opacity="0.5" />
               <path d="M 1170 600 L 1170 570 M 1170 600 L 1140 600" stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
 
-              {/* Org Logo */}
-              {orgLogo && <image x="50" y="45" width="80" height="80" href={orgLogo} />}
+              {/* Collaborator Logo */}
+              {collabMode && orgLogo && <image x="50" y="45" width="80" height="80" href={orgLogo} />}
 
-              {/* Event Logo */}
-              {eventLogo && <image x="1070" y="45" width="80" height="80" href={eventLogo} />}
+              {/* Co-Host Logo */}
+              {collabMode && eventLogo && <image x="1070" y="45" width="80" height="80" href={eventLogo} />}
 
               {/* Badge/Seal */}
               <g transform="translate(540, 45)">
@@ -383,9 +455,9 @@ export function CertificateDesigner() {
                   return (
                     <g key={idx} transform={`translate(${xPos}, 510)`}>
                       <line x1="-100" y1="0" x2="100" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                      {sig.image && <image x="-60" y="-70" width="120" height="60" href={sig.image} />}
+                      {sig.image && <image x="-50" y="-60" width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
                       <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="bold" fill="#ffffff">{sig.name}</text>
-                      <text x="0" y="38" text-anchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">{sig.title}</text>
+                      <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">{sig.title}</text>
                     </g>
                   );
                 })
@@ -393,13 +465,13 @@ export function CertificateDesigner() {
                 <>
                   <g transform="translate(300, 510)">
                     <line x1="-100" y1="0" x2="100" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                    <text x="0" y="20" text-anchor="middle" fontFamily="sans-serif" fontSize="14" fill="#ffffff">President</text>
-                    <text x="0" y="38" text-anchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">Cyber Security Club</text>
+                    <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fill="#ffffff">President</text>
+                    <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">Cyber Security Club</text>
                   </g>
                   <g transform="translate(900, 510)">
                     <line x1="-100" y1="0" x2="100" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                    <text x="0" y="20" text-anchor="middle" fontFamily="sans-serif" fontSize="14" fill="#ffffff">General Secretary</text>
-                    <text x="0" y="38" text-anchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">Cyber Security Club</text>
+                    <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fill="#ffffff">General Secretary</text>
+                    <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">Cyber Security Club</text>
                   </g>
                 </>
               )}
@@ -407,7 +479,6 @@ export function CertificateDesigner() {
               {/* Static Mock QR Code */}
               <g transform="translate(1040, 480)">
                 <rect x="-5" y="-5" width="90" height="90" fill="#ffffff" rx="4" />
-                {/* Standard grid patterns representing QR code */}
                 <rect x="5" y="5" width="20" height="20" fill="#000000" />
                 <rect x="55" y="5" width="20" height="20" fill="#000000" />
                 <rect x="5" y="55" width="20" height="20" fill="#000000" />
@@ -420,7 +491,7 @@ export function CertificateDesigner() {
 
               {/* Verification Info Footer */}
               <line x1="100" y1="595" x2="1100" y2="595" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-              <text x="600" y="612" text-anchor="middle" fontFamily="sans-serif" fontSize="10" fill="#4b5563">Verification URL: https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125</text>
+              <text x="600" y="612" textAnchor="middle" fontFamily="sans-serif" fontSize="10" fill="#4b5563">Verification URL: https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125</text>
             </svg>
           </div>
         </div>
