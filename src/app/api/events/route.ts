@@ -132,7 +132,8 @@ export async function POST(request: NextRequest) {
     });
 
     return successResponse({ event }, 201);
-  } catch {
+  } catch (error) {
+    console.error("POST events error:", error);
     return serverErrorResponse();
   }
 }
