@@ -39,30 +39,33 @@ export function CertificatePublicPage() {
   const [copied, setCopied] = useState(false);
 
   useEffect(() => {
-    if (!certificateShareCode) {
-      setError('No certificate code provided');
-      setLoading(false);
-      return;
-    }
-    const fetchCert = async () => {
-      try {
-        const res = await fetch(`/api/certificates/verify/${certificateShareCode}`);
-        const d = await res.json();
-        if (d.success && d.data?.certificate) {
-          setCert(d.data.certificate);
-        } else {
-          setError(d.error || 'Certificate not found');
-        }
-      } catch {
-        setError('Failed to load certificate');
-      } finally {
+    const t = setTimeout(() => {
+      if (!certificateShareCode) {
+        setError('No certificate code provided');
         setLoading(false);
+        return;
       }
-    };
-    fetchCert();
+      const fetchCert = async () => {
+        try {
+          const res = await fetch(`/api/certificates/verify/${certificateShareCode}`);
+          const d = await res.json();
+          if (d.success && d.data?.certificate) {
+            setCert(d.data.certificate);
+          } else {
+            setError(d.error || 'Certificate not found');
+          }
+        } catch {
+          setError('Failed to load certificate');
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchCert();
+    }, 0);
+    return () => clearTimeout(t);
   }, [certificateShareCode]);
 
-  const isValid = cert?.status === 'VALID';
+  const isValid = cert ? ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(cert.status) : false;
   const shareUrl = typeof window !== 'undefined' ? `${window.location.origin}/?cert=${cert?.certificateCode || ''}` : '';
   const shareText = cert
     ? `I earned a ${CERTIFICATE_TYPE_LABELS[cert.type]} certificate from Cyber Security Club! 🛡️🔐`
@@ -74,6 +77,19 @@ export function CertificatePublicPage() {
       '_blank',
       'width=600,height=400'
     );
+  };
+
+  const handleLinkedInAddToProfile = () => {
+    if (!cert) return;
+    const name = encodeURIComponent(cert.event?.title || 'Cyber Security Club Certification');
+    const orgName = encodeURIComponent('Cyber Security Club');
+    const date = cert.issuedAt ? new Date(cert.issuedAt) : new Date();
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const certUrl = encodeURIComponent(shareUrl);
+    const certId = encodeURIComponent(cert.certificateCode);
+    const url = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${name}&organizationName=${orgName}&issueYear=${year}&issueMonth=${month}&certUrl=${certUrl}&certId=${certId}`;
+    window.open(url, '_blank', 'width=600,height=600');
   };
 
   const handleTwitterShare = () => {
@@ -370,11 +386,19 @@ export function CertificatePublicPage() {
                 <div className="flex items-center justify-center gap-3 flex-wrap">
                   <Button
                     onClick={handleLinkedInShare}
-                    className="bg-[#0A66C2] hover:bg-[#0A66C2]/80 text-white gap-2"
+                    className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-2"
                     size="sm"
                   >
                     <Linkedin className="h-4 w-4" />
-                    Share on LinkedIn
+                    Share Post
+                  </Button>
+                  <Button
+                    onClick={handleLinkedInAddToProfile}
+                    className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-2"
+                    size="sm"
+                  >
+                    <Linkedin className="h-4 w-4" />
+                    Add to Profile
                   </Button>
                   <Button
                     onClick={handleTwitterShare}

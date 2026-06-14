@@ -52,6 +52,18 @@ export function CertificatesPage() {
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
   };
 
+  const handleLinkedInAddToProfile = (cert: Certificate) => {
+    const name = encodeURIComponent(cert.event?.title || 'Cyber Security Club Certification');
+    const orgName = encodeURIComponent('Cyber Security Club');
+    const date = cert.issuedAt ? new Date(cert.issuedAt) : new Date();
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const certUrl = encodeURIComponent(`${window.location.origin}/?cert=${cert.certificateCode}`);
+    const certId = encodeURIComponent(cert.certificateCode);
+    const url = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${name}&organizationName=${orgName}&issueYear=${year}&issueMonth=${month}&certUrl=${certUrl}&certId=${certId}`;
+    window.open(url, '_blank', 'width=600,height=600');
+  };
+
   const handleTwitterShare = (code: string, type: CertificateType) => {
     const url = `${window.location.origin}/?cert=${code}`;
     const text = `I earned a ${CERTIFICATE_TYPE_LABELS[type]} certificate from Cyber Security Club! 🛡️🔐`;
@@ -70,7 +82,7 @@ export function CertificatesPage() {
   // Certificate stats
   const certStats = useMemo(() => ({
     total: certificates.length,
-    valid: certificates.filter(c => c.status === 'VALID').length,
+    valid: certificates.filter(c => ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(c.status)).length,
     revoked: certificates.filter(c => c.status === 'REVOKED').length,
   }), [certificates]);
 
@@ -208,78 +220,87 @@ export function CertificatesPage() {
                           </div>
                         )}
                         {/* Action buttons */}
-                        <div className="mt-3 flex justify-end gap-2">
-                          <Popover open={shareOpen === cert.id} onOpenChange={(open) => setShareOpen(open ? cert.id : null)}>
-                            <PopoverTrigger asChild>
-                              <Button variant="ghost" size="sm" className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
-                                <Share2 className="mr-1 h-3 w-3" /> Share
-                              </Button>
-                            </PopoverTrigger>
-                            <PopoverContent className="w-52 border-white/10 bg-[#1a1a2e] text-white p-2" align="end">
-                              <div className="space-y-1">
-                                <button onClick={() => { handleLinkedInShare(cert.certificateCode); setShareOpen(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-[#0A66C2]/20 hover:text-white transition-colors">
-                                  <Linkedin className="h-4 w-4 text-[#0A66C2]" /> Share on LinkedIn
-                                </button>
-                                <button onClick={() => { handleTwitterShare(cert.certificateCode, cert.type); setShareOpen(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-sky-500/20 hover:text-white transition-colors">
-                                  <Twitter className="h-4 w-4 text-sky-400" /> Share on X
-                                </button>
-                                <button onClick={() => handleCopyLink(cert.certificateCode)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors">
-                                  {copiedId === cert.certificateCode ? <CheckCircle className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
-                                  {copiedId === cert.certificateCode ? 'Copied!' : 'Copy Link'}
-                                </button>
-                              </div>
-                            </PopoverContent>
-                          </Popover>
-                          <Button variant="ghost" size="sm" disabled={downloadingId === cert.id} onClick={async () => {
-                            setDownloadingId(cert.id);
-                            try {
-                              const res = await fetch(`/api/certificates/${cert.certificateCode}/og`);
-                              if (!res.ok) throw new Error('Failed to generate certificate');
-                              const svgText = await res.text();
-                              // Create a canvas to convert SVG to PNG
-                              const img = new Image();
-                              const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
-                              const url = URL.createObjectURL(svgBlob);
-                              img.onload = () => {
-                                const canvas = document.createElement('canvas');
-                                canvas.width = 1200;
-                                canvas.height = 630;
-                                const ctx = canvas.getContext('2d');
-                                if (ctx) {
-                                  ctx.drawImage(img, 0, 0);
-                                  canvas.toBlob((blob) => {
-                                    if (blob) {
-                                      const pngUrl = URL.createObjectURL(blob);
-                                      const a = document.createElement('a');
-                                      a.href = pngUrl;
-                                      a.download = `certificate-${cert.certificateCode}.png`;
-                                      a.click();
-                                      URL.revokeObjectURL(pngUrl);
-                                    }
-                                    URL.revokeObjectURL(url);
-                                  }, 'image/png');
-                                }
-                              };
-                              img.src = url;
-                              // Also offer SVG download as fallback
-                              const a = document.createElement('a');
-                              const svgUrl2 = URL.createObjectURL(svgBlob);
-                              a.href = svgUrl2;
-                              a.download = `certificate-${cert.certificateCode}.svg`;
-                              a.click();
-                              URL.revokeObjectURL(svgUrl2);
-                              toast({ title: 'Certificate downloaded', description: 'Your certificate has been downloaded.' });
-                            } catch (e) {
-                              console.error(e);
-                              toast({ title: 'Download failed', description: 'Could not download certificate.', variant: 'destructive' });
-                            } finally {
-                              setDownloadingId(null);
-                            }
-                          }} className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
-                            {downloadingId === cert.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}
-                            Download
-                          </Button>
-                        </div>
+                        {['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(cert.status) ? (
+                          <div className="mt-3 flex justify-end gap-2">
+                            <Popover open={shareOpen === cert.id} onOpenChange={(open) => setShareOpen(open ? cert.id : null)}>
+                              <PopoverTrigger asChild>
+                                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
+                                  <Share2 className="mr-1 h-3 w-3" /> Share
+                                </Button>
+                              </PopoverTrigger>
+                              <PopoverContent className="w-52 border-white/10 bg-[#1a1a2e] text-white p-2" align="end">
+                                <div className="space-y-1">
+                                  <button onClick={() => { handleLinkedInShare(cert.certificateCode); setShareOpen(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-[#0A66C2]/20 hover:text-white transition-colors">
+                                    <Linkedin className="h-4 w-4 text-[#0A66C2]" /> Share Post
+                                  </button>
+                                  <button onClick={() => { handleLinkedInAddToProfile(cert); setShareOpen(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-[#0A66C2]/20 hover:text-white transition-colors">
+                                    <Linkedin className="h-4 w-4 text-[#0A66C2]" /> Add to Profile
+                                  </button>
+                                  <button onClick={() => { handleTwitterShare(cert.certificateCode, cert.type); setShareOpen(null); }} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-sky-500/20 hover:text-white transition-colors">
+                                    <Twitter className="h-4 w-4 text-sky-400" /> Share on X
+                                  </button>
+                                  <button onClick={() => handleCopyLink(cert.certificateCode)} className="flex w-full items-center gap-2 rounded-md px-3 py-2 text-sm text-gray-300 hover:bg-white/10 hover:text-white transition-colors">
+                                    {copiedId === cert.certificateCode ? <CheckCircle className="h-4 w-4 text-emerald-400" /> : <Copy className="h-4 w-4" />}
+                                    {copiedId === cert.certificateCode ? 'Copied!' : 'Copy Link'}
+                                  </button>
+                                </div>
+                              </PopoverContent>
+                            </Popover>
+                            <Button variant="ghost" size="sm" disabled={downloadingId === cert.id} onClick={async () => {
+                              setDownloadingId(cert.id);
+                              try {
+                                const res = await fetch(`/api/certificates/${cert.certificateCode}/og`);
+                                if (!res.ok) throw new Error('Failed to generate certificate');
+                                const svgText = await res.text();
+                                // Create a canvas to convert SVG to PNG
+                                const img = new Image();
+                                const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+                                const url = URL.createObjectURL(svgBlob);
+                                img.onload = () => {
+                                  const canvas = document.createElement('canvas');
+                                  canvas.width = 1200;
+                                  canvas.height = 630;
+                                  const ctx = canvas.getContext('2d');
+                                  if (ctx) {
+                                    ctx.drawImage(img, 0, 0);
+                                    canvas.toBlob((blob) => {
+                                      if (blob) {
+                                        const pngUrl = URL.createObjectURL(blob);
+                                        const a = document.createElement('a');
+                                        a.href = pngUrl;
+                                        a.download = `certificate-${cert.certificateCode}.png`;
+                                        a.click();
+                                        URL.revokeObjectURL(pngUrl);
+                                      }
+                                      URL.revokeObjectURL(url);
+                                    }, 'image/png');
+                                  }
+                                };
+                                img.src = url;
+                                // Also offer SVG download as fallback
+                                const a = document.createElement('a');
+                                const svgUrl2 = URL.createObjectURL(svgBlob);
+                                a.href = svgUrl2;
+                                a.download = `certificate-${cert.certificateCode}.svg`;
+                                a.click();
+                                URL.revokeObjectURL(svgUrl2);
+                                toast({ title: 'Certificate downloaded', description: 'Your certificate has been downloaded.' });
+                              } catch (e) {
+                                console.error(e);
+                                toast({ title: 'Download failed', description: 'Could not download certificate.', variant: 'destructive' });
+                              } finally {
+                                setDownloadingId(null);
+                              }
+                            }} className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
+                              {downloadingId === cert.id ? <Loader2 className="mr-1 h-3 w-3 animate-spin" /> : <Download className="mr-1 h-3 w-3" />}
+                              Download
+                            </Button>
+                          </div>
+                        ) : cert.status === 'REVOKED' ? (
+                          <p className="text-xs text-red-500 italic mt-3 text-right">Certificate Revoked</p>
+                        ) : (
+                          <p className="text-xs text-gray-500 italic mt-3 text-right">Awaiting CA Approval</p>
+                        )}
                       </CardContent>
                     </Card>
                   </motion.div>

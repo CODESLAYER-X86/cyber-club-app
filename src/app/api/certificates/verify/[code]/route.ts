@@ -35,14 +35,16 @@ export async function GET(
       return notFoundResponse("Certificate not found");
     }
 
-    const isValid = certificate.status === "VALID";
+    const isValid = ["VALID", "AUTHORIZED", "GENERATED", "DOWNLOADED"].includes(certificate.status);
 
     return successResponse({
       certificate,
       valid: isValid,
       message: isValid
         ? "Certificate is valid and verified."
-        : "Certificate has been revoked.",
+        : certificate.status === "REVOKED"
+        ? "Certificate has been revoked."
+        : `Certificate is in '${certificate.status.toLowerCase()}' stage (pending generation/authorization).`,
     });
   } catch {
     return serverErrorResponse();

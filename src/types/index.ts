@@ -21,7 +21,14 @@ export type PaymentStatus = "PENDING" | "VERIFIED" | "REJECTED";
 export type RegistrationStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
 export type CertificateType = "PARTICIPATION" | "ACHIEVEMENT" | "EXCELLENCE";
-export type CertificateStatus = "VALID" | "REVOKED" | "PENDING_APPROVAL";
+export type CertificateStatus =
+  | "REGISTERED"
+  | "PRESENT"
+  | "ELIGIBLE"
+  | "AUTHORIZED"
+  | "GENERATED"
+  | "DOWNLOADED"
+  | "REVOKED";
 
 export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
 
@@ -68,6 +75,7 @@ export interface Event {
   requiresAssessment: boolean;
   passingScore?: number;
   verifierId?: string;
+  certificateLayout?: string;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -80,6 +88,10 @@ export interface EventRegistration {
   userId: string;
   eventId: string;
   status: RegistrationStatus;
+  preferredName?: string;
+  studentId?: string;
+  department?: string;
+  institution?: string;
   registeredAt: string;
   user?: User;
   event?: Event;
@@ -316,6 +328,7 @@ export type AppView =
   | "certificate-authority"
   | "settings"
   | "gallery"
+  | "certificate-designer"
   | "achievements";
 
 export interface NavItem {

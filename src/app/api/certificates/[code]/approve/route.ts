@@ -46,20 +46,20 @@ export async function PATCH(
       return notFoundResponse("Certificate not found");
     }
 
-    // Check if certificate is pending approval
-    if (certificate.status !== "PENDING_APPROVAL") {
+    // Check if certificate is pending approval or eligible for authorization
+    if (certificate.status !== "PENDING_APPROVAL" && certificate.status !== "ELIGIBLE") {
       return errorResponse(
-        "Certificate is not pending approval. Current status: " +
+        "Certificate is not in a status that can be authorized. Current status: " +
           certificate.status
       );
     }
 
-    // Update the certificate
+    // Update the certificate to AUTHORIZED status
     const updatedCertificate = await prisma.certificate.update({
       where: { id: certificateId },
       data: {
         approvedBy: performedBy,
-        status: "VALID",
+        status: "AUTHORIZED",
       },
       include: {
         user: {
@@ -87,8 +87,8 @@ export async function PATCH(
         action: "APPROVED",
         performedBy,
         details: JSON.stringify({
-          previousStatus: "PENDING_APPROVAL",
-          newStatus: "VALID",
+          previousStatus: certificate.status,
+          newStatus: "AUTHORIZED",
           approvedAt: new Date().toISOString(),
         }),
       },

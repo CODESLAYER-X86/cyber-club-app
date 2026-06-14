@@ -158,6 +158,7 @@ export async function PATCH(
       "requiresAssessment",
       "passingScore",
       "verifierId",
+      "certificateLayout",
     ];
 
     const data: Record<string, unknown> = {};
