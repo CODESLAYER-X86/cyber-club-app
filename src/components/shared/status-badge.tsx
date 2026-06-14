@@ -50,9 +50,13 @@ const CERTIFICATE_TYPE_COLORS: Record<CertificateType, string> = {
 };
 
 const CERTIFICATE_STATUS_COLORS: Record<CertificateStatus, string> = {
-  VALID: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+  REGISTERED: 'bg-gray-500/15 text-gray-400 border-gray-500/20 hover:bg-gray-500/20',
+  PRESENT: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20 hover:bg-cyan-500/20',
+  ELIGIBLE: 'bg-amber-500/15 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+  AUTHORIZED: 'bg-sky-500/15 text-sky-400 border-sky-500/20 hover:bg-sky-500/20',
+  GENERATED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+  DOWNLOADED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
   REVOKED: 'bg-red-500/15 text-red-400 border-red-500/20 hover:bg-red-500/20',
-  PENDING_APPROVAL: 'bg-amber-500/15 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
 };
 
 const EXPENSE_COLORS: Record<ExpenseStatus, string> = {

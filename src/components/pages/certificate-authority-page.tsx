@@ -23,6 +23,7 @@ import {
   RefreshCw,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
+import { toast } from '@/hooks/use-toast';
 import type {
   Certificate,
   CertificateType,
@@ -109,6 +110,49 @@ const AUDIT_ACTION_COLORS: Record<CertificateAuditAction, string> = {
   SHARED: 'bg-purple-500/15 text-purple-400 border-purple-500/20',
 };
 
+interface StatCardProps {
+  label: string;
+  value: number;
+  icon: React.ComponentType<{ className?: string }>;
+  color: string;
+  delay: number;
+  loading: boolean;
+}
+
+const StatCard = ({
+  label,
+  value,
+  icon: Icon,
+  color,
+  delay,
+  loading,
+}: StatCardProps) => (
+  <motion.div
+    initial={{ opacity: 0, y: 10 }}
+    animate={{ opacity: 1, y: 0 }}
+    transition={{ delay }}
+    className="flex items-center gap-3 rounded-lg border border-white/5 bg-[#111]/60 px-4 py-3"
+  >
+    <div
+      className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}
+    >
+      <Icon className="h-4 w-4" />
+    </div>
+    <div>
+      <p className="text-lg font-bold text-white">
+        {loading ? (
+          <Skeleton className="h-6 w-8 bg-white/10" />
+        ) : (
+          value
+        )}
+      </p>
+      <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+        {label}
+      </p>
+    </div>
+  </motion.div>
+);
+
 // ──────────────────────────────────────────
 // Main Component
 // ──────────────────────────────────────────
@@ -154,6 +198,10 @@ export function CertificateAuthorityPage() {
   // ─── Tab 2: Pending Approval ──────────────
   const [pendingCerts, setPendingCerts] = useState<Certificate[]>([]);
   const [pendingLoading, setPendingLoading] = useState(false);
+  const [selectedPresidentEventId, setSelectedPresidentEventId] = useState<string>('');
+  const [presidentCerts, setPresidentCerts] = useState<Certificate[]>([]);
+  const [selectedCertIds, setSelectedCertIds] = useState<string[]>([]);
+  const [presidentLoading, setPresidentLoading] = useState(false);
   const [approvingId, setApprovingId] = useState<string | null>(null);
   const [rejectingId, setRejectingId] = useState<string | null>(null);
   const [rejectionReason, setRejectionReason] = useState('');
@@ -191,9 +239,9 @@ export function CertificateAuthorityPage() {
         setStats({
           totalIssued: certs.length,
           pendingApproval: certs.filter(
-            (c) => c.status === 'PENDING_APPROVAL'
+            (c) => c.status === 'ELIGIBLE'
           ).length,
-          valid: certs.filter((c) => c.status === 'VALID').length,
+          valid: certs.filter((c) => ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(c.status)).length,
           revoked: certs.filter((c) => c.status === 'REVOKED').length,
         });
       }
@@ -208,7 +256,7 @@ export function CertificateAuthorityPage() {
   const fetchCompletedEvents = useCallback(async () => {
     setEventsLoading(true);
     try {
-      const r = await fetch('/api/events?status=COMPLETED');
+      const r = await fetch('/api/events');
       const d = await r.json();
       if (d.success) {
         setCompletedEvents(d.data.events || []);
@@ -295,50 +343,99 @@ export function CertificateAuthorityPage() {
     }
   }, []);
 
+  // Fetch President certifications for the selected event
+  const fetchPresidentCerts = useCallback(async (eventId: string) => {
+    if (!eventId) return;
+    setPresidentLoading(true);
+    try {
+      const r = await fetch(`/api/certificates?eventId=${eventId}`);
+      const d = await r.json();
+      if (d.success) {
+        setPresidentCerts(d.data.certificates || []);
+        setSelectedCertIds([]);
+      }
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setPresidentLoading(false);
+    }
+  }, []);
+
   // ──────────────────────────────────────────
   // Effects
   // ──────────────────────────────────────────
 
   useEffect(() => {
-    fetchStats();
+    const t = setTimeout(() => {
+      fetchStats();
+    }, 0);
+    return () => clearTimeout(t);
   }, [fetchStats]);
 
   useEffect(() => {
-    if (isGS && activeTab === 'issue') {
-      fetchCompletedEvents();
+    if ((isGS && activeTab === 'issue') || (isPresident && activeTab === 'pending-approval')) {
+      const t = setTimeout(() => {
+        fetchCompletedEvents();
+      }, 0);
+      return () => clearTimeout(t);
     }
-  }, [isGS, activeTab, fetchCompletedEvents]);
+  }, [isGS, isPresident, activeTab, fetchCompletedEvents]);
+
+  // When selectedPresidentEventId changes, load its certificates
+  useEffect(() => {
+    const t = setTimeout(() => {
+      if (selectedPresidentEventId) {
+        fetchPresidentCerts(selectedPresidentEventId);
+      } else {
+        setPresidentCerts([]);
+        setSelectedCertIds([]);
+      }
+    }, 0);
+    return () => clearTimeout(t);
+  }, [selectedPresidentEventId, fetchPresidentCerts]);
 
   useEffect(() => {
     if (isPresident && activeTab === 'pending-approval') {
-      fetchPendingCerts();
+      const t = setTimeout(() => {
+        fetchPendingCerts();
+      }, 0);
+      return () => clearTimeout(t);
     }
   }, [isPresident, activeTab, fetchPendingCerts]);
 
   useEffect(() => {
     if (activeTab === 'audit') {
-      fetchAuditLogs();
+      const t = setTimeout(() => {
+        fetchAuditLogs();
+      }, 0);
+      return () => clearTimeout(t);
     }
   }, [activeTab, fetchAuditLogs]);
 
   // When event is selected, fetch registrations and auto-check eligibility
   useEffect(() => {
-    if (selectedEventId) {
-      fetchRegistrations(selectedEventId);
-    } else {
-      setRegistrations([]);
-      setEligibilityMap({});
-    }
+    const t = setTimeout(() => {
+      if (selectedEventId) {
+        fetchRegistrations(selectedEventId);
+      } else {
+        setRegistrations([]);
+        setEligibilityMap({});
+      }
+    }, 0);
+    return () => clearTimeout(t);
   }, [selectedEventId, fetchRegistrations]);
 
   // Auto-check eligibility for all registrations
   useEffect(() => {
     if (registrations.length > 0 && selectedEventId) {
-      registrations.forEach((reg) => {
-        if (!eligibilityMap[reg.userId]) {
-          checkEligibility(reg.userId, selectedEventId);
-        }
-      });
+      const t = setTimeout(() => {
+        registrations.forEach((reg) => {
+          if (!eligibilityMap[reg.userId]) {
+            checkEligibility(reg.userId, selectedEventId);
+          }
+        });
+      }, 0);
+      return () => clearTimeout(t);
     }
   }, [registrations, selectedEventId, eligibilityMap, checkEligibility]);
 
@@ -388,6 +485,72 @@ export function CertificateAuthorityPage() {
     }
   };
 
+  const [authorizingBatch, setAuthorizingBatch] = useState(false);
+
+  const handleAuthorizeBatch = async (idsToApprove: string[]) => {
+    if (idsToApprove.length === 0) return;
+    setAuthorizingBatch(true);
+    try {
+      await Promise.all(
+        idsToApprove.map((certId) =>
+          fetch(`/api/certificates/${certId}/approve`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ performedBy: currentUser?.id, role: currentUser?.role }),
+          })
+        )
+      );
+      toast({ title: 'Success', description: `Successfully authorized ${idsToApprove.length} certificate(s).` });
+      if (selectedPresidentEventId) {
+        fetchPresidentCerts(selectedPresidentEventId);
+      }
+      fetchStats();
+      fetchPendingCerts();
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Error', description: 'Failed to authorize some certificates.', variant: 'destructive' });
+    } finally {
+      setAuthorizingBatch(false);
+      setSelectedCertIds([]);
+    }
+  };
+
+  const handleRejectBatch = async () => {
+    const idsToReject = rejectingId ? [rejectingId] : selectedCertIds;
+    if (idsToReject.length === 0 || !rejectionReason.trim()) return;
+    setAuthorizingBatch(true);
+    try {
+      await Promise.all(
+        idsToReject.map((certId) =>
+          fetch(`/api/certificates/${certId}/revoke`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              reason: rejectionReason,
+              performedBy: currentUser?.id,
+              role: currentUser?.role,
+            }),
+          })
+        )
+      );
+      toast({ title: 'Success', description: `Successfully rejected ${idsToReject.length} certificate(s).` });
+      setShowRejectDialog(false);
+      setRejectionReason('');
+      setRejectingId(null);
+      if (selectedPresidentEventId) {
+        fetchPresidentCerts(selectedPresidentEventId);
+      }
+      fetchStats();
+      fetchPendingCerts();
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Error', description: 'Failed to reject some certificates.', variant: 'destructive' });
+    } finally {
+      setAuthorizingBatch(false);
+      setSelectedCertIds([]);
+    }
+  };
+
   const handleApprove = async (certId: string) => {
     setApprovingId(certId);
     try {
@@ -396,6 +559,9 @@ export function CertificateAuthorityPage() {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ performedBy: currentUser?.id, role: currentUser?.role }),
       });
+      if (selectedPresidentEventId) {
+        fetchPresidentCerts(selectedPresidentEventId);
+      }
       fetchPendingCerts();
       fetchStats();
     } catch (e) {
@@ -406,25 +572,7 @@ export function CertificateAuthorityPage() {
   };
 
   const handleReject = async () => {
-    if (!rejectingId || !rejectionReason.trim()) return;
-    try {
-      await fetch(`/api/certificates/${rejectingId}/revoke`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          reason: rejectionReason,
-          performedBy: currentUser?.id,
-          role: currentUser?.role,
-        }),
-      });
-      setShowRejectDialog(false);
-      setRejectionReason('');
-      setRejectingId(null);
-      fetchPendingCerts();
-      fetchStats();
-    } catch (e) {
-      console.error(e);
-    }
+    await handleRejectBatch();
   };
 
   const handleSearch = async () => {
@@ -477,48 +625,7 @@ export function CertificateAuthorityPage() {
     );
   }, [auditLogs, auditFilter]);
 
-  // ──────────────────────────────────────────
-  // Stat card component
-  // ──────────────────────────────────────────
-
-  const StatCard = ({
-    label,
-    value,
-    icon: Icon,
-    color,
-    delay,
-  }: {
-    label: string;
-    value: number;
-    icon: React.ComponentType<{ className?: string }>;
-    color: string;
-    delay: number;
-  }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 10 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay }}
-      className="flex items-center gap-3 rounded-lg border border-white/5 bg-[#111]/60 px-4 py-3"
-    >
-      <div
-        className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}
-      >
-        <Icon className="h-4 w-4" />
-      </div>
-      <div>
-        <p className="text-lg font-bold text-white">
-          {statsLoading ? (
-            <Skeleton className="h-6 w-8 bg-white/10" />
-          ) : (
-            value
-          )}
-        </p>
-        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
-          {label}
-        </p>
-      </div>
-    </motion.div>
-  );
+  // Stat cards are declared in the module scope above.
 
   // ──────────────────────────────────────────
   // Render
@@ -561,6 +668,7 @@ export function CertificateAuthorityPage() {
           icon={FileCheck}
           color="bg-emerald-500/10 text-emerald-400"
           delay={0.1}
+          loading={statsLoading}
         />
         <StatCard
           label="Pending Approval"
@@ -568,6 +676,7 @@ export function CertificateAuthorityPage() {
           icon={Clock}
           color="bg-amber-500/10 text-amber-400"
           delay={0.15}
+          loading={statsLoading}
         />
         <StatCard
           label="Valid"
@@ -575,6 +684,7 @@ export function CertificateAuthorityPage() {
           icon={CheckCircle2}
           color="bg-cyan-500/10 text-cyan-400"
           delay={0.2}
+          loading={statsLoading}
         />
         <StatCard
           label="Revoked"
@@ -582,6 +692,7 @@ export function CertificateAuthorityPage() {
           icon={Ban}
           color="bg-red-500/10 text-red-400"
           delay={0.25}
+          loading={statsLoading}
         />
       </div>
 
@@ -925,106 +1036,412 @@ export function CertificateAuthorityPage() {
               variants={container}
               initial="hidden"
               animate="show"
-              className="space-y-3"
+              className="space-y-4"
             >
-              {pendingLoading ? (
-                <div className="space-y-3">
-                  {[1, 2, 3].map((i) => (
-                    <Skeleton
-                      key={i}
-                      className="h-28 w-full bg-white/5 rounded-lg"
-                    />
-                  ))}
-                </div>
-              ) : pendingCerts.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-16 text-center">
-                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-white/5 mb-4">
-                    <CheckCircle2 className="h-8 w-8 text-emerald-400" />
+              {/* Event Selector Card */}
+              <Card className="border-white/5 bg-[#111]/80 rounded-sm">
+                <CardContent className="p-6">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+                    <div className="space-y-1">
+                      <h3 className="text-base font-semibold text-white">
+                        Select Event to Review
+                      </h3>
+                      <p className="text-xs text-gray-500">
+                        Choose an event to view registrations and authorize certificates
+                      </p>
+                    </div>
+                    <div className="w-full md:w-80">
+                      {eventsLoading ? (
+                        <div className="h-10 w-full animate-pulse bg-white/5 rounded-sm" />
+                      ) : (
+                        <Select
+                          value={selectedPresidentEventId}
+                          onValueChange={setSelectedPresidentEventId}
+                        >
+                          <SelectTrigger className="border-white/10 bg-white/5 text-white rounded-sm h-10 hover:border-emerald-500/30 transition-colors">
+                            <SelectValue placeholder="Choose completed/active event..." />
+                          </SelectTrigger>
+                          <SelectContent className="border-white/10 bg-[#0e0e1a] text-white">
+                            {completedEvents.length === 0 ? (
+                              <div className="py-2 px-3 text-xs text-gray-500">No events found</div>
+                            ) : (
+                              completedEvents.map((ev) => (
+                                <SelectItem key={ev.id} value={ev.id} className="focus:bg-white/5 text-xs">
+                                  {ev.title} ({ev.status.replace(/_/g, ' ')})
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectContent>
+                        </Select>
+                      )}
+                    </div>
                   </div>
-                  <p className="text-gray-400 font-medium">
-                    No Pending Certificates
+                </CardContent>
+              </Card>
+
+              {!selectedPresidentEventId ? (
+                <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-sm bg-[#111]/20">
+                  <div className="flex h-16 w-16 items-center justify-center rounded-sm bg-emerald-500/10 border border-emerald-500/20 mb-4 text-emerald-400">
+                    <Award className="h-8 w-8" />
+                  </div>
+                  <h4 className="text-white font-semibold text-sm">No Event Selected</h4>
+                  <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+                    Please select an event from the dropdown above to review participants and approve certificates.
                   </p>
-                  <p className="text-xs text-gray-600 mt-1">
-                    All certificates have been reviewed
-                  </p>
+                </div>
+              ) : presidentLoading ? (
+                <div className="space-y-4">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                    {[1, 2, 3, 4].map((i) => (
+                      <Skeleton key={i} className="h-20 w-full bg-white/5 rounded-sm" />
+                    ))}
+                  </div>
+                  <Skeleton className="h-64 w-full bg-white/5 rounded-sm" />
                 </div>
               ) : (
-                <div className="space-y-3 max-h-[600px] overflow-y-auto custom-scrollbar pr-1">
-                  {pendingCerts.map((cert, idx) => (
-                    <motion.div key={cert.id} variants={item} custom={idx}>
-                      <Card className="border-white/5 bg-[#111]/60 hover:border-amber-500/20 transition-colors">
-                        <CardContent className="p-4">
-                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-                            <div className="space-y-1.5 min-w-0">
-                              <div className="flex items-center gap-2 flex-wrap">
-                                <p className="text-sm font-semibold text-white truncate">
-                                  {cert.user?.name || 'Unknown'}
-                                </p>
-                                <CertificateTypeBadge type={cert.type} />
-                                <CertificateStatusBadge
-                                  status={
-                                    cert.status as CertificateStatus
+                <>
+                  {/* Event Certificates Stats Panel */}
+                  {presidentCerts.length > 0 && (
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                      <div className="border border-white/5 bg-[#111]/40 rounded-sm px-4 py-3">
+                        <p className="text-lg font-bold text-white">
+                          {presidentCerts.length}
+                        </p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                          Total Registrations
+                        </p>
+                      </div>
+                      <div className="border border-white/5 bg-[#111]/40 rounded-sm px-4 py-3">
+                        <p className="text-lg font-bold text-cyan-400">
+                          {presidentCerts.filter((c) => c.status === "PRESENT").length}
+                        </p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                          Attendance Confirmed
+                        </p>
+                      </div>
+                      <div className="border border-white/5 bg-[#111]/40 rounded-sm px-4 py-3">
+                        <p className="text-lg font-bold text-amber-400">
+                          {presidentCerts.filter((c) => c.status === "ELIGIBLE").length}
+                        </p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                          Eligible for Award
+                        </p>
+                      </div>
+                      <div className="border border-white/5 bg-[#111]/40 rounded-sm px-4 py-3">
+                        <p className="text-lg font-bold text-emerald-400">
+                          {
+                            presidentCerts.filter((c) =>
+                              ["AUTHORIZED", "GENERATED", "DOWNLOADED"].includes(c.status)
+                            ).length
+                          }
+                        </p>
+                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+                          Authorized / Issued
+                        </p>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Actions Header Bar */}
+                  {presidentCerts.length > 0 && (
+                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border border-white/5 bg-[#111]/80 rounded-sm p-4">
+                      <div className="flex items-center gap-2">
+                        <div className="flex h-6 items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 rounded-sm text-[10px] font-bold">
+                          {selectedCertIds.length} Selected
+                        </div>
+                        {selectedCertIds.length > 0 && (
+                          <span className="text-xs text-gray-500">
+                            for batch action
+                          </span>
+                        )}
+                      </div>
+                      <div className="flex flex-wrap items-center gap-2">
+                        {/* Authorize Selected */}
+                        <Button
+                          size="sm"
+                          disabled={selectedCertIds.length === 0 || authorizingBatch}
+                          onClick={() => handleAuthorizeBatch(selectedCertIds)}
+                          className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-sm text-xs h-8 px-3 transition-transform hover:scale-[1.01]"
+                        >
+                          {authorizingBatch ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+                          ) : (
+                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+                          )}
+                          Authorize Selected
+                        </Button>
+
+                        {/* Authorize All Eligible */}
+                        {presidentCerts.some((c) => c.status === "ELIGIBLE") && (
+                          <Button
+                            size="sm"
+                            variant="outline"
+                            disabled={authorizingBatch}
+                            onClick={() => {
+                              const eligibleIds = presidentCerts
+                                .filter((c) => c.status === "ELIGIBLE")
+                                .map((c) => c.id);
+                              handleAuthorizeBatch(eligibleIds);
+                            }}
+                            className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 rounded-sm text-xs h-8 px-3"
+                          >
+                            <Award className="h-3.5 w-3.5 mr-1" />
+                            Authorize All Eligible (
+                            {presidentCerts.filter((c) => c.status === "ELIGIBLE").length})
+                          </Button>
+                        )}
+
+                        {/* Reject Selected */}
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          disabled={selectedCertIds.length === 0 || authorizingBatch}
+                          onClick={() => {
+                            setRejectingId(null); // Indicates batch reject
+                            setShowRejectDialog(true);
+                          }}
+                          className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-sm text-xs h-8 px-3"
+                        >
+                          <XCircle className="h-3.5 w-3.5 mr-1" />
+                          Reject Selected
+                        </Button>
+                      </div>
+                    </div>
+                  )}
+
+                  {presidentCerts.length === 0 ? (
+                    <div className="flex flex-col items-center justify-center py-16 text-center border border-white/5 rounded-sm bg-[#111]/40">
+                      <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-white/5 border border-white/10 mb-4 text-gray-500">
+                        <Award className="h-6 w-6" />
+                      </div>
+                      <p className="text-gray-400 font-medium text-sm">
+                        No Certificates Found
+                      </p>
+                      <p className="text-xs text-gray-600 mt-1">
+                        No participant registrations match certificates for this event yet.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto w-full border border-white/5 bg-[#111]/60 rounded-sm">
+                      <table className="min-w-full divide-y divide-white/5 text-left text-sm text-gray-300">
+                        <thead className="bg-[#16162a]/80 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+                          <tr>
+                            <th className="p-4 w-12">
+                              {presidentCerts.filter((c) =>
+                                ["REGISTERED", "PRESENT", "ELIGIBLE"].includes(c.status)
+                              ).length > 0 && (
+                                <input
+                                  type="checkbox"
+                                  checked={
+                                    presidentCerts
+                                      .filter((c) =>
+                                        ["REGISTERED", "PRESENT", "ELIGIBLE"].includes(c.status)
+                                      )
+                                      .every((c) => selectedCertIds.includes(c.id))
                                   }
+                                  onChange={() => {
+                                    const selectable = presidentCerts.filter((c) =>
+                                      ["REGISTERED", "PRESENT", "ELIGIBLE"].includes(c.status)
+                                    );
+                                    const allSel = selectable.every((c) =>
+                                      selectedCertIds.includes(c.id)
+                                    );
+                                    if (allSel) {
+                                      setSelectedCertIds((prev) =>
+                                        prev.filter(
+                                          (id) => !selectable.some((c) => c.id === id)
+                                        )
+                                      );
+                                    } else {
+                                      setSelectedCertIds((prev) => {
+                                        const other = prev.filter(
+                                          (id) => !selectable.some((c) => c.id === id)
+                                        );
+                                        return [...other, ...selectable.map((c) => c.id)];
+                                      });
+                                    }
+                                  }}
+                                  className="accent-emerald-500 h-4 w-4 bg-white/5 border-white/10 cursor-pointer rounded-none"
                                 />
-                              </div>
-                              <div className="flex items-center gap-3 text-xs text-gray-500 flex-wrap">
-                                <span className="flex items-center gap-1">
-                                  <Calendar className="h-3 w-3" />
-                                  {cert.event?.title || 'Unknown Event'}
-                                </span>
-                                {cert.score !== null &&
-                                  cert.score !== undefined && (
-                                    <span className="flex items-center gap-1">
-                                      <Hash className="h-3 w-3" />
-                                      Score: {cert.score}%
+                              )}
+                            </th>
+                            <th className="p-4">Participant</th>
+                            <th className="p-4">Student Info</th>
+                            <th className="p-4">Type</th>
+                            <th className="p-4">Status</th>
+                            <th className="p-4">Attendance</th>
+                            <th className="p-4 text-right">Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-white/5">
+                          {presidentCerts.map((cert) => {
+                            const isSelectable = ["REGISTERED", "PRESENT", "ELIGIBLE"].includes(
+                              cert.status
+                            );
+                            const displayName =
+                              (cert as any).registration?.preferredName ||
+                              cert.user?.name ||
+                              "Unknown";
+                            const studentId =
+                              (cert as any).registration?.studentId ||
+                              cert.user?.studentId ||
+                              "-";
+                            const dept =
+                              (cert as any).registration?.department ||
+                              (cert as any).registration?.institution ||
+                              "";
+
+                            return (
+                              <tr
+                                key={cert.id}
+                                className={`hover:bg-white/5 transition-colors ${
+                                  selectedCertIds.includes(cert.id) ? "bg-white/5" : ""
+                                }`}
+                              >
+                                <td className="p-4">
+                                  {isSelectable ? (
+                                    <input
+                                      type="checkbox"
+                                      checked={selectedCertIds.includes(cert.id)}
+                                      onChange={() => {
+                                        setSelectedCertIds((prev) =>
+                                          prev.includes(cert.id)
+                                            ? prev.filter((id) => id !== cert.id)
+                                            : [...prev, cert.id]
+                                        );
+                                      }}
+                                      className="accent-emerald-500 h-4 w-4 bg-white/5 border-white/10 cursor-pointer rounded-none"
+                                    />
+                                  ) : (
+                                    <div className="w-4 h-4 flex items-center justify-center">
+                                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-500/40" />
+                                    </div>
+                                  )}
+                                </td>
+                                <td className="p-4">
+                                  <div className="flex items-center gap-3">
+                                    {cert.user?.avatar ? (
+                                      <img
+                                        src={cert.user.avatar}
+                                        alt={displayName}
+                                        className="h-8 w-8 rounded-full border border-white/10 object-cover"
+                                      />
+                                    ) : (
+                                      <div className="flex h-8 w-8 items-center justify-center bg-white/5 border border-white/10 rounded-full text-xs text-gray-400 uppercase">
+                                        {displayName.charAt(0)}
+                                      </div>
+                                    )}
+                                    <div className="min-w-0">
+                                      <p className="text-xs font-semibold text-white truncate">
+                                        {displayName}
+                                      </p>
+                                      <p className="text-[10px] text-gray-500 truncate">
+                                        {cert.user?.email || "No Email"}
+                                      </p>
+                                    </div>
+                                  </div>
+                                </td>
+                                <td className="p-4 text-xs">
+                                  <p className="text-white font-mono">{studentId}</p>
+                                  {dept && <p className="text-[10px] text-gray-500">{dept}</p>}
+                                </td>
+                                <td className="p-4">
+                                  <CertificateTypeBadge type={cert.type} />
+                                </td>
+                                <td className="p-4">
+                                  <CertificateStatusBadge
+                                    status={cert.status as CertificateStatus}
+                                  />
+                                </td>
+                                <td className="p-4">
+                                  {(() => {
+                                    const attStatus = (cert as any).attendance?.status;
+                                    if (!attStatus) {
+                                      return (
+                                        <Badge
+                                          variant="outline"
+                                          className="border-white/10 text-gray-500 text-[10px] bg-white/5 rounded-none"
+                                        >
+                                          Unmarked
+                                        </Badge>
+                                      );
+                                    }
+                                    if (attStatus === "PRESENT") {
+                                      return (
+                                        <Badge
+                                          variant="outline"
+                                          className="border-emerald-500/30 text-emerald-400 text-[10px] bg-emerald-500/5 rounded-none"
+                                        >
+                                          Present
+                                        </Badge>
+                                      );
+                                    }
+                                    if (attStatus === "LATE") {
+                                      return (
+                                        <Badge
+                                          variant="outline"
+                                          className="border-amber-500/30 text-amber-400 text-[10px] bg-amber-500/5 rounded-none"
+                                        >
+                                          Late
+                                        </Badge>
+                                      );
+                                    }
+                                    return (
+                                      <Badge
+                                        variant="outline"
+                                        className="border-red-500/30 text-red-400 text-[10px] bg-red-500/5 rounded-none"
+                                      >
+                                        Absent
+                                      </Badge>
+                                    );
+                                  })()}
+                                </td>
+                                <td className="p-4 text-right">
+                                  {isSelectable ? (
+                                    <div className="flex items-center justify-end gap-1.5">
+                                      <Button
+                                        size="sm"
+                                        disabled={approvingId === cert.id}
+                                        onClick={() => handleApprove(cert.id)}
+                                        className="h-7 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-[10px] font-medium"
+                                      >
+                                        {approvingId === cert.id ? (
+                                          <Loader2 className="h-3 w-3 animate-spin" />
+                                        ) : (
+                                          "Approve"
+                                        )}
+                                      </Button>
+                                      <Button
+                                        size="sm"
+                                        variant="outline"
+                                        disabled={rejectingId === cert.id}
+                                        onClick={() => {
+                                          setRejectingId(cert.id);
+                                          setShowRejectDialog(true);
+                                        }}
+                                        className="h-7 px-2 border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-none text-[10px] font-medium"
+                                      >
+                                        Reject
+                                      </Button>
+                                    </div>
+                                  ) : cert.status === "REVOKED" ? (
+                                    <span className="text-[10px] text-red-500 font-medium">
+                                      Revoked
+                                    </span>
+                                  ) : (
+                                    <span className="text-[10px] text-emerald-400 font-medium flex items-center justify-end gap-1">
+                                      <CheckCircle2 className="h-3 w-3" /> Issued
                                     </span>
                                   )}
-                                {cert.issuer && (
-                                  <span className="flex items-center gap-1">
-                                    <User className="h-3 w-3" />
-                                    Issued by: {cert.issuer.name}
-                                  </span>
-                                )}
-                              </div>
-                              <p className="text-[10px] text-gray-600 font-mono">
-                                {cert.certificateCode}
-                              </p>
-                            </div>
-
-                            <div className="flex items-center gap-2 shrink-0">
-                              <Button
-                                size="sm"
-                                disabled={approvingId === cert.id}
-                                onClick={() => handleApprove(cert.id)}
-                                className="h-8 bg-emerald-600 hover:bg-emerald-500 text-white text-xs"
-                              >
-                                {approvingId === cert.id ? (
-                                  <Loader2 className="h-3.5 w-3.5 animate-spin" />
-                                ) : (
-                                  <CheckCircle2 className="mr-1 h-3.5 w-3.5" />
-                                )}
-                                Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                variant="outline"
-                                disabled={rejectingId === cert.id}
-                                onClick={() => {
-                                  setRejectingId(cert.id);
-                                  setShowRejectDialog(true);
-                                }}
-                                className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs"
-                              >
-                                <XCircle className="mr-1 h-3.5 w-3.5" />
-                                Reject
-                              </Button>
-                            </div>
-                          </div>
-                        </CardContent>
-                      </Card>
-                    </motion.div>
-                  ))}
-                </div>
+                                </td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </>
               )}
             </motion.div>
 
@@ -1034,41 +1451,41 @@ export function CertificateAuthorityPage() {
               onOpenChange={(open) => {
                 setShowRejectDialog(open);
                 if (!open) {
-                  setRejectionReason('');
+                  setRejectionReason("");
                   setRejectingId(null);
                 }
               }}
             >
-              <DialogContent className="border-white/10 bg-[#1a1a2e] text-white sm:max-w-md">
+              <DialogContent className="border-white/10 bg-[#0e0e1a] text-white sm:max-w-md rounded-none">
                 <DialogHeader>
                   <DialogTitle className="text-white flex items-center gap-2">
                     <XCircle className="h-5 w-5 text-red-400" />
-                    Reject Certificate
+                    Reject/Revoke Certificate
                   </DialogTitle>
-                  <DialogDescription className="text-gray-400">
-                    Please provide a reason for rejecting this certificate.
+                  <DialogDescription className="text-gray-400 text-xs">
+                    Please provide an audit reason for rejecting or revoking these certificates. This action will be logged.
                   </DialogDescription>
                 </DialogHeader>
                 <Textarea
                   value={rejectionReason}
                   onChange={(e) => setRejectionReason(e.target.value)}
-                  placeholder="Enter rejection reason..."
-                  className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 min-h-[100px]"
+                  placeholder="Enter rejection audit details..."
+                  className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 min-h-[100px] rounded-none focus:border-red-500/35"
                 />
                 <DialogFooter className="gap-2">
                   <Button
                     variant="ghost"
                     onClick={() => setShowRejectDialog(false)}
-                    className="text-gray-400 hover:text-white"
+                    className="text-gray-400 hover:text-white rounded-none text-xs"
                   >
                     Cancel
                   </Button>
                   <Button
                     disabled={!rejectionReason.trim()}
                     onClick={handleReject}
-                    className="bg-red-600 hover:bg-red-500 text-white"
+                    className="bg-red-600 hover:bg-red-500 text-white rounded-none text-xs"
                   >
-                    Reject Certificate
+                    Confirm Rejection
                   </Button>
                 </DialogFooter>
               </DialogContent>

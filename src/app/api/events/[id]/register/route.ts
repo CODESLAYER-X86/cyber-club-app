@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { v4 as uuidv4 } from "uuid";
 
 export async function POST(
   request: NextRequest,
@@ -86,6 +87,18 @@ export async function POST(
     await prisma.event.update({
       where: { id },
       data: { currentSeats: { increment: 1 } },
+    });
+
+    // Create dynamic certificate code and a Certificate record in REGISTERED status
+    const certificateCode = `CSC-2026-${event.category || "EVENT"}-${uuidv4().split("-")[0].toUpperCase()}`;
+    await prisma.certificate.create({
+      data: {
+        certificateCode,
+        userId,
+        eventId: id,
+        type: "PARTICIPATION",
+        status: "REGISTERED",
+      },
     });
 
     // For PAID events, create a Payment record so it appears in Verify Payments

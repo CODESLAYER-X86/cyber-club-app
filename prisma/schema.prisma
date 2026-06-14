@@ -71,6 +71,7 @@ model Event {
   passingScore       Float?
   verifierId         String?
   createdBy          String
+  certificateLayout  String?  // JSON string: bg image, colors, logos, signatures, placements
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -85,11 +86,15 @@ model Event {
 }
 
 model EventRegistration {
-  id           String   @id @default(cuid())
-  userId       String
-  eventId      String
-  status       String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
-  registeredAt DateTime @default(now())
+  id            String   @id @default(cuid())
+  userId        String
+  eventId       String
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  preferredName String?
+  studentId     String?
+  department    String?
+  institution   String?
+  registeredAt  DateTime @default(now())
 
   user  User  @relation(fields: [userId], references: [id])
   event Event @relation(fields: [eventId], references: [id])
@@ -167,7 +172,7 @@ model Certificate {
   eventId             String
   type                String    @default("PARTICIPATION") // PARTICIPATION, ACHIEVEMENT, EXCELLENCE
   score               Float?
-  status              String    @default("VALID") // VALID, REVOKED, PENDING_APPROVAL
+  status              String    @default("REGISTERED") // REGISTERED, PRESENT, ELIGIBLE, AUTHORIZED, GENERATED, DOWNLOADED, REVOKED
   issuedAt            DateTime  @default(now())
 
   // Certificate Authority Fields

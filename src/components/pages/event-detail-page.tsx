@@ -39,6 +39,15 @@ export function EventDetailPage() {
   const [deleting, setDeleting] = useState(false);
   const [updatingRegId, setUpdatingRegId] = useState<string | null>(null);
 
+  // Enhanced certificate states
+  const [prefName, setPrefName] = useState('');
+  const [studId, setStudId] = useState('');
+  const [dept, setDept] = useState('');
+  const [inst, setInst] = useState('');
+  const [savingName, setSavingName] = useState(false);
+  const [certificateStatus, setCertificateStatus] = useState<string>('REGISTERED');
+  const [updatingAttendanceId, setUpdatingAttendanceId] = useState<string | null>(null);
+
   const loadEvent = useCallback(async () => {
     if (!selectedEventId) return;
     setLoading(true);
@@ -53,6 +62,20 @@ export function EventDetailPage() {
             (r: EventRegistration) => r.userId === currentUser.id
           );
           setUserRegistration(reg || null);
+
+          // Fetch certificate status if registered
+          try {
+            const certRes = await fetch(`/api/certificates?userId=${currentUser.id}`);
+            const certData = await certRes.json();
+            if (certData.success && certData.data.certificates) {
+              const userCert = certData.data.certificates.find((c: any) => c.eventId === selectedEventId);
+              if (userCert) {
+                setCertificateStatus(userCert.status);
+              }
+            }
+          } catch (e) {
+            console.error("Failed to load certificate status:", e);
+          }
         }
       }
     } catch (e) {
@@ -65,6 +88,74 @@ export function EventDetailPage() {
   useEffect(() => {
     loadEvent();
   }, [loadEvent]);
+
+  // Sync preferred name fields when registration loads
+  useEffect(() => {
+    if (userRegistration) {
+      setPrefName(userRegistration.preferredName || '');
+      setStudId(userRegistration.studentId || currentUser?.studentId || '');
+      setDept(userRegistration.department || currentUser?.department || '');
+      setInst(userRegistration.institution || '');
+    }
+  }, [userRegistration, currentUser]);
+
+  const handleSaveName = async () => {
+    if (!userRegistration || !currentUser || !event) return;
+    setSavingName(true);
+    try {
+      const res = await fetch(`/api/events/${event.id}/registrations/${userRegistration.id}/name`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          preferredName: prefName,
+          studentId: studId,
+          department: dept,
+          institution: inst,
+          requestingUserId: currentUser.id,
+          requestingUserRole: currentUser.role,
+        }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Information Saved', description: 'Your certificate details have been updated.' });
+        loadEvent();
+      } else {
+        toast({ title: 'Failed to Save', description: data.error || 'Could not update information', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setSavingName(false);
+    }
+  };
+
+  const handleMarkAttendance = async (userId: string, status: 'PRESENT' | 'ABSENT' | 'LATE') => {
+    if (!event || !currentUser) return;
+    setUpdatingAttendanceId(userId);
+    try {
+      const r = await fetch(`/api/events/${event.id}/attendance`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          status,
+          verifierRole: currentUser.role,
+          verifierId: currentUser.id,
+        }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast({ title: 'Attendance Marked', description: `Attendance marked as ${status.toLowerCase()}.` });
+        loadEvent();
+      } else {
+        toast({ title: 'Error', description: d.error || 'Failed to update attendance', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setUpdatingAttendanceId(null);
+    }
+  };
 
   const handleRegister = async () => {
     if (!event || !currentUser) return;
@@ -186,9 +277,14 @@ export function EventDetailPage() {
           </div>
           {/* Edit Button */}
           {canEdit && (
-            <Button variant="outline" size="sm" onClick={handleEdit} className="border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-emerald-500/30">
-              <Pencil className="mr-2 h-4 w-4" /> Edit Event
-            </Button>
+            <div className="flex gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCurrentView('certificate-designer')} className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-white">
+                <Award className="mr-2 h-4 w-4" /> Design Certificate
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleEdit} className="border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-emerald-500/30">
+                <Pencil className="mr-2 h-4 w-4" /> Edit Event
+              </Button>
+            </div>
           )}
           {/* Delete Button */}
           {canDelete && (
@@ -333,35 +429,114 @@ export function EventDetailPage() {
 
       {/* Registration Status Section (when user has already registered) */}
       {userRegistration && currentUser && (
-        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
-          <Card className="border-cyan-500/20 bg-cyan-500/5 backdrop-blur">
-            <CardContent className="pt-6">
-              <div className="flex items-center gap-3">
-                <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10">
-                  {userRegistration.status === 'APPROVED' ? (
-                    <CheckCircle className="h-6 w-6 text-emerald-400" />
-                  ) : userRegistration.status === 'REJECTED' ? (
-                    <AlertTriangle className="h-6 w-6 text-red-400" />
-                  ) : (
-                    <Eye className="h-6 w-6 text-amber-400" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-white">Your Registration Status</p>
-                  <div className="mt-1 flex items-center gap-2">
-                    <RegistrationBadge status={userRegistration.status} />
-                    <span className="text-xs text-gray-500">
-                      {userRegistration.status === 'APPROVED' && 'You are confirmed for this event!'}
-                      {userRegistration.status === 'PENDING' && 'Your registration is awaiting approval.'}
-                      {userRegistration.status === 'REJECTED' && 'Your registration was not approved.'}
-                      {userRegistration.status === 'CANCELLED' && 'Your registration was cancelled.'}
-                    </span>
+        <div className="space-y-4">
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+            <Card className="border-cyan-500/20 bg-cyan-500/5 backdrop-blur">
+              <CardContent className="pt-6">
+                <div className="flex items-center gap-3">
+                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10">
+                    {userRegistration.status === 'APPROVED' ? (
+                      <CheckCircle className="h-6 w-6 text-emerald-400" />
+                    ) : userRegistration.status === 'REJECTED' ? (
+                      <XCircle className="h-6 w-6 text-red-400" />
+                    ) : (
+                      <Eye className="h-6 w-6 text-amber-400" />
+                    )}
+                  </div>
+                  <div>
+                    <p className="text-sm font-medium text-white">Your Registration Status</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <RegistrationBadge status={userRegistration.status} />
+                      <span className="text-xs text-gray-500">
+                        {userRegistration.status === 'APPROVED' && 'You are confirmed for this event!'}
+                        {userRegistration.status === 'PENDING' && 'Your registration is awaiting approval.'}
+                        {userRegistration.status === 'REJECTED' && 'Your registration was not approved.'}
+                        {userRegistration.status === 'CANCELLED' && 'Your registration was cancelled.'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
+              </CardContent>
+            </Card>
+          </motion.div>
+
+          {/* Certificate Name Customization */}
+          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+            <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-md font-semibold text-white flex items-center gap-2">
+                  <Award className="h-5 w-5 text-emerald-400" />
+                  Certificate Customization
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                {['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) ? (
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
+                    <strong>Notice:</strong> Your certificate processing has started or completed. Information is locked.
+                  </div>
+                ) : (
+                  <p className="text-xs text-gray-400">
+                    Specify preferred details to print on your certificate. Changes are allowed until the certificate is authorized or generated.
+                  </p>
+                )}
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Preferred Name</label>
+                    <Input
+                      value={prefName}
+                      disabled={['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) || savingName}
+                      onChange={e => setPrefName(e.target.value)}
+                      placeholder={currentUser.name}
+                      className="border-white/10 bg-white/5 text-white h-9"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Student ID</label>
+                    <Input
+                      value={studId}
+                      disabled={['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) || savingName}
+                      onChange={e => setStudId(e.target.value)}
+                      placeholder={currentUser.studentId || "Student ID"}
+                      className="border-white/10 bg-white/5 text-white h-9"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Department</label>
+                    <Input
+                      value={dept}
+                      disabled={['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) || savingName}
+                      onChange={e => setDept(e.target.value)}
+                      placeholder={currentUser.department || "e.g. CSE"}
+                      className="border-white/10 bg-white/5 text-white h-9"
+                    />
+                  </div>
+                  <div className="space-y-1.5">
+                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Institution (optional)</label>
+                    <Input
+                      value={inst}
+                      disabled={['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) || savingName}
+                      onChange={e => setInst(e.target.value)}
+                      placeholder="e.g. University Name"
+                      className="border-white/10 bg-white/5 text-white h-9"
+                    />
+                  </div>
+                </div>
+
+                {!['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) && (
+                  <Button
+                    onClick={handleSaveName}
+                    disabled={savingName}
+                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-4"
+                  >
+                    {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+                    Save Certificate Info
+                  </Button>
+                )}
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
       )}
 
       {/* Registration Section */}
@@ -475,6 +650,43 @@ export function EventDetailPage() {
                           <div className="flex items-center gap-2">
                             <RegistrationBadge status={reg.status} />
                             <span className="text-xs text-gray-600">{new Date(reg.registeredAt).toLocaleDateString()}</span>
+                            {reg.status === 'APPROVED' && (currentUser?.role === 'VERIFIER' || isAdmin) && (
+                              (() => {
+                                const userAttendance = (event as any).attendance?.find((a: any) => a.userId === reg.userId);
+                                const attendanceStatus = userAttendance?.status || 'ABSENT';
+                                return (
+                                  <div className="flex items-center gap-1">
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={updatingAttendanceId === reg.userId}
+                                      onClick={() => handleMarkAttendance(reg.userId, 'PRESENT')}
+                                      className={`h-7 text-[10px] px-2 ${attendanceStatus === 'PRESENT' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'border-white/10 text-gray-400 hover:text-white'}`}
+                                    >
+                                      Present
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={updatingAttendanceId === reg.userId}
+                                      onClick={() => handleMarkAttendance(reg.userId, 'LATE')}
+                                      className={`h-7 text-[10px] px-2 ${attendanceStatus === 'LATE' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'border-white/10 text-gray-400 hover:text-white'}`}
+                                    >
+                                      Late
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={updatingAttendanceId === reg.userId}
+                                      onClick={() => handleMarkAttendance(reg.userId, 'ABSENT')}
+                                      className={`h-7 text-[10px] px-2 ${attendanceStatus === 'ABSENT' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'border-white/10 text-gray-400 hover:text-white'}`}
+                                    >
+                                      Absent
+                                    </Button>
+                                  </div>
+                                );
+                              })()
+                            )}
                             {reg.status === 'PENDING' && isAdmin && (
                               <>
                                 <Button

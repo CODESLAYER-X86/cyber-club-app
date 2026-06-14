@@ -55,7 +55,7 @@ export function CertificateVerifyPage() {
     setVerified(false);
   };
 
-  const isValid = result?.status === 'VALID';
+  const isValid = result ? ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(result.status) : false;
   const [copied, setCopied] = useState(false);
 
   const shareUrl = typeof window !== 'undefined' && result ? `${window.location.origin}/?cert=${result.certificateCode}` : '';
@@ -63,6 +63,19 @@ export function CertificateVerifyPage() {
 
   const handleLinkedInShare = () => {
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(shareUrl)}`, '_blank', 'width=600,height=400');
+  };
+
+  const handleLinkedInAddToProfile = () => {
+    if (!result) return;
+    const name = encodeURIComponent(result.event?.title || 'Cyber Security Club Certification');
+    const orgName = encodeURIComponent('Cyber Security Club');
+    const date = result.issuedAt ? new Date(result.issuedAt) : new Date();
+    const year = date.getFullYear();
+    const month = date.getMonth() + 1;
+    const certUrl = encodeURIComponent(shareUrl);
+    const certId = encodeURIComponent(result.certificateCode);
+    const url = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${name}&organizationName=${orgName}&issueYear=${year}&issueMonth=${month}&certUrl=${certUrl}&certId=${certId}`;
+    window.open(url, '_blank', 'width=600,height=600');
   };
 
   const handleTwitterShare = () => {
@@ -280,8 +293,11 @@ export function CertificateVerifyPage() {
                     >
                       <p className="text-xs text-gray-500 text-center mb-3">Share this certificate</p>
                       <div className="flex items-center justify-center gap-2 flex-wrap">
-                        <Button onClick={handleLinkedInShare} size="sm" className="bg-[#0A66C2] hover:bg-[#0A66C2]/80 text-white gap-1.5">
-                          <Linkedin className="h-3.5 w-3.5" /> LinkedIn
+                        <Button onClick={handleLinkedInShare} size="sm" className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-1.5">
+                          <Linkedin className="h-3.5 w-3.5" /> Share Post
+                        </Button>
+                        <Button onClick={handleLinkedInAddToProfile} size="sm" className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-1.5">
+                          <Linkedin className="h-3.5 w-3.5" /> Add to Profile
                         </Button>
                         <Button onClick={handleTwitterShare} size="sm" variant="outline" className="border-sky-500/30 text-sky-400 hover:bg-sky-500/10 gap-1.5">
                           <Twitter className="h-3.5 w-3.5" /> X / Twitter
