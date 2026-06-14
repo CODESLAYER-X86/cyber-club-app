@@ -365,7 +365,7 @@ export function EventDetailPage() {
                   </div>
                 </div>
                 <div className="flex items-center gap-3">
-                  <Users className="h-5 w-5 text-purple-400" />
+                  <Users className="h-5 w-5 text-cyan-400" />
                   <div>
                     <p className="text-sm font-medium text-white">Registrations</p>
                     <p className="text-xs text-gray-500">{registrationCount} / {event.maxSeats || 'Unlimited'}</p>
@@ -650,7 +650,7 @@ export function EventDetailPage() {
                           <div className="flex items-center gap-2">
                             <RegistrationBadge status={reg.status} />
                             <span className="text-xs text-gray-600">{new Date(reg.registeredAt).toLocaleDateString()}</span>
-                            {reg.status === 'APPROVED' && (currentUser?.role === 'VERIFIER' || isAdmin) && (
+                            {reg.status === 'APPROVED' && (currentUser?.role === 'VERIFIER' || isAdmin || event.verifierId === currentUser?.id || event.createdBy === currentUser?.id) && (
                               (() => {
                                 const userAttendance = (event as any).attendance?.find((a: any) => a.userId === reg.userId);
                                 const attendanceStatus = userAttendance?.status || 'ABSENT';

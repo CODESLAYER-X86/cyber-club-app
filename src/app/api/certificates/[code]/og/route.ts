@@ -55,7 +55,7 @@ export async function GET(
     const certTitle = escapeXml(layout.title || 'CERTIFICATE OF PARTICIPATION');
     const backgroundHtml = layout.bgImage 
       ? `<image x="0" y="0" width="1200" height="630" href="${layout.bgImage}" preserveAspectRatio="xMidYMid slice" />`
-      : `<rect width="1200" height="630" fill="#0a0a0a"/>
+      : `<rect width="1200" height="630" fill="#000000"/>
          <rect width="1200" height="630" fill="url(#grid)"/>`;
 
     // Signature templates
@@ -92,10 +92,10 @@ export async function GET(
     }
 
     // Logo templates
-    const orgLogoHtml = layout.orgLogo 
+    const orgLogoHtml = (layout.collabMode && layout.orgLogo) 
       ? `<image x="50" y="45" width="80" height="80" href="${layout.orgLogo}" />` 
       : '';
-    const eventLogoHtml = layout.eventLogo 
+    const eventLogoHtml = (layout.collabMode && layout.eventLogo) 
       ? `<image x="1070" y="45" width="80" height="80" href="${layout.eventLogo}" />` 
       : '';
 
@@ -179,7 +179,7 @@ export async function GET(
 
 function renderNotFound() {
   const notFoundSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
-    <rect width="1200" height="630" fill="#0a0a0a"/>
+    <rect width="1200" height="630" fill="#000000"/>
     <text x="600" y="280" text-anchor="middle" font-family="sans-serif" font-size="48" fill="#ef4444">Certificate Not Found</text>
     <text x="600" y="340" text-anchor="middle" font-family="sans-serif" font-size="24" fill="#6b7280">The certificate code is invalid or has been revoked</text>
     <text x="600" y="420" text-anchor="middle" font-family="sans-serif" font-size="18" fill="#4b5563">Cyber Security Club</text>

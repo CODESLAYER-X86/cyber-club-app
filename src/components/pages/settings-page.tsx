@@ -99,6 +99,8 @@ export function SettingsPage() {
 
   // Club settings state (only for President)
   const [membershipFee, setMembershipFee] = useState<number | string>('');
+  const [defaultPrimaryColor, setDefaultPrimaryColor] = useState('#10b981');
+  const [defaultSecondaryColor, setDefaultSecondaryColor] = useState('#06b6d4');
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   useEffect(() => {
@@ -109,6 +111,8 @@ export function SettingsPage() {
           const data = await res.json();
           if (data.success && data.data) {
             setMembershipFee(data.data.membershipFee);
+            setDefaultPrimaryColor(data.data.defaultPrimaryColor || '#10b981');
+            setDefaultSecondaryColor(data.data.defaultSecondaryColor || '#06b6d4');
           }
         } catch (error) {
           console.error('Failed to fetch config:', error);
@@ -244,12 +248,24 @@ export function SettingsPage() {
       });
       return;
     }
+    if (!/^#[0-9A-Fa-f]{6}$/.test(defaultPrimaryColor) || !/^#[0-9A-Fa-f]{6}$/.test(defaultSecondaryColor)) {
+      toast({
+        title: 'Invalid Colors',
+        description: 'Colors must be valid hex codes (e.g. #10b981).',
+        variant: 'destructive',
+      });
+      return;
+    }
     setIsSavingConfig(true);
     try {
       const res = await fetch('/api/config', {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ membershipFee: feeNum }),
+        body: JSON.stringify({
+          membershipFee: feeNum,
+          defaultPrimaryColor,
+          defaultSecondaryColor,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -613,7 +629,7 @@ export function SettingsPage() {
                 </div>
               </div>
             </CardHeader>
-            <CardContent className="space-y-4">
+            <CardContent className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="membershipFee" className="text-gray-400">Membership Fee (৳)</Label>
                 <div className="flex gap-3 max-w-md">
@@ -627,20 +643,61 @@ export function SettingsPage() {
                     onChange={(e) => setMembershipFee(e.target.value)}
                     className="border-white/10 bg-white/5 text-white"
                   />
-                  <Button
-                    onClick={handleSaveClubSettings}
-                    disabled={isSavingConfig}
-                    className="bg-amber-600 text-white hover:bg-amber-500 shrink-0"
-                  >
-                    {isSavingConfig ? (
-                      <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                    ) : (
-                      <Save className="h-4 w-4 mr-2" />
-                    )}
-                    Save Settings
-                  </Button>
                 </div>
                 <p className="text-[11px] text-gray-600">The membership fee must be between ৳100 and ৳1000. Changes will apply immediately to new applicants.</p>
+              </div>
+
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label className="text-gray-400">Default Certificate Primary Color</Label>
+                  <div className="flex gap-2 max-w-md">
+                    <input
+                      type="color"
+                      value={defaultPrimaryColor}
+                      onChange={(e) => setDefaultPrimaryColor(e.target.value)}
+                      className="h-10 w-10 rounded border border-white/10 bg-transparent cursor-pointer shrink-0"
+                    />
+                    <Input
+                      value={defaultPrimaryColor}
+                      onChange={(e) => setDefaultPrimaryColor(e.target.value)}
+                      placeholder="#10b981"
+                      className="border-white/10 bg-white/5 text-white font-mono"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <Label className="text-gray-400">Default Certificate Secondary Color</Label>
+                  <div className="flex gap-2 max-w-md">
+                    <input
+                      type="color"
+                      value={defaultSecondaryColor}
+                      onChange={(e) => setDefaultSecondaryColor(e.target.value)}
+                      className="h-10 w-10 rounded border border-white/10 bg-transparent cursor-pointer shrink-0"
+                    />
+                    <Input
+                      value={defaultSecondaryColor}
+                      onChange={(e) => setDefaultSecondaryColor(e.target.value)}
+                      placeholder="#06b6d4"
+                      className="border-white/10 bg-white/5 text-white font-mono"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              <div className="flex justify-end pt-2">
+                <Button
+                  onClick={handleSaveClubSettings}
+                  disabled={isSavingConfig}
+                  className="bg-amber-600 text-white hover:bg-amber-500 gap-2"
+                >
+                  {isSavingConfig ? (
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                  ) : (
+                    <Save className="h-4 w-4" />
+                  )}
+                  Save Settings
+                </Button>
               </div>
             </CardContent>
           </Card>
