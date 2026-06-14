@@ -28,8 +28,8 @@ export async function PATCH(req: NextRequest) {
     const user = await prisma.user.findUnique({
       where: { id: userId },
     });
-    if (!user || user.role !== "PRESIDENT") {
-      return errorResponse("Forbidden: Only the President can update club configurations", 403);
+    if (!user || (user.role !== "PRESIDENT" && user.role !== "PLATFORM_ADMIN")) {
+      return errorResponse("Forbidden: Only the President and Platform Admin can update club configurations", 403);
     }
 
     const body = await req.json();
@@ -62,7 +62,7 @@ export async function PATCH(req: NextRequest) {
       data: {
         userId,
         action: "CONFIG_UPDATE",
-        details: `President updated membership fee from ৳${oldFee} to ৳${fee}`,
+        details: `${user.role === 'PLATFORM_ADMIN' ? 'Platform Admin' : 'President'} updated membership fee from ৳${oldFee} to ৳${fee}`,
       },
     });
 

@@ -102,7 +102,7 @@ export function SettingsPage() {
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   useEffect(() => {
-    if (currentUser?.role === 'PRESIDENT') {
+    if (currentUser?.role === 'PRESIDENT' || currentUser?.role === 'PLATFORM_ADMIN') {
       const fetchConfig = async () => {
         try {
           const res = await fetch('/api/config');
@@ -597,8 +597,8 @@ export function SettingsPage() {
         </Card>
       </motion.div>
 
-      {/* Club Settings (President Only) */}
-      {currentUser?.role === 'PRESIDENT' && (
+      {/* Club Settings (President & Admin Only) */}
+      {(currentUser?.role === 'PRESIDENT' || currentUser?.role === 'PLATFORM_ADMIN') && (
         <motion.div variants={itemVariants as any}>
           <Card className="border-white/5 bg-[#111] overflow-hidden">
             <div className="h-1 bg-gradient-to-r from-amber-500 to-yellow-500" />
