@@ -47,14 +47,14 @@ export async function PATCH(
     }
 
     // Permission check:
-    // 1. Admins (PLATFORM_ADMIN, PRESIDENT, VP, GS, TREASURER) can update any registration
-    const ADMIN_ROLES = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER"];
-    const isGlobalAdmin = ADMIN_ROLES.includes(caller.role);
+    // 1. Admins or Verifiers (PLATFORM_ADMIN, PRESIDENT, VP, GS, TREASURER, VERIFIER) can update any registration
+    const ALLOWED_ROLES = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER", "VERIFIER"];
+    const isAuthorizedRole = ALLOWED_ROLES.includes(caller.role);
     
     // 2. Designated verifier or event creator can update registration
     const isDesignatedVerifier = event.verifierId === caller.userId || event.createdBy === caller.userId;
 
-    if (!isGlobalAdmin && !isDesignatedVerifier) {
+    if (!isAuthorizedRole && !isDesignatedVerifier) {
       return forbiddenResponse("You do not have permission to update registration status");
     }
 

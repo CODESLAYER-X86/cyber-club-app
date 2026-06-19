@@ -248,7 +248,7 @@ export function EventDetailPage() {
   const canRegister = canRegisterForEventType && !isFull && event.status === 'UPCOMING' && !userRegistration;
   const isAdmin = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role);
   const canApproveReg = currentUser && (
-    ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role) ||
+    ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS', 'VERIFIER'].includes(currentUser.role) ||
     event.verifierId === currentUser.id ||
     event.createdBy === currentUser.id
   );
