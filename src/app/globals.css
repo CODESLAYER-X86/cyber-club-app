@@ -135,3 +135,100 @@
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   background: rgba(255, 255, 255, 0.15);
 }
+
+/* ==========================================
+   Light Theme Compatibility Overrides
+   ========================================== */
+html:not(.dark) {
+  --background: oklch(0.98 0 0);
+  --foreground: oklch(0.145 0 0);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.145 0 0);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.145 0 0);
+  --border: oklch(0.9 0 0);
+  background-color: oklch(0.98 0 0) !important;
+  color: oklch(0.145 0 0) !important;
+}
+
+/* Backgrounds */
+html:not(.dark) .bg-\[\#0a0a0a\] {
+  background-color: oklch(0.98 0 0) !important;
+}
+html:not(.dark) .bg-\[\#0a0a0a\]\/80 {
+  background-color: oklch(0.98 0 0 / 80%) !important;
+}
+html:not(.dark) .bg-\[\#0a0a0a\]\/95 {
+  background-color: oklch(0.98 0 0 / 95%) !important;
+}
+html:not(.dark) .bg-\[\#111\] {
+  background-color: oklch(1 0 0) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05), 0 1px 2px -1px rgba(0, 0, 0, 0.05) !important;
+}
+html:not(.dark) .bg-\[\#111\]\/60 {
+  background-color: oklch(1 0 0 / 60%) !important;
+  backdrop-filter: blur(8px) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+html:not(.dark) .bg-\[\#111\]\/80 {
+  background-color: oklch(1 0 0 / 80%) !important;
+  box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.05) !important;
+}
+html:not(.dark) .bg-\[\#111\]\/20 {
+  background-color: oklch(1 0 0 / 20%) !important;
+}
+html:not(.dark) .bg-\[\#111\]\/40 {
+  background-color: oklch(1 0 0 / 40%) !important;
+}
+html:not(.dark) .bg-\[\#1a1a2e\] {
+  background-color: oklch(1 0 0) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.05) !important;
+}
+html:not(.dark) .bg-\[\#0e0e1a\] {
+  background-color: oklch(1 0 0) !important;
+}
+html:not(.dark) .bg-white\/\[0\.02\] {
+  background-color: oklch(0.96 0 0) !important;
+}
+html:not(.dark) .bg-white\/\[0\.04\] {
+  background-color: oklch(0.94 0 0) !important;
+}
+
+/* Borders */
+html:not(.dark) .border-white\/5 {
+  border-color: oklch(0.9 0 0) !important;
+}
+html:not(.dark) .border-white\/10 {
+  border-color: oklch(0.85 0 0) !important;
+}
+
+/* Text Colors */
+html:not(.dark) .text-gray-100 {
+  color: oklch(0.15 0 0) !important;
+}
+html:not(.dark) .text-gray-200 {
+  color: oklch(0.2 0 0) !important;
+}
+html:not(.dark) .text-gray-300 {
+  color: oklch(0.3 0 0) !important;
+}
+html:not(.dark) .text-gray-400 {
+  color: oklch(0.4 0 0) !important;
+}
+html:not(.dark) .text-gray-500 {
+  color: oklch(0.5 0 0) !important;
+}
+html:not(.dark) .text-gray-600 {
+  color: oklch(0.6 0 0) !important;
+}
+html:not(.dark) .text-white:not(button):not(a):not([class*="bg-"]):not(.badge):not(.h-9):not(.h-8) {
+  color: oklch(0.15 0 0) !important;
+}
+
+/* Custom Scrollbar for Light Theme */
+html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb {
+  background: rgba(0, 0, 0, 0.1) !important;
+}
+html:not(.dark) .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: rgba(0, 0, 0, 0.2) !important;
+}
