@@ -12,7 +12,11 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     if (status) {
-      where.status = status;
+      if (status.includes(",")) {
+        where.status = { in: status.split(",") };
+      } else {
+        where.status = status;
+      }
     }
 
     if (type) {

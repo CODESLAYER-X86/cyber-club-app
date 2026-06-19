@@ -95,6 +95,14 @@ export interface EventRegistration {
   registeredAt: string;
   user?: User;
   event?: Event;
+  payment?: {
+    id: string;
+    amount: number;
+    status: string;
+    transactionId: string;
+    proofUrl?: string | null;
+    createdAt: string;
+  } | null;
 }
 
 export interface Payment {

@@ -68,10 +68,13 @@ export function VerifyPaymentsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
 
+  const isAuthorized = currentUser && ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+
   const loadPayments = async () => {
+    if (!isAuthorized) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ status: 'PENDING' });
+      const params = new URLSearchParams({ status: 'PENDING,APPROVED' });
       if (typeFilter !== 'all') params.set('type', typeFilter);
       const r = await fetch(`/api/payments?${params}`);
       const d = await r.json();
@@ -83,6 +86,18 @@ export function VerifyPaymentsPage() {
     }
   };
   useEffect(() => { loadPayments(); }, [typeFilter]);
+
+  if (!isAuthorized) {
+    return (
+      <div className="flex h-[60vh] flex-col items-center justify-center text-center p-6 space-y-4">
+        <ShieldCheck className="h-16 w-16 text-red-500/80 animate-pulse" />
+        <h2 className="text-xl font-bold text-white">Access Denied</h2>
+        <p className="text-sm text-gray-500 max-w-md">
+          Only the Treasurer, President, General Secretary, and Platform Admin can access the general finance ledger and verify payments.
+        </p>
+      </div>
+    );
+  }
 
   const handleVerify = async (id: string, action: 'VERIFIED' | 'REJECTED') => {
     if (!currentUser) return;

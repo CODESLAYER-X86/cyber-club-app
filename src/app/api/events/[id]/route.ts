@@ -124,7 +124,34 @@ export async function GET(
       return notFoundResponse("Event not found");
     }
 
-    return successResponse({ event });
+    // Fetch payments for this event to link transactionId/payment info
+    const payments = await prisma.payment.findMany({
+      where: { eventId: id },
+    });
+
+    const registrationsWithPayment = event.registrations.map((reg) => {
+      const payment = payments.find((p) => p.userId === reg.userId);
+      return {
+        ...reg,
+        payment: payment
+          ? {
+              id: payment.id,
+              amount: payment.amount,
+              status: payment.status,
+              transactionId: payment.transactionId,
+              proofUrl: payment.proofUrl,
+              createdAt: payment.createdAt,
+            }
+          : null,
+      };
+    });
+
+    const eventWithPayments = {
+      ...event,
+      registrations: registrationsWithPayment,
+    };
+
+    return successResponse({ event: eventWithPayments });
   } catch {
     return serverErrorResponse();
   }
@@ -196,6 +223,66 @@ export async function PATCH(
         },
       },
     });
+
+    if (body.status === "COMPLETED" && event.status !== "COMPLETED") {
+      // Fetch all attendance records for this event that are PRESENT or LATE
+      const presentAttendance = await prisma.attendance.findMany({
+        where: { eventId: id, status: { in: ["PRESENT", "LATE"] } },
+        select: { userId: true },
+      });
+
+      const userIds = presentAttendance.map((a) => a.userId);
+
+      if (userIds.length > 0) {
+        // Fetch registrations to see who is APPROVED
+        const approvedRegistrations = await prisma.eventRegistration.findMany({
+          where: { eventId: id, userId: { in: userIds }, status: "APPROVED" },
+          select: { userId: true },
+        });
+        const approvedUserIds = new Set(approvedRegistrations.map((r) => r.userId));
+
+        // If assessment is required, check who passed
+        let eligibleUserIds = userIds.filter((uid) => approvedUserIds.has(uid));
+
+        if (updatedEvent.requiresAssessment && updatedEvent.passingScore !== null && updatedEvent.passingScore !== undefined) {
+          const assessments = await prisma.assessment.findMany({
+            where: { eventId: id },
+            select: { id: true },
+          });
+
+          if (assessments.length > 0) {
+            const assessmentIds = assessments.map((a) => a.id);
+            // Find who passed
+            const passingSubmissions = await prisma.assessmentSubmission.findMany({
+              where: {
+                assessmentId: { in: assessmentIds },
+                userId: { in: eligibleUserIds },
+                status: "GRADED",
+                score: { gte: updatedEvent.passingScore },
+              },
+              select: { userId: true },
+            });
+            const passedUserIds = new Set(passingSubmissions.map((s) => s.userId));
+            eligibleUserIds = eligibleUserIds.filter((uid) => passedUserIds.has(uid));
+          } else {
+            // No assessments created yet, so they are not eligible
+            eligibleUserIds = [];
+          }
+        }
+
+        if (eligibleUserIds.length > 0) {
+          // Promote certificates for eligible users to ELIGIBLE
+          await prisma.certificate.updateMany({
+            where: {
+              eventId: id,
+              userId: { in: eligibleUserIds },
+              status: { in: ["REGISTERED", "PRESENT"] },
+            },
+            data: { status: "ELIGIBLE" },
+          });
+        }
+      }
+    }
 
     return successResponse({ event: updatedEvent });
   } catch {

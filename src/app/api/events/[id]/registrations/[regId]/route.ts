@@ -1,8 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
-
-const ADMIN_ROLES = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER"];
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function PATCH(
   request: NextRequest,
@@ -11,18 +10,27 @@ export async function PATCH(
   try {
     const { id: eventId, regId } = await params;
     const body = await request.json();
-    const { status, role } = body;
+    const { status } = body;
 
-    if (!status || !role) {
-      return errorResponse("status and role are required");
+    if (!status) {
+      return errorResponse("status is required");
     }
 
     if (!["APPROVED", "REJECTED", "CANCELLED"].includes(status)) {
       return errorResponse("Invalid status. Must be APPROVED, REJECTED, or CANCELLED");
     }
 
-    if (!ADMIN_ROLES.includes(role)) {
-      return errorResponse("You do not have permission to update registration status", 403);
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("Unauthorized");
+    }
+
+    const event = await prisma.event.findUnique({
+      where: { id: eventId },
+    });
+
+    if (!event) {
+      return notFoundResponse("Event not found");
     }
 
     const registration = await prisma.eventRegistration.findUnique({
@@ -36,6 +44,18 @@ export async function PATCH(
 
     if (registration.eventId !== eventId) {
       return errorResponse("Registration does not belong to this event");
+    }
+
+    // Permission check:
+    // 1. Admins (PLATFORM_ADMIN, PRESIDENT, VP, GS, TREASURER) can update any registration
+    const ADMIN_ROLES = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER"];
+    const isGlobalAdmin = ADMIN_ROLES.includes(caller.role);
+    
+    // 2. Designated verifier or event creator can update registration
+    const isDesignatedVerifier = event.verifierId === caller.userId || event.createdBy === caller.userId;
+
+    if (!isGlobalAdmin && !isDesignatedVerifier) {
+      return forbiddenResponse("You do not have permission to update registration status");
     }
 
     const updatedRegistration = await prisma.eventRegistration.update({
@@ -55,12 +75,37 @@ export async function PATCH(
       },
     });
 
+    // If registration is approved, also update the associated payment to APPROVED status (not VERIFIED)
+    if (status === "APPROVED") {
+      const payment = await prisma.payment.findFirst({
+        where: { userId: registration.userId, eventId, status: "PENDING" },
+      });
+      if (payment) {
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: "APPROVED", verifiedBy: caller.userId },
+        });
+      }
+    }
+
     // If registration is cancelled/rejected, decrement current seats
     if ((status === "CANCELLED" || status === "REJECTED") && registration.status === "APPROVED") {
       await prisma.event.update({
         where: { id: eventId },
         data: { currentSeats: { decrement: 1 } },
       });
+    }
+
+    if (status === "CANCELLED" || status === "REJECTED") {
+      const payment = await prisma.payment.findFirst({
+        where: { userId: registration.userId, eventId, status: { in: ["PENDING", "APPROVED"] } },
+      });
+      if (payment) {
+        await prisma.payment.update({
+          where: { id: payment.id },
+          data: { status: "REJECTED", verifiedBy: caller.userId },
+        });
+      }
     }
 
     // Create notification for the user
@@ -80,7 +125,8 @@ export async function PATCH(
     });
 
     return successResponse({ registration: updatedRegistration });
-  } catch {
+  } catch (error) {
+    console.error("Update registration API error:", error);
     return serverErrorResponse();
   }
 }
