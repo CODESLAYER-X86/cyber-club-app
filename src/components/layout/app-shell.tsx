@@ -1,5 +1,6 @@
 'use client';
 
+import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/use-app-store';
 import { Sidebar } from './sidebar';
@@ -98,7 +99,25 @@ const FULL_PAGE_VIEWS: Set<AppView> = new Set([
 ]);
 
 export function AppShell() {
-  const { currentView, isAuthenticated } = useAppStore();
+  const { currentView, isAuthenticated, theme, setTheme } = useAppStore();
+
+  useEffect(() => {
+    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
+    if (savedTheme) {
+      setTheme(savedTheme);
+    }
+  }, [setTheme]);
+
+  useEffect(() => {
+    const root = window.document.documentElement;
+    if (theme === 'dark') {
+      root.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+    } else {
+      root.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+    }
+  }, [theme]);
 
   const PageComponent = PAGE_MAP[currentView] || LandingPage;
 
