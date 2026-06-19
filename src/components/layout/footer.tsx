@@ -154,7 +154,15 @@ export function Footer() {
             &copy; 2025 Cyber Security Club. All rights reserved.
           </p>
           <p className="text-xs text-gray-600">
-            Created By <span className="font-mono text-emerald-400">CODESLAYER_X86</span>
+            Created By{' '}
+            <a
+              href="https://www.linkedin.com/in/codeslayer-x86/"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="font-mono text-emerald-400 hover:text-emerald-300 transition-colors"
+            >
+              CODESLAYER_X86
+            </a>
           </p>
         </div>
       </motion.div>
