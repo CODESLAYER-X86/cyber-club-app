@@ -17,6 +17,17 @@ import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { exportToCSV } from '@/lib/export-utils';
+import { toast } from '@/hooks/use-toast';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 
 const ROLE_AVATAR_COLORS: Record<UserRole, string> = {
   PRESIDENT: 'from-amber-500/40 to-amber-600/20 text-amber-400 border-amber-500/30',
@@ -85,6 +96,21 @@ const getAssignableRoles = (currentUser: User | null) => {
   return [];
 };
 
+const canKickUser = (currentUser: User | null, targetUser: User) => {
+  if (!currentUser) return false;
+  if (targetUser.id === currentUser.id) return false;
+  if (targetUser.role === 'PLATFORM_ADMIN') return false;
+  if (targetUser.membershipStatus !== 'ACTIVE') return false;
+  
+  if (currentUser.role === 'PLATFORM_ADMIN' || currentUser.role === 'PRESIDENT') {
+    return true;
+  }
+  if (currentUser.role === 'GS') {
+    return targetUser.role !== 'PRESIDENT';
+  }
+  return false;
+};
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.04 } },
@@ -117,7 +143,45 @@ export function MembersPage() {
   const [exporting, setExporting] = useState(false);
   const [viewMode, setViewMode] = useState<ViewMode>('list');
 
+  const [kickDialogOpen, setKickDialogOpen] = useState(false);
+  const [userToKick, setUserToKick] = useState<User | null>(null);
+  const [kickLoading, setKickLoading] = useState(false);
+
   const canApprove = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+
+  const handleKick = async () => {
+    if (!userToKick) return;
+    setKickLoading(true);
+    try {
+      const res = await fetch(`/api/users/${userToKick.id}`, {
+        method: 'DELETE',
+      });
+      const data = await res.json();
+      if (data.success) {
+        setUsers(prev => prev.filter(u => u.id !== userToKick.id));
+        setKickDialogOpen(false);
+        setUserToKick(null);
+        toast({
+          title: 'Member Deleted',
+          description: `${userToKick.name} has been permanently kicked and deleted from the club.`,
+        });
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to kick member.',
+          variant: 'destructive',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Error',
+        description: 'Something went wrong.',
+        variant: 'destructive',
+      });
+    } finally {
+      setKickLoading(false);
+    }
+  };
   const canChangeRole = currentUser && ['PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
   useEffect(() => {
@@ -374,6 +438,19 @@ export function MembersPage() {
                           <Button size="sm" onClick={() => handleApprove(user.id, 'REJECTED')} variant="destructive" className="h-7 text-xs px-2"><XCircle className="h-3 w-3" /></Button>
                         </div>
                       )}
+                      {canKickUser(currentUser, user) && (
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="h-8 w-8 text-gray-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity animate-fade-in"
+                          onClick={() => {
+                            setUserToKick(user);
+                            setKickDialogOpen(true);
+                          }}
+                        >
+                          <UserX className="h-4 w-4" />
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -452,6 +529,19 @@ export function MembersPage() {
                           <Button size="sm" onClick={() => handleApprove(user.id, 'REJECTED')} variant="destructive" className="h-7 text-xs px-2"><XCircle className="h-3 w-3" /></Button>
                         </>
                       )}
+                      {canKickUser(currentUser, user) && (
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2 text-gray-500 hover:text-red-400 hover:bg-red-500/10 text-xs animate-fade-in"
+                          onClick={() => {
+                            setUserToKick(user);
+                            setKickDialogOpen(true);
+                          }}
+                        >
+                          <UserX className="h-3.5 w-3.5 mr-1" />Kick
+                        </Button>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -468,6 +558,29 @@ export function MembersPage() {
           )}
         </motion.div>
       )}
+
+      {/* Kick Confirmation Dialog */}
+      <AlertDialog open={kickDialogOpen} onOpenChange={setKickDialogOpen}>
+        <AlertDialogContent className="border-white/10 bg-[#111] text-white">
+          <AlertDialogHeader>
+            <AlertDialogTitle className="text-white">Kick & Delete Member</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400">
+              Are you sure you want to permanently kick and delete <span className="text-white font-medium">{userToKick?.name}</span>? This will revoke their membership, delete their personal records, and cancel their event registrations.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel className="border-white/10 text-gray-400 hover:bg-white/5">Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-red-600 text-white hover:bg-red-500 hover:scale-[1.02] transition-transform duration-200"
+              onClick={handleKick}
+              disabled={kickLoading}
+            >
+              {kickLoading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+              Kick & Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
