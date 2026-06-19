@@ -470,7 +470,7 @@ export function DashboardPage() {
               </>
             )}
             {role === 'GS' && <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Approve Members</Button>}
-            {role === 'VERIFIER' && <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>}
+            {role === 'VERIFIER' && <Button onClick={() => setCurrentView('events')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Calendar className="mr-2 h-4 w-4" />Assigned Events</Button>}
           </div>
         </CardContent>
       </Card>
