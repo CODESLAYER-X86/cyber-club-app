@@ -58,22 +58,7 @@ export async function PATCH(
       },
     });
 
-    // If it's a membership payment that was verified, update user status
-    if (action === "VERIFY" && payment.type === "MEMBERSHIP" && payment.user.membershipStatus === "NON_MEMBER") {
-      await prisma.user.update({
-        where: { id: payment.userId },
-        data: { membershipStatus: "PENDING" },
-      });
-    }
 
-    // If it's an EVENT payment, update the corresponding registration status
-    if (payment.type === "EVENT" && payment.eventId) {
-      const newRegStatus = action === "VERIFY" ? "APPROVED" : "REJECTED";
-      await prisma.eventRegistration.updateMany({
-        where: { userId: payment.userId, eventId: payment.eventId },
-        data: { status: newRegStatus },
-      });
-    }
 
     // Create notification
     await prisma.notification.create({
