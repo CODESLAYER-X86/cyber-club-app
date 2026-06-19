@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, forbiddenResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isPlatformAdminEmail } from "@/lib/auth";
 
 const ADMIN_ROLES = ["PRESIDENT", "PLATFORM_ADMIN"];
 
@@ -45,14 +46,24 @@ export async function PATCH(
       return notFoundResponse("User not found");
     }
 
-    // Role restriction checks for President role
-    if (updater.role === "PRESIDENT") {
-      if (role === "PLATFORM_ADMIN" || role === "PRESIDENT") {
-        return forbiddenResponse("Presidents cannot assign President or Platform Admin roles");
-      }
-      if (targetUser.role === "PLATFORM_ADMIN" || targetUser.role === "PRESIDENT") {
-        return forbiddenResponse("Presidents cannot modify President or Platform Admin roles");
-      }
+    // 1. No one can assign platform admin role
+    if (role === "PLATFORM_ADMIN") {
+      return forbiddenResponse("Platform Admin role cannot be manually assigned");
+    }
+
+    // 2. No one can modify a platform admin
+    if (targetUser.role === "PLATFORM_ADMIN" || isPlatformAdminEmail(targetUser.email)) {
+      return forbiddenResponse("Platform Admin role cannot be modified");
+    }
+
+    // 3. Only Platform Admin can assign President role
+    if (role === "PRESIDENT" && updater.role !== "PLATFORM_ADMIN") {
+      return forbiddenResponse("Only Platform Admins can assign the President role");
+    }
+
+    // 4. Only Platform Admin can modify a user who is currently a President
+    if (targetUser.role === "PRESIDENT" && updater.role !== "PLATFORM_ADMIN") {
+      return forbiddenResponse("Only Platform Admins can modify the President role");
     }
 
     // Enforce single-person roles: PRESIDENT, VP, GS, TREASURER

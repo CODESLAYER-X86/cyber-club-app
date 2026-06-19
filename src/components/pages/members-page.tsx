@@ -63,6 +63,28 @@ function formatDate(date: string): string {
   });
 }
 
+const canEditUserRole = (currentUser: User | null, targetUser: User) => {
+  if (!currentUser) return false;
+  if (targetUser.role === 'PLATFORM_ADMIN') return false;
+  if (currentUser.role === 'PLATFORM_ADMIN') return true;
+  if (currentUser.role === 'PRESIDENT') {
+    return targetUser.role !== 'PRESIDENT';
+  }
+  return false;
+};
+
+const getAssignableRoles = (currentUser: User | null) => {
+  if (!currentUser) return [];
+  const allRoles = Object.entries(ROLE_LABELS);
+  if (currentUser.role === 'PLATFORM_ADMIN') {
+    return allRoles.filter(([k]) => k !== 'PLATFORM_ADMIN');
+  }
+  if (currentUser.role === 'PRESIDENT') {
+    return allRoles.filter(([k]) => k !== 'PLATFORM_ADMIN' && k !== 'PRESIDENT');
+  }
+  return [];
+};
+
 const container = {
   hidden: { opacity: 0 },
   show: { opacity: 1, transition: { staggerChildren: 0.04 } },
@@ -334,10 +356,14 @@ export function MembersPage() {
                           <span className="hidden sm:inline text-xs">Role</span>
                         </Button>
                       )}
-                      {canChangeRole ? (
+                      {canEditUserRole(currentUser, user) ? (
                         <Select value={user.role} onValueChange={(v) => handleRoleChange(user.id, v as UserRole)}>
                           <SelectTrigger className="h-8 w-[140px] border-white/10 bg-white/5 text-xs text-white"><SelectValue /></SelectTrigger>
-                          <SelectContent className="border-white/10 bg-[#1a1a2e]">{Object.entries(ROLE_LABELS).map(([k, v]) => <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>)}</SelectContent>
+                          <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                            {getAssignableRoles(currentUser).map(([k, v]) => (
+                              <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                            ))}
+                          </SelectContent>
                         </Select>
                       ) : (
                         <Badge variant="outline" className="border-white/10 text-xs text-gray-400">{ROLE_LABELS[user.role]}</Badge>
