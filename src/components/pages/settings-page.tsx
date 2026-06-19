@@ -400,37 +400,7 @@ export function SettingsPage() {
             </div>
           </CardHeader>
           <CardContent className="space-y-6">
-            {/* Theme Toggle */}
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="flex h-8 w-8 items-center justify-center rounded-md bg-white/5">
-                  {theme === 'dark' ? (
-                    <Monitor className="h-4 w-4 text-cyan-400" />
-                  ) : (
-                    <Smartphone className="h-4 w-4 text-cyan-400" />
-                  )}
-                </div>
-                <div>
-                  <p className="text-sm font-medium text-gray-200">Theme</p>
-                  <p className="text-xs text-gray-500">Switch between dark and light mode</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <span className={cn('text-xs', theme === 'dark' ? 'text-gray-500' : 'text-emerald-400')}>
-                  Light
-                </span>
-                <Switch
-                  checked={theme === 'dark'}
-                  onCheckedChange={(checked) => setTheme(checked ? 'dark' : 'light')}
-                  className="data-[state=checked]:bg-emerald-500"
-                />
-                <span className={cn('text-xs', theme === 'dark' ? 'text-emerald-400' : 'text-gray-500')}>
-                  Dark
-                </span>
-              </div>
-            </div>
 
-            <Separator className="bg-white/5" />
 
             {/* Sidebar Default State */}
             <div className="flex items-center justify-between">

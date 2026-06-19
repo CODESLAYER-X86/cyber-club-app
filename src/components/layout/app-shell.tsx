@@ -101,25 +101,11 @@ const FULL_PAGE_VIEWS: Set<AppView> = new Set([
 ]);
 
 export function AppShell() {
-  const { currentView, isAuthenticated, theme, setTheme } = useAppStore();
+  const { currentView, isAuthenticated } = useAppStore();
 
   useEffect(() => {
-    const savedTheme = localStorage.getItem('theme') as 'light' | 'dark' | null;
-    if (savedTheme) {
-      setTheme(savedTheme);
-    }
-  }, [setTheme]);
-
-  useEffect(() => {
-    const root = window.document.documentElement;
-    if (theme === 'dark') {
-      root.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      root.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-  }, [theme]);
+    window.document.documentElement.classList.add('dark');
+  }, []);
 
   const PageComponent = PAGE_MAP[currentView] || LandingPage;
 

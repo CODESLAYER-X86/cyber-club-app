@@ -319,15 +319,7 @@ export function Header() {
         <span className="text-xs font-mono tabular-nums text-gray-400">{timeString}</span>
       </div>
 
-      {/* Theme toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}
-        className="h-9 w-9 text-gray-400 hover:bg-white/5 hover:text-gray-200"
-      >
-        {theme === 'dark' ? <Sun className="h-4 w-4" /> : <Moon className="h-4 w-4" />}
-      </Button>
+
 
       {/* Notifications with animated bell */}
       {isAuthenticated && (
