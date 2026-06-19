@@ -329,6 +329,7 @@ export type AppView =
   | "settings"
   | "gallery"
   | "certificate-designer"
+  | "committee"
   | "achievements";
 
 export interface NavItem {

@@ -70,6 +70,7 @@ const PAGE_MAP: Record<AppView, React.ComponentType> = {
   achievements: AchievementsPage,
   'apply-membership': ApplyMembershipPage,
   'certificate-designer': CertificateDesigner,
+  committee: AboutPage,
 };
 
 function MatrixBackground() {

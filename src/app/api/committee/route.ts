@@ -3,7 +3,7 @@ import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse 
 import { getSupabaseUser } from "@/lib/supabase-server";
 import { NextRequest } from "next/server";
 
-const CREATE_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
+const CREATE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
 
 export async function GET() {
   try {

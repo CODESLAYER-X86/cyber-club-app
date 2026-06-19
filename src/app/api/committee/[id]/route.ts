@@ -2,8 +2,8 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 
-const UPDATE_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
-const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN"];
+const UPDATE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
+const DELETE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
 
 export async function PATCH(
   request: NextRequest,
@@ -15,7 +15,7 @@ export async function PATCH(
     const { requesterRole, socialLinks, ...updateFields } = body;
 
     if (!requesterRole || !UPDATE_ROLES.includes(requesterRole)) {
-      return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can update committee members");
+      return forbiddenResponse("Only PRESIDENT, GS, MEDIA, or PLATFORM_ADMIN can update committee members");
     }
 
     const member = await prisma.committeeMember.findUnique({
@@ -64,7 +64,7 @@ export async function DELETE(
     const role = searchParams.get("role");
 
     if (!role || !DELETE_ROLES.includes(role)) {
-      return forbiddenResponse("Only PRESIDENT or PLATFORM_ADMIN can delete committee members");
+      return forbiddenResponse("Only PRESIDENT, GS, MEDIA, or PLATFORM_ADMIN can delete committee members");
     }
 
     const member = await prisma.committeeMember.findUnique({

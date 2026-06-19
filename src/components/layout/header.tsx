@@ -76,6 +76,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   gallery: 'Gallery',
   achievements: 'Achievements',
   'certificate-designer': 'Certificate Designer',
+  committee: 'Committee',
 };
 
 const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = {
@@ -109,6 +110,7 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
   gallery: [{ label: 'Gallery' }],
   achievements: [{ label: 'Achievements' }],
   'certificate-designer': [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Certificate Designer' }],
+  committee: [{ label: 'About', parent: 'about' }, { label: 'Committee' }],
 };
 
 /* ─── Public Navigation Links ─── */
