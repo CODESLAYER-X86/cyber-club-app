@@ -177,6 +177,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   VERIFIER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Verify Payments', view: 'verify-payments', icon: 'CheckCircle' },
     { label: 'Assigned Events', view: 'events', icon: 'Calendar' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
