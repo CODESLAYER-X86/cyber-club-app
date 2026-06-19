@@ -38,6 +38,7 @@ import { GalleryPage } from '@/components/pages/gallery-page';
 import { AchievementsPage } from '@/components/pages/achievements-page';
 import { ApplyMembershipPage } from '@/components/pages/apply-membership-page';
 import { CertificateDesigner } from '@/components/pages/certificate-designer';
+import { CommitteePage } from '@/components/pages/committee-page';
 
 const PAGE_MAP: Record<AppView, React.ComponentType> = {
   landing: LandingPage,
@@ -70,7 +71,7 @@ const PAGE_MAP: Record<AppView, React.ComponentType> = {
   achievements: AchievementsPage,
   'apply-membership': ApplyMembershipPage,
   'certificate-designer': CertificateDesigner,
-  committee: AboutPage,
+  committee: CommitteePage,
 };
 
 function MatrixBackground() {

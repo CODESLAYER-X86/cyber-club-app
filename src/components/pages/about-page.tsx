@@ -22,7 +22,7 @@ import {
   Mail,
   Linkedin,
   Github,
-  Twitter,
+  Facebook,
   Upload,
   X,
   Loader2,
@@ -55,6 +55,7 @@ import {
 import { useAppStore } from '@/store/use-app-store';
 import type { CommitteeMember } from '@/types';
 import { uploadToSupabase } from '@/lib/upload';
+import { CommitteeMemberCard } from '@/components/shared/committee-member-card';
 
 /* ──────────── Animation helpers ──────────── */
 
@@ -312,6 +313,7 @@ function getInitials(name: string): string {
 interface SocialLinkData {
   linkedin?: string;
   github?: string;
+  facebook?: string;
   twitter?: string;
 }
 
@@ -336,7 +338,7 @@ interface MemberFormData {
   imageUrl: string;
   socialLinkedIn: string;
   socialGithub: string;
-  socialTwitter: string;
+  socialFacebook: string;
 }
 
 const emptyForm: MemberFormData = {
@@ -349,7 +351,7 @@ const emptyForm: MemberFormData = {
   imageUrl: '',
   socialLinkedIn: '',
   socialGithub: '',
-  socialTwitter: '',
+  socialFacebook: '',
 };
 
 /* ──────────── Page Component ──────────── */
@@ -383,7 +385,7 @@ export function AboutPage() {
   const [deletingMemberName, setDeletingMemberName] = useState('');
 
   // Permission check
-  const canManage = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const canManage = !!(currentUser && ['PRESIDENT', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(currentUser.role));
 
   // Fetch committee members
   const fetchMembers = useCallback(async () => {
@@ -478,7 +480,7 @@ export function AboutPage() {
       imageUrl: member.imageUrl || '',
       socialLinkedIn: socials?.linkedin || '',
       socialGithub: socials?.github || '',
-      socialTwitter: socials?.twitter || '',
+      socialFacebook: socials?.facebook || '',
     });
     setImagePreview(member.imageUrl || null);
     setEditingMemberId(member.id);
@@ -500,7 +502,7 @@ export function AboutPage() {
       const socialLinks: SocialLinkData = {};
       if (formData.socialLinkedIn) socialLinks.linkedin = formData.socialLinkedIn;
       if (formData.socialGithub) socialLinks.github = formData.socialGithub;
-      if (formData.socialTwitter) socialLinks.twitter = formData.socialTwitter;
+      if (formData.socialFacebook) socialLinks.facebook = formData.socialFacebook;
 
       const res = await fetch('/api/committee', {
         method: 'POST',
@@ -546,7 +548,7 @@ export function AboutPage() {
       const socialLinks: SocialLinkData = {};
       if (formData.socialLinkedIn) socialLinks.linkedin = formData.socialLinkedIn;
       if (formData.socialGithub) socialLinks.github = formData.socialGithub;
-      if (formData.socialTwitter) socialLinks.twitter = formData.socialTwitter;
+      if (formData.socialFacebook) socialLinks.facebook = formData.socialFacebook;
 
       const res = await fetch(`/api/committee/${editingMemberId}`, {
         method: 'PATCH',
@@ -759,11 +761,11 @@ export function AboutPage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Twitter className="h-4 w-4 text-cyan-400 shrink-0" />
+            <Facebook className="h-4 w-4 text-blue-500 shrink-0" />
             <Input
-              value={formData.socialTwitter}
-              onChange={(e) => updateField('socialTwitter', e.target.value)}
-              placeholder="Twitter/X URL"
+              value={formData.socialFacebook}
+              onChange={(e) => updateField('socialFacebook', e.target.value)}
+              placeholder="Facebook Profile URL"
               className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
             />
           </div>
@@ -881,7 +883,7 @@ export function AboutPage() {
           <motion.div {...fadeUp} className="mb-12 text-center">
             <div className="flex items-center justify-center gap-4">
               <div>
-                <h2 className="text-3xl font-bold text-white">Leadership Team</h2>
+                <h2 className="text-3xl font-bold text-white">Committee Members</h2>
                 <p className="mt-2 text-gray-500">The people steering Cyber Security Club forward</p>
               </div>
               {canManage && (
@@ -946,125 +948,24 @@ export function AboutPage() {
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {members.map((member, i) => {
-                const colors = getRoleColors(member.role);
-                const initials = getInitials(member.name);
-                const socials = parseSocialLinks(member.socialLinks);
-
-                return (
-                  <motion.div
-                    key={member.id}
-                    {...stagger}
-                    transition={{ duration: 0.5, delay: i * 0.1 }}
-                  >
-                    <Card
-                      className={`group relative h-full border-white/5 bg-[#111]/60 backdrop-blur transition-all duration-300 hover:border-white/10 hover:-translate-y-1 hover:shadow-lg ${colors.glowClass}`}
-                    >
-                      {/* Edit/Delete buttons - visible on hover for admins */}
-                      {canManage && (
-                        <div className="absolute top-3 right-3 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-200 z-10">
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10"
-                            onClick={() => openEditDialog(member)}
-                          >
-                            <Pencil className="h-4 w-4" />
-                          </Button>
-                          <Button
-                            variant="ghost"
-                            size="icon"
-                            className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-500/10"
-                            onClick={() => {
-                              setDeletingMemberId(member.id);
-                              setDeletingMemberName(member.name);
-                              setDeleteDialogOpen(true);
-                            }}
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </Button>
-                        </div>
-                      )}
-
-                      <CardContent className="pt-6">
-                        <div className="mb-4 flex items-center gap-4">
-                          {/* Avatar */}
-                          {member.imageUrl ? (
-                            <img
-                              src={member.imageUrl}
-                              alt={member.name}
-                              className="h-14 w-14 shrink-0 rounded-full object-cover border-2 border-white/10 shadow-lg"
-                            />
-                          ) : (
-                            <div
-                              className={`flex h-14 w-14 shrink-0 items-center justify-center rounded-full bg-gradient-to-br ${colors.avatarBg} text-lg font-bold text-white shadow-lg`}
-                            >
-                              {initials}
-                            </div>
-                          )}
-                          <div className="min-w-0">
-                            <h3 className="text-lg font-semibold text-white truncate">{member.name}</h3>
-                            <p className={`text-sm font-medium ${colors.accentClass}`}>{member.role}</p>
-                            {member.department && (
-                              <p className="text-xs text-gray-500 truncate">{member.department}</p>
-                            )}
-                          </div>
-                        </div>
-                        <p className="text-sm text-gray-500 leading-relaxed">{member.description}</p>
-
-                        {/* Email */}
-                        {member.email && (
-                          <div className="mt-3 flex items-center gap-2">
-                            <Mail className="h-3.5 w-3.5 text-gray-600 shrink-0" />
-                            <a
-                              href={`mailto:${member.email}`}
-                              className="text-xs text-gray-400 hover:text-emerald-400 transition-colors truncate"
-                            >
-                              {member.email}
-                            </a>
-                          </div>
-                        )}
-
-                        {/* Social Links */}
-                        {socials && (
-                          <div className="mt-2 flex items-center gap-2">
-                            {socials.linkedin && (
-                              <a
-                                href={socials.linkedin}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-gray-500 hover:text-blue-400 hover:bg-blue-500/10 transition-colors"
-                              >
-                                <Linkedin className="h-3.5 w-3.5" />
-                              </a>
-                            )}
-                            {socials.github && (
-                              <a
-                                href={socials.github}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-gray-500 hover:text-gray-300 hover:bg-white/10 transition-colors"
-                              >
-                                <Github className="h-3.5 w-3.5" />
-                              </a>
-                            )}
-                            {socials.twitter && (
-                              <a
-                                href={socials.twitter}
-                                target="_blank"
-                                rel="noopener noreferrer"
-                                className="flex h-7 w-7 items-center justify-center rounded-md bg-white/5 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 transition-colors"
-                              >
-                                <Twitter className="h-3.5 w-3.5" />
-                              </a>
-                            )}
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                );
-              })}
+              {members.map((member, i) => (
+                <motion.div
+                  key={member.id}
+                  {...stagger}
+                  transition={{ duration: 0.5, delay: i * 0.1 }}
+                >
+                  <CommitteeMemberCard
+                    member={member}
+                    canManage={canManage}
+                    onEdit={openEditDialog}
+                    onDelete={(m) => {
+                      setDeletingMemberId(m.id);
+                      setDeletingMemberName(m.name);
+                      setDeleteDialogOpen(true);
+                    }}
+                  />
+                </motion.div>
+              ))}
             </div>
           )}
         </div>
