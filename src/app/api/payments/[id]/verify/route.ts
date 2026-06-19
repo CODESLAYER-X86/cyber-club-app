@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function PATCH(
   request: NextRequest,
@@ -9,14 +10,20 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { action, verifiedBy } = body;
+    const { action } = body;
 
-    if (!action || !verifiedBy) {
-      return errorResponse("action and verifiedBy are required");
+    if (!action) {
+      return errorResponse("action is required");
     }
 
     if (!["VERIFY", "REJECT"].includes(action)) {
       return errorResponse("Action must be VERIFY or REJECT");
+    }
+
+    // Authenticate and authorize the caller
+    const caller = await getSupabaseUser(["TREASURER", "PRESIDENT", "GS", "PLATFORM_ADMIN"]);
+    if (!caller) {
+      return forbiddenResponse("Only Treasurer, President, General Secretary, and Platform Admin can verify payments");
     }
 
     const payment = await prisma.payment.findUnique({
@@ -28,8 +35,8 @@ export async function PATCH(
       return notFoundResponse("Payment not found");
     }
 
-    if (payment.status !== "PENDING") {
-      return errorResponse("Payment is not in PENDING status");
+    if (payment.status !== "PENDING" && payment.status !== "APPROVED") {
+      return errorResponse("Payment is not in PENDING or APPROVED status");
     }
 
     const newStatus = action === "VERIFY" ? "VERIFIED" : "REJECTED";
@@ -38,7 +45,7 @@ export async function PATCH(
       where: { id },
       data: {
         status: newStatus,
-        verifiedBy,
+        verifiedBy: caller.userId,
       },
       include: {
         user: {
@@ -58,8 +65,6 @@ export async function PATCH(
       },
     });
 
-
-
     // Create notification
     await prisma.notification.create({
       data: {
@@ -76,14 +81,15 @@ export async function PATCH(
     // Log to audit log
     await prisma.auditLog.create({
       data: {
-        userId: verifiedBy,
+        userId: caller.userId,
         action: `PAYMENT_${action === "VERIFY" ? "VERIFIED" : "REJECTED"}`,
         details: `${action === "VERIFY" ? "Verified" : "Rejected"} payment of ${payment.amount} from ${payment.user.name} (${payment.user.email}). Transaction ID: ${payment.transactionId}`,
       },
     });
 
     return successResponse({ payment: updatedPayment });
-  } catch {
+  } catch (error) {
+    console.error("Verify payment API error:", error);
     return serverErrorResponse();
   }
 }

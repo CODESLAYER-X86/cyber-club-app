@@ -247,6 +247,11 @@ export function EventDetailPage() {
   const canRegisterForEventType = event.type === 'MEMBER_ONLY' ? isMember : !!currentUser;
   const canRegister = canRegisterForEventType && !isFull && event.status === 'UPCOMING' && !userRegistration;
   const isAdmin = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role);
+  const canApproveReg = currentUser && (
+    ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role) ||
+    event.verifierId === currentUser.id ||
+    event.createdBy === currentUser.id
+  );
   const canEdit = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'MEDIA'].includes(currentUser.role);
   const canDelete = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'MEDIA', 'VP', 'GS'].includes(currentUser.role);
   const registrationCount = event._count?.registrations ?? event.registrations?.length ?? event.currentSeats;
@@ -607,7 +612,7 @@ export function EventDetailPage() {
       )}
 
       {/* Registrants List (Admin Only) */}
-      {isAdmin && event.registrations && event.registrations.length > 0 && (
+      {canApproveReg && event.registrations && event.registrations.length > 0 && (
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
           <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
             <CardHeader className="cursor-pointer" onClick={() => setShowRegistrants(!showRegistrants)}>
@@ -645,6 +650,25 @@ export function EventDetailPage() {
                             <div>
                               <p className="text-sm font-medium text-white">{reg.user?.name || 'Unknown'}</p>
                               <p className="text-xs text-gray-500">{reg.user?.email}</p>
+                              {reg.payment && (
+                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+                                  <span className="inline-flex items-center gap-1 rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[9px] font-mono text-gray-400">
+                                    TxID: <span className="text-emerald-400 select-all font-semibold">{reg.payment.transactionId}</span>
+                                  </span>
+                                  {reg.payment.status === 'PENDING' && (
+                                    <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1 rounded font-medium">Pending Confirm</span>
+                                  )}
+                                  {reg.payment.status === 'APPROVED' && (
+                                    <span className="text-[8px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1 rounded font-medium">Approved</span>
+                                  )}
+                                  {reg.payment.status === 'VERIFIED' && (
+                                    <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 rounded font-medium">Verified (৳{reg.payment.amount})</span>
+                                  )}
+                                  {reg.payment.status === 'REJECTED' && (
+                                    <span className="text-[8px] bg-red-500/10 text-red-400 border border-red-500/20 px-1 rounded font-medium">Rejected</span>
+                                  )}
+                                </div>
+                              )}
                             </div>
                           </div>
                           <div className="flex items-center gap-2">
@@ -687,7 +711,7 @@ export function EventDetailPage() {
                                 );
                               })()
                             )}
-                            {reg.status === 'PENDING' && isAdmin && (
+                            {reg.status === 'PENDING' && canApproveReg && (
                               <>
                                 <Button
                                   size="sm"
