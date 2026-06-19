@@ -21,9 +21,9 @@ export async function PATCH(
     }
 
     // Authenticate and authorize the caller
-    const caller = await getSupabaseUser(["TREASURER", "PRESIDENT", "GS", "PLATFORM_ADMIN"]);
+    const caller = await getSupabaseUser(["TREASURER", "PRESIDENT", "GS", "PLATFORM_ADMIN", "VERIFIER"]);
     if (!caller) {
-      return forbiddenResponse("Only Treasurer, President, General Secretary, and Platform Admin can verify payments");
+      return forbiddenResponse("Only Treasurer, President, General Secretary, Platform Admin, and Event Verifiers can verify payments");
     }
 
     const payment = await prisma.payment.findUnique({
@@ -35,11 +35,35 @@ export async function PATCH(
       return notFoundResponse("Payment not found");
     }
 
-    if (payment.status !== "PENDING" && payment.status !== "APPROVED") {
-      return errorResponse("Payment is not in PENDING or APPROVED status");
+    // Role-specific checks:
+    // If VERIFIER:
+    // 1. Can only verify/reject EVENT payments.
+    // 2. Can only verify PENDING payments (to APPROVED).
+    if (caller.role === "VERIFIER") {
+      if (payment.type !== "EVENT") {
+        return forbiddenResponse("Event Verifiers can only verify event payments");
+      }
+      if (payment.status !== "PENDING") {
+        return errorResponse("Payment is not in PENDING status");
+      }
+    } else {
+      // Treasurer/Admin can verify PENDING or APPROVED payments
+      if (payment.status !== "PENDING" && payment.status !== "APPROVED") {
+        return errorResponse("Payment is not in PENDING or APPROVED status");
+      }
     }
 
-    const newStatus = action === "VERIFY" ? "VERIFIED" : "REJECTED";
+    // Determine target status
+    let newStatus = payment.status;
+    if (action === "VERIFY") {
+      if (caller.role === "VERIFIER") {
+        newStatus = "APPROVED";
+      } else {
+        newStatus = "VERIFIED";
+      }
+    } else {
+      newStatus = "REJECTED";
+    }
 
     const updatedPayment = await prisma.payment.update({
       where: { id },
@@ -65,16 +89,41 @@ export async function PATCH(
       },
     });
 
+    // If payment is for an event, we need to update the corresponding event registration status
+    if (payment.type === "EVENT" && payment.eventId) {
+      const regStatus = newStatus === "APPROVED" || newStatus === "VERIFIED" ? "APPROVED" : "REJECTED";
+      // Find and update registration
+      const registration = await prisma.eventRegistration.findFirst({
+        where: { userId: payment.userId, eventId: payment.eventId },
+      });
+      if (registration) {
+        await prisma.eventRegistration.update({
+          where: { id: registration.id },
+          data: { status: regStatus },
+        });
+
+        // If registration is rejected, and it was approved previously, handle seat count
+        if (regStatus === "REJECTED" && registration.status === "APPROVED") {
+          await prisma.event.update({
+            where: { id: payment.eventId },
+            data: { currentSeats: { decrement: 1 } },
+          });
+        }
+      }
+    }
+
     // Create notification
     await prisma.notification.create({
       data: {
         userId: payment.userId,
-        title: action === "VERIFY" ? "Payment Verified" : "Payment Rejected",
+        title: newStatus === "VERIFIED" ? "Payment Verified" : newStatus === "APPROVED" ? "Payment Approved" : "Payment Rejected",
         message:
-          action === "VERIFY"
+          newStatus === "VERIFIED"
             ? `Your payment of ${payment.amount} has been verified.`
-            : `Your payment of ${payment.amount} has been rejected. Please contact the treasurer for more information.`,
-        type: action === "VERIFY" ? "SUCCESS" : "WARNING",
+            : newStatus === "APPROVED"
+            ? `Your payment of ${payment.amount} has been approved by the event verifier.`
+            : `Your payment of ${payment.amount} has been rejected. Please contact the treasurer/verifier for more information.`,
+        type: newStatus === "VERIFIED" || newStatus === "APPROVED" ? "SUCCESS" : "WARNING",
       },
     });
 
@@ -82,8 +131,8 @@ export async function PATCH(
     await prisma.auditLog.create({
       data: {
         userId: caller.userId,
-        action: `PAYMENT_${action === "VERIFY" ? "VERIFIED" : "REJECTED"}`,
-        details: `${action === "VERIFY" ? "Verified" : "Rejected"} payment of ${payment.amount} from ${payment.user.name} (${payment.user.email}). Transaction ID: ${payment.transactionId}`,
+        action: `PAYMENT_${newStatus}`,
+        details: `${newStatus === "VERIFIED" ? "Verified" : newStatus === "APPROVED" ? "Approved" : "Rejected"} payment of ${payment.amount} from ${payment.user.name} (${payment.user.email}). Transaction ID: ${payment.transactionId}`,
       },
     });
 

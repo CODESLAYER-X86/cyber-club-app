@@ -68,14 +68,20 @@ export function VerifyPaymentsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
 
-  const isAuthorized = currentUser && ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const isAuthorized = currentUser && ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN', 'VERIFIER'].includes(currentUser.role);
 
   const loadPayments = async () => {
     if (!isAuthorized) return;
     setLoading(true);
     try {
-      const params = new URLSearchParams({ status: 'PENDING,APPROVED' });
-      if (typeFilter !== 'all') params.set('type', typeFilter);
+      const params = new URLSearchParams();
+      if (currentUser?.role === 'VERIFIER') {
+        params.set('status', 'PENDING');
+        params.set('type', 'EVENT');
+      } else {
+        params.set('status', 'PENDING,APPROVED');
+        if (typeFilter !== 'all') params.set('type', typeFilter);
+      }
       const r = await fetch(`/api/payments?${params}`);
       const d = await r.json();
       if (d.success) setPayments(d.data.payments || []);
@@ -93,7 +99,7 @@ export function VerifyPaymentsPage() {
         <ShieldCheck className="h-16 w-16 text-red-500/80 animate-pulse" />
         <h2 className="text-xl font-bold text-white">Access Denied</h2>
         <p className="text-sm text-gray-500 max-w-md">
-          Only the Treasurer, President, General Secretary, and Platform Admin can access the general finance ledger and verify payments.
+          Only the Treasurer, President, General Secretary, Platform Admin, and Event Verifiers can access verify payments.
         </p>
       </div>
     );
@@ -171,14 +177,16 @@ export function VerifyPaymentsPage() {
           <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
           <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or transaction ID..." className="border-white/10 bg-white/5 pl-10 text-white" />
         </div>
-        <Select value={typeFilter} onValueChange={setTypeFilter}>
-          <SelectTrigger className="w-[150px] border-white/10 bg-white/5 text-white"><SelectValue placeholder="Type" /></SelectTrigger>
-          <SelectContent className="border-white/10 bg-[#1a1a2e]">
-            <SelectItem value="all">All Types</SelectItem>
-            <SelectItem value="MEMBERSHIP">Membership</SelectItem>
-            <SelectItem value="EVENT">Event</SelectItem>
-          </SelectContent>
-        </Select>
+        {currentUser?.role !== 'VERIFIER' && (
+          <Select value={typeFilter} onValueChange={setTypeFilter}>
+            <SelectTrigger className="w-[150px] border-white/10 bg-white/5 text-white"><SelectValue placeholder="Type" /></SelectTrigger>
+            <SelectContent className="border-white/10 bg-[#1a1a2e]">
+              <SelectItem value="all">All Types</SelectItem>
+              <SelectItem value="MEMBERSHIP">Membership</SelectItem>
+              <SelectItem value="EVENT">Event</SelectItem>
+            </SelectContent>
+          </Select>
+        )}
       </div>
 
       {/* Payment Cards */}
@@ -231,7 +239,7 @@ export function VerifyPaymentsPage() {
                     </div>
                     <div className="flex gap-2 shrink-0">
                       <Button size="sm" onClick={() => handleVerify(payment.id, 'VERIFIED')} className="bg-emerald-600 text-white h-8 text-xs">
-                        <CheckCircle className="mr-1 h-3 w-3" />Verify
+                        <CheckCircle className="mr-1 h-3 w-3" />{currentUser?.role === 'VERIFIER' ? 'Approve' : 'Verify'}
                       </Button>
                       <Button size="sm" onClick={() => handleVerify(payment.id, 'REJECTED')} variant="destructive" className="h-8 text-xs">
                         <XCircle className="mr-1 h-3 w-3" />Reject
