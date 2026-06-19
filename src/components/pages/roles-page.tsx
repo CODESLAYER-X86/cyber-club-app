@@ -13,6 +13,28 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 
+const canEditUserRole = (currentUser: User | null, targetUser: User) => {
+  if (!currentUser) return false;
+  if (targetUser.role === 'PLATFORM_ADMIN') return false;
+  if (currentUser.role === 'PLATFORM_ADMIN') return true;
+  if (currentUser.role === 'PRESIDENT') {
+    return targetUser.role !== 'PRESIDENT';
+  }
+  return false;
+};
+
+const getAssignableRoles = (currentUser: User | null) => {
+  if (!currentUser) return [];
+  const allRoles = Object.entries(ROLE_LABELS);
+  if (currentUser.role === 'PLATFORM_ADMIN') {
+    return allRoles.filter(([k]) => k !== 'PLATFORM_ADMIN');
+  }
+  if (currentUser.role === 'PRESIDENT') {
+    return allRoles.filter(([k]) => k !== 'PLATFORM_ADMIN' && k !== 'PRESIDENT');
+  }
+  return [];
+};
+
 const ROLE_CONFIG: Record<string, {
   icon: typeof Shield;
   color: string;
@@ -401,16 +423,22 @@ export function RolesPage() {
                       <p className="text-sm font-medium text-white truncate">{user.name}</p>
                       <p className="text-xs text-gray-500">{user.email}</p>
                     </div>
-                    <Select value={user.role} onValueChange={(v) => handleRoleChange(user.id, v as UserRole)}>
-                      <SelectTrigger className="h-8 w-[150px] border-white/10 bg-white/5 text-xs text-white">
-                        <SelectValue />
-                      </SelectTrigger>
-                      <SelectContent className="border-white/10 bg-[#1a1a2e]">
-                        {Object.entries(ROLE_LABELS).map(([k, v]) => (
-                          <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
+                    {canEditUserRole(currentUser, user) ? (
+                      <Select value={user.role} onValueChange={(v) => handleRoleChange(user.id, v as UserRole)}>
+                        <SelectTrigger className="h-8 w-[150px] border-white/10 bg-white/5 text-xs text-white">
+                          <SelectValue />
+                        </SelectTrigger>
+                        <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                          {getAssignableRoles(currentUser).map(([k, v]) => (
+                            <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
+                    ) : (
+                      <Badge variant="outline" className="border-white/10 text-xs text-gray-400">
+                        {ROLE_LABELS[user.role]}
+                      </Badge>
+                    )}
                   </div>
                 );
               })}
