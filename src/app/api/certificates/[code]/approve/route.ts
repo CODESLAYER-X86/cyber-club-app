@@ -17,8 +17,8 @@ export async function PATCH(
     const body = await request.json();
     const { performedBy, role } = body;
 
-    // Validate authority: Only PRESIDENT can approve
-    if (role !== "PRESIDENT") {
+    // Validate authority: Only PRESIDENT (or Admin) can approve
+    if (!["PRESIDENT", "PLATFORM_ADMIN"].includes(role)) {
       return forbiddenResponse(
         "Only the President can approve certificates"
       );
@@ -105,7 +105,8 @@ export async function PATCH(
     });
 
     return successResponse({ certificate: updatedCertificate });
-  } catch {
+  } catch (error) {
+    console.error("Certificate approval error:", error);
     return serverErrorResponse();
   }
 }

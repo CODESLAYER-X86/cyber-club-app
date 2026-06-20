@@ -17,8 +17,8 @@ export async function PATCH(
     const body = await request.json();
     const { performedBy, role, reason } = body;
 
-    // Validate authority: Only PRESIDENT can revoke
-    if (role !== "PRESIDENT") {
+    // Validate authority: Only PRESIDENT (or Admin) can revoke
+    if (!["PRESIDENT", "PLATFORM_ADMIN"].includes(role)) {
       return forbiddenResponse(
         "Only the President can revoke certificates"
       );
