@@ -22,7 +22,10 @@ export async function GET() {
         where: { membershipStatus: "PENDING" },
       }),
       prisma.payment.aggregate({
-        where: { status: "VERIFIED" },
+        where: { 
+          status: "VERIFIED",
+          type: { not: "EVENT" }
+        },
         _sum: { amount: true },
       }),
       prisma.event.count({
