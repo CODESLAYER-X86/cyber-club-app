@@ -96,7 +96,7 @@ export function AnalyticsPage() {
   const totalMembers = stats?.totalMembers || users.length;
   const activeMembers = stats?.activeMembers || users.filter((u: any) => u.membershipStatus === 'ACTIVE').length;
   const activeEvents = stats?.activeEvents || events.filter((e: any) => ['UPCOMING', 'ONGOING'].includes(e.status)).length;
-  const totalFunds = stats?.totalFunds || payments.filter((p: any) => p.status === 'VERIFIED').reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
+  const totalFunds = stats?.totalFunds || payments.filter((p: any) => p.status === 'VERIFIED' && p.type !== 'EVENT').reduce((sum: number, p: any) => sum + (p.amount || 0), 0);
   const totalEvents = stats?.totalEvents || events.length;
   const retentionRate = totalMembers > 0 ? Math.round((activeMembers / totalMembers) * 100) : 0;
 

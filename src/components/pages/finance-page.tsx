@@ -37,7 +37,7 @@ function generateMonthlyRevenue(payments: Payment[]) {
     const year = now.getMonth() - i < 0 ? now.getFullYear() - 1 : now.getFullYear();
     const monthPayments = payments.filter(p => {
       const d = new Date(p.createdAt);
-      return d.getMonth() === monthIdx && d.getFullYear() === year && p.status === 'VERIFIED';
+      return d.getMonth() === monthIdx && d.getFullYear() === year && p.status === 'VERIFIED' && p.type !== 'EVENT';
     });
     const revenue = monthPayments.reduce((sum, p) => sum + p.amount, 0);
     data.push({ month: months[monthIdx], revenue });
