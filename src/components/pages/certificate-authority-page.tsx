@@ -554,18 +554,27 @@ export function CertificateAuthorityPage() {
   const handleApprove = async (certId: string) => {
     setApprovingId(certId);
     try {
-      await fetch(`/api/certificates/${certId}/approve`, {
+      const res = await fetch(`/api/certificates/${certId}/approve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ performedBy: currentUser?.id, role: currentUser?.role }),
       });
+      
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || 'Failed to approve certificate');
+      }
+      
+      toast({ title: 'Success', description: 'Certificate approved successfully.' });
+      
       if (selectedPresidentEventId) {
         fetchPresidentCerts(selectedPresidentEventId);
       }
       fetchPendingCerts();
       fetchStats();
-    } catch (e) {
+    } catch (e: any) {
       console.error(e);
+      toast({ title: 'Error', description: e.message || 'An error occurred.', variant: 'destructive' });
     } finally {
       setApprovingId(null);
     }
@@ -580,7 +589,8 @@ export function CertificateAuthorityPage() {
     setSearching(true);
     try {
       const r = await fetch(
-        `/api/certificates?search=${encodeURIComponent(searchQuery)}`
+        `/api/certificates?search=${encodeURIComponent(searchQuery)}&t=${Date.now()}`,
+        { cache: 'no-store' }
       );
       const d = await r.json();
       if (d.success) {
