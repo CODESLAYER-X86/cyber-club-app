@@ -28,17 +28,25 @@ export default function Home() {
       window.history.replaceState({}, '', '/');
     }
 
+    const wasLoggedIn = typeof window !== 'undefined' && localStorage.getItem('csc_logged_in') === 'true';
+
+    // Optimize initial load: skip verification fetch if user is a guest
+    if (!wasLoggedIn && !isGoogleAuthRedirect) {
+      return;
+    }
+
     fetch('/api/auth/google-user')
       .then((r) => r.json())
       .then((data) => {
         if (data.success && data.data?.user) {
           login(data.data.user);
-        } else if (isGoogleAuthRedirect) {
-          // Only redirect to login if the explicit google_auth redirect failed
-          setCurrentView('login');
+        } else {
+          if (typeof window !== 'undefined') localStorage.removeItem('csc_logged_in');
+          if (isGoogleAuthRedirect) setCurrentView('login');
         }
       })
       .catch(() => {
+        if (typeof window !== 'undefined') localStorage.removeItem('csc_logged_in');
         if (isGoogleAuthRedirect) setCurrentView('login');
       });
   }, [setCurrentView, setCertificateShareCode, login]);

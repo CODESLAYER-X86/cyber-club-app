@@ -148,9 +148,30 @@ export function DashboardPage() {
 
   if (loading) {
     return (
-      <div className="space-y-6">
+      <div className="space-y-6 animate-pulse">
+        {/* Skeleton Greeting */}
+        <div className="space-y-2">
+          <div className="h-7 w-48 rounded-lg bg-white/5" />
+          <div className="h-4 w-32 rounded-lg bg-white/5" />
+        </div>
+
+        {/* Skeleton Stat Cards */}
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {[1,2,3,4].map(i => <div key={i} className="h-32 animate-pulse rounded-xl bg-white/5" />)}
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-32 rounded-xl border border-white/5 bg-white/[0.02]" />
+          ))}
+        </div>
+
+        {/* Skeleton Main Grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+        </div>
+
+        {/* Skeleton Second Grid */}
+        <div className="grid gap-6 lg:grid-cols-2">
+          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
         </div>
       </div>
     );

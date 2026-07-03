@@ -49,21 +49,29 @@ export const useAppStore = create<AppState>((set) => ({
   notifications: [],
 
   // Actions
-  login: (user) =>
+  login: (user) => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem("csc_logged_in", "true");
+    }
     set({
       currentUser: user,
       isAuthenticated: true,
       currentView: "dashboard",
-    }),
+    });
+  },
 
-  logout: () =>
+  logout: () => {
+    if (typeof window !== "undefined") {
+      localStorage.removeItem("csc_logged_in");
+    }
     set({
       currentUser: null,
       isAuthenticated: false,
       currentView: "landing",
       selectedEventId: null,
       selectedMemberId: null,
-    }),
+    });
+  },
 
   setCurrentView: (view) => set({ currentView: view }),
 
