@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET() {
   try {
@@ -17,11 +18,18 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, content, type = "GENERAL", createdBy } = body;
+    const { title, content, type = "GENERAL" } = body;
 
-    if (!title || !content || !createdBy) {
-      return errorResponse("title, content, and createdBy are required");
+    if (!title || !content) {
+      return errorResponse("title and content are required");
     }
+
+    const ANNOUNCEMENT_ROLES = ["PRESIDENT", "VP", "GS", "PLATFORM_ADMIN", "MEDIA"];
+    const caller = await getSupabaseUser(ANNOUNCEMENT_ROLES);
+    if (!caller) {
+      return forbiddenResponse("Only President, VP, GS, Media, or Platform Admin can publish announcements");
+    }
+    const createdBy = caller.userId;
 
     const announcement = await prisma.announcement.create({
       data: {

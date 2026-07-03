@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   try {
@@ -84,12 +85,18 @@ export async function POST(request: NextRequest) {
       requiresAssessment = false,
       passingScore,
       verifierId,
-      createdBy,
     } = body;
 
-    if (!title || !description || !startDate || !endDate || !venue || !createdBy) {
-      return errorResponse("title, description, startDate, endDate, venue, and createdBy are required");
+    if (!title || !description || !startDate || !endDate || !venue) {
+      return errorResponse("title, description, startDate, endDate, and venue are required");
     }
+
+    const EVENT_CREATOR_ROLES = ["PRESIDENT", "VP", "GS", "PLATFORM_ADMIN", "MEDIA"];
+    const caller = await getSupabaseUser(EVENT_CREATOR_ROLES);
+    if (!caller) {
+      return forbiddenResponse("Only President, VP, GS, Media, or Platform Admin can create events");
+    }
+    const createdBy = caller.userId;
 
     const event = await prisma.event.create({
       data: {

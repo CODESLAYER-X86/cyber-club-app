@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET() {
   try {
@@ -50,11 +51,17 @@ export async function GET() {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, amount, category, period, createdBy } = body;
+    const { title, amount, category, period } = body;
 
-    if (!title || !amount || !category || !period || !createdBy) {
-      return errorResponse("title, amount, category, period, and createdBy are required");
+    if (!title || !amount || !category || !period) {
+      return errorResponse("title, amount, category, and period are required");
     }
+
+    const caller = await getSupabaseUser(["TREASURER", "PRESIDENT", "PLATFORM_ADMIN"]);
+    if (!caller) {
+      return forbiddenResponse("Only TREASURER, PRESIDENT, or PLATFORM_ADMIN can create budgets");
+    }
+    const createdBy = caller.userId;
 
     const budget = await prisma.budget.create({
       data: {

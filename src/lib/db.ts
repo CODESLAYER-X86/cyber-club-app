@@ -11,6 +11,9 @@ function createClient(): PrismaClient {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
     ssl: { rejectUnauthorized: false }, // Supabase requires SSL
+    max: 2, // Restrict pool size in serverless/edge to prevent connection exhaustion
+    idleTimeoutMillis: 30000,
+    connectionTimeoutMillis: 2000,
   });
 
   const adapter = new PrismaPg(pool);

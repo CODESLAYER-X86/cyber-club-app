@@ -7,8 +7,9 @@ import {
   serverErrorResponse,
 } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
-const REJECT_ROLES = ["PRESIDENT", "VP"];
+const REJECT_ROLES = ["PRESIDENT", "VP", "PLATFORM_ADMIN"];
 
 export async function PATCH(
   request: NextRequest,
@@ -16,21 +17,11 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { userId } = body;
 
-    if (!userId) {
-      return errorResponse("userId is required");
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true, name: true },
-    });
-
-    if (!user || !REJECT_ROLES.includes(user.role)) {
+    const caller = await getSupabaseUser(REJECT_ROLES);
+    if (!caller) {
       return forbiddenResponse(
-        "Only PRESIDENT or VP can reject achievements"
+        "Only PRESIDENT, VP, or PLATFORM_ADMIN can reject achievements"
       );
     }
 

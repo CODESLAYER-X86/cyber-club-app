@@ -118,6 +118,10 @@ model Payment {
   user       User    @relation(fields: [userId], references: [id])
   event      Event?  @relation(fields: [eventId], references: [id])
   verifier   User?   @relation("PaymentVerifier", fields: [verifiedBy], references: [id])
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
 }
 
 model Budget {
@@ -190,6 +194,10 @@ model Certificate {
   approver  User?               @relation("CertificateApprover", fields: [approvedBy], references: [id])
   revoker   User?               @relation("CertificateRevoker", fields: [revokedBy], references: [id])
   auditLogs CertificateAuditLog[]
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
 }
 
 model Assessment {
@@ -226,6 +234,9 @@ model AuditLog {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
 }
 
 model CertificateAuditLog {

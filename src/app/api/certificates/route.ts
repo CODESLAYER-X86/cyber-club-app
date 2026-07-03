@@ -7,6 +7,7 @@ import {
 } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 const AUTHORIZED_ROLES = ["GS", "PRESIDENT", "PLATFORM_ADMIN"];
 
@@ -214,10 +215,14 @@ export async function GET(request: NextRequest) {
     let registrations: any[] = [];
     let attendanceRecords: any[] = [];
     const eventIds = Array.from(new Set(certificates.map((c) => c.eventId))) as string[];
-    if (eventIds.length > 0) {
+    const userIds = Array.from(new Set(certificates.map((c) => c.userId))) as string[];
+    if (eventIds.length > 0 && userIds.length > 0) {
       [registrations, attendanceRecords] = await Promise.all([
         prisma.eventRegistration.findMany({
-          where: { eventId: { in: eventIds } },
+          where: { 
+            eventId: { in: eventIds },
+            userId: { in: userIds }
+          },
           select: {
             userId: true,
             eventId: true,
@@ -228,7 +233,10 @@ export async function GET(request: NextRequest) {
           },
         }),
         prisma.attendance.findMany({
-          where: { eventId: { in: eventIds } },
+          where: { 
+            eventId: { in: eventIds },
+            userId: { in: userIds }
+          },
           select: {
             userId: true,
             eventId: true,
@@ -267,25 +275,21 @@ export async function POST(request: NextRequest) {
       eventId,
       type = "PARTICIPATION",
       score,
-      issuedBy,
-      role,
       eligibilityVerified = false,
       eligibilityDetails,
     } = body;
 
     // Authority check: Only GS, PRESIDENT, or PLATFORM_ADMIN can issue certificates
-    if (!role || !AUTHORIZED_ROLES.includes(role)) {
+    const caller = await getSupabaseUser(AUTHORIZED_ROLES);
+    if (!caller) {
       return forbiddenResponse(
         "Only GS, President, or Platform Admin can issue certificates"
       );
     }
+    const issuedBy = caller.userId;
 
     if (!userId || !eventId) {
       return errorResponse("userId and eventId are required");
-    }
-
-    if (!issuedBy) {
-      return errorResponse("issuedBy (issuer user ID) is required");
     }
 
     // Determine certificate status based on type

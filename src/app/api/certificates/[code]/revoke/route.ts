@@ -7,6 +7,7 @@ import {
   serverErrorResponse,
 } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function PATCH(
   request: NextRequest,
@@ -15,19 +16,16 @@ export async function PATCH(
   try {
     const { code: certificateId } = await params;
     const body = await request.json();
-    const { performedBy, role, reason } = body;
+    const { reason } = body;
 
-    // Validate authority: Only PRESIDENT (or Admin) can revoke
-    if (!["PRESIDENT", "PLATFORM_ADMIN"].includes(role)) {
+    // Validate authority: Only PRESIDENT or PLATFORM_ADMIN can revoke
+    const caller = await getSupabaseUser(["PRESIDENT", "PLATFORM_ADMIN"]);
+    if (!caller) {
       return forbiddenResponse(
-        "Only the President can revoke certificates"
+        "Only the President or Platform Admin can revoke certificates"
       );
     }
-
-    // Validate required fields
-    if (!performedBy) {
-      return errorResponse("performedBy (user ID) is required");
-    }
+    const performedBy = caller.userId;
 
     if (!reason || typeof reason !== "string" || reason.trim().length === 0) {
       return errorResponse("A reason for revocation is required");

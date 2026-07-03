@@ -88,9 +88,24 @@ export function DashboardPage() {
     const load = async () => {
       setLoading(true);
       try {
-        const statsRes = await fetch('/api/stats');
-        const statsData = await statsRes.json();
-        if (statsData.success && statsData.data) {
+        const fetchPromises: Promise<any>[] = [
+          fetch('/api/stats').then(res => res.json()),
+          fetch('/api/audit-logs?limit=5').then(res => res.json())
+        ];
+
+        if (currentUser) {
+          fetchPromises.push(fetch(`/api/certificates?userId=${currentUser.id}`).then(res => res.json()));
+          fetchPromises.push(fetch(`/api/payments?userId=${currentUser.id}`).then(res => res.json()));
+
+          if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+            fetchPromises.push(fetch('/api/users/approval').then(res => res.json()));
+          }
+        }
+
+        const results = await Promise.all(fetchPromises);
+
+        const statsData = results[0];
+        if (statsData?.success && statsData.data) {
           const d = statsData.data;
           const s = d.stats || d;
           setStats({
@@ -103,24 +118,19 @@ export function DashboardPage() {
           });
         }
 
-        // Fetch audit logs for activity feed
-        const auditRes = await fetch('/api/audit-logs?limit=5');
-        const auditData = await auditRes.json();
-        if (auditData.success) setAuditLogs(auditData.data.auditLogs || []);
+        const auditData = results[1];
+        if (auditData?.success) setAuditLogs(auditData.data.auditLogs || []);
 
         if (currentUser) {
-          const certRes = await fetch(`/api/certificates?userId=${currentUser.id}`);
-          const certData = await certRes.json();
-          if (certData.success) setCertificates(certData.data.certificates || []);
+          const certData = results[2];
+          if (certData?.success) setCertificates(certData.data.certificates || []);
 
-          const payRes = await fetch(`/api/payments?userId=${currentUser.id}`);
-          const payData = await payRes.json();
-          if (payData.success) setPayments(payData.data.payments || []);
+          const payData = results[3];
+          if (payData?.success) setPayments(payData.data.payments || []);
 
           if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
-            const pendingRes = await fetch('/api/users/approval');
-            const pendingData = await pendingRes.json();
-            if (pendingData.success) setPendingUsers(pendingData.data.users || []);
+            const pendingData = results[4];
+            if (pendingData?.success) setPendingUsers(pendingData.data.users || []);
           }
         }
       } catch (e) { console.error(e); } finally { setLoading(false); }

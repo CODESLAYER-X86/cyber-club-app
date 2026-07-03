@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   try {
@@ -70,6 +71,16 @@ export async function POST(request: NextRequest) {
 
     if (!userId || !amount || !transactionId) {
       return errorResponse("userId, amount, and transactionId are required");
+    }
+
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to submit payments");
+    }
+
+    // Anti-spoofing: normal members can only submit payments on behalf of themselves
+    if (userId !== caller.userId && !["TREASURER", "PRESIDENT", "PLATFORM_ADMIN"].includes(caller.role)) {
+      return forbiddenResponse("You can only submit payments for yourself");
     }
 
     const payment = await prisma.payment.create({

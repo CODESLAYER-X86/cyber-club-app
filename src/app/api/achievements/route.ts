@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   try {
@@ -48,11 +49,17 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, description, submittedBy, achievedDate, imageUrl, category, achievedBy } = body;
+    const { title, description, achievedDate, imageUrl, category, achievedBy } = body;
 
-    if (!title || !description || !submittedBy || !achievedDate) {
-      return errorResponse("title, description, submittedBy, and achievedDate are required");
+    if (!title || !description || !achievedDate) {
+      return errorResponse("title, description, and achievedDate are required");
     }
+
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to submit achievements");
+    }
+    const submittedBy = caller.userId;
 
     const achievement = await prisma.achievement.create({
       data: {

@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 const APPROVE_ROLES = ["PRESIDENT", "VP", "PLATFORM_ADMIN"];
 
@@ -10,16 +11,12 @@ export async function POST(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json();
-    const { approvedBy, role } = body;
 
-    if (!approvedBy) {
-      return errorResponse("approvedBy is required");
-    }
-
-    if (!role || !APPROVE_ROLES.includes(role)) {
+    const caller = await getSupabaseUser(APPROVE_ROLES);
+    if (!caller) {
       return forbiddenResponse("Only PRESIDENT, VP, or PLATFORM_ADMIN can approve achievements");
     }
+    const approvedBy = caller.userId;
 
     const achievement = await prisma.achievement.findUnique({
       where: { id },

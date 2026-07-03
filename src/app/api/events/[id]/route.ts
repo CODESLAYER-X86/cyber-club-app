@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, notFoundResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "MEDIA", "VP", "GS"];
 
@@ -10,12 +11,9 @@ export async function DELETE(
 ) {
   try {
     const { id } = await params;
-    const body = await request.json().catch(() => ({}));
-    const role = body.role as string | undefined;
-
-    // Only authorized roles can delete events
-    if (!role || !DELETE_ROLES.includes(role)) {
-      return errorResponse("You do not have permission to delete events", 403);
+    const caller = await getSupabaseUser(DELETE_ROLES);
+    if (!caller) {
+      return forbiddenResponse("You do not have permission to delete events");
     }
 
     const event = await prisma.event.findUnique({ where: { id } });
@@ -164,6 +162,11 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
+
+    const caller = await getSupabaseUser(DELETE_ROLES);
+    if (!caller) {
+      return forbiddenResponse("You do not have permission to modify events");
+    }
 
     const event = await prisma.event.findUnique({ where: { id } });
     if (!event) {

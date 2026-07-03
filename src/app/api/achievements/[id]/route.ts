@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 const APPROVE_ROLES = ["PRESIDENT", "VP", "PLATFORM_ADMIN"];
 const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN"];
@@ -12,11 +13,13 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { status, approvedBy, role } = body;
+    const { status } = body;
 
-    if (!role || !APPROVE_ROLES.includes(role)) {
+    const caller = await getSupabaseUser(APPROVE_ROLES);
+    if (!caller) {
       return forbiddenResponse("Only PRESIDENT, VP, or PLATFORM_ADMIN can update achievement status");
     }
+    const approvedBy = caller.userId;
 
     const achievement = await prisma.achievement.findUnique({
       where: { id },
@@ -68,11 +71,8 @@ export async function DELETE(
   try {
     const { id } = await params;
 
-    // Check authorization from query params or body
-    const searchParams = request.nextUrl.searchParams;
-    const role = searchParams.get("role");
-
-    if (!role || !DELETE_ROLES.includes(role)) {
+    const caller = await getSupabaseUser(DELETE_ROLES);
+    if (!caller) {
       return forbiddenResponse("Only PRESIDENT or PLATFORM_ADMIN can delete achievements");
     }
 
