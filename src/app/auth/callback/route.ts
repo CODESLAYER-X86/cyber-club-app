@@ -40,12 +40,23 @@ export async function GET(request: NextRequest) {
 
   const { data: { session }, error } = await supabase.auth.exchangeCodeForSession(code);
 
+  let user = session?.user;
+
   if (error || !session) {
-    console.error('[Google OAuth] exchangeCodeForSession error:', error?.message);
+    // Fallback: check if we already have an active session (e.g., from a duplicate request)
+    const { data: { user: existingUser } } = await supabase.auth.getUser();
+    if (existingUser) {
+      user = existingUser;
+    } else {
+      console.error('[Google OAuth] exchangeCodeForSession error:', error?.message);
+      return NextResponse.redirect(`${origin}/?error=google_auth_failed`);
+    }
+  }
+
+  if (!user) {
     return NextResponse.redirect(`${origin}/?error=google_auth_failed`);
   }
 
-  const { user } = session;
   const email = user.email;
   const name =
     user.user_metadata?.full_name ||
