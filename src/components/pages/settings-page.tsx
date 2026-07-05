@@ -57,41 +57,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.4, ease: 'easeOut' } },
 };
 
-interface SessionItem {
-  id: string;
-  device: string;
-  browser: string;
-  location: string;
-  lastActive: string;
-  isCurrent: boolean;
-}
 
-const MOCK_SESSIONS: SessionItem[] = [
-  {
-    id: '1',
-    device: 'Desktop',
-    browser: 'Chrome 120',
-    location: 'Dhaka, Bangladesh',
-    lastActive: 'Now',
-    isCurrent: true,
-  },
-  {
-    id: '2',
-    device: 'Mobile',
-    browser: 'Safari 17',
-    location: 'Dhaka, Bangladesh',
-    lastActive: '2 hours ago',
-    isCurrent: false,
-  },
-  {
-    id: '3',
-    device: 'Desktop',
-    browser: 'Firefox 121',
-    location: 'Chittagong, Bangladesh',
-    lastActive: '1 day ago',
-    isCurrent: false,
-  },
-];
 
 export function SettingsPage() {
   const { currentUser, updateCurrentUser, theme, setTheme, sidebarOpen, setSidebarOpen } = useAppStore();
@@ -525,60 +491,7 @@ export function SettingsPage() {
               </div>
             </div>
 
-            <Separator className="bg-white/5" />
 
-            {/* Active Sessions */}
-
-            {/* Active Sessions */}
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <Monitor className="h-4 w-4 text-gray-500" />
-                <p className="text-sm font-medium text-gray-200">Active Sessions</p>
-              </div>
-              <div className="space-y-2">
-                {MOCK_SESSIONS.map((session) => (
-                  <div
-                    key={session.id}
-                    className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3"
-                  >
-                    <div className="flex items-center gap-3">
-                      <div className={cn(
-                        'flex h-8 w-8 items-center justify-center rounded-md',
-                        session.device === 'Desktop' ? 'bg-cyan-500/10' : 'bg-amber-500/10'
-                      )}>
-                        {session.device === 'Desktop' ? (
-                          <Monitor className="h-4 w-4 text-cyan-400" />
-                        ) : (
-                          <Smartphone className="h-4 w-4 text-amber-400" />
-                        )}
-                      </div>
-                      <div>
-                        <div className="flex items-center gap-2">
-                          <p className="text-sm text-gray-200">{session.browser}</p>
-                          {session.isCurrent && (
-                            <Badge className="bg-emerald-500/10 text-emerald-400 border-emerald-500/20 text-[10px] px-1.5 py-0">
-                              Current
-                            </Badge>
-                          )}
-                        </div>
-                        <p className="text-xs text-gray-500">
-                          {session.location} &middot; {session.lastActive}
-                        </p>
-                      </div>
-                    </div>
-                    {!session.isCurrent && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-xs text-red-400 hover:bg-red-500/10 hover:text-red-300"
-                      >
-                        Revoke
-                      </Button>
-                    )}
-                  </div>
-                ))}
-              </div>
-            </div>
           </CardContent>
         </Card>
       </motion.div>

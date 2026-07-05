@@ -4,8 +4,8 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail, Hash, Building2, Phone, Edit3, Save, Calendar,
-  Award, CreditCard, Shield, Clock, Camera, Activity, Lock,
-  CheckCircle2, XCircle, Loader2,
+  Award, CreditCard, Clock, Camera, Activity,
+  XCircle, Loader2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { ROLE_LABELS, MEMBERSHIP_STATUS_LABELS, User } from '@/types';
@@ -69,7 +69,6 @@ export function ProfilePage() {
   const [stats, setStats] = useState<ProfileStats>({ eventsAttended: 0, certificates: 0, payments: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
   const [recentActivity, setRecentActivity] = useState<ActivityItem[]>([]);
-  const [twoFactor, setTwoFactor] = useState(false);
 
   const isViewingSelf = !selectedMemberId || selectedMemberId === currentUser?.id;
   const userToShow = isViewingSelf ? currentUser : profileUser;
@@ -425,125 +424,42 @@ export function ProfilePage() {
         </Card>
       </motion.div>
 
-      {/* Activity Timeline & Security */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Activity Timeline */}
-        <motion.div variants={item}>
-          <Card className="border-white/5 bg-[#111]/60 backdrop-blur h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-white text-base">
-                <Activity className="h-4 w-4 text-emerald-400" />
-                Recent Activity
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              {recentActivity.length === 0 ? (
-                <p className="text-sm text-gray-600 text-center py-8">No recent activity</p>
-              ) : (
-                <div className="space-y-0">
-                  {recentActivity.map((activity, idx) => (
-                    <div key={activity.id} className="relative flex gap-3 pb-4 last:pb-0">
-                      {/* Timeline line */}
-                      {idx < recentActivity.length - 1 && (
-                        <div className="absolute left-[11px] top-6 bottom-0 w-px bg-gradient-to-b from-emerald-500/30 to-transparent" />
-                      )}
-                      {/* Timeline dot */}
-                      <div className="mt-1 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
-                        <div className="h-2 w-2 rounded-full bg-emerald-400" />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm text-white font-medium truncate">{activity.action}</p>
-                        <p className="text-xs text-gray-500 truncate">{activity.details}</p>
-                        <p className="text-[10px] text-gray-600 mt-0.5">{timeAgo(activity.createdAt)}</p>
-                      </div>
+      {/* Activity Timeline */}
+      <motion.div variants={item}>
+        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+          <CardHeader className="pb-3">
+            <CardTitle className="flex items-center gap-2 text-white text-base">
+              <Activity className="h-4 w-4 text-emerald-400" />
+              Recent Activity
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {recentActivity.length === 0 ? (
+              <p className="text-sm text-gray-600 text-center py-8">No recent activity</p>
+            ) : (
+              <div className="space-y-0">
+                {recentActivity.map((activity, idx) => (
+                  <div key={activity.id} className="relative flex gap-3 pb-4 last:pb-0">
+                    {/* Timeline line */}
+                    {idx < recentActivity.length - 1 && (
+                      <div className="absolute left-[11px] top-6 bottom-0 w-px bg-gradient-to-b from-emerald-500/30 to-transparent" />
+                    )}
+                    {/* Timeline dot */}
+                    <div className="mt-1 flex h-[22px] w-[22px] shrink-0 items-center justify-center rounded-full bg-emerald-500/10 border border-emerald-500/20">
+                      <div className="h-2 w-2 rounded-full bg-emerald-400" />
                     </div>
-                  ))}
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-
-        {/* Security Card */}
-        <motion.div variants={item}>
-          <Card className="border-white/5 bg-[#111]/60 backdrop-blur h-full">
-            <CardHeader className="pb-3">
-              <CardTitle className="flex items-center gap-2 text-white text-base">
-                <Shield className="h-4 w-4 text-cyan-400" />
-                Security
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="space-y-4">
-              {/* Account status */}
-              <div className="flex items-center justify-between rounded-lg p-3 bg-white/[0.02] border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
-                    <CheckCircle2 className="h-4 w-4 text-emerald-400" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm text-white font-medium truncate">{activity.action}</p>
+                      <p className="text-xs text-gray-500 truncate">{activity.details}</p>
+                      <p className="text-[10px] text-gray-600 mt-0.5">{timeAgo(activity.createdAt)}</p>
+                    </div>
                   </div>
-                  <div>
-                    <p className="text-sm text-white font-medium">Account Status</p>
-                    <p className="text-xs text-gray-500">{isViewingSelf ? 'Your account is active' : 'This account is active'}</p>
-                  </div>
-                </div>
-                <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 bg-emerald-500/10 text-[10px]">
-                  Active
-                </Badge>
+                ))}
               </div>
-
-              {/* Last login */}
-              <div className="flex items-center justify-between rounded-lg p-3 bg-white/[0.02] border border-white/5">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-cyan-500/10">
-                    <Clock className="h-4 w-4 text-cyan-400" />
-                  </div>
-                  <div>
-                    <p className="text-sm text-white font-medium">Last Login</p>
-                    <p className="text-xs text-gray-500">{new Date(userToShow.updatedAt).toLocaleString()}</p>
-                  </div>
-                </div>
-              </div>
-
-              {/* Two-factor auth */}
-              {isViewingSelf && (
-                <div className="flex items-center justify-between rounded-lg p-3 bg-white/[0.02] border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10">
-                      <Lock className="h-4 w-4 text-violet-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-white font-medium">Two-Factor Auth</p>
-                      <p className="text-xs text-gray-500">{twoFactor ? 'Enabled' : 'Disabled'}</p>
-                    </div>
-                  </div>
-                  <Switch
-                    checked={twoFactor}
-                    onCheckedChange={setTwoFactor}
-                    className="data-[state=checked]:bg-emerald-600"
-                  />
-                </div>
-              )}
-
-              {/* Password */}
-              {isViewingSelf && (
-                <div className="flex items-center justify-between rounded-lg p-3 bg-white/[0.02] border border-white/5">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
-                      <Shield className="h-4 w-4 text-amber-400" />
-                    </div>
-                    <div>
-                      <p className="text-sm text-white font-medium">Password</p>
-                      <p className="text-xs text-gray-500">Last changed recently</p>
-                    </div>
-                  </div>
-                  <Button variant="ghost" size="sm" className="text-xs text-gray-400 hover:text-white h-7">
-                    Change
-                  </Button>
-                </div>
-              )}
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
     </motion.div>
   );
 }
