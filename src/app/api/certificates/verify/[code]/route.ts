@@ -26,6 +26,7 @@ export async function GET(
             category: true,
             startDate: true,
             endDate: true,
+            certificateLayout: true,
           },
         },
       },

@@ -2,7 +2,10 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Save, Loader2, Sparkles, Image as ImageIcon, Paintbrush, SwitchCamera } from 'lucide-react';
+import {
+  ArrowLeft, Save, Loader2, Sparkles, Image as ImageIcon,
+  Paintbrush, Settings, Sliders, Type, CheckCircle, Plus, Trash2, Award
+} from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -18,16 +21,61 @@ interface SignatureConfig {
   visible: boolean;
 }
 
+interface TextTemplate {
+  title: string;
+  description: string;
+}
+
 interface LayoutConfig {
+  orientation: "LANDSCAPE" | "PORTRAIT";
+  paperSize: "A4" | "LETTER";
   bgImage: string;
   primaryColor: string;
   secondaryColor: string;
-  title: string;
+  collabMode: boolean;
   orgLogo: string;
   eventLogo: string;
+  qrCode: {
+    visible: boolean;
+    size: number;
+    x: number;
+    y: number;
+  };
+  certId: {
+    visible: boolean;
+    x: number;
+    y: number;
+  };
+  templates: Record<string, TextTemplate>;
+  selectedTypes: string[];
   signatures: SignatureConfig[];
-  collabMode?: boolean;
 }
+
+const DEFAULT_TEMPLATES: Record<string, TextTemplate> = {
+  PARTICIPATION: { title: 'CERTIFICATE OF PARTICIPATION', description: 'This certifies that {{recipient_name}} successfully participated in {{event_name}}.' },
+  WINNER: { title: 'CERTIFICATE OF ACHIEVEMENT', description: 'This certifies that {{recipient_name}} secured Winner in {{event_name}}.' },
+  FIRST_PLACE: { title: 'CERTIFICATE OF EXCELLENCE', description: 'This certifies that {{recipient_name}} secured 1st Place in {{event_name}}.' },
+  SECOND_PLACE: { title: 'CERTIFICATE OF EXCELLENCE', description: 'This certifies that {{recipient_name}} secured 2nd Place in {{event_name}}.' },
+  THIRD_PLACE: { title: 'CERTIFICATE OF EXCELLENCE', description: 'This certifies that {{recipient_name}} secured 3rd Place in {{event_name}}.' },
+  ORGANIZER: { title: 'CERTIFICATE OF APPRECIATION', description: 'This certifies that {{recipient_name}} successfully served as an Organizer for {{event_name}}.' },
+  VOLUNTEER: { title: 'CERTIFICATE OF APPRECIATION', description: 'This certifies that {{recipient_name}} successfully served as a Volunteer for {{event_name}}.' },
+  JUDGE: { title: 'CERTIFICATE OF APPRECIATION', description: 'This certifies that {{recipient_name}} successfully served as a Judge for {{event_name}}.' },
+  APPRECIATION: { title: 'CERTIFICATE OF APPRECIATION', description: 'This is awarded to {{recipient_name}} in appreciation of their contributions to {{event_name}}.' },
+  CUSTOM: { title: 'CERTIFICATE OF RECOGNITION', description: 'This is awarded to {{recipient_name}} for {{event_name}}.' },
+};
+
+const CERT_TYPE_LABELS: Record<string, string> = {
+  PARTICIPATION: 'Participation',
+  WINNER: 'Winner',
+  FIRST_PLACE: '1st Place',
+  SECOND_PLACE: '2nd Place',
+  THIRD_PLACE: '3rd Place',
+  ORGANIZER: 'Organizer',
+  VOLUNTEER: 'Volunteer',
+  JUDGE: 'Judge',
+  APPRECIATION: 'Appreciation',
+  CUSTOM: 'Custom Type',
+};
 
 export function CertificateDesigner() {
   const { selectedEventId, setCurrentView } = useAppStore();
@@ -36,13 +84,29 @@ export function CertificateDesigner() {
   const [loading, setLoading] = useState(true);
 
   // Layout states
+  const [orientation, setOrientation] = useState<"LANDSCAPE" | "PORTRAIT">("LANDSCAPE");
+  const [paperSize, setPaperSize] = useState<"A4" | "LETTER">("A4");
   const [bgImage, setBgImage] = useState('');
-  const [primaryColor, setPrimaryColor] = useState('#10b981'); // fallback default
-  const [secondaryColor, setSecondaryColor] = useState('#06b6d4'); // fallback default
-  const [title, setTitle] = useState('CERTIFICATE OF PARTICIPATION');
+  const [primaryColor, setPrimaryColor] = useState('#10b981');
+  const [secondaryColor, setSecondaryColor] = useState('#06b6d4');
+  const [collabMode, setCollabMode] = useState(false);
   const [orgLogo, setOrgLogo] = useState('');
   const [eventLogo, setEventLogo] = useState('');
-  const [collabMode, setCollabMode] = useState(false);
+
+  // Placements
+  const [qrVisible, setQrVisible] = useState(true);
+  const [qrSize, setQrSize] = useState(80);
+  const [qrX, setQrX] = useState(1040);
+  const [qrY, setQrY] = useState(480);
+
+  const [idVisible, setIdVisible] = useState(true);
+  const [idX, setIdX] = useState(600);
+  const [idY, setIdY] = useState(480);
+
+  // Type-specific templates
+  const [selectedTypes, setSelectedTypes] = useState<string[]>(['PARTICIPATION']);
+  const [templates, setTemplates] = useState<Record<string, TextTemplate>>(DEFAULT_TEMPLATES);
+  const [previewType, setPreviewType] = useState('PARTICIPATION');
 
   // Signatures
   const [signatures, setSignatures] = useState<SignatureConfig[]>([
@@ -56,7 +120,6 @@ export function CertificateDesigner() {
     const fetchEvent = async () => {
       setLoading(true);
       try {
-        // Fetch default colors set globally by the President
         const configRes = await fetch('/api/config');
         const configData = await configRes.json();
         let defaultPrimary = '#10b981';
@@ -74,13 +137,39 @@ export function CertificateDesigner() {
           if (ev.certificateLayout) {
             try {
               const layout: LayoutConfig = JSON.parse(ev.certificateLayout);
+              setOrientation(layout.orientation || "LANDSCAPE");
+              setPaperSize(layout.paperSize || "A4");
               setBgImage(layout.bgImage || '');
               setPrimaryColor(layout.primaryColor || defaultPrimary);
               setSecondaryColor(layout.secondaryColor || defaultSecondary);
-              setTitle(layout.title || 'CERTIFICATE OF PARTICIPATION');
+              setCollabMode(layout.collabMode ?? false);
               setOrgLogo(layout.orgLogo || '');
               setEventLogo(layout.eventLogo || '');
-              setCollabMode(layout.collabMode ?? false);
+
+              if (layout.qrCode) {
+                setQrVisible(layout.qrCode.visible ?? true);
+                setQrSize(layout.qrCode.size || 80);
+                setQrX(layout.qrCode.x || 1040);
+                setQrY(layout.qrCode.y || 480);
+              }
+
+              if (layout.certId) {
+                setIdVisible(layout.certId.visible ?? true);
+                setIdX(layout.certId.x || 600);
+                setIdY(layout.certId.y || 480);
+              }
+
+              if (layout.selectedTypes && Array.isArray(layout.selectedTypes)) {
+                setSelectedTypes(layout.selectedTypes);
+                if (layout.selectedTypes.length > 0) {
+                  setPreviewType(layout.selectedTypes[0]);
+                }
+              }
+
+              if (layout.templates) {
+                setTemplates({ ...DEFAULT_TEMPLATES, ...layout.templates });
+              }
+
               if (layout.signatures && Array.isArray(layout.signatures)) {
                 setSignatures(layout.signatures);
               }
@@ -88,7 +177,6 @@ export function CertificateDesigner() {
               console.error('Failed to parse certificate layout JSON:', e);
             }
           } else {
-            // Set President default colors
             setPrimaryColor(defaultPrimary);
             setSecondaryColor(defaultSecondary);
           }
@@ -110,18 +198,50 @@ export function CertificateDesigner() {
     });
   };
 
+  const updateTemplate = (type: string, field: keyof TextTemplate, value: string) => {
+    setTemplates(prev => ({
+      ...prev,
+      [type]: {
+        ...prev[type],
+        [field]: value
+      }
+    }));
+  };
+
+  const toggleType = (type: string) => {
+    setSelectedTypes(prev => {
+      const active = prev.includes(type)
+        ? prev.filter(t => t !== type)
+        : [...prev, type];
+      if (active.length > 0 && !active.includes(previewType)) {
+        setPreviewType(active[0]);
+      }
+      return active;
+    });
+  };
+
   const handleSave = async () => {
     if (!selectedEventId) return;
+    if (selectedTypes.length === 0) {
+      toast({ title: 'Validation Error', description: 'You must select at least one certificate type', variant: 'destructive' });
+      return;
+    }
+
     setSaving(true);
     const layoutConfig: LayoutConfig = {
+      orientation,
+      paperSize,
       bgImage,
       primaryColor,
       secondaryColor,
-      title,
+      collabMode,
       orgLogo: collabMode ? orgLogo : '',
       eventLogo: collabMode ? eventLogo : '',
+      qrCode: { visible: qrVisible, size: qrSize, x: qrX, y: qrY },
+      certId: { visible: idVisible, x: idX, y: idY },
+      selectedTypes,
+      templates,
       signatures,
-      collabMode,
     };
 
     try {
@@ -148,14 +268,28 @@ export function CertificateDesigner() {
     return (
       <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">
         <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-        <p className="text-sm text-gray-500">Loading certificate configuration...</p>
+        <p className="text-sm text-gray-500 font-medium">Loading certificate designer...</p>
       </div>
     );
   }
 
-  // Pre-calculate X coordinates for active signatures
   const activeSigs = signatures.filter(s => s.visible);
   const sigCount = activeSigs.length;
+
+  const currentTemplate = templates[previewType] || DEFAULT_TEMPLATES.PARTICIPATION;
+  const previewTitle = currentTemplate.title;
+  const previewDesc = currentTemplate.description
+    .replace('{{recipient_name}}', 'Md. Rahim Uddin Shuvo')
+    .replace('{{event_name}}', eventTitle)
+    .replace('{{certificate_type}}', CERT_TYPE_LABELS[previewType] || previewType)
+    .replace('{{position}}', previewType.includes('PLACE') ? CERT_TYPE_LABELS[previewType] : 'Winner')
+    .replace('{{certificate_id}}', 'CSC-2026-CYBERSEC-00125')
+    .replace('{{issue_date}}', 'June 15, 2026');
+
+  // SVG parameters
+  const isLandscape = orientation === 'LANDSCAPE';
+  const width = isLandscape ? 1200 : 840;
+  const height = isLandscape ? 840 : 1200;
 
   return (
     <div className="space-y-6">
@@ -171,32 +305,122 @@ export function CertificateDesigner() {
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
-        {/* Editor Settings (5 columns) */}
+        {/* Editor Controls (5 cols) */}
         <div className="lg:col-span-5 space-y-6">
           <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-            <CardHeader className="border-b border-white/5">
-              <CardTitle className="text-lg text-white flex items-center gap-2">
-                <Paintbrush className="h-5 w-5 text-emerald-400" />
-                Certificate Customization
+            <CardHeader className="border-b border-white/5 py-4">
+              <CardTitle className="text-md text-white flex items-center gap-2">
+                <Paintbrush className="h-4 w-4 text-emerald-400" />
+                Certificate Designer
               </CardTitle>
             </CardHeader>
-            <CardContent className="p-6">
-              <Tabs defaultValue="general" className="space-y-4">
-                <TabsList className="bg-white/5 border border-white/10 w-full justify-start">
-                  <TabsTrigger value="general" className="text-xs">General</TabsTrigger>
-                  <TabsTrigger value="logos" className="text-xs">Logos & bg</TabsTrigger>
-                  <TabsTrigger value="signatures" className="text-xs">Signatures</TabsTrigger>
+            <CardContent className="p-4">
+              <Tabs defaultValue="types" className="space-y-4">
+                <TabsList className="bg-white/5 border border-white/10 w-full justify-start overflow-x-auto">
+                  <TabsTrigger value="types" className="text-xs">1. Types</TabsTrigger>
+                  <TabsTrigger value="branding" className="text-xs">2. Style</TabsTrigger>
+                  <TabsTrigger value="placements" className="text-xs">3. Layout</TabsTrigger>
+                  <TabsTrigger value="signatures" className="text-xs">4. Signatures</TabsTrigger>
                 </TabsList>
 
-                <TabsContent value="general" className="space-y-4 pt-2">
+                {/* TAB 1: Certificate Types Selection & Text Customization */}
+                <TabsContent value="types" className="space-y-4 pt-2">
                   <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Certificate Title</label>
-                    <Input
-                      value={title}
-                      onChange={e => setTitle(e.target.value)}
-                      placeholder="e.g. CERTIFICATE OF PARTICIPATION"
-                      className="border-white/10 bg-white/5 text-white"
-                    />
+                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Available Certificate Types</label>
+                    <div className="grid grid-cols-2 gap-2">
+                      {Object.keys(DEFAULT_TEMPLATES).map((type) => {
+                        const isChecked = selectedTypes.includes(type);
+                        return (
+                          <div
+                            key={type}
+                            onClick={() => toggleType(type)}
+                            className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer select-none transition-all ${
+                              isChecked
+                                ? 'bg-emerald-500/10 border-emerald-500/40 text-white'
+                                : 'bg-white/[0.02] border-white/5 text-gray-400 hover:bg-white/[0.04]'
+                            }`}
+                          >
+                            <div className={`h-4 w-4 rounded flex items-center justify-center border ${
+                              isChecked ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-gray-600 bg-transparent'
+                            }`}>
+                              {isChecked && <span className="text-[10px] font-bold">✓</span>}
+                            </div>
+                            <span className="text-xs font-medium">{CERT_TYPE_LABELS[type]}</span>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {selectedTypes.length > 0 && (
+                    <div className="space-y-4 pt-4 border-t border-white/5">
+                      <div className="space-y-2">
+                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Customize Text templates</label>
+                        <div className="flex gap-2">
+                          <select
+                            value={previewType}
+                            onChange={(e) => setPreviewType(e.target.value)}
+                            className="w-full h-9 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+                          >
+                            {selectedTypes.map(t => (
+                              <option key={t} value={t}>{CERT_TYPE_LABELS[t]}</option>
+                            ))}
+                          </select>
+                        </div>
+                      </div>
+
+                      <div className="space-y-3 p-3 rounded-lg border border-white/5 bg-white/[0.01]">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Certificate Title</label>
+                          <Input
+                            value={templates[previewType]?.title || ''}
+                            onChange={(e) => updateTemplate(previewType, 'title', e.target.value)}
+                            className="h-8 text-xs border-white/10 bg-white/5 text-white"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
+                            <span>Certificate Text Template</span>
+                            <span className="text-[9px] text-gray-600 font-mono">{"Use {{recipient_name}}"}</span>
+                          </label>
+                          <textarea
+                            rows={3}
+                            value={templates[previewType]?.description || ''}
+                            onChange={(e) => updateTemplate(previewType, 'description', e.target.value)}
+                            className="w-full p-2 text-xs border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:border-emerald-500/50 resize-none font-sans"
+                            placeholder="This certifies that {{recipient_name}}..."
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </TabsContent>
+
+                {/* TAB 2: Branding & Style Customization */}
+                <TabsContent value="branding" className="space-y-4 pt-2">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Orientation</label>
+                      <select
+                        value={orientation}
+                        onChange={(e) => setOrientation(e.target.value as any)}
+                        className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+                      >
+                        <option value="LANDSCAPE">Landscape (A4)</option>
+                        <option value="PORTRAIT">Portrait (A4)</option>
+                      </select>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Paper Size</label>
+                      <select
+                        value={paperSize}
+                        onChange={(e) => setPaperSize(e.target.value as any)}
+                        className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+                      >
+                        <option value="A4">A4 Standard</option>
+                        <option value="LETTER">US Letter</option>
+                      </select>
+                    </div>
                   </div>
 
                   <div className="grid grid-cols-2 gap-4">
@@ -233,9 +457,7 @@ export function CertificateDesigner() {
                       </div>
                     </div>
                   </div>
-                </TabsContent>
 
-                <TabsContent value="logos" className="space-y-4 pt-2">
                   <div className="space-y-2">
                     <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
                       <ImageIcon className="h-3.5 w-3.5" /> Background Image URL
@@ -251,7 +473,7 @@ export function CertificateDesigner() {
                   <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3">
                     <div>
                       <p className="text-xs font-semibold text-gray-200">Collaboration Mode</p>
-                      <p className="text-[10px] text-gray-500">Enable if this event is in partnership with other clubs/orgs</p>
+                      <p className="text-[10px] text-gray-500">Enable to display organizer and partner logos</p>
                     </div>
                     <Switch checked={collabMode} onCheckedChange={setCollabMode} />
                   </div>
@@ -259,21 +481,20 @@ export function CertificateDesigner() {
                   {collabMode && (
                     <div className="space-y-4 pt-2 border-t border-white/5">
                       <div className="space-y-2">
-                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Collaborator Logo URL</label>
+                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Partner Logo URL</label>
                         <Input
                           value={orgLogo}
                           onChange={e => setOrgLogo(e.target.value)}
-                          placeholder="https://example.com/collaborator-logo.png (optional)"
+                          placeholder="https://example.com/collaborator-logo.png"
                           className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
                         />
                       </div>
-
                       <div className="space-y-2">
                         <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Co-Host/Sponsor Logo URL</label>
                         <Input
                           value={eventLogo}
                           onChange={e => setEventLogo(e.target.value)}
-                          placeholder="https://example.com/cohost-logo.png (optional)"
+                          placeholder="https://example.com/cohost-logo.png"
                           className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
                         />
                       </div>
@@ -281,6 +502,92 @@ export function CertificateDesigner() {
                   )}
                 </TabsContent>
 
+                {/* TAB 3: Placement Sliders */}
+                <TabsContent value="placements" className="space-y-4 pt-2">
+                  <div className="rounded-lg border border-white/5 bg-white/[0.01] p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Verification QR Code</span>
+                      <Switch checked={qrVisible} onCheckedChange={setQrVisible} />
+                    </div>
+
+                    {qrVisible && (
+                      <div className="space-y-3 pt-2">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-gray-500">
+                            <span>Position X</span>
+                            <span className="font-mono text-white">{qrX}px</span>
+                          </div>
+                          <input
+                            type="range" min="0" max={width} value={qrX}
+                            onChange={(e) => setQrX(parseInt(e.target.value))}
+                            className="w-full accent-emerald-500 cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-gray-500">
+                            <span>Position Y</span>
+                            <span className="font-mono text-white">{qrY}px</span>
+                          </div>
+                          <input
+                            type="range" min="0" max={height} value={qrY}
+                            onChange={(e) => setQrY(parseInt(e.target.value))}
+                            className="w-full accent-emerald-500 cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-gray-500">
+                            <span>Size</span>
+                            <span className="font-mono text-white">{qrSize}px</span>
+                          </div>
+                          <input
+                            type="range" min="40" max="200" value={qrSize}
+                            onChange={(e) => setQrSize(parseInt(e.target.value))}
+                            className="w-full accent-emerald-500 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-lg border border-white/5 bg-white/[0.01] p-4 space-y-4">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Certificate ID Block</span>
+                      <Switch checked={idVisible} onCheckedChange={setIdVisible} />
+                    </div>
+
+                    {idVisible && (
+                      <div className="space-y-3 pt-2">
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-gray-500">
+                            <span>Position X</span>
+                            <span className="font-mono text-white">{idX}px</span>
+                          </div>
+                          <input
+                            type="range" min="0" max={width} value={idX}
+                            onChange={(e) => setIdX(parseInt(e.target.value))}
+                            className="w-full accent-emerald-500 cursor-pointer"
+                          />
+                        </div>
+
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-gray-500">
+                            <span>Position Y</span>
+                            <span className="font-mono text-white">{idY}px</span>
+                          </div>
+                          <input
+                            type="range" min="0" max={height} value={idY}
+                            onChange={(e) => setIdY(parseInt(e.target.value))}
+                            className="w-full accent-emerald-500 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                </TabsContent>
+
+                {/* TAB 4: Signatures */}
                 <TabsContent value="signatures" className="space-y-4 pt-2">
                   {signatures.map((sig, i) => (
                     <div key={i} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 space-y-3">
@@ -313,7 +620,7 @@ export function CertificateDesigner() {
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[10px] text-gray-500 uppercase font-semibold block">Signature Image (Transparent PNG, max 100x100)</label>
+                            <label className="text-[10px] text-gray-500 uppercase font-semibold block">Signature Image (transparent PNG)</label>
                             <div className="flex gap-2 items-center">
                               {sig.image ? (
                                 <div className="relative border border-white/10 bg-black/40 rounded p-1 flex items-center justify-center shrink-0">
@@ -337,10 +644,10 @@ export function CertificateDesigner() {
                                     const img = new Image();
                                     const objectUrl = URL.createObjectURL(file);
                                     img.onload = () => {
-                                      if (img.width > 100 || img.height > 100) {
+                                      if (img.width > 200 || img.height > 200) {
                                         toast({
                                           title: "Invalid Signature Resolution",
-                                          description: `Signature image resolution must not exceed 100x100 pixels (uploaded: ${img.width}x${img.height}).`,
+                                          description: `Signature image resolution must not exceed 200x200 pixels (uploaded: ${img.width}x${img.height}).`,
                                           variant: "destructive"
                                         });
                                         URL.revokeObjectURL(objectUrl);
@@ -373,15 +680,31 @@ export function CertificateDesigner() {
           </Card>
         </div>
 
-        {/* Live Preview (7 columns) */}
+        {/* Live Preview Pane (7 cols) */}
         <div className="lg:col-span-7 space-y-4">
-          <div className="flex items-center justify-between">
-            <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Live Certificate Preview</h3>
-            <span className="text-xs text-gray-500 flex items-center gap-1"><Sparkles className="h-3 w-3 text-emerald-400" /> Real-time rendering</span>
+          <div className="flex items-center justify-between flex-wrap gap-2">
+            <div className="flex items-center gap-2">
+              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Live Preview</h3>
+              <select
+                value={previewType}
+                onChange={(e) => setPreviewType(e.target.value)}
+                className="h-7 px-2 rounded border border-white/10 bg-black text-xs text-white focus:outline-none"
+              >
+                {selectedTypes.map(t => (
+                  <option key={t} value={t}>{CERT_TYPE_LABELS[t]}</option>
+                ))}
+              </select>
+            </div>
+            <span className="text-xs text-gray-500 flex items-center gap-1">
+              <Sparkles className="h-3 w-3 text-emerald-400 animate-pulse" /> Live canvas
+            </span>
           </div>
 
-          <div className="w-full aspect-[1200/630] rounded-xl overflow-hidden border border-white/10 bg-[#000000] shadow-2xl relative">
-            <svg viewBox="0 0 1200 630" className="w-full h-full select-none">
+          <div
+            className="w-full rounded-xl overflow-hidden border border-white/10 bg-[#000000] shadow-2xl relative"
+            style={{ aspectRatio: `${width}/${height}` }}
+          >
+            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full select-none">
               <defs>
                 <linearGradient id="borderGradPreview" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor={primaryColor} stopOpacity="0.6" />
@@ -403,58 +726,82 @@ export function CertificateDesigner() {
 
               {/* Background */}
               {bgImage ? (
-                <image x="0" y="0" width="1200" height="630" href={bgImage} preserveAspectRatio="xMidYMid slice" />
+                <image x="0" y="0" width={width} height={height} href={bgImage} preserveAspectRatio="xMidYMid slice" />
               ) : (
                 <>
-                  <rect width="1200" height="630" fill="#000000" />
-                  <rect width="1200" height="630" fill="url(#gridPreview)" />
+                  <rect width={width} height={height} fill="#000000" />
+                  <rect width={width} height={height} fill="url(#gridPreview)" />
                 </>
               )}
 
               {/* Borders */}
-              <rect x="15" y="15" width="1170" height="600" rx="16" fill="none" stroke="url(#borderGradPreview)" strokeWidth="2" />
-              <path d="M 30 30 L 30 60 M 30 30 L 60 30" stroke={primaryColor} strokeWidth="2" opacity="0.5" />
-              <path d="M 1170 30 L 1170 60 M 1170 30 L 1140 30" stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
-              <path d="M 30 600 L 30 570 M 30 600 L 60 600" stroke={primaryColor} strokeWidth="2" opacity="0.5" />
-              <path d="M 1170 600 L 1170 570 M 1170 600 L 1140 600" stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
+              <rect x="15" y="15" width={width - 30} height={height - 30} rx="16" fill="none" stroke="url(#borderGradPreview)" strokeWidth="2" />
+              <path d={`M 30 30 L 30 60 M 30 30 L 60 30`} stroke={primaryColor} strokeWidth="2" opacity="0.5" />
+              <path d={`M ${width - 30} 30 L ${width - 30} 60 M ${width - 30} 30 L ${width - 60} 30`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
+              <path d={`M 30 ${height - 30} L 30 ${height - 60} M 30 ${height - 30} L 60 ${height - 30}`} stroke={primaryColor} strokeWidth="2" opacity="0.5" />
+              <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
 
               {/* Collaborator Logo */}
-              {collabMode && orgLogo && <image x="50" y="45" width="80" height="80" href={orgLogo} />}
+              {collabMode && orgLogo && <image x={isLandscape ? "50" : "50"} y="45" width="80" height="80" href={orgLogo} />}
 
               {/* Co-Host Logo */}
-              {collabMode && eventLogo && <image x="1070" y="45" width="80" height="80" href={eventLogo} />}
+              {collabMode && eventLogo && <image x={isLandscape ? "1070" : "710"} y="45" width="80" height="80" href={eventLogo} />}
 
-              {/* Badge/Seal */}
-              <g transform="translate(540, 45)">
+              {/* Decorative Seal */}
+              <g transform={`translate(${width / 2 - 60}, 45)`}>
                 <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} strokeWidth="2" opacity="0.6" />
-                <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill={`rgba(16,185,129,0.1)`} stroke={primaryColor} strokeWidth="1" />
+                <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke={primaryColor} strokeWidth="1" />
                 <text x="60" y="75" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fill={primaryColor}>✓</text>
               </g>
 
-              {/* Main Text Fields */}
-              <text x="600" y="195" textAnchor="middle" fontFamily="sans-serif" fontSize="20" fontWeight="bold" fill="#ffffff" letterSpacing="6">CYBER SECURITY CLUB</text>
-              <text x="600" y="220" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill="#6b7280" letterSpacing="2">VERIFIED DIGITAL CERTIFICATE</text>
+              {/* Certificate Authority Headers */}
+              <text x={width / 2} y={isLandscape ? "210" : "230"} textAnchor="middle" fontFamily="sans-serif" fontSize="22" fontWeight="bold" fill="#ffffff" letterSpacing="6">CYBER SECURITY CLUB</text>
+              <text x={width / 2} y={isLandscape ? "235" : "255"} textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill="#6b7280" letterSpacing="2">VERIFIED DIGITAL CERTIFICATE</text>
 
-              <text x="600" y="270" textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill="#9ca3af">This is to certify that</text>
-              <text x="600" y="325" textAnchor="middle" fontFamily="sans-serif" fontSize="42" fontWeight="bold" fill="url(#textGradPreview)">Md. Rahim Uddin Shuvo</text>
-              <text x="600" y="365" textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill="#9ca3af">has successfully completed the event</text>
-              <text x="600" y="405" textAnchor="middle" fontFamily="sans-serif" fontSize="26" fontWeight="bold" fill="#ffffff">{eventTitle}</text>
+              {/* Core Text Elements */}
+              <text x={width / 2} y={isLandscape ? "290" : "320"} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill="#9ca3af">This is to certify that</text>
+              <text x={width / 2} y={isLandscape ? "350" : "390"} textAnchor="middle" fontFamily="sans-serif" fontSize="42" fontWeight="bold" fill="url(#textGradPreview)">Md. Rahim Uddin Shuvo</text>
+              <text x={width / 2} y={isLandscape ? "395" : "440"} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill="#9ca3af">has successfully completed the event</text>
+              <text x={width / 2} y={isLandscape ? "435" : "480"} textAnchor="middle" fontFamily="sans-serif" fontSize="26" fontWeight="bold" fill="#ffffff">{eventTitle}</text>
 
-              {/* Certificate Type Label Block */}
-              <rect x="520" y="425" width="160" height="28" rx="14" fill="url(#typeGradPreview)" opacity="0.2" />
-              <rect x="520" y="425" width="160" height="28" rx="14" fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
-              <text x="600" y="444" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill="#ffffff">{title}</text>
+              {/* Certificate Type Banner */}
+              <g transform={`translate(${width / 2 - 130}, ${isLandscape ? 465 : 520})`}>
+                <rect width="260" height="32" rx="16" fill="url(#typeGradPreview)" opacity="0.2" />
+                <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
+                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill="#ffffff">{previewTitle}</text>
+              </g>
 
-              {/* Mock Certificate ID */}
-              <text x="600" y="480" textAnchor="middle" fontFamily="monospace" fontSize="14" fill={primaryColor}>CSC-2026-CYBERSEC-00125</text>
+              {/* Dynamic Recipient Description Text */}
+              <text x={width / 2} y={isLandscape ? "535" : "600"} textAnchor="middle" fontFamily="sans-serif" fontSize="13" fill="#6b7280" width={width - 200}>
+                {previewDesc}
+              </text>
 
-              {/* Dynamic Signatures Rendering */}
+              {/* Custom Placed Certificate ID */}
+              {idVisible && (
+                <text x={idX} y={idY} textAnchor="middle" fontFamily="monospace" fontSize="14" fill={primaryColor}>
+                  CSC-2026-CYBERSEC-00125
+                </text>
+              )}
+
+              {/* Custom Placed QR Code */}
+              {qrVisible && (
+                <g transform={`translate(${qrX}, ${qrY})`}>
+                  <rect x="-5" y="-5" width={qrSize + 10} height={qrSize + 10} fill="#ffffff" rx="4" />
+                  <rect x="5" y="5" width={qrSize / 3} height={qrSize / 3} fill="#000000" />
+                  <rect x={qrSize - (qrSize / 3) - 5} y="5" width={qrSize / 3} height={qrSize / 3} fill="#000000" />
+                  <rect x="5" y={qrSize - (qrSize / 3) - 5} width={qrSize / 3} height={qrSize / 3} fill="#000000" />
+                  <rect x={qrSize / 3} y={qrSize / 3} width={qrSize / 3} height={qrSize / 3} fill="#000000" opacity="0.8" />
+                </g>
+              )}
+
+              {/* Signatures Row */}
               {sigCount > 0 ? (
                 activeSigs.map((sig, idx) => {
-                  const xPos = sigCount === 1 ? 600 : sigCount === 2 ? (400 + idx * 400) : (300 + idx * 300);
+                  const xPos = sigCount === 1 ? (width / 2) : sigCount === 2 ? (width / 2 - 200 + idx * 400) : (width / 2 - 300 + idx * 300);
+                  const yPos = isLandscape ? 700 : 960;
                   return (
-                    <g key={idx} transform={`translate(${xPos}, 510)`}>
-                      <line x1="-100" y1="0" x2="100" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                    <g key={idx} transform={`translate(${xPos}, ${yPos})`}>
+                      <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
                       {sig.image && <image x="-50" y="-60" width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
                       <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="bold" fill="#ffffff">{sig.name}</text>
                       <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">{sig.title}</text>
@@ -462,36 +809,16 @@ export function CertificateDesigner() {
                   );
                 })
               ) : (
-                <>
-                  <g transform="translate(300, 510)">
-                    <line x1="-100" y1="0" x2="100" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                    <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fill="#ffffff">President</text>
-                    <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">Cyber Security Club</text>
-                  </g>
-                  <g transform="translate(900, 510)">
-                    <line x1="-100" y1="0" x2="100" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                    <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fill="#ffffff">General Secretary</text>
-                    <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">Cyber Security Club</text>
-                  </g>
-                </>
+                <g transform={`translate(${width / 2}, ${isLandscape ? 700 : 960})`}>
+                  <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill="#4b5563">[No Signatures Configured]</text>
+                </g>
               )}
 
-              {/* Static Mock QR Code */}
-              <g transform="translate(1040, 480)">
-                <rect x="-5" y="-5" width="90" height="90" fill="#ffffff" rx="4" />
-                <rect x="5" y="5" width="20" height="20" fill="#000000" />
-                <rect x="55" y="5" width="20" height="20" fill="#000000" />
-                <rect x="5" y="55" width="20" height="20" fill="#000000" />
-                <rect x="25" y="25" width="30" height="30" fill="#000000" opacity="0.8" />
-              </g>
-
-              {/* Date */}
-              <text x="140" y="560" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill="#9ca3af">June 15, 2026</text>
-              <text x="140" y="578" textAnchor="middle" fontFamily="sans-serif" fontSize="10" fill="#4b5563">Issue Date</text>
-
-              {/* Verification Info Footer */}
-              <line x1="100" y1="595" x2="1100" y2="595" stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-              <text x="600" y="612" textAnchor="middle" fontFamily="sans-serif" fontSize="10" fill="#4b5563">Verification URL: https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125</text>
+              {/* Verification Info footer */}
+              <line x1="100" y1={height - 50} x2={width - 100} y2={height - 50} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
+              <text x={width / 2} y={height - 30} textAnchor="middle" fontFamily="sans-serif" fontSize="10" fill="#4b5563">
+                Verification URL: https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125
+              </text>
             </svg>
           </div>
         </div>

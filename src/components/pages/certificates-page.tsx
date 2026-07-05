@@ -13,6 +13,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { jsPDF } from 'jspdf';
 
 const container = {
   hidden: { opacity: 0 },
@@ -48,7 +49,7 @@ export function CertificatesPage() {
   }, [currentUser]);
 
   const handleLinkedInShare = (code: string) => {
-    const url = `${window.location.origin}/?cert=${code}`;
+    const url = `${window.location.origin}/verify/${code}`;
     window.open(`https://www.linkedin.com/sharing/share-offsite/?url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
   };
 
@@ -58,20 +59,20 @@ export function CertificatesPage() {
     const date = cert.issuedAt ? new Date(cert.issuedAt) : new Date();
     const year = date.getFullYear();
     const month = date.getMonth() + 1;
-    const certUrl = encodeURIComponent(`${window.location.origin}/?cert=${cert.certificateCode}`);
+    const certUrl = encodeURIComponent(`${window.location.origin}/verify/${cert.certificateCode}`);
     const certId = encodeURIComponent(cert.certificateCode);
     const url = `https://www.linkedin.com/profile/add?startTask=CERTIFICATION_NAME&name=${name}&organizationName=${orgName}&issueYear=${year}&issueMonth=${month}&certUrl=${certUrl}&certId=${certId}`;
     window.open(url, '_blank', 'width=600,height=600');
   };
 
   const handleTwitterShare = (code: string, type: CertificateType) => {
-    const url = `${window.location.origin}/?cert=${code}`;
+    const url = `${window.location.origin}/verify/${code}`;
     const text = `I earned a ${CERTIFICATE_TYPE_LABELS[type]} certificate from Cyber Security Club! 🛡️🔐`;
     window.open(`https://twitter.com/intent/tweet?text=${encodeURIComponent(text)}&url=${encodeURIComponent(url)}`, '_blank', 'width=600,height=400');
   };
 
   const handleCopyLink = async (code: string) => {
-    const url = `${window.location.origin}/?cert=${code}`;
+    const url = `${window.location.origin}/verify/${code}`;
     await navigator.clipboard.writeText(url);
     setCopiedId(code);
     setTimeout(() => setCopiedId(null), 2000);
@@ -252,39 +253,44 @@ export function CertificatesPage() {
                                 const res = await fetch(`/api/certificates/${cert.certificateCode}/og`);
                                 if (!res.ok) throw new Error('Failed to generate certificate');
                                 const svgText = await res.text();
+
+                                let layout: any = {};
+                                if (cert.event?.certificateLayout) {
+                                  try {
+                                    layout = JSON.parse(cert.event.certificateLayout);
+                                  } catch {}
+                                }
+                                const isLandscape = (layout.orientation || 'LANDSCAPE') === 'LANDSCAPE';
+                                const width = isLandscape ? 1200 : 840;
+                                const height = isLandscape ? 840 : 1200;
+
                                 // Create a canvas to convert SVG to PNG
                                 const img = new Image();
-                                const svgBlob = new Blob([svgText], { type: 'image/svg+xml' });
+                                const svgBlob = new Blob([svgText], { type: 'image/svg+xml;charset=utf-8' });
                                 const url = URL.createObjectURL(svgBlob);
                                 img.onload = () => {
                                   const canvas = document.createElement('canvas');
-                                  canvas.width = 1200;
-                                  canvas.height = 630;
+                                  canvas.width = width * 2;
+                                  canvas.height = height * 2;
                                   const ctx = canvas.getContext('2d');
                                   if (ctx) {
-                                    ctx.drawImage(img, 0, 0);
-                                    canvas.toBlob((blob) => {
-                                      if (blob) {
-                                        const pngUrl = URL.createObjectURL(blob);
-                                        const a = document.createElement('a');
-                                        a.href = pngUrl;
-                                        a.download = `certificate-${cert.certificateCode}.png`;
-                                        a.click();
-                                        URL.revokeObjectURL(pngUrl);
-                                      }
-                                      URL.revokeObjectURL(url);
-                                    }, 'image/png');
+                                    ctx.scale(2, 2);
+                                    ctx.drawImage(img, 0, 0, width, height);
+                                    const imgData = canvas.toDataURL('image/png');
+
+                                    const pdf = new jsPDF({
+                                      orientation: isLandscape ? 'landscape' : 'portrait',
+                                      unit: 'px',
+                                      format: isLandscape ? [width, height] : [width, height],
+                                    });
+
+                                    pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+                                    pdf.save(`certificate-${cert.certificateCode}.pdf`);
+                                    toast({ title: 'Certificate downloaded', description: 'Your certificate PDF has been generated and saved.' });
                                   }
+                                  URL.revokeObjectURL(url);
                                 };
                                 img.src = url;
-                                // Also offer SVG download as fallback
-                                const a = document.createElement('a');
-                                const svgUrl2 = URL.createObjectURL(svgBlob);
-                                a.href = svgUrl2;
-                                a.download = `certificate-${cert.certificateCode}.svg`;
-                                a.click();
-                                URL.revokeObjectURL(svgUrl2);
-                                toast({ title: 'Certificate downloaded', description: 'Your certificate has been downloaded.' });
                               } catch (e) {
                                 console.error(e);
                                 toast({ title: 'Download failed', description: 'Could not download certificate.', variant: 'destructive' });
