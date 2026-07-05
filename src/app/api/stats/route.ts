@@ -7,7 +7,7 @@ export async function GET() {
       totalMembers,
       activeMembers,
       pendingMembers,
-      totalFundsResult,
+      creditsResult,
       activeEvents,
       pendingPayments,
       pendingApprovals,
@@ -15,6 +15,7 @@ export async function GET() {
       totalCertificates,
       recentAuditLogs,
       upcomingEvents,
+      debitsResult,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({
@@ -23,11 +24,8 @@ export async function GET() {
       prisma.user.count({
         where: { membershipStatus: "PENDING" },
       }),
-      prisma.payment.aggregate({
-        where: { 
-          status: "VERIFIED",
-          type: { not: "EVENT" }
-        },
+      prisma.ledgerEntry.aggregate({
+        where: { type: "CREDIT" },
         _sum: { amount: true },
       }),
       prisma.event.count({
@@ -68,9 +66,13 @@ export async function GET() {
           },
         },
       }),
+      prisma.ledgerEntry.aggregate({
+        where: { type: "DEBIT" },
+        _sum: { amount: true },
+      }),
     ]);
 
-    const totalFunds = totalFundsResult._sum.amount ?? 0;
+    const totalFunds = (creditsResult._sum.amount ?? 0) - (debitsResult._sum.amount ?? 0);
 
     return successResponse({
       stats: {
@@ -87,7 +89,8 @@ export async function GET() {
       recentActivity: recentAuditLogs,
       upcomingEvents,
     });
-  } catch {
+  } catch (e) {
+    console.error("[Stats API] Error:", e);
     return serverErrorResponse();
   }
 }

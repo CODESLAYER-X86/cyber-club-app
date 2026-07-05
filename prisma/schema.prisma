@@ -41,6 +41,8 @@ model User {
   approvedExpenses    Expense[]            @relation("ExpenseApprover")
   createdExpenses     Expense[]            @relation("ExpenseCreator")
   createdBudgets      Budget[]             @relation("BudgetCreator")
+  approvedBudgets     Budget[]             @relation("BudgetApprover")
+  ledgerEntries       LedgerEntry[]        @relation("LedgerOperator")
   assessments         AssessmentSubmission[]
   attendance          Attendance[]
   assignedEvents      Event[]              @relation("EventVerifier")
@@ -109,6 +111,7 @@ model Payment {
   type          String   @default("MEMBERSHIP") // MEMBERSHIP, EVENT, OTHER
   status        String   @default("PENDING") // PENDING, VERIFIED, REJECTED
   transactionId String
+  paymentMethod String   @default("BKASH") // BKASH, NAGAD, BANK, CASH
   proofUrl      String?
   eventId       String?
   verifiedBy    String?
@@ -130,30 +133,47 @@ model Budget {
   amount      Float
   category    String
   period      String
+  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
   createdBy   String
+  approvedBy  String?
   createdAt   DateTime @default(now())
 
   creator    User      @relation("BudgetCreator", fields: [createdBy], references: [id])
+  approver   User?     @relation("BudgetApprover", fields: [approvedBy], references: [id])
   expenses   Expense[]
 }
 
 model Expense {
-  id          String   @id @default(cuid())
-  title       String
-  amount      Float
-  category    String
-  description String?
-  proofUrl    String?
-  status      String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  budgetId    String
-  createdBy   String
-  approvedBy  String?
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  id            String   @id @default(cuid())
+  title         String
+  amount        Float
+  category      String
+  description   String?
+  proofUrl      String?
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  fundingSource String   @default("CLUB_FUND") // CLUB_FUND, UNIVERSITY_BUDGET
+  budgetId      String
+  createdBy     String
+  approvedBy    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   budget   Budget @relation(fields: [budgetId], references: [id])
   creator  User   @relation("ExpenseCreator", fields: [createdBy], references: [id])
   approver User?  @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+}
+
+model LedgerEntry {
+  id            String   @id @default(cuid())
+  type          String   // CREDIT or DEBIT
+  amount        Float
+  wallet        String   // BKASH_PERSONAL, NAGAD_PERSONAL, CLUB_BANK_ACCOUNT, CASH_IN_HAND
+  description   String
+  referenceId   String?  // Links to paymentId or expenseId
+  performedBy   String
+  createdAt     DateTime @default(now())
+
+  operator      User     @relation("LedgerOperator", fields: [performedBy], references: [id])
 }
 
 model Attendance {

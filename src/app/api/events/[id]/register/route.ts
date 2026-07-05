@@ -10,7 +10,7 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { userId, transactionId } = body;
+    const { userId, transactionId, paymentMethod = "BKASH" } = body;
 
     if (!userId) {
       return errorResponse("userId is required");
@@ -104,6 +104,8 @@ export async function POST(
     // For PAID events, create a Payment record so it appears in Verify Payments
     let payment: unknown = null;
     if (event.fee > 0 && transactionId) {
+      const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH"];
+      const validatedMethod = VALID_METHODS.includes(paymentMethod) ? paymentMethod : "BKASH";
       payment = await prisma.payment.create({
         data: {
           userId,
@@ -111,6 +113,7 @@ export async function POST(
           type: "EVENT",
           status: "PENDING",
           transactionId,
+          paymentMethod: validatedMethod,
           eventId: id,
         },
         include: {

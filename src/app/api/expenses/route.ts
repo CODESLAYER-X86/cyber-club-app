@@ -58,16 +58,34 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { title, amount, category, description, proofUrl, budgetId } = body;
+    const { title, amount, category, description, proofUrl, budgetId, fundingSource = "CLUB_FUND" } = body;
 
     if (!title || !amount || !category || !budgetId) {
       return errorResponse("title, amount, category, and budgetId are required");
+    }
+
+    if (!["CLUB_FUND", "UNIVERSITY_BUDGET"].includes(fundingSource)) {
+      return errorResponse("Invalid fundingSource. Must be 'CLUB_FUND' or 'UNIVERSITY_BUDGET'");
     }
 
     const caller = await getSupabaseUser();
     if (!caller) {
       return forbiddenResponse("You must be logged in to submit expenses");
     }
+
+    // Verify budget exists and is APPROVED
+    const budget = await prisma.budget.findUnique({
+      where: { id: budgetId },
+    });
+
+    if (!budget) {
+      return errorResponse("The specified budget does not exist");
+    }
+
+    if (budget.status !== "APPROVED") {
+      return errorResponse("Expenses can only be logged against approved budgets");
+    }
+
     const createdBy = caller.userId;
 
     const expense = await prisma.expense.create({
@@ -80,6 +98,7 @@ export async function POST(request: NextRequest) {
         budgetId,
         createdBy,
         status: "PENDING",
+        fundingSource,
       },
       include: {
         budget: {
@@ -100,7 +119,8 @@ export async function POST(request: NextRequest) {
     });
 
     return successResponse({ expense }, 201);
-  } catch {
+  } catch (e) {
+    console.error("[Expense Create API] Error:", e);
     return serverErrorResponse();
   }
 }

@@ -25,6 +25,7 @@ export function ApplyMembershipPage() {
     department: '',
     phone: '',
     transactionId: '',
+    paymentMethod: 'BKASH',
   });
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -198,16 +199,30 @@ export function ApplyMembershipPage() {
                 <CreditCard className="h-4 w-4" /> Membership Fee: ৳{membershipFee}
               </div>
               <p className="mt-1 text-xs text-gray-500">
-                Please pay via bKash/Nagad and enter your transaction ID below.
+                Please pay via MFS or Bank and select your method and transaction ID below.
               </p>
-              <div className="mt-4 relative">
-                <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                <Input
-                  value={form.transactionId}
-                  onChange={(e) => update('transactionId', e.target.value)}
-                  placeholder="TXN-2025-XXXXX"
-                  className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
-                />
+              <div className="mt-4 grid grid-cols-3 gap-3">
+                <div className="col-span-1">
+                  <select
+                    value={form.paymentMethod}
+                    onChange={(e) => update('paymentMethod', e.target.value)}
+                    className="w-full h-10 px-2 rounded-md border border-white/10 bg-[#111] text-white focus:border-emerald-500/50 focus:ring-emerald-500/20 text-sm focus:outline-none"
+                  >
+                    <option value="BKASH">bKash</option>
+                    <option value="NAGAD">Nagad</option>
+                    <option value="BANK">Bank</option>
+                    <option value="CASH">Cash</option>
+                  </select>
+                </div>
+                <div className="col-span-2 relative">
+                  <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Input
+                    value={form.transactionId}
+                    onChange={(e) => update('transactionId', e.target.value)}
+                    placeholder="TXN-XXXXXXX"
+                    className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                  />
+                </div>
               </div>
             </div>
 

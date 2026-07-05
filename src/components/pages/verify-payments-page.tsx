@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   CheckCircle, XCircle, CreditCard, Search, Clock,
-  DollarSign, UserCheck, Calendar, ShieldCheck,
+  DollarSign, UserCheck, Calendar, ShieldCheck, Loader2,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Payment } from '@/types';
@@ -68,7 +68,37 @@ export function VerifyPaymentsPage() {
   const [typeFilter, setTypeFilter] = useState<string>('all');
   const [search, setSearch] = useState('');
 
+  const [reconcilingPayment, setReconcilingPayment] = useState<Payment | null>(null);
+  const [targetWallet, setTargetWallet] = useState('BKASH_PERSONAL');
+  const [reconcileDesc, setReconcileDesc] = useState('');
+  const [posting, setPosting] = useState(false);
+
   const isAuthorized = currentUser && ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN', 'VERIFIER'].includes(currentUser.role);
+
+  const handleReconcile = async () => {
+    if (!reconcilingPayment) return;
+    setPosting(true);
+    try {
+      const res = await fetch(`/api/payments/${reconcilingPayment.id}/reconcile`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ wallet: targetWallet, description: reconcileDesc }),
+      });
+      const data = await res.json();
+      if (data.success) {
+        toast({ title: 'Posted to Ledger', description: 'Transaction has been successfully reconciled.' });
+        setReconcilingPayment(null);
+        setReconcileDesc('');
+        loadPayments();
+      } else {
+        toast({ title: 'Reconciliation failed', description: data.error || 'Check inputs', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Reconciliation failed', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setPosting(false);
+    }
+  };
 
   const loadPayments = async () => {
     if (!isAuthorized) return;
@@ -79,7 +109,7 @@ export function VerifyPaymentsPage() {
         params.set('status', 'PENDING');
         params.set('type', 'EVENT');
       } else {
-        params.set('status', 'PENDING,APPROVED');
+        params.set('status', 'PENDING,APPROVED,VERIFIED');
         if (typeFilter !== 'all') params.set('type', typeFilter);
       }
       const r = await fetch(`/api/payments?${params}`);
@@ -238,12 +268,40 @@ export function VerifyPaymentsPage() {
                       </p>
                     </div>
                     <div className="flex gap-2 shrink-0">
-                      <Button size="sm" onClick={() => handleVerify(payment.id, 'VERIFIED')} className="bg-emerald-600 text-white h-8 text-xs">
-                        <CheckCircle className="mr-1 h-3 w-3" />{currentUser?.role === 'VERIFIER' ? 'Approve' : 'Verify'}
-                      </Button>
-                      <Button size="sm" onClick={() => handleVerify(payment.id, 'REJECTED')} variant="destructive" className="h-8 text-xs">
-                        <XCircle className="mr-1 h-3 w-3" />Reject
-                      </Button>
+                      {payment.status === 'VERIFIED' ? (
+                        payment.reconciled ? (
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-1 flex items-center gap-1 select-none">
+                            <CheckCircle className="h-3 w-3" /> Reconciled
+                          </Badge>
+                        ) : (
+                          currentUser && ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role) && (
+                            <Button
+                              size="sm"
+                              onClick={() => {
+                                setReconcilingPayment(payment);
+                                setTargetWallet(
+                                  payment.paymentMethod === 'NAGAD' ? 'NAGAD_PERSONAL' :
+                                  payment.paymentMethod === 'BANK' ? 'CLUB_BANK_ACCOUNT' :
+                                  payment.paymentMethod === 'CASH' ? 'CASH_IN_HAND' : 'BKASH_PERSONAL'
+                                );
+                                setReconcileDesc(`Reconciled membership/event fee from ${payment.user?.name || 'user'}`);
+                              }}
+                              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8"
+                            >
+                              Post to Ledger
+                            </Button>
+                          )
+                        )
+                      ) : (
+                        <>
+                          <Button size="sm" onClick={() => handleVerify(payment.id, 'VERIFIED')} className="bg-emerald-600 text-white h-8 text-xs">
+                            <CheckCircle className="mr-1 h-3 w-3" />{currentUser?.role === 'VERIFIER' ? 'Approve' : 'Verify'}
+                          </Button>
+                          <Button size="sm" onClick={() => handleVerify(payment.id, 'REJECTED')} variant="destructive" className="h-8 text-xs">
+                            <XCircle className="mr-1 h-3 w-3" />Reject
+                          </Button>
+                        </>
+                      )}
                     </div>
                   </CardContent>
                 </Card>
@@ -251,6 +309,60 @@ export function VerifyPaymentsPage() {
             );
           })}
         </motion.div>
+      )}
+
+      {/* Reconciliation Modal */}
+      {reconcilingPayment && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+          <motion.div
+            initial={{ opacity: 0, scale: 0.95 }}
+            animate={{ opacity: 1, scale: 1 }}
+            className="w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#111] p-6 shadow-2xl space-y-4"
+          >
+            <div>
+              <h3 className="text-lg font-bold text-white">Post to General Ledger</h3>
+              <p className="text-xs text-gray-500 mt-1">
+                Reconcile payment of <strong>৳{reconcilingPayment.amount.toLocaleString()}</strong> from <strong>{reconcilingPayment.user?.name || 'user'}</strong>. Choose the target asset wallet.
+              </p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-400">Target Asset Wallet</label>
+                <select
+                  value={targetWallet}
+                  onChange={(e) => setTargetWallet(e.target.value)}
+                  className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-sm focus:border-emerald-500/50 focus:outline-none"
+                >
+                  <option value="BKASH_PERSONAL">bKash Personal</option>
+                  <option value="NAGAD_PERSONAL">Nagad Personal</option>
+                  <option value="CLUB_BANK_ACCOUNT">Club Bank Account</option>
+                  <option value="CASH_IN_HAND">Cash in Hand Box</option>
+                </select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-semibold text-gray-400">Reconciliation Note</label>
+                <Input
+                  value={reconcileDesc}
+                  onChange={(e) => setReconcileDesc(e.target.value)}
+                  placeholder="e.g. Received bKash fee for CTF registration"
+                  className="border-white/10 bg-[#0a0a0a] text-white focus:border-emerald-500/50"
+                />
+              </div>
+
+              <div className="flex justify-end gap-2 pt-2">
+                <Button variant="ghost" size="sm" onClick={() => setReconcilingPayment(null)} disabled={posting} className="text-gray-400 hover:text-white hover:bg-white/5">
+                  Cancel
+                </Button>
+                <Button size="sm" onClick={handleReconcile} disabled={posting} className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium">
+                  {posting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
+                  Confirm Post
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        </div>
       )}
     </div>
   );

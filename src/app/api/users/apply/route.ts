@@ -12,7 +12,7 @@ export async function POST(req: NextRequest) {
     const userId = caller.userId;
     
     const body = await req.json();
-    const { studentId, department, phone, transactionId } = body;
+    const { studentId, department, phone, transactionId, paymentMethod = "BKASH" } = body;
 
     if (!studentId || !department || !phone || !transactionId) {
       return errorResponse("All fields are required", 400);
@@ -47,6 +47,8 @@ export async function POST(req: NextRequest) {
     const membershipFee = feeConfig ? parseFloat(feeConfig.value) : 100;
 
     // Create a payment record for the membership fee
+    const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH"];
+    const validatedMethod = VALID_METHODS.includes(paymentMethod) ? paymentMethod : "BKASH";
     await prisma.payment.create({
       data: {
         userId,
@@ -54,6 +56,7 @@ export async function POST(req: NextRequest) {
         type: "MEMBERSHIP",
         status: "PENDING",
         transactionId,
+        paymentMethod: validatedMethod,
       },
     });
 

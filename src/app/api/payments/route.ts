@@ -58,8 +58,21 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    return successResponse({ payments });
-  } catch {
+    const reconciledEntries = await prisma.ledgerEntry.findMany({
+      where: { referenceId: { in: payments.map(p => p.id) } },
+      select: { referenceId: true },
+    });
+
+    const reconciledIds = new Set(reconciledEntries.map(e => e.referenceId));
+
+    const paymentsWithReconciled = payments.map(p => ({
+      ...p,
+      reconciled: reconciledIds.has(p.id),
+    }));
+
+    return successResponse({ payments: paymentsWithReconciled });
+  } catch (e) {
+    console.error("[Payments GET API] Error:", e);
     return serverErrorResponse();
   }
 }
@@ -67,10 +80,15 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, amount, type = "MEMBERSHIP", transactionId, proofUrl, eventId } = body;
+    const { userId, amount, type = "MEMBERSHIP", transactionId, paymentMethod = "BKASH", proofUrl, eventId } = body;
 
     if (!userId || !amount || !transactionId) {
       return errorResponse("userId, amount, and transactionId are required");
+    }
+
+    const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH"];
+    if (!VALID_METHODS.includes(paymentMethod)) {
+      return errorResponse(`Invalid paymentMethod. Must be one of: ${VALID_METHODS.join(", ")}`);
     }
 
     const caller = await getSupabaseUser();
@@ -89,6 +107,7 @@ export async function POST(request: NextRequest) {
         amount,
         type,
         transactionId,
+        paymentMethod,
         proofUrl,
         eventId,
         status: "PENDING",

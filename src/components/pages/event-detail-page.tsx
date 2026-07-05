@@ -31,6 +31,7 @@ export function EventDetailPage() {
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
   const [transactionId, setTransactionId] = useState('');
+  const [paymentMethod, setPaymentMethod] = useState('BKASH');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [userRegistration, setUserRegistration] = useState<EventRegistration | null>(null);
   const [showRegistrants, setShowRegistrants] = useState(false);
@@ -165,7 +166,11 @@ export function EventDetailPage() {
       const res = await fetch(`/api/events/${event.id}/register`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ userId: currentUser.id, transactionId: event.fee > 0 ? transactionId : undefined }),
+        body: JSON.stringify({
+          userId: currentUser.id,
+          transactionId: event.fee > 0 ? transactionId : undefined,
+          paymentMethod: event.fee > 0 ? paymentMethod : undefined,
+        }),
       });
       const data = await res.json();
       if (data.success) {
@@ -566,14 +571,26 @@ export function EventDetailPage() {
                 <div className="space-y-4">
                   {event.fee > 0 && (
                     <div className="space-y-2">
-                      <label className="text-xs font-medium text-gray-400">Transaction ID (Payment Proof)</label>
-                      <Input
-                        value={transactionId}
-                        onChange={(e) => setTransactionId(e.target.value)}
-                        placeholder="TXN-2025-XXXXX"
-                        className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-                      />
-                      <p className="text-xs text-gray-500">Pay ৳{event.fee} via bKash/Nagad and enter the transaction ID</p>
+                      <label className="text-xs font-medium text-gray-400">Payment Details (Fee: ৳{event.fee})</label>
+                      <div className="grid grid-cols-3 gap-2">
+                        <select
+                          value={paymentMethod}
+                          onChange={(e) => setPaymentMethod(e.target.value)}
+                          className="col-span-1 h-10 px-2 rounded-md border border-white/10 bg-[#111] text-white focus:border-emerald-500/50 focus:ring-emerald-500/20 text-sm focus:outline-none"
+                        >
+                          <option value="BKASH">bKash</option>
+                          <option value="NAGAD">Nagad</option>
+                          <option value="BANK">Bank</option>
+                          <option value="CASH">Cash</option>
+                        </select>
+                        <Input
+                          value={transactionId}
+                          onChange={(e) => setTransactionId(e.target.value)}
+                          placeholder="TXN-XXXXXXX"
+                          className="col-span-2 border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500">Pay ৳{event.fee} via MFS or Bank and select your method and transaction ID</p>
                     </div>
                   )}
                   {message && (

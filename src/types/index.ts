@@ -112,6 +112,7 @@ export interface Payment {
   type: PaymentType;
   status: PaymentStatus;
   transactionId: string;
+  paymentMethod?: string;
   proofUrl?: string;
   eventId?: string;
   verifiedBy?: string;
@@ -120,6 +121,7 @@ export interface Payment {
   user?: User;
   event?: Event;
   verifier?: User;
+  reconciled?: boolean;
 }
 
 export interface Budget {
@@ -128,9 +130,12 @@ export interface Budget {
   amount: number;
   category: string;
   period: string;
+  status?: string;
   createdBy: string;
+  approvedBy?: string;
   createdAt: string;
   creator?: User;
+  approver?: User;
   expenses?: Expense[];
 }
 
@@ -142,6 +147,7 @@ export interface Expense {
   description?: string;
   proofUrl?: string;
   status: ExpenseStatus;
+  fundingSource?: string;
   budgetId: string;
   createdBy: string;
   approvedBy?: string;
