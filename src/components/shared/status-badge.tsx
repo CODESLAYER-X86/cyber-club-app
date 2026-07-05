@@ -45,8 +45,17 @@ const REGISTRATION_COLORS: Record<RegistrationStatus, string> = {
 
 const CERTIFICATE_TYPE_COLORS: Record<CertificateType, string> = {
   PARTICIPATION: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20 hover:bg-cyan-500/20',
-  ACHIEVEMENT: 'bg-amber-500/15 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
-  EXCELLENCE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+  ACHIEVEMENT: 'bg-blue-500/15 text-blue-400 border-blue-500/20 hover:bg-blue-500/20',
+  EXCELLENCE: 'bg-amber-500/15 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+  WINNER: 'bg-amber-500/15 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+  FIRST_PLACE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+  SECOND_PLACE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+  THIRD_PLACE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
+  ORGANIZER: 'bg-purple-500/15 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
+  VOLUNTEER: 'bg-purple-500/15 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
+  JUDGE: 'bg-purple-500/15 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
+  APPRECIATION: 'bg-sky-500/15 text-sky-400 border-sky-500/20 hover:bg-sky-500/20',
+  CUSTOM: 'bg-gray-500/15 text-gray-400 border-gray-500/20 hover:bg-gray-500/20',
 };
 
 const CERTIFICATE_STATUS_COLORS: Record<CertificateStatus, string> = {

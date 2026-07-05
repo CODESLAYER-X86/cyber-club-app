@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventRegistration, User as UserType } from '@/types';
-import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, ROLE_LABELS } from '@/types';
+import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, ROLE_LABELS, CERTIFICATE_TYPE_LABELS, CertificateType } from '@/types';
 import { EventBadge, RegistrationBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -38,6 +38,7 @@ export function EventDetailPage() {
   const [shareMsg, setShareMsg] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  const [updatingCertUserId, setUpdatingCertUserId] = useState<string | null>(null);
   const [updatingRegId, setUpdatingRegId] = useState<string | null>(null);
 
   // Enhanced certificate states
@@ -155,6 +156,33 @@ export function EventDetailPage() {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
       setUpdatingAttendanceId(null);
+    }
+  };
+
+  const handleUpdateCertType = async (userId: string, type: string) => {
+    if (!event || !currentUser) return;
+    setUpdatingCertUserId(userId);
+    try {
+      const res = await fetch('/api/certificates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId,
+          eventId: event.id,
+          type,
+        }),
+      });
+      const d = await res.json();
+      if (d.success) {
+        toast({ title: 'Certificate Updated', description: `Assigned as ${CERTIFICATE_TYPE_LABELS[type as CertificateType]}.` });
+        loadEvent();
+      } else {
+        toast({ title: 'Failed to update', description: d.error || 'Please try again', variant: 'destructive' });
+      }
+    } catch {
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setUpdatingCertUserId(null);
     }
   };
 
@@ -724,6 +752,32 @@ export function EventDetailPage() {
                                     >
                                       Absent
                                     </Button>
+                                  </div>
+                                );
+                              })()
+                            )}
+                            {reg.status === 'APPROVED' && currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'GS'].includes(currentUser.role) && (
+                              (() => {
+                                const userCert = (event as any).certificates?.find((c: any) => c.userId === reg.userId);
+                                const currentType = userCert?.type || 'PARTICIPATION';
+                                return (
+                                  <div className="flex items-center gap-1 ml-1 border-l border-white/10 pl-2">
+                                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mr-1">Cert:</span>
+                                    {updatingCertUserId === reg.userId ? (
+                                      <Loader2 className="h-3 w-3 animate-spin text-emerald-400" />
+                                    ) : (
+                                      <select
+                                        value={currentType}
+                                        onChange={(e) => handleUpdateCertType(reg.userId, e.target.value)}
+                                        className="h-7 px-1 rounded border border-white/10 bg-black text-[10px] text-emerald-400 font-medium focus:outline-none focus:border-emerald-500/50"
+                                      >
+                                        {Object.entries(CERTIFICATE_TYPE_LABELS).map(([val, label]) => (
+                                          <option key={val} value={val} className="bg-[#0f0f1f] text-white">
+                                            {label}
+                                          </option>
+                                        ))}
+                                      </select>
+                                    )}
                                   </div>
                                 );
                               })()

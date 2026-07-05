@@ -293,9 +293,10 @@ export async function POST(request: NextRequest) {
     }
 
     // Determine certificate status based on type
-    // EXCELLENCE type requires President approval -> ELIGIBLE
-    // PARTICIPATION/ACHIEVEMENT types -> AUTHORIZED (GS can authorize directly)
-    const status = type === "EXCELLENCE" ? "ELIGIBLE" : "AUTHORIZED";
+    // EXCELLENCE/WINNER/PLACE types require President/GS approval -> ELIGIBLE
+    // Standard types (PARTICIPATION, ORGANIZER, VOLUNTEER, etc.) -> AUTHORIZED
+    const requiresApproval = ["EXCELLENCE", "WINNER", "FIRST_PLACE", "SECOND_PLACE", "THIRD_PLACE", "CUSTOM"].includes(type);
+    const status = requiresApproval ? "ELIGIBLE" : "AUTHORIZED";
 
     // Check if certificate already exists (e.g. created during registration)
     const existingCert = await prisma.certificate.findFirst({

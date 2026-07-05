@@ -20,7 +20,19 @@ export type PaymentStatus = "PENDING" | "VERIFIED" | "REJECTED";
 
 export type RegistrationStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 
-export type CertificateType = "PARTICIPATION" | "ACHIEVEMENT" | "EXCELLENCE";
+export type CertificateType =
+  | "PARTICIPATION"
+  | "ACHIEVEMENT"
+  | "EXCELLENCE"
+  | "WINNER"
+  | "FIRST_PLACE"
+  | "SECOND_PLACE"
+  | "THIRD_PLACE"
+  | "ORGANIZER"
+  | "VOLUNTEER"
+  | "JUDGE"
+  | "APPRECIATION"
+  | "CUSTOM";
 export type CertificateStatus =
   | "REGISTERED"
   | "PRESENT"
@@ -391,4 +403,13 @@ export const CERTIFICATE_TYPE_LABELS: Record<CertificateType, string> = {
   PARTICIPATION: "Participation",
   ACHIEVEMENT: "Achievement",
   EXCELLENCE: "Excellence",
+  WINNER: "Winner",
+  FIRST_PLACE: "1st Place",
+  SECOND_PLACE: "2nd Place",
+  THIRD_PLACE: "3rd Place",
+  ORGANIZER: "Organizer",
+  VOLUNTEER: "Volunteer",
+  JUDGE: "Judge",
+  APPRECIATION: "Appreciation",
+  CUSTOM: "Custom Type",
 };
