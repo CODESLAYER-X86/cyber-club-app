@@ -18,20 +18,13 @@ export async function GET() {
     {
       cookies: {
         getAll: () => cookieStore.getAll(),
-        setAll: (cookiesToSet) => {
-          try {
-            cookiesToSet.forEach(({ name, value, options }) =>
-              cookieStore.set(name, value, options),
-            );
-          } catch {
-            // Ignore error in GET handler when cookies are read-only
-          }
-        },
+        setAll: () => {},
       },
     },
   );
 
-  const { data: { user }, error } = await supabase.auth.getUser();
+  const { data: { session }, error } = await supabase.auth.getSession();
+  const user = session?.user;
 
   if (error || !user?.email) {
     return NextResponse.json({ success: false, error: 'No active Google session' }, { status: 401 });

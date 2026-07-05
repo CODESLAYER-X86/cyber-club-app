@@ -44,9 +44,9 @@ export async function GET(request: NextRequest) {
 
   if (error || !session) {
     // Fallback: check if we already have an active session (e.g., from a duplicate request)
-    const { data: { user: existingUser } } = await supabase.auth.getUser();
-    if (existingUser) {
-      user = existingUser;
+    const { data: { session: existingSession } } = await supabase.auth.getSession();
+    if (existingSession?.user) {
+      user = existingSession.user;
     } else {
       console.error('[Google OAuth] exchangeCodeForSession error:', error?.message);
       return NextResponse.redirect(`${origin}/?error=google_auth_failed`);

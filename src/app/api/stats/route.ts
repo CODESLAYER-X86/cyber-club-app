@@ -13,6 +13,8 @@ export async function GET() {
       pendingApprovals,
       totalEvents,
       totalCertificates,
+      recentAuditLogs,
+      upcomingEvents,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({
@@ -41,38 +43,34 @@ export async function GET() {
       prisma.certificate.count({
         where: { status: "VALID" },
       }),
+      prisma.auditLog.findMany({
+        take: 5,
+        orderBy: { createdAt: "desc" },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              email: true,
+              avatar: true,
+              role: true,
+            },
+          },
+        },
+      }),
+      prisma.event.findMany({
+        where: { status: "UPCOMING" },
+        take: 5,
+        orderBy: { startDate: "asc" },
+        include: {
+          _count: {
+            select: { registrations: true },
+          },
+        },
+      }),
     ]);
 
     const totalFunds = totalFundsResult._sum.amount ?? 0;
-
-    // Get recent activity
-    const recentAuditLogs = await prisma.auditLog.findMany({
-      take: 5,
-      orderBy: { createdAt: "desc" },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-            role: true,
-          },
-        },
-      },
-    });
-
-    // Get upcoming events
-    const upcomingEvents = await prisma.event.findMany({
-      where: { status: "UPCOMING" },
-      take: 5,
-      orderBy: { startDate: "asc" },
-      include: {
-        _count: {
-          select: { registrations: true },
-        },
-      },
-    });
 
     return successResponse({
       stats: {
