@@ -10,34 +10,48 @@ export async function GET(
   try {
     const { id } = await params;
 
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to view user profiles");
+    }
+
+    const isSelf = caller.userId === id;
+    const isAdmin = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER"].includes(caller.role);
+
+    // Build selection object based on authorization level
+    const selectFields: any = {
+      id: true,
+      email: true,
+      name: true,
+      role: true,
+      membershipStatus: true,
+      avatar: true,
+      bio: true,
+      createdAt: true,
+      updatedAt: true,
+      eventRegistrations: {
+        include: { event: true },
+        orderBy: { registeredAt: "desc" },
+      },
+      certificates: {
+        include: { event: true },
+      },
+    };
+
+    if (isSelf || isAdmin) {
+      selectFields.phone = true;
+      selectFields.studentId = true;
+      selectFields.department = true;
+      selectFields.transactionId = true;
+      selectFields.paymentProof = true;
+      selectFields.payments = {
+        orderBy: { createdAt: "desc" },
+      };
+    }
+
     const user = await prisma.user.findUnique({
       where: { id },
-      select: {
-        id: true,
-        email: true,
-        name: true,
-        role: true,
-        membershipStatus: true,
-        avatar: true,
-        studentId: true,
-        department: true,
-        phone: true,
-        bio: true,
-        transactionId: true,
-        paymentProof: true,
-        createdAt: true,
-        updatedAt: true,
-        eventRegistrations: {
-          include: { event: true },
-          orderBy: { registeredAt: "desc" },
-        },
-        certificates: {
-          include: { event: true },
-        },
-        payments: {
-          orderBy: { createdAt: "desc" },
-        },
-      },
+      select: selectFields,
     });
 
     if (!user) {
@@ -56,6 +70,18 @@ export async function PATCH(
 ) {
   try {
     const { id } = await params;
+
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to update profiles");
+    }
+
+    const isSelf = caller.userId === id;
+    const isAdmin = ["PLATFORM_ADMIN", "PRESIDENT"].includes(caller.role);
+
+    if (!isSelf && !isAdmin) {
+      return forbiddenResponse("You do not have permission to edit this profile");
+    }
 
     const user = await prisma.user.findUnique({ where: { id } });
     if (!user) {

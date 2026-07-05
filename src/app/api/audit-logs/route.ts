@@ -1,9 +1,16 @@
 import prisma from "@/lib/db";
-import { successResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   try {
+    const ALLOWED_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "GS"];
+    const caller = await getSupabaseUser(ALLOWED_ROLES);
+    if (!caller) {
+      return forbiddenResponse("Only President, GS, and Platform Admin can view audit logs");
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const userId = searchParams.get("userId");
     const action = searchParams.get("action");

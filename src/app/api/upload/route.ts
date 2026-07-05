@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { createClient } from "@supabase/supabase-js";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 /**
  * POST /api/upload
@@ -9,6 +10,11 @@ import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-u
  */
 export async function POST(request: NextRequest) {
   try {
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to upload files");
+    }
+
     const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL;
     const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
 

@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(
   _request: NextRequest,
@@ -8,6 +9,11 @@ export async function GET(
 ) {
   try {
     const { id } = await params;
+
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to view registrations");
+    }
 
     // Verify event exists
     const event = await prisma.event.findUnique({

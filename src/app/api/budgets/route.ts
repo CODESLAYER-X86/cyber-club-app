@@ -5,6 +5,11 @@ import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET() {
   try {
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to view budgets");
+    }
+
     const budgets = await prisma.budget.findMany({
       include: {
         creator: {

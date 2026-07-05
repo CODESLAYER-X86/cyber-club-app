@@ -3,6 +3,7 @@ import path from "path";
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 const DELETE_ALLOWED_ROLES = ["MEDIA", "PRESIDENT", "PLATFORM_ADMIN"];
 
@@ -26,11 +27,9 @@ export async function DELETE(
       return notFoundResponse("Gallery image not found");
     }
 
-    // Check authorization - require role in request body or header
-    const body = await request.json().catch(() => ({}));
-    const requesterRole = body.role as string | undefined;
-
-    if (!requesterRole || !DELETE_ALLOWED_ROLES.includes(requesterRole)) {
+    // Check authorization via secure server session cookie
+    const caller = await getSupabaseUser(DELETE_ALLOWED_ROLES);
+    if (!caller) {
       return forbiddenResponse("Only MEDIA, PRESIDENT, or PLATFORM_ADMIN can delete gallery images");
     }
 
