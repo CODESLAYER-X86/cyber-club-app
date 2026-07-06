@@ -30,9 +30,11 @@ interface LayoutConfig {
   orientation: "LANDSCAPE" | "PORTRAIT";
   paperSize: "A4" | "LETTER";
   bgImage: string;
+  bgColor?: string;
   primaryColor: string;
   secondaryColor: string;
   collabMode: boolean;
+  clubLogo?: string;
   orgLogo: string;
   eventLogo: string;
   qrCode: {
@@ -87,9 +89,11 @@ export function CertificateDesigner() {
   const [orientation, setOrientation] = useState<"LANDSCAPE" | "PORTRAIT">("LANDSCAPE");
   const [paperSize, setPaperSize] = useState<"A4" | "LETTER">("A4");
   const [bgImage, setBgImage] = useState('');
+  const [bgColor, setBgColor] = useState('#000000');
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#06b6d4');
   const [collabMode, setCollabMode] = useState(false);
+  const [clubLogo, setClubLogo] = useState('/logo.png');
   const [orgLogo, setOrgLogo] = useState('');
   const [eventLogo, setEventLogo] = useState('');
 
@@ -140,9 +144,11 @@ export function CertificateDesigner() {
               setOrientation(layout.orientation || "LANDSCAPE");
               setPaperSize(layout.paperSize || "A4");
               setBgImage(layout.bgImage || '');
+              setBgColor((layout as any).bgColor || '#000000');
               setPrimaryColor(layout.primaryColor || defaultPrimary);
               setSecondaryColor(layout.secondaryColor || defaultSecondary);
               setCollabMode(layout.collabMode ?? false);
+              setClubLogo((layout as any).clubLogo || '/logo.png');
               setOrgLogo(layout.orgLogo || '');
               setEventLogo(layout.eventLogo || '');
 
@@ -232,9 +238,11 @@ export function CertificateDesigner() {
       orientation,
       paperSize,
       bgImage,
+      bgColor,
       primaryColor,
       secondaryColor,
       collabMode,
+      clubLogo,
       orgLogo: collabMode ? orgLogo : '',
       eventLogo: collabMode ? eventLogo : '',
       qrCode: { visible: qrVisible, size: qrSize, x: qrX, y: qrY },
@@ -458,14 +466,42 @@ export function CertificateDesigner() {
                     </div>
                   </div>
 
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Background Color</label>
+                      <div className="flex gap-2">
+                        <input
+                          type="color"
+                          value={bgColor}
+                          onChange={e => setBgColor(e.target.value)}
+                          className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0"
+                        />
+                        <Input
+                          value={bgColor}
+                          onChange={e => setBgColor(e.target.value)}
+                          className="border-white/10 bg-white/5 text-white text-xs font-mono"
+                        />
+                      </div>
+                    </div>
+                    <div className="space-y-2">
+                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                        <ImageIcon className="h-3.5 w-3.5" /> Background Image URL
+                      </label>
+                      <Input
+                        value={bgImage}
+                        onChange={e => setBgImage(e.target.value)}
+                        placeholder="https://example.com/certificate-bg.png (optional)"
+                        className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
+                      />
+                    </div>
+                  </div>
+
                   <div className="space-y-2">
-                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
-                      <ImageIcon className="h-3.5 w-3.5" /> Background Image URL
-                    </label>
+                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Club Logo URL</label>
                     <Input
-                      value={bgImage}
-                      onChange={e => setBgImage(e.target.value)}
-                      placeholder="https://example.com/certificate-bg.png (optional)"
+                      value={clubLogo}
+                      onChange={e => setClubLogo(e.target.value)}
+                      placeholder="/logo.png or https://example.com/club-logo.png"
                       className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
                     />
                   </div>
@@ -729,7 +765,7 @@ export function CertificateDesigner() {
                 <image x="0" y="0" width={width} height={height} href={bgImage} preserveAspectRatio="xMidYMid slice" />
               ) : (
                 <>
-                  <rect width={width} height={height} fill="#000000" />
+                  <rect width={width} height={height} fill={bgColor} />
                   <rect width={width} height={height} fill="url(#gridPreview)" />
                 </>
               )}
@@ -742,17 +778,21 @@ export function CertificateDesigner() {
               <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
 
               {/* Collaborator Logo */}
-              {collabMode && orgLogo && <image x={isLandscape ? "50" : "50"} y="45" width="80" height="80" href={orgLogo} />}
+              {collabMode && orgLogo && <image x="50" y="45" width="80" height="80" href={orgLogo} />}
 
               {/* Co-Host Logo */}
               {collabMode && eventLogo && <image x={isLandscape ? "1070" : "710"} y="45" width="80" height="80" href={eventLogo} />}
 
-              {/* Decorative Seal */}
-              <g transform={`translate(${width / 2 - 60}, 45)`}>
-                <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} strokeWidth="2" opacity="0.6" />
-                <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke={primaryColor} strokeWidth="1" />
-                <text x="60" y="75" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fill={primaryColor}>✓</text>
-              </g>
+              {/* Decorative Seal/Club Logo */}
+              {clubLogo ? (
+                <image x={width / 2 - 40} y="45" width="80" height="80" href={clubLogo} />
+              ) : (
+                <g transform={`translate(${width / 2 - 60}, 45)`}>
+                  <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} strokeWidth="2" opacity="0.6" />
+                  <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke={primaryColor} strokeWidth="1" />
+                  <text x="60" y="75" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fill={primaryColor}>✓</text>
+                </g>
+              )}
 
               {/* Certificate Authority Headers */}
               <text x={width / 2} y={isLandscape ? "210" : "230"} textAnchor="middle" fontFamily="sans-serif" fontSize="22" fontWeight="bold" fill="#ffffff" letterSpacing="6">CYBER SECURITY CLUB</text>

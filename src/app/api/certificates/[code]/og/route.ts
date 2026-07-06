@@ -28,6 +28,35 @@ const CERT_TYPE_LABELS: Record<string, string> = {
   CUSTOM: 'Custom Type',
 };
 
+import fs from 'fs';
+import path from 'path';
+
+async function fetchBase64(url: string | undefined): Promise<string> {
+  if (!url) return '';
+  try {
+    if (url.startsWith('/')) {
+      const localPath = path.join(process.cwd(), 'public', url);
+      if (fs.existsSync(localPath)) {
+        const buffer = fs.readFileSync(localPath);
+        const ext = url.split('.').pop()?.toLowerCase();
+        let mime = 'image/png';
+        if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
+        else if (ext === 'svg') mime = 'image/svg+xml';
+        return `data:${mime};base64,${buffer.toString('base64')}`;
+      }
+      return '';
+    }
+    const res = await fetch(url);
+    if (!res.ok) return '';
+    const contentType = res.headers.get('content-type') || 'image/png';
+    const arrayBuffer = await res.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+    return `data:${contentType};base64,${buffer.toString('base64')}`;
+  } catch (e) {
+    return '';
+  }
+}
+
 export async function GET(
   _request: NextRequest,
   { params }: { params: Promise<{ code: string }> }
@@ -91,9 +120,25 @@ export async function GET(
         .replace('{{issue_date}}', dateStr)
     );
 
-    const backgroundHtml = layout.bgImage 
-      ? `<image x="0" y="0" width="${width}" height="${height}" href="${layout.bgImage}" preserveAspectRatio="xMidYMid slice" />`
-      : `<rect width="${width}" height="${height}" fill="#000000"/>
+    // Verify URL & QR Code
+    const host = _request.headers.get("host") || "cybersec.club";
+    const protocol = host.includes("localhost") ? "http" : "https";
+    const verifyUrl = `${protocol}://${host}/verify/${certCode}`;
+    const rawQrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=000000&bgcolor=ffffff&data=${encodeURIComponent(verifyUrl)}`;
+
+    // Resolve Images to Base64 in parallel
+    const [qrBase64, bgBase64, clubLogoBase64, orgLogoBase64, eventLogoBase64] = await Promise.all([
+      fetchBase64(rawQrCodeUrl),
+      layout.bgImage ? fetchBase64(layout.bgImage) : Promise.resolve(''),
+      fetchBase64(layout.clubLogo || '/logo.png'),
+      (layout.collabMode && layout.orgLogo) ? fetchBase64(layout.orgLogo) : Promise.resolve(''),
+      (layout.collabMode && layout.eventLogo) ? fetchBase64(layout.eventLogo) : Promise.resolve(''),
+    ]);
+
+    const bgColor = layout.bgColor || '#000000';
+    const backgroundHtml = bgBase64 
+      ? `<image x="0" y="0" width="${width}" height="${height}" href="${bgBase64}" preserveAspectRatio="xMidYMid slice" />`
+      : `<rect width="${width}" height="${height}" fill="${bgColor}"/>
          <rect width="${width}" height="${height}" fill="url(#grid)"/>`;
 
     // Signature layout
@@ -102,12 +147,20 @@ export async function GET(
       const activeSigs = layout.signatures.filter((s: any) => s.visible);
       const count = activeSigs.length;
       const yPos = isLandscape ? 700 : 960;
-      activeSigs.forEach((sig: any, idx: number) => {
+      
+      const sigsWithBase64 = await Promise.all(
+        activeSigs.map(async (sig) => {
+          const imgBase64 = sig.image ? await fetchBase64(sig.image) : '';
+          return { ...sig, imgBase64 };
+        })
+      );
+
+      sigsWithBase64.forEach((sig: any, idx: number) => {
         const xPos = count === 1 ? (width / 2) : count === 2 ? (width / 2 - 200 + idx * 400) : (width / 2 - 300 + idx * 300);
         signaturesHtml += `
           <g transform="translate(${xPos}, ${yPos})">
             <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" stroke-width="1"/>
-            ${sig.image ? `<image x="-50" y="-60" width="100" height="50" href="${sig.image}" />` : ''}
+            ${sig.imgBase64 ? `<image x="-50" y="-60" width="100" height="50" href="${sig.imgBase64}" />` : ''}
             <text x="0" y="20" text-anchor="middle" font-family="sans-serif" font-size="14" font-weight="bold" fill="#ffffff">${escapeXml(sig.name)}</text>
             <text x="0" y="38" text-anchor="middle" font-family="sans-serif" font-size="11" fill="#6b7280">${escapeXml(sig.title)}</text>
           </g>
@@ -122,18 +175,20 @@ export async function GET(
     }
 
     // Logo elements
-    const orgLogoHtml = (layout.collabMode && layout.orgLogo) 
-      ? `<image x="50" y="45" width="80" height="80" href="${layout.orgLogo}" />` 
+    const orgLogoHtml = orgLogoBase64
+      ? `<image x="50" y="45" width="80" height="80" href="${orgLogoBase64}" />` 
       : '';
-    const eventLogoHtml = (layout.collabMode && layout.eventLogo) 
-      ? `<image x="${isLandscape ? 1070 : 710}" y="45" width="80" height="80" href="${layout.eventLogo}" />` 
+    const eventLogoHtml = eventLogoBase64
+      ? `<image x="${isLandscape ? 1070 : 710}" y="45" width="80" height="80" href="${eventLogoBase64}" />` 
       : '';
 
-    // Verify URL & QR Code
-    const host = _request.headers.get("host") || "cybersec.club";
-    const protocol = host.includes("localhost") ? "http" : "https";
-    const verifyUrl = `${protocol}://${host}/?cert=${certCode}`;
-    const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=ffffff&bgcolor=0a0a0a&data=${encodeURIComponent(verifyUrl)}`;
+    const clubLogoHtml = clubLogoBase64
+      ? `<image x="${width / 2 - 40}" y="45" width="80" height="80" href="${clubLogoBase64}" />`
+      : `<g transform="translate(${width / 2 - 60}, 45)">
+          <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke="${primaryColor}" stroke-width="2" opacity="0.6"/>
+          <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke="${primaryColor}" stroke-width="1"/>
+          <text x="60" y="75" text-anchor="middle" font-family="sans-serif" font-size="28" fill="${primaryColor}">&#x2713;</text>
+         </g>`;
 
     const qrVisible = layout.qrCode ? (layout.qrCode.visible ?? true) : true;
     const qrSize = layout.qrCode ? (layout.qrCode.size || 80) : 80;
@@ -144,10 +199,10 @@ export async function GET(
     const idX = layout.certId ? (layout.certId.x || (width / 2)) : (width / 2);
     const idY = layout.certId ? (layout.certId.y || 480) : 480;
 
-    const qrHtml = qrVisible 
+    const qrHtml = qrVisible && qrBase64
       ? `<g transform="translate(${qrX}, ${qrY})">
           <rect x="-5" y="-5" width="${qrSize + 10}" height="${qrSize + 10}" fill="#ffffff" rx="4"/>
-          <image x="0" y="0" width="${qrSize}" height="${qrSize}" href="${qrCodeUrl}" />
+          <image x="0" y="0" width="${qrSize}" height="${qrSize}" href="${qrBase64}" />
          </g>`
       : '';
 
@@ -187,12 +242,7 @@ export async function GET(
   
   ${orgLogoHtml}
   ${eventLogoHtml}
-
-  <g transform="translate(${width / 2 - 60}, 45)">
-    <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke="${primaryColor}" stroke-width="2" opacity="0.6"/>
-    <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke="${primaryColor}" stroke-width="1"/>
-    <text x="60" y="75" text-anchor="middle" font-family="sans-serif" font-size="28" fill="${primaryColor}">&#x2713;</text>
-  </g>
+  ${clubLogoHtml}
   
   <text x="${width / 2}" y="${isLandscape ? 210 : 230}" text-anchor="middle" font-family="sans-serif" font-size="22" font-weight="bold" fill="#ffffff" letter-spacing="6">CYBER SECURITY CLUB</text>
   <text x="${width / 2}" y="${isLandscape ? 235 : 255}" text-anchor="middle" font-family="sans-serif" font-size="12" fill="#6b7280" letter-spacing="2">VERIFIED DIGITAL CERTIFICATE</text>

@@ -19,6 +19,7 @@ import {
   Trophy,
   Home,
   X,
+  Shield,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { AppView } from '@/types';
@@ -120,6 +121,7 @@ const PUBLIC_NAV_LINKS: { label: string; view: AppView; icon: React.ElementType 
   { label: 'Events', view: 'events', icon: Calendar },
   { label: 'Gallery', view: 'gallery', icon: Image },
   { label: 'Achievements', view: 'achievements', icon: Trophy },
+  { label: 'Verify', view: 'certificate-verify', icon: Shield },
 ];
 
 export function Header() {
@@ -141,7 +143,7 @@ export function Header() {
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Determine if we're in full-page mode (public pages without sidebar)
-  const isFullPageMode = !isAuthenticated && ['landing', 'login', 'register', 'certificate-public', 'about', 'gallery', 'achievements', 'events'].includes(currentView);
+  const isFullPageMode = !isAuthenticated && ['landing', 'login', 'register', 'certificate-public', 'about', 'gallery', 'achievements', 'events', 'certificate-verify'].includes(currentView);
 
   useEffect(() => {
     const timer = setInterval(() => {

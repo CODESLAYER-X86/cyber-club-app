@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { Shield, CheckCircle, XCircle, Linkedin, Twitter, Copy, Award, Download, Fingerprint, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -54,17 +54,21 @@ const CERT_TYPE_LABELS: Record<string, string> = {
 export function StandaloneCertificateViewer({ cert }: { cert: CertificateData }) {
   const [copied, setCopied] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [base64Images, setBase64Images] = useState<Record<string, string>>({});
 
   const isValid = ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(cert.status);
   
-  let layout: any = {};
-  if (cert?.event?.certificateLayout) {
-    try {
-      layout = JSON.parse(cert.event.certificateLayout);
-    } catch (e) {
-      console.error('Failed to parse layout config:', e);
+  const layout = useMemo(() => {
+    let l: any = {};
+    if (cert?.event?.certificateLayout) {
+      try {
+        l = JSON.parse(cert.event.certificateLayout);
+      } catch (e) {
+        console.error('Failed to parse layout config:', e);
+      }
     }
-  }
+    return l;
+  }, [cert.event]);
 
   const primaryColor = layout.primaryColor || '#10b981';
   const secondaryColor = layout.secondaryColor || '#06b6d4';
@@ -106,7 +110,34 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
   const host = typeof window !== 'undefined' ? window.location.host : 'cybersec.club';
   const protocol = typeof window !== 'undefined' && window.location.hostname.includes('localhost') ? 'http' : 'https';
   const verifyUrl = `${protocol}://${host}/verify/${cert.certificateCode}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=ffffff&bgcolor=0a0a0a&data=${encodeURIComponent(verifyUrl)}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=000000&bgcolor=ffffff&data=${encodeURIComponent(verifyUrl)}`;
+
+  useEffect(() => {
+    async function loadBase64() {
+      const urlsToLoad: string[] = [];
+      if (layout.bgImage) urlsToLoad.push(layout.bgImage);
+      urlsToLoad.push(layout.clubLogo || '/logo.png');
+      if (layout.collabMode && layout.orgLogo) urlsToLoad.push(layout.orgLogo);
+      if (layout.collabMode && layout.eventLogo) urlsToLoad.push(layout.eventLogo);
+      if (qrVisible) urlsToLoad.push(qrCodeUrl);
+      activeSigs.forEach((sig: any) => { if (sig.image) urlsToLoad.push(sig.image); });
+
+      const newBase64: Record<string, string> = {};
+      await Promise.all(urlsToLoad.map(async (url) => {
+        try {
+          const res = await fetch(`/api/certificates/image-proxy?url=${encodeURIComponent(url)}`);
+          const data = await res.json();
+          if (data.success && data.base64) {
+            newBase64[url] = data.base64;
+          }
+        } catch (e) {
+          console.error('Failed to load base64 for', url);
+        }
+      }));
+      setBase64Images(newBase64);
+    }
+    if (isValid) loadBase64();
+  }, [layout.bgImage, layout.clubLogo, layout.orgLogo, layout.eventLogo, qrCodeUrl, qrVisible, isValid]);
 
   const handleLinkedInShare = () => {
     window.open(
@@ -235,10 +266,10 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
               </defs>
 
               {layout.bgImage ? (
-                <image x="0" y="0" width={width} height={height} href={layout.bgImage} preserveAspectRatio="xMidYMid slice" />
+                <image x="0" y="0" width={width} height={height} href={base64Images[layout.bgImage] || layout.bgImage} preserveAspectRatio="xMidYMid slice" />
               ) : (
                 <>
-                  <rect width={width} height={height} fill="#000000" />
+                  <rect width={width} height={height} fill={layout.bgColor || "#000000"} />
                   <rect width={width} height={height} fill="url(#grid)" />
                 </>
               )}
@@ -250,17 +281,17 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
               <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.5"/>
               
               {layout.collabMode && layout.orgLogo && (
-                <image x="50" y="45" width="80" height="80" href={layout.orgLogo} />
+                <image x="50" y="45" width="80" height="80" href={base64Images[layout.orgLogo] || layout.orgLogo} />
               )}
               {layout.collabMode && layout.eventLogo && (
-                <image x={isLandscape ? 1070 : 710} y="45" width="80" height="80" href={layout.eventLogo} />
+                <image x={isLandscape ? 1070 : 710} y="45" width="80" height="80" href={base64Images[layout.eventLogo] || layout.eventLogo} />
               )}
 
-              <g transform={`translate(${width / 2 - 60}, 45)`}>
-                <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} strokeWidth="2" opacity="0.6"/>
-                <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke={primaryColor} stroke-width="1"/>
-                <text x="60" y="75" text-anchor="middle" fontFamily="sans-serif" fontSize="28" fill={primaryColor}>✓</text>
-              </g>
+              {layout.clubLogo ? (
+                <image x={width / 2 - 40} y="45" width="80" height="80" href={base64Images[layout.clubLogo] || layout.clubLogo} />
+              ) : (
+                <image x={width / 2 - 40} y="45" width="80" height="80" href={base64Images['/logo.png'] || '/logo.png'} />
+              )}
               
               <text x={width / 2} y={isLandscape ? 210 : 230} text-anchor="middle" fontFamily="sans-serif" fontSize="22" fontWeight="bold" fill="#ffffff" letter-spacing="6">CYBER SECURITY CLUB</text>
               <text x={width / 2} y={isLandscape ? 235 : 255} text-anchor="middle" fontFamily="sans-serif" fontSize="12" fill="#6b7280" letter-spacing="2">VERIFIED DIGITAL CERTIFICATE</text>
@@ -288,12 +319,12 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
                 <text x={width / 2} y={isLandscape ? 565 : 640} text-anchor="middle" fontFamily="sans-serif" fontSize="16" fill="#22d3ee">Score: {cert.score}%</text>
               )}
 
-              {signaturesHtml(activeSigs, sigCount, width, isLandscape)}
+              {signaturesHtml(activeSigs, sigCount, width, isLandscape, base64Images)}
 
               {qrVisible && (
                 <g transform={`translate(${qrX}, ${qrY})`}>
                   <rect x="-5" y="-5" width={qrSize + 10} height={qrSize + 10} fill="#ffffff" rx="4"/>
-                  <image x="0" y="0" width={qrSize} height={qrSize} href={qrCodeUrl} />
+                  <image x="0" y="0" width={qrSize} height={qrSize} href={base64Images[qrCodeUrl] || qrCodeUrl} />
                 </g>
               )}
 
@@ -335,7 +366,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
   );
 }
 
-function signaturesHtml(activeSigs: any[], sigCount: number, width: number, isLandscape: boolean) {
+function signaturesHtml(activeSigs: any[], sigCount: number, width: number, isLandscape: boolean, base64Images: Record<string, string>) {
   if (sigCount > 0) {
     return activeSigs.map((sig, idx) => {
       const xPos = sigCount === 1 ? (width / 2) : sigCount === 2 ? (width / 2 - 200 + idx * 400) : (width / 2 - 300 + idx * 300);
@@ -343,16 +374,16 @@ function signaturesHtml(activeSigs: any[], sigCount: number, width: number, isLa
       return (
         <g key={idx} transform={`translate(${xPos}, ${yPos})`}>
           <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-          {sig.image && <image x="-50" y="-60" width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
-          <text x="0" y="20" text-anchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="bold" fill="#ffffff">{sig.name}</text>
-          <text x="0" y="38" text-anchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">{sig.title}</text>
+          {sig.image && <image x="-50" y="-60" width="100" height="50" href={base64Images[sig.image] || sig.image} preserveAspectRatio="xMidYMid meet" />}
+          <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="bold" fill="#ffffff">{sig.name}</text>
+          <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">{sig.title}</text>
         </g>
       );
     });
   }
   return (
     <g transform={`translate(${width / 2}, ${isLandscape ? 700 : 960})`}>
-      <text x="0" y="20" text-anchor="middle" fontFamily="sans-serif" fontSize="12" fill="#4b5563">[No Signatures Configured]</text>
+      <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill="#4b5563">[No Signatures Configured]</text>
     </g>
   );
 }

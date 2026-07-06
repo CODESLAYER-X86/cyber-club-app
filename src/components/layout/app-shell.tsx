@@ -98,7 +98,7 @@ function MatrixBackground() {
 // with header navigation instead of sidebar, providing a consistent public browsing experience
 const FULL_PAGE_VIEWS: Set<AppView> = new Set([
   'landing', 'login', 'register', 'certificate-public',
-  'about', 'gallery', 'achievements', 'events'
+  'about', 'gallery', 'achievements', 'events', 'certificate-verify'
 ]);
 
 export function AppShell() {
