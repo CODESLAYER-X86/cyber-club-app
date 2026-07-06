@@ -152,6 +152,7 @@ export function Header() {
 
   // Global Ctrl+K / Cmd+K listener
   useEffect(() => {
+    if (!isAuthenticated) return;
     const handleKeyDown = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
         e.preventDefault();
@@ -160,7 +161,7 @@ export function Header() {
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, []);
+  }, [isAuthenticated]);
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
@@ -298,20 +299,22 @@ export function Header() {
       <div className="flex-1" />
 
       {/* Search bar with Ctrl+K hint - clickable */}
-      <button
-        onClick={() => setSearchOpen(true)}
-        className="relative hidden max-w-xs flex-1 md:flex"
-      >
-        <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-        <div className="h-9 w-full rounded-lg border border-white/10 bg-white/5 pl-9 pr-14 text-sm text-gray-500 flex items-center">
-          Search...
-        </div>
-        <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded bg-white/5 px-1.5 py-0.5">
-          <kbd className="text-[10px] font-mono text-gray-500">Ctrl</kbd>
-          <span className="text-[10px] text-gray-600">+</span>
-          <kbd className="text-[10px] font-mono text-gray-500">K</kbd>
-        </div>
-      </button>
+      {isAuthenticated && (
+        <button
+          onClick={() => setSearchOpen(true)}
+          className="relative hidden max-w-xs flex-1 md:flex"
+        >
+          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+          <div className="h-9 w-full rounded-lg border border-white/10 bg-white/5 pl-9 pr-14 text-sm text-gray-500 flex items-center">
+            Search...
+          </div>
+          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded bg-white/5 px-1.5 py-0.5">
+            <kbd className="text-[10px] font-mono text-gray-500">Ctrl</kbd>
+            <span className="text-[10px] text-gray-600">+</span>
+            <kbd className="text-[10px] font-mono text-gray-500">K</kbd>
+          </div>
+        </button>
+      )}
 
       {/* Real-time Clock */}
       <div className="hidden items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 lg:flex">
@@ -500,7 +503,7 @@ export function Header() {
     </AnimatePresence>
 
       {/* Global Search Command */}
-      <SearchCommand open={searchOpen} onOpenChange={setSearchOpen} />
+      {isAuthenticated && <SearchCommand open={searchOpen} onOpenChange={setSearchOpen} />}
     </>
   );
 }

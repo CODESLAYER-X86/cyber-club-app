@@ -7,6 +7,7 @@ import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Footer } from './footer';
 import type { AppView } from '@/types';
+import { isViewAllowed } from '@/lib/utils';
 
 // Page imports
 import { LandingPage } from '@/components/pages/landing-page';
@@ -101,13 +102,14 @@ const FULL_PAGE_VIEWS: Set<AppView> = new Set([
 ]);
 
 export function AppShell() {
-  const { currentView, isAuthenticated } = useAppStore();
+  const { currentView, isAuthenticated, currentUser } = useAppStore();
 
   useEffect(() => {
     window.document.documentElement.classList.add('dark');
   }, []);
 
-  const PageComponent = PAGE_MAP[currentView] || LandingPage;
+  const allowed = isViewAllowed(currentView, isAuthenticated, currentUser?.role);
+  const PageComponent = allowed ? (PAGE_MAP[currentView] || LandingPage) : (isAuthenticated ? DashboardPage : LandingPage);
 
   // Determine if this view should use the full-page layout (no sidebar)
   // Unauthenticated users get full-page layout for all public pages

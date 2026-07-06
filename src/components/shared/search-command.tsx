@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Search,
@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { AppView, Event, User as UserType } from '@/types';
+import { isViewAllowed } from '@/lib/utils';
 import {
   CommandDialog,
   CommandInput,
@@ -180,14 +181,19 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
     onOpenChange(false);
   };
 
+  // Filter pages by user authorization
+  const allowedPages = useMemo(() => {
+    return PAGES.filter(p => isViewAllowed(p.view, isAuthenticated, currentUser?.role));
+  }, [isAuthenticated, currentUser]);
+
   // Filter pages by query
   const filteredPages = query.trim()
-    ? PAGES.filter(
+    ? allowedPages.filter(
         (p) =>
           p.label.toLowerCase().includes(query.toLowerCase()) ||
           p.description.toLowerCase().includes(query.toLowerCase())
       )
-    : PAGES;
+    : allowedPages;
 
   const hasResults = filteredPages.length > 0 || events.length > 0 || members.length > 0;
   const isLoading = isLoadingEvents || isLoadingMembers;
@@ -232,7 +238,7 @@ export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {
                 </span>
               </div>
               <div className="grid grid-cols-3 gap-1.5">
-                {PAGES.slice(0, 6).map((page) => (
+                {allowedPages.slice(0, 6).map((page) => (
                   <button
                     key={page.view}
                     onClick={() => handlePageSelect(page.view)}
