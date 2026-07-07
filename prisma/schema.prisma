@@ -343,3 +343,15 @@ model SystemConfig {
   key   String @id
   value String
 }
+
+model ClubSponsor {
+  id          String   @id @default(cuid())
+  name        String
+  logoUrl     String
+  websiteUrl  String?
+  description String?
+  priority    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}

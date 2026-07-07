@@ -356,7 +356,8 @@ export type AppView =
   | "gallery"
   | "certificate-designer"
   | "committee"
-  | "achievements";
+  | "achievements"
+  | "sponsors";
 
 export interface NavItem {
   label: string;

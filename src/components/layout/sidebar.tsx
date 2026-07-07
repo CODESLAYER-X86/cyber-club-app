@@ -30,6 +30,7 @@ import {
   UserCheck,
   Image,
   Trophy,
+  Globe,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { UserRole, AppView, NavItem } from '@/types';
@@ -67,6 +68,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   UserCheck,
   Image,
   Trophy,
+  Globe,
 };
 
 const NAV_DESCRIPTIONS: Record<string, string> = {
@@ -99,6 +101,7 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   'Certificate Authority': 'Issue, approve, and manage certificates',
   Gallery: 'Event photos and media gallery',
   Achievements: 'Club achievements and accolades',
+  Sponsors: 'Manage official club sponsors',
 };
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
@@ -133,6 +136,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   TREASURER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Budgets', view: 'budgets', icon: 'Wallet' },
+    { label: 'Sponsors', view: 'sponsors', icon: 'Globe' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Expenses', view: 'expenses', icon: 'Receipt' },
     { label: 'Verify Payments', view: 'verify-payments', icon: 'CheckCircle' },
@@ -147,6 +151,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
+    { label: 'Sponsors', view: 'sponsors', icon: 'Globe' },
     { label: 'Committee Member', view: 'committee', icon: 'Users' },
     { label: 'Approve Expenses', view: 'expenses', icon: 'CheckSquare' },
     { label: 'Reports', view: 'analytics', icon: 'FileText' },
@@ -170,6 +175,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
+    { label: 'Sponsors', view: 'sponsors', icon: 'Globe' },
     { label: 'Committee Member', view: 'committee', icon: 'Users' },
     { label: 'Audit Logs', view: 'audit-logs', icon: 'ClipboardList' },
     { label: 'Roles', view: 'roles', icon: 'ShieldCheck' },
@@ -193,6 +199,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Finance', view: 'finance', icon: 'DollarSign' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
+    { label: 'Sponsors', view: 'sponsors', icon: 'Globe' },
     { label: 'Committee Member', view: 'committee', icon: 'Users' },
     { label: 'System', view: 'audit-logs', icon: 'Settings' },
     { label: 'Audit Logs', view: 'audit-logs', icon: 'ClipboardList' },

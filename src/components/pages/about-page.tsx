@@ -372,22 +372,13 @@ export function AboutPage() {
   const [formData, setFormData] = useState<MemberFormData>(emptyForm);
   const [formSubmitting, setFormSubmitting] = useState(false);
 
-  // Image upload state
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  // Delete confirmation state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
-  const [deletingMemberName, setDeletingMemberName] = useState('');
+  // Sponsors state
+  const [sponsors, setSponsors] = useState<any[]>([]);
 
   // Permission check
   const canManage = !!(currentUser && ['PRESIDENT', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(currentUser.role));
 
-  // Fetch committee members
+  // Fetch committee members & sponsors
   const fetchMembers = useCallback(async () => {
     try {
       setMembersLoading(true);
@@ -406,9 +397,32 @@ export function AboutPage() {
     }
   }, []);
 
+  const fetchSponsors = useCallback(async () => {
+    try {
+      const res = await fetch('/api/sponsors');
+      const data = await res.json();
+      if (data.success) {
+        setSponsors(data.data || []);
+      }
+    } catch {
+      // Fail silently for sponsors
+    }
+  }, []);
+
   useEffect(() => {
     fetchMembers();
-  }, [fetchMembers]);
+    fetchSponsors();
+  }, [fetchMembers, fetchSponsors]);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Delete confirmation state
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
+  const [deletingMemberName, setDeletingMemberName] = useState('');
 
   // Upload image
   const uploadImage = async (file: File): Promise<string | null> => {
@@ -1048,6 +1062,50 @@ export function AboutPage() {
           </div>
         </div>
       </section>
+
+      {/* ── Official Sponsors ── */}
+      {sponsors.length > 0 && (
+        <section className="px-4 py-16 bg-[#0a0a0a]/50">
+          <div className="mx-auto max-w-6xl">
+            <motion.div {...fadeUp} className="mb-12 text-center">
+              <h2 className="text-3xl font-bold text-white">Our Official Sponsors</h2>
+              <p className="mt-2 text-gray-500">Thank you to the organizations that make our mission possible.</p>
+            </motion.div>
+            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+              {sponsors
+                .sort((a, b) => a.order - b.order)
+                .map((sponsor) => (
+                <motion.div key={sponsor.id} {...stagger}>
+                  <a
+                    href={sponsor.websiteUrl || '#'}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="block h-full transition-transform hover:-translate-y-1"
+                  >
+                    <Card className="flex h-full flex-col border-white/5 bg-[#111]/60 backdrop-blur transition-all duration-300 hover:border-white/20 hover:shadow-lg hover:shadow-emerald-500/10">
+                      <CardContent className="flex flex-1 flex-col items-center justify-center p-6 text-center">
+                        <div className="mb-4 flex h-24 w-full items-center justify-center rounded-lg bg-white/5 p-4">
+                          {sponsor.logoUrl ? (
+                            <img
+                              src={sponsor.logoUrl}
+                              alt={`${sponsor.name} logo`}
+                              className="max-h-full max-w-full object-contain"
+                            />
+                          ) : (
+                            <div className="text-2xl font-bold text-gray-400">{sponsor.name}</div>
+                          )}
+                        </div>
+                        <h3 className="mb-2 text-lg font-bold text-white">{sponsor.name}</h3>
+                        <p className="text-sm text-gray-400 line-clamp-3">{sponsor.description}</p>
+                      </CardContent>
+                    </Card>
+                  </a>
+                </motion.div>
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* ── CTA Footer ── */}
       <section className="relative overflow-hidden px-4 py-20">

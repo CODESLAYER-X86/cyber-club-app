@@ -40,6 +40,8 @@ import { AchievementsPage } from '@/components/pages/achievements-page';
 import { ApplyMembershipPage } from '@/components/pages/apply-membership-page';
 import { CertificateDesigner } from '@/components/pages/certificate-designer';
 import { CommitteePage } from '@/components/pages/committee-page';
+import { SponsorsPage } from '@/components/pages/sponsors-page';
+import { AdSenseBanner } from '@/components/shared/adsense-banner';
 
 const PAGE_MAP: Record<AppView, React.ComponentType> = {
   landing: LandingPage,
@@ -73,6 +75,7 @@ const PAGE_MAP: Record<AppView, React.ComponentType> = {
   'apply-membership': ApplyMembershipPage,
   'certificate-designer': CertificateDesigner,
   committee: CommitteePage,
+  sponsors: SponsorsPage,
 };
 
 function MatrixBackground() {
@@ -129,6 +132,7 @@ export function AppShell() {
               </motion.div>
             </AnimatePresence>
           </main>
+          <AdSenseBanner />
           <Footer />
         </div>
       </div>
@@ -157,6 +161,7 @@ export function AppShell() {
               </motion.div>
             </AnimatePresence>
           </main>
+          <AdSenseBanner className="mt-8 border-t border-white/5 bg-black/20" />
           <Footer />
         </div>
       </div>
