@@ -31,7 +31,7 @@ const CERT_TYPE_LABELS: Record<string, string> = {
 import fs from 'fs';
 import path from 'path';
 
-async function fetchBase64(url: string | undefined): Promise<string> {
+async function fetchBase64(url: string | undefined, protocol?: string, host?: string): Promise<string> {
   if (!url) return '';
   try {
     if (url.startsWith('/')) {
@@ -44,7 +44,11 @@ async function fetchBase64(url: string | undefined): Promise<string> {
         else if (ext === 'svg') mime = 'image/svg+xml';
         return `data:${mime};base64,${buffer.toString('base64')}`;
       }
-      return '';
+      if (protocol && host) {
+        url = `${protocol}://${host}${url}`;
+      } else {
+        return '';
+      }
     }
     const res = await fetch(url);
     if (!res.ok) return '';
@@ -129,10 +133,10 @@ export async function GET(
     // Resolve Images to Base64 in parallel
     const [qrBase64, bgBase64, clubLogoBase64, orgLogoBase64, eventLogoBase64] = await Promise.all([
       fetchBase64(rawQrCodeUrl),
-      layout.bgImage ? fetchBase64(layout.bgImage) : Promise.resolve(''),
-      fetchBase64(layout.clubLogo || '/logo.png'),
-      (layout.collabMode && layout.orgLogo) ? fetchBase64(layout.orgLogo) : Promise.resolve(''),
-      (layout.collabMode && layout.eventLogo) ? fetchBase64(layout.eventLogo) : Promise.resolve(''),
+      layout.bgImage ? fetchBase64(layout.bgImage, protocol, host) : Promise.resolve(''),
+      fetchBase64(layout.clubLogo || '/logo.svg', protocol, host),
+      (layout.collabMode && layout.orgLogo) ? fetchBase64(layout.orgLogo, protocol, host) : Promise.resolve(''),
+      (layout.collabMode && layout.eventLogo) ? fetchBase64(layout.eventLogo, protocol, host) : Promise.resolve(''),
     ]);
 
     const bgColor = layout.bgColor || '#000000';
@@ -150,7 +154,7 @@ export async function GET(
       
       const sigsWithBase64 = await Promise.all(
         activeSigs.map(async (sig) => {
-          const imgBase64 = sig.image ? await fetchBase64(sig.image) : '';
+          const imgBase64 = sig.image ? await fetchBase64(sig.image, protocol, host) : '';
           return { ...sig, imgBase64 };
         })
       );

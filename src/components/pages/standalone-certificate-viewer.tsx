@@ -116,7 +116,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
     async function loadBase64() {
       const urlsToLoad: string[] = [];
       if (layout.bgImage) urlsToLoad.push(layout.bgImage);
-      urlsToLoad.push(layout.clubLogo || '/logo.png');
+      urlsToLoad.push(layout.clubLogo || '/logo.svg');
       if (layout.collabMode && layout.orgLogo) urlsToLoad.push(layout.orgLogo);
       if (layout.collabMode && layout.eventLogo) urlsToLoad.push(layout.eventLogo);
       if (qrVisible) urlsToLoad.push(qrCodeUrl);
@@ -290,7 +290,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
               {layout.clubLogo ? (
                 <image x={width / 2 - 40} y="45" width="80" height="80" href={base64Images[layout.clubLogo] || layout.clubLogo} />
               ) : (
-                <image x={width / 2 - 40} y="45" width="80" height="80" href={base64Images['/logo.png'] || '/logo.png'} />
+                <image x={width / 2 - 40} y="45" width="80" height="80" href={base64Images[layout.clubLogo || '/logo.svg'] || '/logo.svg'} />
               )}
               
               <text x={width / 2} y={isLandscape ? 210 : 230} text-anchor="middle" fontFamily="sans-serif" fontSize="22" fontWeight="bold" fill="#ffffff" letter-spacing="6">CYBER SECURITY CLUB</text>

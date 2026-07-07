@@ -3,12 +3,12 @@ import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse 
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 
-export async function PUT(request: NextRequest, { params }: { params: { id: string } }) {
+export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const caller = await getSupabaseUser(["PRESIDENT", "PLATFORM_ADMIN", "GS", "TREASURER"]);
     if (!caller) return forbiddenResponse();
 
-    const id = params.id;
+    const { id } = await params;
     const body = await request.json();
     const { name, logoUrl, websiteUrl, description, priority, isActive } = body;
 
@@ -34,12 +34,12 @@ export async function PUT(request: NextRequest, { params }: { params: { id: stri
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: { params: { id: string } }) {
+export async function DELETE(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
     const caller = await getSupabaseUser(["PRESIDENT", "PLATFORM_ADMIN", "GS", "TREASURER"]);
     if (!caller) return forbiddenResponse();
 
-    const id = params.id;
+    const { id } = await params;
     const existing = await prisma.clubSponsor.findUnique({ where: { id } });
     if (!existing) return errorResponse("Sponsor not found", 404);
 

@@ -93,7 +93,7 @@ export function CertificateDesigner() {
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#06b6d4');
   const [collabMode, setCollabMode] = useState(false);
-  const [clubLogo, setClubLogo] = useState('/logo.png');
+  const [clubLogo, setClubLogo] = useState('/logo.svg');
   const [orgLogo, setOrgLogo] = useState('');
   const [eventLogo, setEventLogo] = useState('');
 
@@ -148,7 +148,7 @@ export function CertificateDesigner() {
               setPrimaryColor(layout.primaryColor || defaultPrimary);
               setSecondaryColor(layout.secondaryColor || defaultSecondary);
               setCollabMode(layout.collabMode ?? false);
-              setClubLogo((layout as any).clubLogo || '/logo.png');
+              setClubLogo((layout as any).clubLogo || '/logo.svg');
               setOrgLogo(layout.orgLogo || '');
               setEventLogo(layout.eventLogo || '');
 
@@ -501,7 +501,7 @@ export function CertificateDesigner() {
                     <Input
                       value={clubLogo}
                       onChange={e => setClubLogo(e.target.value)}
-                      placeholder="/logo.png or https://example.com/club-logo.png"
+                      placeholder="/logo.svg or https://example.com/club-logo.png"
                       className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
                     />
                   </div>
