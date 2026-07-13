@@ -135,7 +135,7 @@ const PERMISSION_MATRIX: { action: string; roles: Record<string, boolean> }[] = 
   { action: 'Add Expense', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: true, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
   { action: 'Approve Expense', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: false, GS: true, TREASURER: false, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
   { action: 'Verify Payment', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: true, MEDIA: false, VERIFIER: true, MEMBER: false, GUEST: false } },
-  { action: 'Register Event', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: false, MEDIA: false, VERIFIER: false, MEMBER: true, GUEST: false } },
+  { action: 'Register Event', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: false, MEDIA: false, VERIFIER: true, MEMBER: true, GUEST: false } },
   { action: 'View Finance', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: false, GS: true, TREASURER: true, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
 ];
 
