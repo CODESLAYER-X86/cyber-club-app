@@ -223,6 +223,11 @@ export function CertificatesPage() {
                         {/* Action buttons */}
                         {['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(cert.status) ? (
                           <div className="mt-3 flex justify-end gap-2">
+                            <Button variant="ghost" size="sm" asChild className="text-gray-500 hover:text-cyan-400 h-7 text-xs">
+                              <a href={`/verify/${cert.certificateCode}`} target="_blank" rel="noopener noreferrer">
+                                <ExternalLink className="mr-1 h-3 w-3" /> View
+                              </a>
+                            </Button>
                             <Popover open={shareOpen === cert.id} onOpenChange={(open) => setShareOpen(open ? cert.id : null)}>
                               <PopoverTrigger asChild>
                                 <Button variant="ghost" size="sm" className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
@@ -270,21 +275,22 @@ export function CertificatesPage() {
                                 const url = URL.createObjectURL(svgBlob);
                                 img.onload = () => {
                                   const canvas = document.createElement('canvas');
-                                  canvas.width = width * 2;
-                                  canvas.height = height * 2;
+                                  canvas.width = width * 1.5;
+                                  canvas.height = height * 1.5;
                                   const ctx = canvas.getContext('2d');
                                   if (ctx) {
-                                    ctx.scale(2, 2);
+                                    ctx.scale(1.5, 1.5);
                                     ctx.drawImage(img, 0, 0, width, height);
-                                    const imgData = canvas.toDataURL('image/png');
+                                    const imgData = canvas.toDataURL('image/jpeg', 0.8);
 
                                     const pdf = new jsPDF({
                                       orientation: isLandscape ? 'landscape' : 'portrait',
                                       unit: 'px',
                                       format: isLandscape ? [width, height] : [width, height],
+                                      compress: true,
                                     });
 
-                                    pdf.addImage(imgData, 'PNG', 0, 0, width, height);
+                                    pdf.addImage(imgData, 'JPEG', 0, 0, width, height, undefined, 'FAST');
                                     pdf.save(`certificate-${cert.certificateCode}.pdf`);
                                     toast({ title: 'Certificate downloaded', description: 'Your certificate PDF has been generated and saved.' });
                                   }

@@ -93,7 +93,7 @@ export function CertificateDesigner() {
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#06b6d4');
   const [collabMode, setCollabMode] = useState(false);
-  const [clubLogo, setClubLogo] = useState('/logo.svg');
+  const [clubLogo, setClubLogo] = useState('/logo.png');
   const [orgLogo, setOrgLogo] = useState('');
   const [eventLogo, setEventLogo] = useState('');
 
@@ -148,7 +148,7 @@ export function CertificateDesigner() {
               setPrimaryColor(layout.primaryColor || defaultPrimary);
               setSecondaryColor(layout.secondaryColor || defaultSecondary);
               setCollabMode(layout.collabMode ?? false);
-              setClubLogo((layout as any).clubLogo || '/logo.svg');
+              setClubLogo((layout as any).clubLogo || '/logo.png');
               setOrgLogo(layout.orgLogo || '');
               setEventLogo(layout.eventLogo || '');
 

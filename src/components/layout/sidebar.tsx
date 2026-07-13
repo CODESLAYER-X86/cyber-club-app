@@ -106,12 +106,15 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
 
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   GUEST: [
-    { label: 'Home', view: 'landing', icon: 'Home' },
+    { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'About', view: 'about', icon: 'Info' },
+    { label: 'Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Apply for Membership', view: 'apply-membership', icon: 'FileText' },
+    { label: 'Profile', view: 'profile', icon: 'User' },
+    { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   MEMBER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },

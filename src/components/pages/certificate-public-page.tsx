@@ -201,21 +201,23 @@ export function CertificatePublicPage() {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = width * 2; // Increase scale for ultra-crisp resolution
-      canvas.height = height * 2;
+      canvas.width = width * 1.5; // Optimized scale factor for balance of quality and size
+      canvas.height = height * 1.5;
       const ctx = canvas.getContext("2d");
       if (ctx) {
-        ctx.scale(2, 2);
+        ctx.scale(1.5, 1.5);
         ctx.drawImage(img, 0, 0, width, height);
-        const imgData = canvas.toDataURL("image/png");
+        // Use JPEG with 0.8 compression instead of lossless PNG to dramatically reduce PDF size
+        const imgData = canvas.toDataURL("image/jpeg", 0.8);
 
         const pdf = new jsPDF({
           orientation: isLandscape ? "landscape" : "portrait",
           unit: "px",
           format: isLandscape ? [width, height] : [width, height],
+          compress: true,
         });
 
-        pdf.addImage(imgData, "PNG", 0, 0, width, height);
+        pdf.addImage(imgData, "JPEG", 0, 0, width, height, undefined, "FAST");
         pdf.save(`certificate-${cert?.certificateCode}.pdf`);
         toast.success("PDF Downloaded successfully!");
       }

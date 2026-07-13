@@ -134,7 +134,7 @@ export async function GET(
     const [qrBase64, bgBase64, clubLogoBase64, orgLogoBase64, eventLogoBase64] = await Promise.all([
       fetchBase64(rawQrCodeUrl),
       layout.bgImage ? fetchBase64(layout.bgImage, protocol, host) : Promise.resolve(''),
-      fetchBase64(layout.clubLogo || '/logo.svg', protocol, host),
+      fetchBase64(layout.clubLogo || '/logo.png', protocol, host),
       (layout.collabMode && layout.orgLogo) ? fetchBase64(layout.orgLogo, protocol, host) : Promise.resolve(''),
       (layout.collabMode && layout.eventLogo) ? fetchBase64(layout.eventLogo, protocol, host) : Promise.resolve(''),
     ]);
