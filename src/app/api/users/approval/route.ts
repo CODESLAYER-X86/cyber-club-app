@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 // GET pending member approval requests
 export async function GET() {
@@ -32,11 +33,16 @@ export async function GET() {
 // PATCH approve or reject a member
 export async function PATCH(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { userId, action, approverId } = body;
+    const approver = await getSupabaseUser(["PRESIDENT", "GS", "VERIFIER", "PLATFORM_ADMIN"]);
+    if (!approver) {
+      return errorResponse("Only the President, General Secretary, Event Verifier, and Platform Admin can approve members", 403);
+    }
 
-    if (!userId || !action || !approverId) {
-      return errorResponse("userId, action, and approverId are required");
+    const body = await request.json();
+    const { userId, action } = body;
+
+    if (!userId || !action) {
+      return errorResponse("userId and action are required");
     }
 
     // Accept both APPROVE/APPROVED and REJECT/REJECTED formats
@@ -83,7 +89,7 @@ export async function PATCH(request: NextRequest) {
     // Log to audit log
     await prisma.auditLog.create({
       data: {
-        userId: approverId,
+        userId: approver.userId,
         action: `MEMBER_${normalizedAction}`,
         details: `${normalizedAction === "APPROVE" ? "Approved" : "Rejected"} membership for user ${user.name} (${user.email})`,
       },

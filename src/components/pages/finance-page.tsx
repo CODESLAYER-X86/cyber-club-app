@@ -98,12 +98,6 @@ export function FinancePage() {
   const circumference = 2 * Math.PI * radius;
   const strokeDashoffset = circumference - (utilizationPercent / 100) * circumference;
 
-  // Stat card progress calculations
-  const fundsProgress = stats.totalFunds > 0 ? 100 : 0;
-  const budgetProgress = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
-  const availableProgress = stats.totalFunds > 0 ? Math.max(0, Math.round((availableFunds / stats.totalFunds) * 100)) : 0;
-  const ledgerProgress = ledgerEntries.length > 0 ? 100 : 0;
-
   return (
     <div className="space-y-6">
       {/* Gradient Header Banner */}
@@ -166,12 +160,12 @@ export function FinancePage() {
         </div>
       </motion.div>
 
-      {/* Stat Cards with Progress Bars */}
+      {/* Stat Cards */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Wallet} label="Net Treasury" value={`৳${stats.totalFunds.toLocaleString()}`} trend="up" delay={0} progress={fundsProgress} progressColor="#10b981" />
-        <StatCard icon={BarChart3} label="Allocated Budget" value={`৳${allocatedBudget.toLocaleString()}`} trend="neutral" delay={0.1} progress={budgetProgress} progressColor="#06b6d4" />
-        <StatCard icon={Clock} label="Available Funds" value={`৳${availableFunds.toLocaleString()}`} trend="up" delay={0.2} progress={availableProgress} progressColor="#f59e0b" />
-        <StatCard icon={Receipt} label="Total Entries" value={ledgerEntries.length} trend="neutral" delay={0.3} progress={ledgerProgress} progressColor="#8b5cf6" />
+        <StatCard icon={Wallet} label="Net Treasury" value={`৳${stats.totalFunds.toLocaleString()}`} trend="up" delay={0} />
+        <StatCard icon={BarChart3} label="Allocated Budget" value={`৳${allocatedBudget.toLocaleString()}`} trend="neutral" delay={0.1} />
+        <StatCard icon={Clock} label="Available Funds" value={`৳${availableFunds.toLocaleString()}`} trend="up" delay={0.2} />
+        <StatCard icon={Receipt} label="Total Entries" value={ledgerEntries.length} trend="neutral" delay={0.3} />
       </div>
 
       {/* Main Content Grid */}

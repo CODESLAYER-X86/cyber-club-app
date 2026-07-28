@@ -248,7 +248,7 @@ export function Sidebar() {
 
   // Get badge counts for specific nav items
   const getBadgeCount = (item: NavItem): number => {
-    if (item.label === 'Approve Members' && ['PRESIDENT', 'GS'].includes(role)) {
+    if (item.label === 'Approve Members' && ['PRESIDENT', 'GS', 'VERIFIER'].includes(role)) {
       // We'll show the unread notification count as a proxy for pending items
       return unreadNotificationCount;
     }

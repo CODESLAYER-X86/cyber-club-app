@@ -48,6 +48,7 @@ interface LayoutConfig {
     x: number;
     y: number;
   };
+  textColors?: Record<string, string>;
   templates: Record<string, TextTemplate>;
   selectedTypes: string[];
   signatures: SignatureConfig[];
@@ -78,6 +79,21 @@ const CERT_TYPE_LABELS: Record<string, string> = {
   APPRECIATION: 'Appreciation',
   CUSTOM: 'Custom Type',
 };
+
+const DEFAULT_TEXT_COLORS = {
+  headerTitle: '#ffffff',
+  headerSubtitle: '#6b7280',
+  intro: '#9ca3af',
+  recipientName: '#10b981',
+  eventLabel: '#9ca3af',
+  eventName: '#ffffff',
+  certificateTitle: '#ffffff',
+  description: '#6b7280',
+  certificateId: '#10b981',
+  footer: '#4b5563',
+  signatureName: '#ffffff',
+  signatureTitle: '#6b7280',
+} as const;
 
 export function CertificateDesigner() {
   const { selectedEventId, setCurrentView } = useAppStore();
@@ -111,6 +127,7 @@ export function CertificateDesigner() {
   const [selectedTypes, setSelectedTypes] = useState<string[]>(['PARTICIPATION']);
   const [templates, setTemplates] = useState<Record<string, TextTemplate>>(DEFAULT_TEMPLATES);
   const [previewType, setPreviewType] = useState('PARTICIPATION');
+  const [textColors, setTextColors] = useState<Record<string, string>>(DEFAULT_TEXT_COLORS);
 
   // Signatures
   const [signatures, setSignatures] = useState<SignatureConfig[]>([
@@ -176,6 +193,10 @@ export function CertificateDesigner() {
                 setTemplates({ ...DEFAULT_TEMPLATES, ...layout.templates });
               }
 
+              if (layout.textColors) {
+                setTextColors({ ...DEFAULT_TEXT_COLORS, ...layout.textColors });
+              }
+
               if (layout.signatures && Array.isArray(layout.signatures)) {
                 setSignatures(layout.signatures);
               }
@@ -214,6 +235,28 @@ export function CertificateDesigner() {
     }));
   };
 
+  const updateTextColor = (key: keyof typeof DEFAULT_TEXT_COLORS, value: string) => {
+    setTextColors(prev => ({
+      ...prev,
+      [key]: value,
+    }));
+  };
+
+  const textColorControls: Array<{ key: keyof typeof DEFAULT_TEXT_COLORS; label: string }> = [
+    { key: 'headerTitle', label: 'Header Title' },
+    { key: 'headerSubtitle', label: 'Header Subtitle' },
+    { key: 'intro', label: 'Intro Text' },
+    { key: 'recipientName', label: 'Recipient Name' },
+    { key: 'eventLabel', label: 'Event Label' },
+    { key: 'eventName', label: 'Event Name' },
+    { key: 'certificateTitle', label: 'Certificate Title' },
+    { key: 'description', label: 'Description Text' },
+    { key: 'certificateId', label: 'Certificate ID' },
+    { key: 'footer', label: 'Footer Text' },
+    { key: 'signatureName', label: 'Signature Name' },
+    { key: 'signatureTitle', label: 'Signature Title' },
+  ];
+
   const toggleType = (type: string) => {
     setSelectedTypes(prev => {
       const active = prev.includes(type)
@@ -249,6 +292,7 @@ export function CertificateDesigner() {
       certId: { visible: idVisible, x: idX, y: idY },
       selectedTypes,
       templates,
+      textColors,
       signatures,
     };
 
@@ -385,6 +429,19 @@ export function CertificateDesigner() {
                             onChange={(e) => updateTemplate(previewType, 'title', e.target.value)}
                             className="h-8 text-xs border-white/10 bg-white/5 text-white"
                           />
+                        </div>
+                        <div className="grid grid-cols-2 gap-2">
+                          {textColorControls.map((control) => (
+                            <div key={control.key} className="space-y-1">
+                              <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{control.label}</label>
+                              <input
+                                type="color"
+                                value={textColors[control.key]}
+                                onChange={(e) => updateTextColor(control.key, e.target.value)}
+                                className="h-8 w-full rounded-md border border-white/10 bg-transparent cursor-pointer"
+                              />
+                            </div>
+                          ))}
                         </div>
                         <div className="space-y-1">
                           <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
@@ -795,30 +852,30 @@ export function CertificateDesigner() {
               )}
 
               {/* Certificate Authority Headers */}
-              <text x={width / 2} y={isLandscape ? "210" : "230"} textAnchor="middle" fontFamily="sans-serif" fontSize="22" fontWeight="bold" fill="#ffffff" letterSpacing="6">CYBER SECURITY CLUB</text>
-              <text x={width / 2} y={isLandscape ? "235" : "255"} textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill="#6b7280" letterSpacing="2">VERIFIED DIGITAL CERTIFICATE</text>
+              <text x={width / 2} y={isLandscape ? "210" : "230"} textAnchor="middle" fontFamily="sans-serif" fontSize="22" fontWeight="bold" fill={textColors.headerTitle} letterSpacing="6">CYBER SECURITY CLUB</text>
+              <text x={width / 2} y={isLandscape ? "235" : "255"} textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill={textColors.headerSubtitle} letterSpacing="2">VERIFIED DIGITAL CERTIFICATE</text>
 
               {/* Core Text Elements */}
-              <text x={width / 2} y={isLandscape ? "290" : "320"} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill="#9ca3af">This is to certify that</text>
-              <text x={width / 2} y={isLandscape ? "350" : "390"} textAnchor="middle" fontFamily="sans-serif" fontSize="42" fontWeight="bold" fill="url(#textGradPreview)">Md. Rahim Uddin Shuvo</text>
-              <text x={width / 2} y={isLandscape ? "395" : "440"} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill="#9ca3af">has successfully completed the event</text>
-              <text x={width / 2} y={isLandscape ? "435" : "480"} textAnchor="middle" fontFamily="sans-serif" fontSize="26" fontWeight="bold" fill="#ffffff">{eventTitle}</text>
+              <text x={width / 2} y={isLandscape ? "290" : "320"} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill={textColors.intro}>This is to certify that</text>
+              <text x={width / 2} y={isLandscape ? "350" : "390"} textAnchor="middle" fontFamily="sans-serif" fontSize="42" fontWeight="bold" fill={textColors.recipientName}>Md. Rahim Uddin Shuvo</text>
+              <text x={width / 2} y={isLandscape ? "395" : "440"} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill={textColors.eventLabel}>has successfully completed the event</text>
+              <text x={width / 2} y={isLandscape ? "435" : "480"} textAnchor="middle" fontFamily="sans-serif" fontSize="26" fontWeight="bold" fill={textColors.eventName}>{eventTitle}</text>
 
               {/* Certificate Type Banner */}
               <g transform={`translate(${width / 2 - 130}, ${isLandscape ? 465 : 520})`}>
                 <rect width="260" height="32" rx="16" fill="url(#typeGradPreview)" opacity="0.2" />
                 <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
-                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill="#ffffff">{previewTitle}</text>
+                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill={textColors.certificateTitle}>{previewTitle}</text>
               </g>
 
               {/* Dynamic Recipient Description Text */}
-              <text x={width / 2} y={isLandscape ? "535" : "600"} textAnchor="middle" fontFamily="sans-serif" fontSize="13" fill="#6b7280" width={width - 200}>
+              <text x={width / 2} y={isLandscape ? "535" : "600"} textAnchor="middle" fontFamily="sans-serif" fontSize="13" fill={textColors.description} width={width - 200}>
                 {previewDesc}
               </text>
 
               {/* Custom Placed Certificate ID */}
               {idVisible && (
-                <text x={idX} y={idY} textAnchor="middle" fontFamily="monospace" fontSize="14" fill={primaryColor}>
+                <text x={idX} y={idY} textAnchor="middle" fontFamily="monospace" fontSize="14" fill={textColors.certificateId}>
                   CSC-2026-CYBERSEC-00125
                 </text>
               )}
@@ -843,20 +900,20 @@ export function CertificateDesigner() {
                     <g key={idx} transform={`translate(${xPos}, ${yPos})`}>
                       <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
                       {sig.image && <image x="-50" y="-60" width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
-                      <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="bold" fill="#ffffff">{sig.name}</text>
-                      <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">{sig.title}</text>
+                      <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="bold" fill={textColors.signatureName}>{sig.name}</text>
+                      <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill={textColors.signatureTitle}>{sig.title}</text>
                     </g>
                   );
                 })
               ) : (
                 <g transform={`translate(${width / 2}, ${isLandscape ? 700 : 960})`}>
-                  <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill="#4b5563">[No Signatures Configured]</text>
+                  <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill={textColors.footer}>[No Signatures Configured]</text>
                 </g>
               )}
 
               {/* Verification Info footer */}
               <line x1="100" y1={height - 50} x2={width - 100} y2={height - 50} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-              <text x={width / 2} y={height - 30} textAnchor="middle" fontFamily="sans-serif" fontSize="10" fill="#4b5563">
+              <text x={width / 2} y={height - 30} textAnchor="middle" fontFamily="sans-serif" fontSize="10" fill={textColors.footer}>
                 Verification URL: https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125
               </text>
             </svg>

@@ -55,6 +55,10 @@ export function MemberApprovalPage() {
 
   const handleAction = async (userId: string, action: 'APPROVED' | 'REJECTED') => {
     if (!currentUser) return;
+    if (!['PRESIDENT', 'GS', 'VERIFIER', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+      toast({ title: 'Forbidden', description: 'You do not have permission to process member approvals.', variant: 'destructive' });
+      return;
+    }
     setProcessing(userId);
     try {
       const r = await fetch('/api/users/approval', {
@@ -84,6 +88,10 @@ export function MemberApprovalPage() {
 
   const handleBatchAction = async (action: 'APPROVED' | 'REJECTED') => {
     if (!currentUser || selectedIds.size === 0) return;
+    if (!['PRESIDENT', 'GS', 'VERIFIER', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+      toast({ title: 'Forbidden', description: 'You do not have permission to process member approvals.', variant: 'destructive' });
+      return;
+    }
     setBatchProcessing(true);
     try {
       const results = await Promise.allSettled(

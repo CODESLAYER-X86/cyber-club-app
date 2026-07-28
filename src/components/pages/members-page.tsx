@@ -100,8 +100,7 @@ const canKickUser = (currentUser: User | null, targetUser: User) => {
   if (!currentUser) return false;
   if (targetUser.id === currentUser.id) return false;
   if (targetUser.role === 'PLATFORM_ADMIN') return false;
-  if (targetUser.membershipStatus !== 'ACTIVE') return false;
-  
+
   if (currentUser.role === 'PLATFORM_ADMIN' || currentUser.role === 'PRESIDENT') {
     return true;
   }
@@ -147,7 +146,7 @@ export function MembersPage() {
   const [userToKick, setUserToKick] = useState<User | null>(null);
   const [kickLoading, setKickLoading] = useState(false);
 
-  const canApprove = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const canApprove = currentUser && ['PRESIDENT', 'GS', 'VERIFIER', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
   const handleKick = async () => {
     if (!userToKick) return;

@@ -182,17 +182,17 @@ export function DashboardPage() {
       case 'MEMBER':
         return (
           <>
-            <StatCard icon={Calendar} label="My Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} progress={65} progressColor="#10b981" />
-            <StatCard icon={Award} label="My Certificates" value={certificates.length} trend="up" delay={0.1} progress={certificates.length > 0 ? 80 : 20} progressColor="#06b6d4" />
+            <StatCard icon={Calendar} label="My Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
+            <StatCard icon={Award} label="My Certificates" value={certificates.length} trend="up" delay={0.1} />
             <StatCard icon={CreditCard} label="Payments" value={payments.length} trend="neutral" delay={0.2} />
-            <StatCard icon={Calendar} label="Upcoming Events" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} progress={stats?.upcomingEvents?.length ? Math.min((stats.upcomingEvents.length / 5) * 100, 100) : 0} progressColor="#f59e0b" />
+            <StatCard icon={Calendar} label="Upcoming Events" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} />
           </>
         );
       case 'MEDIA':
         return (
           <>
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} progress={70} progressColor="#10b981" />
-            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0.1} progress={85} progressColor="#06b6d4" />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
+            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0.1} />
             <StatCard icon={FileText} label="Announcements" value={0} trend="neutral" delay={0.2} />
             <StatCard icon={BarChart3} label="Registrations" value={0} trend="up" delay={0.3} />
           </>
@@ -200,55 +200,55 @@ export function DashboardPage() {
       case 'TREASURER':
         return (
           <>
-            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0} progress={78} progressColor="#10b981" />
-            <StatCard icon={CreditCard} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} progress={stats?.pendingApprovals ? Math.min((stats.pendingApprovals / 10) * 100, 100) : 0} progressColor="#f59e0b" />
-            <StatCard icon={CheckCircle} label="Verified Payments" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} progress={90} progressColor="#06b6d4" />
+            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0} />
+            <StatCard icon={CreditCard} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
+            <StatCard icon={CheckCircle} label="Verified Payments" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
             <StatCard icon={Activity} label="Active Budgets" value={1} trend="neutral" delay={0.3} />
           </>
         );
       case 'GS':
         return (
           <>
-            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} progress={85} progressColor="#10b981" />
-            <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.1} progress={pendingUsers.length > 0 ? 60 : 5} progressColor="#f59e0b" />
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} progress={70} progressColor="#06b6d4" />
+            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+            <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.1} />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
             <StatCard icon={FileText} label="Pending Expenses" value={0} trend="neutral" delay={0.3} />
           </>
         );
       case 'VP':
         return (
           <>
-            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} progress={85} progressColor="#10b981" />
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.1} progress={65} progressColor="#06b6d4" />
-            <StatCard icon={BarChart3} label="Growth Rate" value="12%" trend="up" delay={0.2} progress={12} progressColor="#8b5cf6" />
+            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.1} />
+            <StatCard icon={BarChart3} label="Growth Rate" value="12%" trend="up" delay={0.2} />
             <StatCard icon={Award} label="Certificates Issued" value={0} trend="neutral" delay={0.3} />
           </>
         );
       case 'PRESIDENT':
         return (
           <>
-            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} progress={90} progressColor="#10b981" />
-            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0.1} progress={78} progressColor="#06b6d4" />
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} progress={65} progressColor="#f59e0b" />
-            <StatCard icon={AlertTriangle} label="System Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} progress={stats?.pendingApprovals ? Math.min((stats.pendingApprovals / 10) * 100, 100) : 0} progressColor="#ef4444" />
+            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0.1} />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
+            <StatCard icon={AlertTriangle} label="System Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
           </>
         );
       case 'VERIFIER':
         return (
           <>
-            <StatCard icon={Calendar} label="Assigned Events" value={stats?.activeEvents ?? 0} trend="neutral" delay={0} progress={50} progressColor="#10b981" />
-            <StatCard icon={CheckCircle} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} progress={stats?.pendingApprovals ? Math.min((stats.pendingApprovals / 10) * 100, 100) : 0} progressColor="#f59e0b" />
+            <StatCard icon={Calendar} label="Assigned Events" value={stats?.activeEvents ?? 0} trend="neutral" delay={0} />
+            <StatCard icon={CheckCircle} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
             <StatCard icon={Shield} label="Verified Today" value={0} trend="up" delay={0.2} />
-            <StatCard icon={Activity} label="Total Verified" value={0} trend="up" delay={0.3} progress={30} progressColor="#06b6d4" />
+            <StatCard icon={Activity} label="Total Verified" value={0} trend="up" delay={0.3} />
           </>
         );
       case 'PLATFORM_ADMIN':
         return (
           <>
-            <StatCard icon={Users} label="Total Users" value={stats?.totalMembers ?? 0} trend="up" delay={0} progress={95} progressColor="#10b981" />
-            <StatCard icon={Activity} label="System Health" value="99.9%" trend="up" delay={0.1} progress={99} progressColor="#06b6d4" />
+            <StatCard icon={Users} label="Total Users" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+            <StatCard icon={Activity} label="System Health" value="99.9%" trend="up" delay={0.1} />
             <StatCard icon={Settings} label="Recent Actions" value={stats?.recentActivity?.length ?? 0} trend="neutral" delay={0.2} />
-            <StatCard icon={AlertTriangle} label="Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} progress={stats?.pendingApprovals ? Math.min((stats.pendingApprovals / 10) * 100, 100) : 0} progressColor="#ef4444" />
+            <StatCard icon={AlertTriangle} label="Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
           </>
         );
       default:
