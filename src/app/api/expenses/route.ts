@@ -1,106 +1,100 @@
-import prisma from "@/lib/db";
-import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
-import { NextRequest } from "next/server";
-import { getSupabaseUser } from "@/lib/supabase-server";
+import { NextRequest } from 'next/server';
+import prisma from '@/lib/db';
+import { successResponse, errorResponse, serverErrorResponse } from '@/lib/api-utils';
 
+// ─── GET /api/expenses ─── List all expenses (with items, creator, approvers)
 export async function GET(request: NextRequest) {
   try {
-    const caller = await getSupabaseUser();
-    if (!caller) {
-      return forbiddenResponse("You must be logged in to view expenses");
-    }
+    const { searchParams } = new URL(request.url);
+    const status = searchParams.get('status');
 
-    const searchParams = request.nextUrl.searchParams;
-    const status = searchParams.get("status");
-
-    const where: Record<string, unknown> = {};
-    if (status) {
+    const where: any = {};
+    if (status && ['PENDING', 'APPROVED', 'REJECTED'].includes(status)) {
       where.status = status;
     }
 
     const expenses = await prisma.expense.findMany({
       where,
+      orderBy: { createdAt: 'desc' },
       include: {
-        creator: {
-          select: { id: true, name: true, email: true, avatar: true },
-        },
-        items: {
-          orderBy: { id: "asc" },
-        },
-        presidentApprover: {
-          select: { id: true, name: true },
-        },
-        gsApprover: {
-          select: { id: true, name: true },
-        },
+        items: { orderBy: { id: 'asc' } },
+        creator: { select: { id: true, name: true, email: true, role: true } },
+        presidentApprover: { select: { id: true, name: true, email: true, role: true } },
+        gsApprover: { select: { id: true, name: true, email: true, role: true } },
       },
-      orderBy: { createdAt: "desc" },
     });
 
     return successResponse({ expenses });
-  } catch {
+  } catch (e) {
+    console.error('[Expenses GET] Error:', e);
     return serverErrorResponse();
   }
 }
 
+// ─── POST /api/expenses ─── Create expense with items (Treasurer/Platform Admin only)
 export async function POST(request: NextRequest) {
   try {
-    const caller = await getSupabaseUser(["TREASURER", "PLATFORM_ADMIN"]);
-    if (!caller) {
-      return forbiddenResponse("Only the Treasurer or Platform Admin can submit expenses");
-    }
-
     const body = await request.json();
-    const { title, date, purchasedBy, attachmentUrl, items } = body;
+    const { date, note, purchasedBy, attachmentUrl, items, createdBy } = body;
 
-    if (!title || !items || !Array.isArray(items) || items.length === 0) {
-      return errorResponse("Title and at least one item are required");
+    // Validate required fields
+    if (!date || !items || !items.length || !createdBy) {
+      return errorResponse('Date, items, and createdBy are required', 400);
     }
 
-    // Validate each item
+    // Verify the creator is a TREASURER or PLATFORM_ADMIN
+    const user = await prisma.user.findUnique({ where: { id: createdBy } });
+    if (!user || !['TREASURER', 'PLATFORM_ADMIN'].includes(user.role)) {
+      return errorResponse('Only Treasurer or Platform Admin can create expenses', 403);
+    }
+
+    // Validate items and calculate total
+    let totalAmount = 0;
     for (const item of items) {
-      if (!item.itemName || !item.price || item.price <= 0) {
-        return errorResponse("Each item must have a name and positive price");
+      if (!item.itemName || item.quantity <= 0 || item.price < 0) {
+        return errorResponse('Each item must have a name, positive quantity, and valid price', 400);
       }
-      if (!item.quantity || item.quantity <= 0) {
-        return errorResponse("Each item must have a positive quantity");
-      }
+      totalAmount += item.quantity * item.price;
     }
-
-    // Calculate total amount from items
-    const totalAmount = items.reduce((sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price, 0);
 
     const expense = await prisma.expense.create({
       data: {
-        title,
+        date: new Date(date),
+        note: note || '',
         amount: totalAmount,
-        date: date ? new Date(date) : new Date(),
         purchasedBy: purchasedBy || null,
         attachmentUrl: attachmentUrl || null,
-        createdBy: caller.userId,
-        status: "PENDING",
-        presidentStatus: "PENDING",
-        gsStatus: "PENDING",
+        status: 'PENDING',
+        presidentStatus: 'PENDING',
+        gsStatus: 'PENDING',
+        createdBy,
         items: {
-          create: items.map((item: { itemName: string; quantity: number; unit: string; price: number }) => ({
+          create: items.map((item: any) => ({
             itemName: item.itemName,
-            quantity: item.quantity,
-            unit: item.unit || "pcs",
-            price: item.price,
+            quantity: parseInt(item.quantity) || 1,
+            unit: item.unit || 'pcs',
+            price: parseFloat(item.price) || 0,
           })),
         },
       },
       include: {
-        creator: {
-          select: { id: true, name: true, email: true, avatar: true },
-        },
         items: true,
+        creator: { select: { id: true, name: true, email: true, role: true } },
+      },
+    });
+
+    // Create audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: createdBy,
+        action: 'EXPENSE_CREATED',
+        details: JSON.stringify({ expenseId: expense.id, amount: expense.amount, itemCount: items.length }),
       },
     });
 
     return successResponse({ expense }, 201);
   } catch (e) {
-    console.error("[Expense Create API] Error:", e);
+    console.error('[Expenses POST] Error:', e);
     return serverErrorResponse();
   }
 }

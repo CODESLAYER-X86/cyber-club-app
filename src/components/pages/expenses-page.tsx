@@ -1,15 +1,14 @@
 'use client';
 
-import { useState, useEffect, useMemo } from 'react';
+import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import {
   Receipt, Plus, CheckCircle, XCircle, Loader2,
-  Clock, DollarSign, AlertCircle, Trash2,
-  ChevronDown, ChevronUp, User, Paperclip, Calendar,
-  Shield, ShieldCheck, FileText,
+  Trash2, ChevronDown, ChevronUp, Shield, ShieldCheck,
+  ArrowDownRight, DollarSign,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
-import type { Expense, ExpenseItem, ExpenseStatus } from '@/types';
+import type { Expense, ExpenseItem } from '@/types';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -17,140 +16,57 @@ import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 
-// ─── Constants ────────────────────────────────────────────────────────────────
-
+/* ─── Constants ─── */
 const UNIT_OPTIONS = ['pcs', 'kg', 'box', 'set', 'pair', 'pack', 'liter', 'meter', 'other'] as const;
 
-const STATUS_BORDER: Record<string, string> = {
-  PENDING: 'border-l-amber-400',
-  APPROVED: 'border-l-emerald-400',
-  REJECTED: 'border-l-red-400',
+const STATUS_CONFIG: Record<string, { color: string; bg: string; dotColor: string; label: string; emoji: string }> = {
+  PENDING: { color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/20', dotColor: 'bg-amber-400', label: 'Pending', emoji: '🟡' },
+  APPROVED: { color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/20', dotColor: 'bg-emerald-400', label: 'Approved', emoji: '🟢' },
+  REJECTED: { color: 'text-red-400', bg: 'bg-red-500/15 border-red-500/20', dotColor: 'bg-red-400', label: 'Rejected', emoji: '🔴' },
 };
 
-const STATUS_DOT: Record<ExpenseStatus, { emoji: string; color: string; bg: string }> = {
-  PENDING: { emoji: '🟡', color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/20' },
-  APPROVED: { emoji: '🟢', color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/20' },
-  REJECTED: { emoji: '🔴', color: 'text-red-400', bg: 'bg-red-500/15 border-red-500/20' },
-};
-
-const DUAL_STATUS_CONFIG: Record<ExpenseStatus, { label: string; color: string; dot: string }> = {
-  PENDING: { label: 'Pending', color: 'text-amber-400', dot: 'bg-amber-400' },
-  APPROVED: { label: 'Approved', color: 'text-emerald-400', dot: 'bg-emerald-400' },
-  REJECTED: { label: 'Rejected', color: 'text-red-400', dot: 'bg-red-400' },
-};
-
-const SVG_PATTERN = `data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMjBMMjAgMEw0MCAyMEwyMCA0MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2cpIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+`;
-
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function timeAgo(date: string): string {
-  const now = new Date();
-  const then = new Date(date);
-  const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
-  if (seconds < 60) return 'just now';
-  const minutes = Math.floor(seconds / 60);
-  if (minutes < 60) return `${minutes}m ago`;
-  const hours = Math.floor(minutes / 60);
-  if (hours < 24) return `${hours}h ago`;
-  const days = Math.floor(hours / 24);
-  if (days < 2) return 'yesterday';
-  if (days < 7) return `${days}d ago`;
-  return new Date(date).toLocaleDateString();
-}
-
-function formatDate(dateStr: string): string {
-  try {
-    const d = new Date(dateStr);
-    return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
-  } catch {
-    return dateStr;
-  }
-}
-
-function getTodayString(): string {
-  const d = new Date();
-  const year = d.getFullYear();
-  const month = String(d.getMonth() + 1).padStart(2, '0');
-  const day = String(d.getDate()).padStart(2, '0');
-  return `${year}-${month}-${day}`;
-}
-
-// ─── Animation variants ──────────────────────────────────────────────────────
-
-const container = {
-  hidden: { opacity: 0 },
-  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
-};
-
-const item = {
-  hidden: { opacity: 0, y: 12 },
-  show: { opacity: 1, y: 0 },
-};
-
-// ─── Form Item Type ──────────────────────────────────────────────────────────
+const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
+const item = { hidden: { opacity: 0, y: 15 }, show: { opacity: 1, y: 0 } };
 
 interface FormItem {
   itemName: string;
-  quantity: number;
+  quantity: string;
   unit: string;
-  price: number;
+  price: string;
 }
-
-function createEmptyItem(): FormItem {
-  return { itemName: '', quantity: 1, unit: 'pcs', price: 0 };
-}
-
-// ─── Component ────────────────────────────────────────────────────────────────
 
 export function ExpensesPage() {
   const { currentUser } = useAppStore();
-
-  // Data state
-  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const [statusFilter, setStatusFilter] = useState<string>('all');
-
-  // Dialog state
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [creating, setCreating] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [filter, setFilter] = useState<string>('ALL');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Form state
-  const [formDate, setFormDate] = useState(getTodayString());
-  const [formNote, setFormNote] = useState('');
-  const [formPurchasedBy, setFormPurchasedBy] = useState('');
-  const [formAttachmentUrl, setFormAttachmentUrl] = useState('');
-  const [formItems, setFormItems] = useState<FormItem[]>([createEmptyItem()]);
+  const [form, setForm] = useState({
+    date: new Date().toISOString().split('T')[0],
+    note: '',
+    purchasedBy: '',
+    attachmentUrl: '',
+  });
+  const [formItems, setFormItems] = useState<FormItem[]>([
+    { itemName: '', quantity: '1', unit: 'pcs', price: '' },
+  ]);
 
-  // Approval state
-  const [approvingId, setApprovingId] = useState<string | null>(null);
-
-  // Expanded items state
-  const [expandedItems, setExpandedItems] = useState<Set<string>>(new Set());
-
-  // ─── Permissions ─────────────────────────────────────────────────────────
-
-  const canCreate = currentUser && ['TREASURER', 'PLATFORM_ADMIN'].includes(currentUser.role);
-  const canApprove = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
-  const canPresidentApprove = currentUser && ['PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role);
-  const canGsApprove = currentUser && ['GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
-
-  // ─── Computed total ──────────────────────────────────────────────────────
-
-  const formTotal = useMemo(() => {
-    return formItems.reduce((sum, item) => sum + item.quantity * item.price, 0);
-  }, [formItems]);
-
-  // ─── Data fetching ──────────────────────────────────────────────────────
+  const canCreate = currentUser?.role === 'TREASURER' || currentUser?.role === 'PLATFORM_ADMIN';
+  const canApprove = currentUser?.role === 'PRESIDENT' || currentUser?.role === 'GS' || currentUser?.role === 'PLATFORM_ADMIN';
+  const canPresidentApprove = currentUser?.role === 'PRESIDENT' || currentUser?.role === 'PLATFORM_ADMIN';
+  const canGsApprove = currentUser?.role === 'GS' || currentUser?.role === 'PLATFORM_ADMIN';
 
   const loadExpenses = async () => {
     setLoading(true);
     try {
-      const params = statusFilter !== 'all' ? `?status=${statusFilter}` : '';
-      const r = await fetch(`/api/expenses${params}`);
+      const r = await fetch('/api/expenses');
       const d = await r.json();
       if (d.success) setExpenses(d.data.expenses || []);
     } catch (e) {
@@ -160,367 +76,190 @@ export function ExpensesPage() {
     }
   };
 
-  useEffect(() => {
-    loadExpenses();
-  }, [statusFilter]);
+  useEffect(() => { loadExpenses(); }, []);
 
-  // ─── Stats ──────────────────────────────────────────────────────────────
+  // Calculate total from form items
+  const calcTotal = () => formItems.reduce((s, i) => s + (parseFloat(i.quantity) || 0) * (parseFloat(i.price) || 0), 0);
 
-  const totalExpenses = expenses.reduce((s, e) => s + e.amount, 0);
-  const pendingCount = expenses.filter(e => e.status === 'PENDING').length;
-  const approvedTotal = expenses.filter(e => e.status === 'APPROVED').reduce((s, e) => s + e.amount, 0);
-  const rejectedCount = expenses.filter(e => e.status === 'REJECTED').length;
+  const addItem = () => setFormItems((p) => [...p, { itemName: '', quantity: '1', unit: 'pcs', price: '' }]);
+  const removeItem = (idx: number) => setFormItems((p) => p.filter((_, i) => i !== idx));
+  const updateItem = (idx: number, field: keyof FormItem, value: string) =>
+    setFormItems((p) => p.map((it, i) => (i === idx ? { ...it, [field]: value } : it)));
 
-  const statusCounts = useMemo(() => ({
-    all: expenses.length,
-    PENDING: expenses.filter(e => e.status === 'PENDING').length,
-    APPROVED: expenses.filter(e => e.status === 'APPROVED').length,
-    REJECTED: expenses.filter(e => e.status === 'REJECTED').length,
-  }), [expenses]);
-
-  // ─── Form handlers ──────────────────────────────────────────────────────
-
-  const resetForm = () => {
-    setFormDate(getTodayString());
-    setFormNote('');
-    setFormPurchasedBy('');
-    setFormAttachmentUrl('');
-    setFormItems([createEmptyItem()]);
-  };
-
-  const handleAddItem = () => {
-    setFormItems(prev => [...prev, createEmptyItem()]);
-  };
-
-  const handleRemoveItem = (index: number) => {
-    if (formItems.length <= 1) return;
-    setFormItems(prev => prev.filter((_, i) => i !== index));
-  };
-
-  const handleItemChange = (index: number, field: keyof FormItem, value: string | number) => {
-    setFormItems(prev => {
-      const updated = [...prev];
-      updated[index] = { ...updated[index], [field]: value };
-      return updated;
-    });
-  };
-
-  const handleCreate = async (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!currentUser) return;
-
-    // Validate at least one item has a name and positive price
-    const validItems = formItems.filter(item => item.itemName.trim() !== '' && item.price > 0 && item.quantity > 0);
-    if (validItems.length === 0) {
-      toast({ title: 'Validation Error', description: 'At least one item with a name, quantity, and price is required.', variant: 'destructive' });
+    if (formItems.length === 0 || formItems.every((i) => !i.itemName)) {
+      toast({ title: 'Error', description: 'Add at least one item', variant: 'destructive' });
       return;
     }
-
-    if (!formNote.trim()) {
-      toast({ title: 'Validation Error', description: 'Please enter a note/description for the expense.', variant: 'destructive' });
-      return;
-    }
-
-    setCreating(true);
+    setSubmitting(true);
     try {
-      const payload = {
-        title: formNote.trim(),
-        date: formDate,
-        purchasedBy: formPurchasedBy.trim() || undefined,
-        attachmentUrl: formAttachmentUrl.trim() || undefined,
-        items: validItems.map(item => ({
-          itemName: item.itemName.trim(),
-          quantity: item.quantity,
-          unit: item.unit,
-          price: item.price,
-        })),
-      };
-
       const r = await fetch('/api/expenses', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
+        body: JSON.stringify({
+          ...form,
+          items: formItems.filter((i) => i.itemName).map((i) => ({
+            itemName: i.itemName,
+            quantity: parseInt(i.quantity) || 1,
+            unit: i.unit,
+            price: parseFloat(i.price) || 0,
+          })),
+          createdBy: currentUser.id,
+        }),
       });
       const d = await r.json();
       if (d.success) {
+        toast({ title: 'Expense submitted', description: 'Awaiting approval from President and GS.', variant: 'default' });
         setDialogOpen(false);
-        resetForm();
+        setForm({ date: new Date().toISOString().split('T')[0], note: '', purchasedBy: '', attachmentUrl: '' });
+        setFormItems([{ itemName: '', quantity: '1', unit: 'pcs', price: '' }]);
         loadExpenses();
-        toast({ title: 'Expense Created', description: 'The expense has been submitted for approval.' });
       } else {
-        toast({ title: 'Error', description: d.error || 'Failed to create expense.', variant: 'destructive' });
+        toast({ title: 'Error', description: d.error || 'Failed to submit expense', variant: 'destructive' });
       }
     } catch (e) {
-      console.error(e);
-      toast({ title: 'Error', description: 'Network error. Please try again.', variant: 'destructive' });
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
-      setCreating(false);
+      setSubmitting(false);
     }
   };
 
-  // ─── Approval handler ───────────────────────────────────────────────────
-
-  const handleApprove = async (id: string, approverRole: 'PRESIDENT' | 'GS', status: 'APPROVED' | 'REJECTED') => {
+  const handleApproval = async (expenseId: string, action: string) => {
     if (!currentUser) return;
-
-    const actionLabel = status === 'APPROVED' ? 'approve' : 'reject';
-    const roleLabel = approverRole === 'PRESIDENT' ? 'President' : 'General Secretary';
-    const confirmed = window.confirm(`Are you sure you want to ${actionLabel} this expense as ${roleLabel}?`);
-    if (!confirmed) return;
-
-    setApprovingId(id);
     try {
-      const r = await fetch(`/api/expenses/${id}/approve`, {
+      const r = await fetch(`/api/expenses/${expenseId}/approve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ approverRole, status }),
+        body: JSON.stringify({ action, approvedBy: currentUser.id, role: currentUser.role }),
       });
       const d = await r.json();
       if (d.success) {
+        toast({ title: 'Success', description: `Expense ${action.includes('REJECT') ? 'rejected' : 'approved'}`, variant: 'default' });
         loadExpenses();
-        toast({
-          title: status === 'APPROVED' ? 'Expense Approved' : 'Expense Rejected',
-          description: `The expense has been ${status === 'APPROVED' ? 'approved' : 'rejected'} by ${roleLabel}.`,
-        });
       } else {
-        toast({ title: 'Error', description: d.error || 'Failed to update expense.', variant: 'destructive' });
+        toast({ title: 'Error', description: d.error || 'Action failed', variant: 'destructive' });
       }
     } catch (e) {
-      console.error(e);
-      toast({ title: 'Error', description: 'Network error.', variant: 'destructive' });
-    } finally {
-      setApprovingId(null);
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     }
   };
 
-  // ─── Toggle expanded items ──────────────────────────────────────────────
-
-  const toggleExpanded = (id: string) => {
-    setExpandedItems(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) {
-        next.delete(id);
-      } else {
-        next.add(id);
-      }
-      return next;
-    });
-  };
-
-  // ─── Render ─────────────────────────────────────────────────────────────
+  // Filtered
+  const filtered = filter === 'ALL' ? expenses : expenses.filter((e) => e.status === filter);
+  const totalApproved = expenses.filter((e) => e.status === 'APPROVED').reduce((s, e) => s + e.amount, 0);
+  const pendingCount = expenses.filter((e) => e.status === 'PENDING').length;
 
   return (
     <div className="space-y-6">
-      {/* ── Gradient Header Banner ────────────────────────────────────────── */}
+      {/* Header */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
-        className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600/20 via-cyan-600/15 to-emerald-600/10 border border-emerald-500/10 p-6"
+        className="relative overflow-hidden rounded-xl bg-gradient-to-r from-amber-600/20 via-orange-600/15 to-amber-600/10 border border-amber-500/10 p-6"
       >
-        <div className="absolute inset-0 opacity-50" style={{ backgroundImage: `url("${SVG_PATTERN}")` }} />
-        <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute -right-20 -bottom-20 h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="relative flex items-center justify-between flex-wrap gap-4">
+        <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-amber-500/10 blur-3xl" />
+        <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
-              <Receipt className="h-6 w-6 text-emerald-400" />
+            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-500/20 border border-amber-500/20">
+              <ArrowDownRight className="h-6 w-6 text-amber-400" />
             </div>
             <div>
               <h1 className="text-2xl font-bold text-white">Expenses</h1>
-              <p className="text-sm text-gray-400">Track and manage club expenses</p>
+              <p className="text-sm text-gray-400">Record and approve expense entries</p>
             </div>
           </div>
           {canCreate && (
-            <Dialog open={dialogOpen} onOpenChange={(open) => {
-              setDialogOpen(open);
-              if (!open) resetForm();
-            }}>
+            <Dialog open={dialogOpen} onOpenChange={setDialogOpen}>
               <DialogTrigger asChild>
-                <Button className="bg-emerald-600 text-white hover:bg-emerald-500">
+                <Button className="bg-amber-600 text-white hover:bg-amber-500">
                   <Plus className="mr-2 h-4 w-4" />Add Expense
                 </Button>
               </DialogTrigger>
               <DialogContent className="border-white/10 bg-[#1a1a2e] text-white max-w-2xl max-h-[90vh] overflow-y-auto">
-                <DialogHeader>
-                  <DialogTitle className="text-white text-lg">Add New Expense</DialogTitle>
-                </DialogHeader>
-                <form onSubmit={handleCreate} className="space-y-5">
-                  {/* Date */}
-                  <div className="space-y-1.5">
-                    <Label className="text-gray-400 flex items-center gap-1.5">
-                      <Calendar className="h-3.5 w-3.5" /> Date
-                    </Label>
-                    <Input
-                      type="date"
-                      value={formDate}
-                      onChange={e => setFormDate(e.target.value)}
-                      required
-                      className="border-white/10 bg-white/5 text-white"
-                    />
-                  </div>
-
-                  {/* Note / Title */}
-                  <div className="space-y-1.5">
-                    <Label className="text-gray-400 flex items-center gap-1.5">
-                      <FileText className="h-3.5 w-3.5" /> Note <span className="text-red-400">*</span>
-                    </Label>
-                    <Textarea
-                      value={formNote}
-                      onChange={e => setFormNote(e.target.value)}
-                      placeholder="Expense title / description"
-                      required
-                      rows={2}
-                      className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-                    />
-                  </div>
-
-                  {/* Purchased By */}
-                  <div className="space-y-1.5">
-                    <Label className="text-gray-400 flex items-center gap-1.5">
-                      <User className="h-3.5 w-3.5" /> Who went to purchase
-                    </Label>
-                    <Input
-                      value={formPurchasedBy}
-                      onChange={e => setFormPurchasedBy(e.target.value)}
-                      placeholder="Name of the person who purchased"
-                      className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-                    />
-                  </div>
-
-                  {/* Attachment URL */}
-                  <div className="space-y-1.5">
-                    <Label className="text-gray-400 flex items-center gap-1.5">
-                      <Paperclip className="h-3.5 w-3.5" /> Attachment URL <span className="text-gray-600">(optional)</span>
-                    </Label>
-                    <Input
-                      value={formAttachmentUrl}
-                      onChange={e => setFormAttachmentUrl(e.target.value)}
-                      placeholder="https://..."
-                      className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-                    />
-                  </div>
-
-                  {/* Purchased Items Table */}
-                  <div className="space-y-3">
-                    <Label className="text-gray-400 flex items-center gap-1.5">
-                      <Receipt className="h-3.5 w-3.5" /> Purchased Items <span className="text-red-400">*</span>
-                    </Label>
-                    <div className="rounded-lg border border-white/10 overflow-hidden">
-                      <div className="overflow-x-auto">
-                        <table className="w-full text-sm">
-                          <thead>
-                            <tr className="border-b border-white/10 bg-white/[0.02]">
-                              <th className="text-left px-3 py-2 text-gray-500 font-medium text-xs">Item Name</th>
-                              <th className="text-left px-3 py-2 text-gray-500 font-medium text-xs w-20">Qty</th>
-                              <th className="text-left px-3 py-2 text-gray-500 font-medium text-xs w-28">Unit</th>
-                              <th className="text-left px-3 py-2 text-gray-500 font-medium text-xs w-24">Price (৳)</th>
-                              <th className="text-left px-3 py-2 text-gray-500 font-medium text-xs w-24">Subtotal</th>
-                              <th className="text-center px-3 py-2 text-gray-500 font-medium text-xs w-12"></th>
-                            </tr>
-                          </thead>
-                          <tbody>
-                            {formItems.map((formItem, idx) => {
-                              const subtotal = formItem.quantity * formItem.price;
-                              return (
-                                <tr key={idx} className="border-b border-white/5 last:border-b-0">
-                                  <td className="px-3 py-2">
-                                    <Input
-                                      value={formItem.itemName}
-                                      onChange={e => handleItemChange(idx, 'itemName', e.target.value)}
-                                      placeholder="Item name"
-                                      required
-                                      className="border-white/10 bg-white/5 text-white h-8 text-xs placeholder:text-gray-600"
-                                    />
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <Input
-                                      type="number"
-                                      min={1}
-                                      value={formItem.quantity}
-                                      onChange={e => handleItemChange(idx, 'quantity', parseInt(e.target.value) || 0)}
-                                      required
-                                      className="border-white/10 bg-white/5 text-white h-8 text-xs w-20"
-                                    />
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <Select
-                                      value={formItem.unit}
-                                      onValueChange={v => handleItemChange(idx, 'unit', v)}
-                                    >
-                                      <SelectTrigger className="border-white/10 bg-white/5 text-white h-8 text-xs w-28">
-                                        <SelectValue />
-                                      </SelectTrigger>
-                                      <SelectContent className="border-white/10 bg-[#1a1a2e]">
-                                        {UNIT_OPTIONS.map(u => (
-                                          <SelectItem key={u} value={u}>{u}</SelectItem>
-                                        ))}
-                                      </SelectContent>
-                                    </Select>
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <Input
-                                      type="number"
-                                      min={0}
-                                      step={0.01}
-                                      value={formItem.price || ''}
-                                      onChange={e => handleItemChange(idx, 'price', parseFloat(e.target.value) || 0)}
-                                      required
-                                      className="border-white/10 bg-white/5 text-white h-8 text-xs w-24"
-                                    />
-                                  </td>
-                                  <td className="px-3 py-2">
-                                    <span className="text-emerald-400 font-medium text-xs">
-                                      ৳{subtotal.toLocaleString()}
-                                    </span>
-                                  </td>
-                                  <td className="px-3 py-2 text-center">
-                                    <Button
-                                      type="button"
-                                      variant="ghost"
-                                      size="sm"
-                                      onClick={() => handleRemoveItem(idx)}
-                                      disabled={formItems.length <= 1}
-                                      className="h-7 w-7 p-0 text-red-400 hover:text-red-300 hover:bg-red-500/10 disabled:opacity-30 disabled:cursor-not-allowed"
-                                    >
-                                      <Trash2 className="h-3.5 w-3.5" />
-                                    </Button>
-                                  </td>
-                                </tr>
-                              );
-                            })}
-                          </tbody>
-                        </table>
-                      </div>
+                <DialogHeader><DialogTitle>Add New Expense</DialogTitle></DialogHeader>
+                <form onSubmit={handleSubmit} className="space-y-4">
+                  <div className="grid grid-cols-2 gap-4">
+                    <div className="space-y-1.5">
+                      <Label className="text-gray-400">Date</Label>
+                      <Input type="date" value={form.date} onChange={(e) => setForm((p) => ({ ...p, date: e.target.value }))} required className="border-white/10 bg-white/5" />
                     </div>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={handleAddItem}
-                      className="border-white/10 bg-white/5 text-gray-400 hover:text-white hover:bg-white/10 hover:border-white/20"
-                    >
-                      <Plus className="mr-1.5 h-3.5 w-3.5" /> Add Item
-                    </Button>
+                    <div className="space-y-1.5">
+                      <Label className="text-gray-400">Purchased By</Label>
+                      <Input value={form.purchasedBy} onChange={(e) => setForm((p) => ({ ...p, purchasedBy: e.target.value }))} placeholder="Name of purchaser" className="border-white/10 bg-white/5" />
+                    </div>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-gray-400">Note</Label>
+                    <Textarea value={form.note} onChange={(e) => setForm((p) => ({ ...p, note: e.target.value }))} placeholder="Brief description of the expense..." className="border-white/10 bg-white/5 min-h-[60px]" />
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label className="text-gray-400">Attachment URL</Label>
+                    <Input value={form.attachmentUrl} onChange={(e) => setForm((p) => ({ ...p, attachmentUrl: e.target.value }))} placeholder="https://..." className="border-white/10 bg-white/5" />
                   </div>
 
-                  {/* Total Expense */}
-                  <div className="flex items-center justify-between rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-4 py-3">
-                    <span className="text-gray-400 font-medium text-sm">Total Expense</span>
-                    <span className="text-emerald-400 font-bold text-xl">৳{formTotal.toLocaleString()}</span>
+                  {/* Items Table */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Label className="text-gray-400">Items</Label>
+                      <Button type="button" size="sm" variant="outline" className="border-white/10 text-gray-400 hover:text-white" onClick={addItem}>
+                        <Plus className="h-3 w-3 mr-1" />Add Item
+                      </Button>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-white/10">
+                            <th className="pb-2 text-left font-medium text-gray-400 w-[35%]">Name</th>
+                            <th className="pb-2 text-center font-medium text-gray-400 w-[12%]">Qty</th>
+                            <th className="pb-2 text-center font-medium text-gray-400 w-[15%]">Unit</th>
+                            <th className="pb-2 text-right font-medium text-gray-400 w-[20%]">Price (৳)</th>
+                            <th className="pb-2 text-right font-medium text-gray-400 w-[15%]">Subtotal</th>
+                            <th className="pb-2 w-[3%]"></th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {formItems.map((fi, idx) => (
+                            <tr key={idx} className="border-b border-white/[0.03]">
+                              <td className="py-2 pr-1">
+                                <Input value={fi.itemName} onChange={(e) => updateItem(idx, 'itemName', e.target.value)} placeholder="Item name" required className="border-white/10 bg-white/5 h-8 text-sm" />
+                              </td>
+                              <td className="py-2 px-1">
+                                <Input type="number" min="1" value={fi.quantity} onChange={(e) => updateItem(idx, 'quantity', e.target.value)} className="border-white/10 bg-white/5 h-8 text-sm text-center" />
+                              </td>
+                              <td className="py-2 px-1">
+                                <select value={fi.unit} onChange={(e) => updateItem(idx, 'unit', e.target.value)} className="w-full h-8 rounded-md border border-white/10 bg-white/5 text-sm text-gray-300 px-2">
+                                  {UNIT_OPTIONS.map((u) => <option key={u} value={u}>{u}</option>)}
+                                </select>
+                              </td>
+                              <td className="py-2 px-1">
+                                <Input type="number" step="0.01" min="0" value={fi.price} onChange={(e) => updateItem(idx, 'price', e.target.value)} placeholder="0" required className="border-white/10 bg-white/5 h-8 text-sm text-right" />
+                              </td>
+                              <td className="py-2 text-right text-sm text-gray-300">
+                                ৳{((parseFloat(fi.quantity) || 0) * (parseFloat(fi.price) || 0)).toLocaleString()}
+                              </td>
+                              <td className="py-2 pl-1">
+                                {formItems.length > 1 && (
+                                  <Button type="button" size="sm" variant="ghost" className="h-6 w-6 p-0 text-red-400 hover:bg-red-500/10" onClick={() => removeItem(idx)}>
+                                    <Trash2 className="h-3 w-3" />
+                                  </Button>
+                                )}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="flex items-center justify-end pt-2 border-t border-white/10">
+                      <span className="text-sm text-gray-400 mr-2">Total:</span>
+                      <span className="text-lg font-bold text-white">৳{calcTotal().toLocaleString()}</span>
+                    </div>
                   </div>
 
-                  {/* Submit */}
-                  <Button
-                    type="submit"
-                    disabled={creating}
-                    className="w-full bg-emerald-600 text-white hover:bg-emerald-500 h-10"
-                  >
-                    {creating ? (
-                      <><Loader2 className="mr-2 h-4 w-4 animate-spin" /> Submitting...</>
-                    ) : (
-                      'Submit for Approval'
-                    )}
+                  <Button type="submit" disabled={submitting} className="w-full bg-amber-600 text-white hover:bg-amber-500">
+                    {submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : 'Submit for Approval'}
                   </Button>
                 </form>
               </DialogContent>
@@ -529,303 +268,159 @@ export function ExpensesPage() {
         </div>
       </motion.div>
 
-      {/* ── Stats Bar ─────────────────────────────────────────────────────── */}
-      <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={DollarSign} label="Total Expenses" value={`৳${totalExpenses.toLocaleString()}`} delay={0} />
-        <StatCard icon={Clock} label="Pending Count" value={pendingCount.toString()} trend={pendingCount > 0 ? 'down' : 'up'} delay={0.05} />
-        <StatCard icon={CheckCircle} label="Approved Total" value={`৳${approvedTotal.toLocaleString()}`} trend="up" delay={0.1} />
-        <StatCard icon={AlertCircle} label="Rejected Count" value={rejectedCount.toString()} delay={0.15} />
+      {/* Summary Stats */}
+      <div className="grid gap-4 sm:grid-cols-3">
+        <StatCard label="Total Approved" value={`৳${totalApproved.toLocaleString()}`} icon={ArrowDownRight} trend="down" trendLabel="Sum of approved expenses" className="border-amber-500/10" />
+        <StatCard label="Pending" value={pendingCount.toString()} icon={Loader2} trend="neutral" trendLabel="Awaiting approval" className="border-amber-500/10" />
+        <StatCard label="Total Entries" value={expenses.length.toString()} icon={Receipt} trend="neutral" trendLabel="All expense records" className="border-cyan-500/10" />
       </div>
 
-      {/* ── Status Filter ─────────────────────────────────────────────────── */}
-      <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-        {(['all', 'PENDING', 'APPROVED', 'REJECTED'] as const).map(s => {
-          const count = statusCounts[s];
-          const isActive = statusFilter === s;
-          const colorMap: Record<string, string> = {
-            all: isActive ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' : '',
-            PENDING: isActive ? 'bg-amber-500/15 text-amber-400 border-amber-500/20' : '',
-            APPROVED: isActive ? 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20' : '',
-            REJECTED: isActive ? 'bg-red-500/15 text-red-400 border-red-500/20' : '',
-          };
+      {/* Filter Tabs */}
+      <div className="flex gap-2">
+        {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((f) => {
+          const count = f === 'ALL' ? expenses.length : expenses.filter((e) => e.status === f).length;
           return (
-            <button
-              key={s}
-              onClick={() => setStatusFilter(s)}
-              className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all border ${
-                colorMap[s] || 'bg-white/[0.02] text-gray-500 border-white/5 hover:bg-white/5 hover:text-gray-400'
-              }`}
+            <Button
+              key={f}
+              size="sm"
+              variant={filter === f ? 'default' : 'outline'}
+              className={filter === f ? 'bg-amber-600 text-white' : 'border-white/10 text-gray-400 hover:text-white'}
+              onClick={() => setFilter(f)}
             >
-              {s === 'all' ? 'All' : s.charAt(0) + s.slice(1).toLowerCase()}
-              {count > 0 && (
-                <Badge
-                  variant="secondary"
-                  className={`h-4 min-w-[18px] px-1 text-[10px] rounded-full ${
-                    isActive ? 'bg-white/10 text-inherit' : 'bg-white/5 text-gray-600'
-                  }`}
-                >
-                  {count}
-                </Badge>
-              )}
-            </button>
+              {f === 'ALL' ? 'All' : STATUS_CONFIG[f]?.label || f} ({count})
+            </Button>
           );
         })}
       </div>
 
-      {/* ── Expense Cards ─────────────────────────────────────────────────── */}
-      {loading ? (
-        <div className="space-y-3">
-          {[1, 2, 3].map(i => (
-            <div key={i} className="h-28 animate-pulse rounded-lg bg-white/5" />
-          ))}
-        </div>
-      ) : (
-        <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
-          {expenses.map((expense) => {
-            const borderColor = STATUS_BORDER[expense.status] || 'border-l-gray-500';
-            const statusConfig = STATUS_DOT[expense.status];
-            const isExpanded = expandedItems.has(expense.id);
-            const hasItems = expense.items && expense.items.length > 0;
+      {/* Expense History */}
+      <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-amber-400" /></div>
+        ) : filtered.length === 0 ? (
+          <p className="text-center text-sm text-gray-500 py-8">No expenses found</p>
+        ) : (
+          filtered.map((expense) => {
+            const sc = STATUS_CONFIG[expense.status] || STATUS_CONFIG.PENDING;
+            const isPending = expense.status === 'PENDING';
+            const isExpanded = expandedId === expense.id;
+            const mayPresApprove = isPending && expense.presidentStatus === 'PENDING' && canPresidentApprove;
+            const mayGsApprove = isPending && expense.gsStatus === 'PENDING' && expense.presidentStatus === 'APPROVED' && canGsApprove;
+            const mayPresReject = isPending && expense.presidentStatus === 'PENDING' && canPresidentApprove;
+            const mayGsReject = isPending && expense.gsStatus === 'PENDING' && canGsApprove;
 
             return (
-              <motion.div key={expense.id} variants={item} whileHover={{ y: -2, transition: { duration: 0.15 } }}>
-                <Card className={`border-white/5 border-l-2 ${borderColor} bg-[#111]/60 backdrop-blur transition-all hover:border-white/10 hover:shadow-lg hover:shadow-emerald-500/5`}>
+              <motion.div key={expense.id} variants={item}>
+                <Card className={`border-white/5 border-l-2 ${expense.status === 'APPROVED' ? 'border-l-emerald-400' : expense.status === 'REJECTED' ? 'border-l-red-400' : 'border-l-amber-400'} bg-[#111]/60 backdrop-blur`}>
                   <CardContent className="p-4">
-                    {/* Top row: main info */}
-                    <div className="flex items-start gap-4">
-                      {/* Status icon */}
-                      <div className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-lg ${
-                        expense.status === 'PENDING'
-                          ? 'bg-amber-500/10 text-amber-400'
-                          : expense.status === 'APPROVED'
-                            ? 'bg-emerald-500/10 text-emerald-400'
-                            : 'bg-red-500/10 text-red-400'
-                      }`}>
-                        <Receipt className="h-5 w-5" />
-                      </div>
-
-                      {/* Info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2 flex-wrap">
-                          <p className="font-medium text-white">{expense.title}</p>
-                          <Badge variant="outline" className={`text-xs font-medium ${statusConfig.bg}`}>
-                            {statusConfig.emoji} {expense.status.charAt(0) + expense.status.slice(1).toLowerCase()}
-                          </Badge>
+                    <div
+                      className="flex items-center justify-between cursor-pointer"
+                      onClick={() => setExpandedId(isExpanded ? null : expense.id)}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-amber-500/10">
+                          <Receipt className="h-4 w-4 text-amber-400" />
                         </div>
-
-                        <div className="flex items-center gap-3 mt-1 text-xs text-gray-500 flex-wrap">
-                          <span className="flex items-center gap-1">
-                            <Calendar className="h-3 w-3" />
-                            {formatDate(expense.date)}
-                          </span>
-                          <span className="text-emerald-400/80 font-medium">
-                            ৳{expense.amount.toLocaleString()}
-                          </span>
-                          {expense.purchasedBy && (
-                            <span className="flex items-center gap-1">
-                              <User className="h-3 w-3" />
-                              {expense.purchasedBy}
-                            </span>
-                          )}
-                          {expense.attachmentUrl && (
-                            <a
-                              href={expense.attachmentUrl}
-                              target="_blank"
-                              rel="noopener noreferrer"
-                              className="flex items-center gap-1 text-cyan-400 hover:text-cyan-300 transition-colors"
-                            >
-                              <Paperclip className="h-3 w-3" />
-                              Attachment
-                            </a>
-                          )}
+                        <div>
+                          <p className="text-sm font-medium text-white">{expense.note || 'Expense'}</p>
+                          <p className="text-xs text-gray-500">
+                            {new Date(expense.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {expense.purchasedBy && ` · By: ${expense.purchasedBy}`}
+                          </p>
                         </div>
-
-                        <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
-                          <Clock className="h-3 w-3" />
-                          {timeAgo(expense.createdAt)}
-                          {expense.creator && (
-                            <span className="ml-1">by {expense.creator.name}</span>
-                          )}
-                        </p>
                       </div>
-
-                      {/* Amount badge */}
-                      <div className="shrink-0 text-right">
-                        <p className="text-lg font-bold text-white">৳{expense.amount.toLocaleString()}</p>
-                        <p className="text-[10px] text-gray-600">total</p>
+                      <div className="flex items-center gap-3">
+                        <span className="text-sm font-semibold text-amber-400">৳{expense.amount.toLocaleString()}</span>
+                        <div className="flex items-center gap-1.5">
+                          <div className={`h-2 w-2 rounded-full ${sc.dotColor}`} />
+                          <span className={`text-xs ${sc.color}`}>{sc.label}</span>
+                        </div>
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
                       </div>
                     </div>
 
-                    {/* Dual approval status */}
-                    <div className="mt-3 flex items-center gap-4 flex-wrap">
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <Shield className="h-3.5 w-3.5 text-gray-500" />
-                        <span className="text-gray-500">President:</span>
-                        <span className={`flex items-center gap-1 ${DUAL_STATUS_CONFIG[expense.presidentStatus].color}`}>
-                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${DUAL_STATUS_CONFIG[expense.presidentStatus].dot}`} />
-                          {DUAL_STATUS_CONFIG[expense.presidentStatus].label}
-                        </span>
-                        {expense.presidentApprover && (
-                          <span className="text-gray-600">({expense.presidentApprover.name})</span>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-1.5 text-xs">
-                        <ShieldCheck className="h-3.5 w-3.5 text-gray-500" />
-                        <span className="text-gray-500">GS:</span>
-                        <span className={`flex items-center gap-1 ${DUAL_STATUS_CONFIG[expense.gsStatus].color}`}>
-                          <span className={`inline-block h-1.5 w-1.5 rounded-full ${DUAL_STATUS_CONFIG[expense.gsStatus].dot}`} />
-                          {DUAL_STATUS_CONFIG[expense.gsStatus].label}
-                        </span>
-                        {expense.gsApprover && (
-                          <span className="text-gray-600">({expense.gsApprover.name})</span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Items toggle */}
-                    {hasItems && (
-                      <div className="mt-2">
-                        <button
-                          onClick={() => toggleExpanded(expense.id)}
-                          className="flex items-center gap-1.5 text-xs text-gray-500 hover:text-gray-400 transition-colors"
-                        >
-                          {isExpanded ? <ChevronUp className="h-3.5 w-3.5" /> : <ChevronDown className="h-3.5 w-3.5" />}
-                          {expense.items!.length} item{expense.items!.length > 1 ? 's' : ''}
-                        </button>
-
-                        {isExpanded && (
-                          <motion.div
-                            initial={{ opacity: 0, height: 0 }}
-                            animate={{ opacity: 1, height: 'auto' }}
-                            exit={{ opacity: 0, height: 0 }}
-                            transition={{ duration: 0.2 }}
-                            className="mt-2"
-                          >
-                            <div className="rounded-lg border border-white/5 overflow-hidden">
-                              <table className="w-full text-xs">
-                                <thead>
-                                  <tr className="border-b border-white/5 bg-white/[0.02]">
-                                    <th className="text-left px-3 py-1.5 text-gray-500 font-medium">Item</th>
-                                    <th className="text-center px-3 py-1.5 text-gray-500 font-medium">Qty</th>
-                                    <th className="text-center px-3 py-1.5 text-gray-500 font-medium">Unit</th>
-                                    <th className="text-right px-3 py-1.5 text-gray-500 font-medium">Price</th>
-                                    <th className="text-right px-3 py-1.5 text-gray-500 font-medium">Subtotal</th>
+                    {/* Expanded Details */}
+                    {isExpanded && (
+                      <div className="mt-4 space-y-3 border-t border-white/5 pt-3">
+                        {/* Items Table */}
+                        {expense.items && expense.items.length > 0 && (
+                          <div className="overflow-x-auto">
+                            <table className="w-full text-sm">
+                              <thead>
+                                <tr className="border-b border-white/5">
+                                  <th className="pb-2 text-left font-medium text-gray-400">Name</th>
+                                  <th className="pb-2 text-center font-medium text-gray-400">Qty</th>
+                                  <th className="pb-2 text-center font-medium text-gray-400">Unit</th>
+                                  <th className="pb-2 text-right font-medium text-gray-400">Price</th>
+                                  <th className="pb-2 text-right font-medium text-gray-400">Subtotal</th>
+                                </tr>
+                              </thead>
+                              <tbody>
+                                {expense.items.map((it: any) => (
+                                  <tr key={it.id} className="border-b border-white/[0.03]">
+                                    <td className="py-1.5 text-gray-300">{it.itemName}</td>
+                                    <td className="py-1.5 text-center text-gray-300">{it.quantity}</td>
+                                    <td className="py-1.5 text-center text-gray-400">{it.unit}</td>
+                                    <td className="py-1.5 text-right text-gray-300">৳{it.price.toLocaleString()}</td>
+                                    <td className="py-1.5 text-right text-white font-medium">৳{(it.quantity * it.price).toLocaleString()}</td>
                                   </tr>
-                                </thead>
-                                <tbody>
-                                  {expense.items!.map((expItem: ExpenseItem) => (
-                                    <tr key={expItem.id} className="border-b border-white/5 last:border-b-0">
-                                      <td className="px-3 py-1.5 text-gray-300">{expItem.itemName}</td>
-                                      <td className="px-3 py-1.5 text-center text-gray-400">{expItem.quantity}</td>
-                                      <td className="px-3 py-1.5 text-center text-gray-400">{expItem.unit}</td>
-                                      <td className="px-3 py-1.5 text-right text-gray-400">৳{expItem.price.toLocaleString()}</td>
-                                      <td className="px-3 py-1.5 text-right text-emerald-400/80 font-medium">
-                                        ৳{(expItem.quantity * expItem.price).toLocaleString()}
-                                      </td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          </motion.div>
+                                ))}
+                              </tbody>
+                              <tfoot>
+                                <tr className="border-t border-white/10">
+                                  <td colSpan={4} className="pt-2 text-right font-medium text-gray-400">Total</td>
+                                  <td className="pt-2 text-right font-bold text-amber-400">৳{expense.amount.toLocaleString()}</td>
+                                </tr>
+                              </tfoot>
+                            </table>
+                          </div>
                         )}
-                      </div>
-                    )}
 
-                    {/* Approval Actions */}
-                    {canApprove && expense.status === 'PENDING' && (
-                      <div className="mt-3 pt-3 border-t border-white/5">
-                        <p className="text-[10px] text-gray-600 mb-2 uppercase tracking-wider font-medium">Approval Actions</p>
-                        <div className="flex flex-wrap gap-2">
-                          {canPresidentApprove && expense.presidentStatus === 'PENDING' && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApprove(expense.id, 'PRESIDENT', 'APPROVED')}
-                                disabled={approvingId === expense.id}
-                                className="bg-emerald-600 text-white hover:bg-emerald-500 h-7 text-xs"
-                              >
-                                {approvingId === expense.id ? (
-                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="mr-1 h-3 w-3" />
-                                )}
-                                President Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApprove(expense.id, 'PRESIDENT', 'REJECTED')}
-                                disabled={approvingId === expense.id}
-                                variant="destructive"
-                                className="h-7 text-xs"
-                              >
-                                {approvingId === expense.id ? (
-                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                ) : (
-                                  <XCircle className="mr-1 h-3 w-3" />
-                                )}
-                                President Reject
-                              </Button>
-                            </>
-                          )}
-                          {canGsApprove && expense.gsStatus === 'PENDING' && (
-                            <>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApprove(expense.id, 'GS', 'APPROVED')}
-                                disabled={approvingId === expense.id}
-                                className="bg-cyan-600 text-white hover:bg-cyan-500 h-7 text-xs"
-                              >
-                                {approvingId === expense.id ? (
-                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                ) : (
-                                  <CheckCircle className="mr-1 h-3 w-3" />
-                                )}
-                                GS Approve
-                              </Button>
-                              <Button
-                                size="sm"
-                                onClick={() => handleApprove(expense.id, 'GS', 'REJECTED')}
-                                disabled={approvingId === expense.id}
-                                variant="destructive"
-                                className="h-7 text-xs"
-                              >
-                                {approvingId === expense.id ? (
-                                  <Loader2 className="mr-1 h-3 w-3 animate-spin" />
-                                ) : (
-                                  <XCircle className="mr-1 h-3 w-3" />
-                                )}
-                                GS Reject
-                              </Button>
-                            </>
-                          )}
+                        {/* Approval Status */}
+                        <div className="flex items-center gap-4 text-xs text-gray-400">
+                          <span>Submitted by: <span className="text-gray-300">{expense.creator?.name || '—'}</span></span>
+                          <span className={expense.presidentStatus === 'APPROVED' ? 'text-emerald-400' : expense.presidentStatus === 'REJECTED' ? 'text-red-400' : ''}>
+                            President: {expense.presidentStatus} {expense.presidentApprover ? `(${expense.presidentApprover.name})` : ''}
+                          </span>
+                          <span className={expense.gsStatus === 'APPROVED' ? 'text-emerald-400' : expense.gsStatus === 'REJECTED' ? 'text-red-400' : ''}>
+                            GS: {expense.gsStatus} {expense.gsApprover ? `(${expense.gsApprover.name})` : ''}
+                          </span>
                         </div>
+
+                        {/* Approval Actions */}
+                        {canApprove && isPending && (mayPresApprove || mayGsApprove || mayPresReject || mayGsReject) && (
+                          <div className="flex items-center gap-2 pt-2 border-t border-white/5">
+                            {mayPresApprove && (
+                              <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-500" onClick={() => handleApproval(expense.id, 'PRESIDENT_APPROVE')}>
+                                <Shield className="h-3 w-3 mr-1" />President Approve
+                              </Button>
+                            )}
+                            {mayGsApprove && (
+                              <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-500" onClick={() => handleApproval(expense.id, 'GS_APPROVE')}>
+                                <ShieldCheck className="h-3 w-3 mr-1" />GS Approve
+                              </Button>
+                            )}
+                            {mayPresReject && (
+                              <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={() => handleApproval(expense.id, 'PRESIDENT_REJECT')}>
+                                <XCircle className="h-3 w-3 mr-1" />Reject
+                              </Button>
+                            )}
+                            {mayGsReject && (
+                              <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={() => handleApproval(expense.id, 'GS_REJECT')}>
+                                <XCircle className="h-3 w-3 mr-1" />Reject
+                              </Button>
+                            )}
+                          </div>
+                        )}
                       </div>
                     )}
                   </CardContent>
                 </Card>
               </motion.div>
             );
-          })}
-
-          {/* Empty state */}
-          {expenses.length === 0 && (
-            <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              className="flex flex-col items-center justify-center py-16 text-center"
-            >
-              <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-white/5 mb-4">
-                <Receipt className="h-10 w-10 text-gray-600" />
-              </div>
-              <h3 className="text-lg font-medium text-gray-400 mb-1">No expenses found</h3>
-              <p className="text-sm text-gray-600 max-w-xs">
-                {statusFilter !== 'all' ? 'Try a different filter or add a new expense.' : 'Add your first expense to get started.'}
-              </p>
-            </motion.div>
-          )}
-        </motion.div>
-      )}
+          })
+        )}
+      </motion.div>
     </div>
   );
 }

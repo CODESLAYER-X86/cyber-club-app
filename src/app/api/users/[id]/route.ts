@@ -162,23 +162,23 @@ export async function DELETE(
       return forbiddenResponse("General Secretary cannot kick the President");
     }
 
-    // Check if user has created events, budgets, expenses, verified payments, approved expenses, issued/approved/revoked certificates, or approved achievements
+    // Check if user has created events, expenses, verified payments, issued/approved/revoked certificates, or approved achievements
     const [
       eventsCreated,
-      budgetsCreated,
       expensesCreated,
       paymentsVerified,
-      expensesApproved,
+      presidentApprovedExpenses,
+      gsApprovedExpenses,
       certificatesIssued,
       certificatesApproved,
       certificatesRevoked,
       achievementsApproved,
     ] = await Promise.all([
       prisma.event.count({ where: { createdBy: id } }),
-      prisma.budget.count({ where: { createdBy: id } }),
       prisma.expense.count({ where: { createdBy: id } }),
       prisma.payment.count({ where: { verifiedBy: id } }),
-      prisma.expense.count({ where: { approvedBy: id } }),
+      prisma.expense.count({ where: { presidentApprovedBy: id } }),
+      prisma.expense.count({ where: { gsApprovedBy: id } }),
       prisma.certificate.count({ where: { issuedBy: id } }),
       prisma.certificate.count({ where: { approvedBy: id } }),
       prisma.certificate.count({ where: { revokedBy: id } }),
@@ -187,10 +187,10 @@ export async function DELETE(
 
     const hasCreatedHistory =
       eventsCreated > 0 ||
-      budgetsCreated > 0 ||
       expensesCreated > 0 ||
       paymentsVerified > 0 ||
-      expensesApproved > 0 ||
+      presidentApprovedExpenses > 0 ||
+      gsApprovedExpenses > 0 ||
       certificatesIssued > 0 ||
       certificatesApproved > 0 ||
       certificatesRevoked > 0 ||

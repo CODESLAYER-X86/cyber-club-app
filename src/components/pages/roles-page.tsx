@@ -86,7 +86,7 @@ const ROLE_CONFIG: Record<string, {
     borderColor: 'border-l-emerald-400',
     iconBg: 'bg-emerald-500/10',
     iconColor: 'text-emerald-400',
-    description: 'Handles finances, budgets, and payment verification',
+    description: 'Handles finances, deposits, and payment verification',
     dotColor: 'fill-emerald-400',
   },
   MEDIA: {
@@ -131,7 +131,7 @@ const PERMISSION_MATRIX: { action: string; roles: Record<string, boolean> }[] = 
   { action: 'Full Control', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: false, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
   { action: 'Assign Roles', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: false, GS: false, TREASURER: false, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
   { action: 'Create Event', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: false, MEDIA: true, VERIFIER: false, MEMBER: false, GUEST: false } },
-  { action: 'Add Budget', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: false, GS: false, TREASURER: true, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
+  { action: 'Add Deposit', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: false, GS: false, TREASURER: true, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
   { action: 'Add Expense', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: true, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
   { action: 'Approve Expense', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: false, GS: true, TREASURER: false, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
   { action: 'Verify Payment', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: true, MEDIA: false, VERIFIER: true, MEMBER: false, GUEST: false } },

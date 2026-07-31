@@ -76,7 +76,7 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     case 'TREASURER':
       return [
         'dashboard',
-        'budgets',
+        'deposits',
         'expenses',
         'verify-payments',
         'analytics',

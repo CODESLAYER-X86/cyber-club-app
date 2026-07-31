@@ -28,6 +28,7 @@ import {
   MapPin,
   Zap,
   Clock,
+  TrendingUp,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { AppView, Event, User as UserType } from '@/types';
@@ -68,7 +69,7 @@ const PAGES: PageItem[] = [
   { label: 'Announcements', view: 'announcements', icon: FileText, description: 'Manage announcements' },
   { label: 'Profile', view: 'profile', icon: User, description: 'Your profile', shortcut: 'P' },
   { label: 'Settings', view: 'settings', icon: Settings, description: 'App settings' },
-  { label: 'Budgets', view: 'budgets', icon: CreditCard, description: 'Manage budgets' },
+  { label: 'Deposits', view: 'deposits', icon: TrendingUp, description: 'Record and approve deposits' },
   { label: 'Expenses', view: 'expenses', icon: Receipt, description: 'Track expenses' },
   { label: 'Verify Payments', view: 'verify-payments', icon: CheckCircle, description: 'Verify payment proofs' },
   { label: 'About', view: 'about', icon: Globe, description: 'About Cyber Security Club' },

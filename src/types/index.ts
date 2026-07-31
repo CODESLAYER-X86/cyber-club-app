@@ -157,20 +157,7 @@ export interface Payment {
   reconciled?: boolean;
 }
 
-export interface Budget {
-  id: string;
-  title: string;
-  amount: number;
-  category: string;
-  period: string;
-  status?: string;
-  createdBy: string;
-  approvedBy?: string;
-  createdAt: string;
-  creator?: User;
-  approver?: User;
-  expenses?: Expense[];
-}
+
 
 export interface ExpenseItem {
   id: string;
@@ -183,7 +170,7 @@ export interface ExpenseItem {
 
 export interface Expense {
   id: string;
-  title: string;
+  note: string;
   amount: number;
   date: string;
   purchasedBy?: string | null;
@@ -389,7 +376,7 @@ export type AppView =
   | "members"
   | "member-approval"
   | "finance"
-  | "budgets"
+  | "deposits"
   | "expenses"
   | "verify-payments"
   | "certificates"

@@ -1,133 +1,134 @@
-import prisma from "@/lib/db";
-import {
-  successResponse,
-  errorResponse,
-  notFoundResponse,
-  forbiddenResponse,
-  serverErrorResponse,
-} from "@/lib/api-utils";
-import { NextRequest } from "next/server";
-import { getSupabaseUser } from "@/lib/supabase-server";
+import { NextRequest } from 'next/server';
+import prisma from '@/lib/db';
+import { successResponse, errorResponse, serverErrorResponse } from '@/lib/api-utils';
 
-const APPROVAL_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
-
+// ─── PATCH /api/expenses/[id]/approve ─── Dual approval (President + GS)
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const { id: expenseId } = await params;
+    const { id } = await params;
     const body = await request.json();
-    const { approverRole, status } = body;
+    const { action, approvedBy, role } = body;
 
-    if (!status || !["APPROVED", "REJECTED"].includes(status)) {
-      return errorResponse("status must be APPROVED or REJECTED");
+    if (!action || !approvedBy || !role) {
+      return errorResponse('action, approvedBy, and role are required', 400);
     }
 
-    if (!approverRole || !["PRESIDENT", "GS"].includes(approverRole)) {
-      return errorResponse("approverRole must be PRESIDENT or GS");
-    }
-
-    const caller = await getSupabaseUser(APPROVAL_ROLES);
-    if (!caller) {
-      return forbiddenResponse("Only the President, General Secretary, or Platform Admin can approve or reject expenses");
+    const validRoles = ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'];
+    if (!validRoles.includes(role)) {
+      return errorResponse('Only President, GS, or Platform Admin can approve/reject', 403);
     }
 
     const expense = await prisma.expense.findUnique({
-      where: { id: expenseId },
+      where: { id },
+      include: { items: true },
     });
-
     if (!expense) {
-      return notFoundResponse("Expense not found");
+      return errorResponse('Expense not found', 404);
     }
 
-    if (expense.status !== "PENDING") {
-      return errorResponse(`Expense has already been resolved as ${expense.status}`);
+    if (expense.status === 'APPROVED' || expense.status === 'REJECTED') {
+      return errorResponse('Expense is already finalized', 400);
     }
 
-    // Verify the caller has the right role
-    const isPresident = caller.role === "PRESIDENT" || caller.role === "PLATFORM_ADMIN";
-    const isGs = caller.role === "GS" || caller.role === "PLATFORM_ADMIN";
+    let updateData: any = {};
+    let auditAction = '';
 
-    if (approverRole === "PRESIDENT" && !isPresident) {
-      return forbiddenResponse("You are not authorized to act as President approver");
+    if (action === 'PRESIDENT_APPROVE') {
+      if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
+        return errorResponse('Only President can give president approval', 403);
+      }
+      updateData = {
+        presidentStatus: 'APPROVED',
+        presidentApprovedBy: approvedBy,
+      };
+      auditAction = 'EXPENSE_PRESIDENT_APPROVED';
+    } else if (action === 'PRESIDENT_REJECT') {
+      if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
+        return errorResponse('Only President can reject', 403);
+      }
+      updateData = {
+        presidentStatus: 'REJECTED',
+        presidentApprovedBy: approvedBy,
+        status: 'REJECTED',
+      };
+      auditAction = 'EXPENSE_PRESIDENT_REJECTED';
+    } else if (action === 'GS_APPROVE') {
+      if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
+        return errorResponse('Only GS can give GS approval', 403);
+      }
+      updateData = {
+        gsStatus: 'APPROVED',
+        gsApprovedBy: approvedBy,
+      };
+      auditAction = 'EXPENSE_GS_APPROVED';
+    } else if (action === 'GS_REJECT') {
+      if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
+        return errorResponse('Only GS can reject', 403);
+      }
+      updateData = {
+        gsStatus: 'REJECTED',
+        gsApprovedBy: approvedBy,
+        status: 'REJECTED',
+      };
+      auditAction = 'EXPENSE_GS_REJECTED';
+    } else {
+      return errorResponse('Invalid action. Use PRESIDENT_APPROVE, GS_APPROVE, PRESIDENT_REJECT, or GS_REJECT', 400);
     }
-    if (approverRole === "GS" && !isGs) {
-      return forbiddenResponse("You are not authorized to act as General Secretary approver");
+
+    // If both approved, set overall status to APPROVED
+    const newPresidentStatus = updateData.presidentStatus || expense.presidentStatus;
+    const newGsStatus = updateData.gsStatus || expense.gsStatus;
+    if (newPresidentStatus === 'APPROVED' && newGsStatus === 'APPROVED') {
+      updateData.status = 'APPROVED';
     }
 
-    // Calculate next statuses
-    const nextPresidentStatus = approverRole === "PRESIDENT" ? status : expense.presidentStatus;
-    const nextGsStatus = approverRole === "GS" ? status : expense.gsStatus;
-
-    // Determine overall status
-    // If either rejects → REJECTED
-    // If both approve → APPROVED
-    // Otherwise → PENDING
-    const overallStatus =
-      nextPresidentStatus === "REJECTED" || nextGsStatus === "REJECTED"
-        ? "REJECTED"
-        : nextPresidentStatus === "APPROVED" && nextGsStatus === "APPROVED"
-          ? "APPROVED"
-          : "PENDING";
-
-    const updateData: Record<string, unknown> = {
-      presidentStatus: nextPresidentStatus,
-      gsStatus: nextGsStatus,
-      status: overallStatus,
-    };
-
-    if (approverRole === "PRESIDENT") {
-      updateData.presidentApprovedBy = caller.userId;
-    }
-    if (approverRole === "GS") {
-      updateData.gsApprovedBy = caller.userId;
-    }
-
-    const updatedExpense = await prisma.expense.update({
-      where: { id: expenseId },
+    const updated = await prisma.expense.update({
+      where: { id },
       data: updateData,
       include: {
-        creator: {
-          select: { id: true, name: true, email: true, avatar: true },
-        },
         items: true,
-        presidentApprover: {
-          select: { id: true, name: true },
-        },
-        gsApprover: {
-          select: { id: true, name: true },
-        },
+        creator: { select: { id: true, name: true, email: true, role: true } },
+        presidentApprover: { select: { id: true, name: true, email: true, role: true } },
+        gsApprover: { select: { id: true, name: true, email: true, role: true } },
       },
     });
 
-    // Create notification for the submitter
-    await prisma.notification.create({
-      data: {
-        userId: expense.createdBy,
-        title: overallStatus === "APPROVED" ? "Expense Approved" : overallStatus === "REJECTED" ? "Expense Rejected" : `Expense: ${approverRole} ${status === "APPROVED" ? "Approved" : "Rejected"}`,
-        message:
-          overallStatus === "APPROVED"
-            ? `Your expense "${expense.title}" of ৳${expense.amount} has been fully approved.`
-            : overallStatus === "REJECTED"
-              ? `Your expense "${expense.title}" of ৳${expense.amount} has been rejected.`
-              : `Your expense "${expense.title}" has been ${status === "APPROVED" ? "approved" : "rejected"} by the ${approverRole}. Waiting for ${approverRole === "PRESIDENT" ? "General Secretary" : "President"} approval.`,
-        type: overallStatus === "APPROVED" || status === "APPROVED" ? "SUCCESS" : "WARNING",
-      },
-    });
-
-    // Log to audit log
+    // Create audit log
     await prisma.auditLog.create({
       data: {
-        userId: caller.userId,
-        action: `EXPENSE_${status === "APPROVED" ? "APPROVED" : "REJECTED"}_BY_${approverRole}`,
-        details: `${status === "APPROVED" ? "Approved" : "Rejected"} expense "${expense.title}" (৳${expense.amount}) as ${approverRole}. Overall status: ${overallStatus}`,
+        userId: approvedBy,
+        action: auditAction,
+        details: JSON.stringify({ expenseId: id, amount: expense.amount, action }),
       },
     });
 
-    return successResponse({ expense: updatedExpense });
+    // Create notification for the creator
+    if (updateData.status === 'APPROVED') {
+      await prisma.notification.create({
+        data: {
+          userId: expense.createdBy,
+          title: 'Expense Approved',
+          message: `Your expense of ৳${expense.amount.toLocaleString()} has been fully approved.`,
+          type: 'SUCCESS',
+        },
+      });
+    } else if (updateData.status === 'REJECTED') {
+      await prisma.notification.create({
+        data: {
+          userId: expense.createdBy,
+          title: 'Expense Rejected',
+          message: `Your expense of ৳${expense.amount.toLocaleString()} has been rejected.`,
+          type: 'ERROR',
+        },
+      });
+    }
+
+    return successResponse({ expense: updated });
   } catch (e) {
-    console.error("[Expense Approve API] Error:", e);
+    console.error('[Expense Approve] Error:', e);
     return serverErrorResponse();
   }
 }

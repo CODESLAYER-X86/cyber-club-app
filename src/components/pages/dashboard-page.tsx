@@ -29,7 +29,7 @@ const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string; labe
   PAYMENT_VERIFIED: { icon: Wallet, color: '#10b981', label: 'Payment Verified' },
   EXPENSE_APPROVED: { icon: Receipt, color: '#10b981', label: 'Expense Approved' },
   ROLE_ASSIGNED: { icon: ShieldCheck, color: '#f59e0b', label: 'Role Assigned' },
-  BUDGET_CREATED: { icon: DollarSign, color: '#06b6d4', label: 'Budget Created' },
+  BUDGET_CREATED: { icon: DollarSign, color: '#06b6d4', label: 'Deposit Created' },
   PAYMENT_REJECTED: { icon: Ban, color: '#ef4444', label: 'Payment Rejected' },
   EXPENSE_REJECTED: { icon: Ban, color: '#ef4444', label: 'Expense Rejected' },
   USER_APPROVED: { icon: UserCheck, color: '#10b981', label: 'User Approved' },
@@ -203,7 +203,7 @@ export function DashboardPage() {
             <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0} />
             <StatCard icon={CreditCard} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
             <StatCard icon={CheckCircle} label="Verified Payments" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
-            <StatCard icon={Activity} label="Active Budgets" value={1} trend="neutral" delay={0.3} />
+            <StatCard icon={Activity} label="Treasury Balance" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="neutral" delay={0.3} />
           </>
         );
       case 'GS':
@@ -490,7 +490,7 @@ export function DashboardPage() {
             {role === 'TREASURER' && (
               <>
                 <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>
-                <Button onClick={() => setCurrentView('budgets')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><DollarSign className="mr-2 h-4 w-4" />Manage Budgets</Button>
+                <Button onClick={() => setCurrentView('deposits')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><DollarSign className="mr-2 h-4 w-4" />Manage Deposits</Button>
               </>
             )}
             {role === 'PRESIDENT' && (

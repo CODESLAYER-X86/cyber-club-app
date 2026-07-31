@@ -58,16 +58,9 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const reconciledEntries = await prisma.ledgerEntry.findMany({
-      where: { referenceId: { in: payments.map(p => p.id) } },
-      select: { referenceId: true },
-    });
-
-    const reconciledIds = new Set(reconciledEntries.map(e => e.referenceId));
-
     const paymentsWithReconciled = payments.map(p => ({
       ...p,
-      reconciled: reconciledIds.has(p.id),
+      reconciled: false,
     }));
 
     return successResponse({ payments: paymentsWithReconciled });

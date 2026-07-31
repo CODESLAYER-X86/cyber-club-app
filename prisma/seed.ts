@@ -299,69 +299,146 @@ async function main() {
     console.log("✅ Payments seeded");
   }
 
-  // Create demo budgets and expenses
+  // Create demo deposits and expenses
   if (treasurerUser && presidentUser) {
-    const budget = await prisma.budget.upsert({
-      where: { id: "budget-2025-q3" },
-      update: {},
-      create: {
-        id: "budget-2025-q3",
-        title: "Q3 2025 Operations Budget",
-        amount: 50000,
-        category: "OPERATIONS",
-        period: "2025-Q3",
-        createdBy: treasurerUser.id,
-      },
-    });
+    const gsUser = await prisma.user.findFirst({ where: { role: "GS" } });
 
+    // Demo deposits
+    const deposits = [
+      {
+        date: new Date("2025-07-01"),
+        amount: 30000,
+        source: "UNIVERSITY_FUND",
+        note: "Q3 2025 university fund allocation",
+        status: "APPROVED",
+        presidentStatus: "APPROVED",
+        gsStatus: "APPROVED",
+        submittedBy: treasurerUser.id,
+        presidentApprovedBy: presidentUser.id,
+        gsApprovedBy: gsUser?.id,
+      },
+      {
+        date: new Date("2025-07-15"),
+        amount: 15000,
+        source: "SPONSOR",
+        note: "Sponsorship from TechCorp",
+        status: "APPROVED",
+        presidentStatus: "APPROVED",
+        gsStatus: "APPROVED",
+        submittedBy: treasurerUser.id,
+        presidentApprovedBy: presidentUser.id,
+        gsApprovedBy: gsUser?.id,
+      },
+      {
+        date: new Date("2025-08-01"),
+        amount: 5000,
+        source: "EVENT_REGISTRATION",
+        note: "CTF event registration fees",
+        status: "PENDING",
+        presidentStatus: "PENDING",
+        gsStatus: "PENDING",
+        submittedBy: treasurerUser.id,
+      },
+      {
+        date: new Date("2025-08-05"),
+        amount: 2000,
+        source: "DONATION",
+        note: "Donation from alumni",
+        status: "PENDING",
+        presidentStatus: "APPROVED",
+        gsStatus: "PENDING",
+        submittedBy: treasurerUser.id,
+        presidentApprovedBy: presidentUser.id,
+      },
+    ];
+
+    for (const d of deposits) {
+      const existing = await prisma.treasuryDeposit.findFirst({ where: { note: d.note, amount: d.amount } });
+      if (!existing) {
+        await prisma.treasuryDeposit.create({ data: d });
+      }
+    }
+
+    // Demo expenses with items
     const expenses = [
       {
-        title: "Workshop Materials",
+        note: "Workshop Materials",
         amount: 3500,
-        category: "MATERIALS",
-        description: "Printed handouts, USB drives, and practice lab setup materials",
+        date: new Date("2025-07-10"),
+        purchasedBy: "Treasurer",
         status: "APPROVED",
-        budgetId: budget.id,
+        presidentStatus: "APPROVED",
+        gsStatus: "APPROVED",
         createdBy: treasurerUser.id,
-        approvedBy: presidentUser.id,
+        presidentApprovedBy: presidentUser.id,
+        gsApprovedBy: gsUser?.id,
+        items: {
+          create: [
+            { itemName: "Printed Handouts", quantity: 50, unit: "pcs", price: 20 },
+            { itemName: "USB Drives", quantity: 20, unit: "pcs", price: 100 },
+            { itemName: "Lab Setup Kit", quantity: 1, unit: "set", price: 500 },
+          ],
+        },
       },
       {
-        title: "CTF Platform License",
+        note: "CTF Platform License",
         amount: 8000,
-        category: "SOFTWARE",
-        description: "Annual license for CTF competition platform",
+        date: new Date("2025-07-15"),
+        purchasedBy: "Treasurer",
         status: "APPROVED",
-        budgetId: budget.id,
+        presidentStatus: "APPROVED",
+        gsStatus: "APPROVED",
         createdBy: treasurerUser.id,
-        approvedBy: presidentUser.id,
+        presidentApprovedBy: presidentUser.id,
+        gsApprovedBy: gsUser?.id,
+        items: {
+          create: [
+            { itemName: "CTF Platform Annual License", quantity: 1, unit: "pcs", price: 8000 },
+          ],
+        },
       },
       {
-        title: "Guest Speaker Honorarium",
-        amount: 5000,
-        category: "EVENTS",
-        description: "Honorarium for cybersecurity industry guest speaker",
-        status: "PENDING",
-        budgetId: budget.id,
-        createdBy: treasurerUser.id,
-      },
-      {
-        title: "Network Equipment",
+        note: "Network Equipment",
         amount: 12000,
-        category: "EQUIPMENT",
-        description: "Routers, switches, and cables for network security lab",
+        date: new Date("2025-07-25"),
+        purchasedBy: "VP",
         status: "PENDING",
-        budgetId: budget.id,
+        presidentStatus: "PENDING",
+        gsStatus: "PENDING",
         createdBy: treasurerUser.id,
+        items: {
+          create: [
+            { itemName: "Router", quantity: 2, unit: "pcs", price: 4000 },
+            { itemName: "Switch", quantity: 1, unit: "pcs", price: 3000 },
+            { itemName: "Ethernet Cables", quantity: 10, unit: "pcs", price: 100 },
+          ],
+        },
+      },
+      {
+        note: "Guest Speaker Honorarium",
+        amount: 5000,
+        date: new Date("2025-08-01"),
+        purchasedBy: "Treasurer",
+        status: "PENDING",
+        presidentStatus: "APPROVED",
+        gsStatus: "PENDING",
+        createdBy: treasurerUser.id,
+        presidentApprovedBy: presidentUser.id,
+        items: {
+          create: [
+            { itemName: "Speaker Honorarium", quantity: 1, unit: "pcs", price: 5000 },
+          ],
+        },
       },
     ];
 
     for (const e of expenses) {
-      const existing = await prisma.expense.findFirst({ where: { title: e.title, budgetId: e.budgetId } });
+      const existing = await prisma.expense.findFirst({ where: { note: e.note, amount: e.amount } });
       if (!existing) {
         await prisma.expense.create({ data: e });
       }
     }
-    console.log("✅ Budgets & Expenses seeded");
+    console.log("✅ Deposits & Expenses seeded");
   }
 
   // Create demo certificates
