@@ -22,6 +22,7 @@ import {
   Shield,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
+import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
 import type { AppView } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
@@ -139,6 +140,7 @@ export function Header() {
     logout,
     isAuthenticated,
   } = useAppStore();
+  const { isMobile, transitionConfig } = useMobileOptimized();
 
   const [currentTime, setCurrentTime] = useState(new Date());
   const [searchOpen, setSearchOpen] = useState(false);
@@ -193,8 +195,9 @@ export function Header() {
     <motion.header
       initial={{ opacity: 0, y: -10 }}
       animate={{ opacity: 1, y: 0 }}
+      transition={transitionConfig}
       className={cn(
-        'sticky top-0 z-30 flex h-16 items-center gap-4 border-b border-white/5 bg-[#0a0a0a]/80 px-4 backdrop-blur-xl md:px-6'
+        'sticky top-0 z-30 flex h-16 items-center gap-2 sm:gap-4 border-b border-white/5 bg-[#0a0a0a]/80 px-2 sm:px-4 md:px-6 backdrop-blur-xl'
       )}
     >
       {/* Mobile menu toggle (sidebar mode) */}

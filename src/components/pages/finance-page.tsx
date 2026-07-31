@@ -2,13 +2,17 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Download, ArrowUpRight, ArrowDownRight, CircleDot, Loader2, Wallet, Receipt, CreditCard, Clock } from 'lucide-react';
+import { DollarSign, TrendingUp, TrendingDown, BarChart3, Download, ArrowUpRight, ArrowDownRight, CircleDot, Loader2, Wallet, Receipt, CreditCard, Clock, Plus, CheckCircle, XCircle } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
-import type { Payment } from '@/types';
+import type { Payment, TreasuryDeposit } from '@/types';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from 'recharts';
 import { exportToCSV } from '@/lib/export-utils';
 
@@ -52,14 +56,23 @@ export function FinancePage() {
   const [budgets, setBudgets] = useState<{ id: string; title: string; amount: number; status?: string; expenses: { amount: number; status: string }[] }[]>([]);
   const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
   const [walletBalances, setWalletBalances] = useState<any>({ BKASH_PERSONAL: 0, NAGAD_PERSONAL: 0, CLUB_BANK_ACCOUNT: 0, CASH_IN_HAND: 0 });
+  const [deposits, setDeposits] = useState<TreasuryDeposit[]>([]);
+  const [expenses, setExpenses] = useState<any[]>([]);
+  const [depositForm, setDepositForm] = useState({ date: '', amount: '', source: 'EVENT_REGISTRATION', note: '', attachmentUrl: '' });
+  const [submittingDeposit, setSubmittingDeposit] = useState(false);
+  const [approvingDepositId, setApprovingDepositId] = useState<string | null>(null);
   const [exporting, setExporting] = useState(false);
 
-  useEffect(() => {
-    Promise.all([
-      fetch('/api/stats').then(r => r.json()),
-      fetch('/api/budgets').then(r => r.json()),
-      fetch('/api/ledger').then(r => r.json()),
-    ]).then(([statsData, budgetsData, ledgerData]) => {
+  const loadTreasuryData = async () => {
+    try {
+      const [statsData, budgetsData, ledgerData, expenseData, depositData] = await Promise.all([
+        fetch('/api/stats').then(r => r.json()),
+        fetch('/api/budgets').then(r => r.json()),
+        fetch('/api/ledger').then(r => r.json()),
+        fetch('/api/expenses').then(r => r.json()),
+        fetch('/api/treasury/deposits').then(r => r.json()),
+      ]);
+
       if (statsData.success && statsData.data) {
         const s = statsData.data.stats || statsData.data;
         setStats({
@@ -77,7 +90,19 @@ export function FinancePage() {
         setLedgerEntries(ledgerData.data.ledgerEntries || []);
         setWalletBalances(ledgerData.data.walletBalances || { BKASH_PERSONAL: 0, NAGAD_PERSONAL: 0, CLUB_BANK_ACCOUNT: 0, CASH_IN_HAND: 0 });
       }
-    }).catch(() => {});
+      if (expenseData.success) {
+        setExpenses(expenseData.data.expenses || []);
+      }
+      if (depositData.success) {
+        setDeposits(depositData.data.deposits || []);
+      }
+    } catch {
+      // Safe no-op; the screen can keep the current fallback state.
+    }
+  };
+
+  useEffect(() => {
+    loadTreasuryData();
   }, []);
 
   const chartData = budgets.filter(b => b.status === 'APPROVED').map(b => ({
@@ -86,12 +111,76 @@ export function FinancePage() {
     Spent: b.expenses?.filter(e => e.status === 'APPROVED').reduce((sum, e) => sum + e.amount, 0) || 0,
   }));
 
+  const approvedDeposits = deposits.filter(d => d.status === 'APPROVED').reduce((sum, d) => sum + d.amount, 0);
+  const approvedExpenses = expenses.filter(e => e.status === 'APPROVED').reduce((sum, e) => sum + e.amount, 0);
+  const currentBalance = approvedDeposits - approvedExpenses;
+
   // Calculations for budget limits and spending
   const totalBudget = budgets.filter(b => b.status === 'APPROVED').reduce((sum, b) => sum + b.amount, 0);
   const totalSpent = budgets.filter(b => b.status === 'APPROVED').reduce((sum, b) => sum + (b.expenses?.filter(e => e.status === 'APPROVED').reduce((s, e) => s + e.amount, 0) || 0), 0);
   const allocatedBudget = totalBudget - totalSpent;
   const availableFunds = stats.totalFunds - allocatedBudget;
   const utilizationPercent = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+
+  const depositSourceLabels: Record<string, string> = {
+    UNIVERSITY_FUND: 'University Fund',
+    SPONSOR: 'Sponsor',
+    EVENT_REGISTRATION: 'Event Registration',
+    MEMBERSHIP_REGISTRATION: 'Membership Registration',
+    DONATION: 'Donation',
+    OTHER: 'Other',
+  };
+
+  const canApproveDeposits = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+
+  const handleDepositSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (!currentUser) return;
+
+    setSubmittingDeposit(true);
+    try {
+      const response = await fetch('/api/treasury/deposits', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          date: depositForm.date,
+          amount: Number(depositForm.amount),
+          source: depositForm.source,
+          note: depositForm.note,
+          attachmentUrl: depositForm.attachmentUrl,
+        }),
+      });
+
+      const payload = await response.json();
+      if (payload.success) {
+        setDepositForm({ date: '', amount: '', source: 'EVENT_REGISTRATION', note: '', attachmentUrl: '' });
+        await loadTreasuryData();
+      }
+    } finally {
+      setSubmittingDeposit(false);
+    }
+  };
+
+  const handleDepositApproval = async (depositId: string, approverRole: 'PRESIDENT' | 'GS', status: 'APPROVED' | 'REJECTED') => {
+    if (!currentUser) return;
+    const confirmed = window.confirm(`${status === 'APPROVED' ? 'Approve' : 'Reject'} this deposit?`);
+    if (!confirmed) return;
+
+    setApprovingDepositId(depositId);
+    try {
+      const response = await fetch(`/api/treasury/deposits/${depositId}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approverRole, status }),
+      });
+      const payload = await response.json();
+      if (payload.success) {
+        await loadTreasuryData();
+      }
+    } finally {
+      setApprovingDepositId(null);
+    }
+  };
 
   // SVG donut parameters
   const radius = 54;
@@ -160,7 +249,104 @@ export function FinancePage() {
         </div>
       </motion.div>
 
-      {/* Stat Cards */}
+      {/* Treasury Summary Cards */}
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+        <StatCard icon={Wallet} label="Current Balance" value={`৳${currentBalance.toLocaleString()}`} trend={currentBalance >= 0 ? 'up' : 'down'} delay={0} />
+        <StatCard icon={ArrowUpRight} label="Total Deposits" value={`৳${approvedDeposits.toLocaleString()}`} trend="up" delay={0.1} />
+        <StatCard icon={ArrowDownRight} label="Total Expenses" value={`৳${approvedExpenses.toLocaleString()}`} trend="down" delay={0.2} />
+      </div>
+
+      {/* Treasury Management Section */}
+      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
+        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white flex items-center gap-2"><Plus className="h-4 w-4 text-emerald-400" />Record Deposit</CardTitle>
+          </CardHeader>
+          <CardContent>
+            <form onSubmit={handleDepositSubmit} className="grid gap-3">
+              <div className="grid gap-3 md:grid-cols-2">
+                <div className="space-y-2">
+                  <Label className="text-gray-400">Date</Label>
+                  <Input type="date" value={depositForm.date} onChange={(e) => setDepositForm((prev) => ({ ...prev, date: e.target.value }))} className="border-white/10 bg-white/5 text-white" required />
+                </div>
+                <div className="space-y-2">
+                  <Label className="text-gray-400">Amount (৳)</Label>
+                  <Input type="number" min="1" value={depositForm.amount} onChange={(e) => setDepositForm((prev) => ({ ...prev, amount: e.target.value }))} className="border-white/10 bg-white/5 text-white" required />
+                </div>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-400">Source</Label>
+                <Select value={depositForm.source} onValueChange={(value) => setDepositForm((prev) => ({ ...prev, source: value }))}>
+                  <SelectTrigger className="border-white/10 bg-white/5 text-white">
+                    <SelectValue placeholder="Select source" />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                    {Object.entries(depositSourceLabels).map(([key, label]) => (
+                      <SelectItem key={key} value={key}>{label}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-400">Note</Label>
+                <Textarea value={depositForm.note} onChange={(e) => setDepositForm((prev) => ({ ...prev, note: e.target.value }))} rows={3} className="border-white/10 bg-white/5 text-white" placeholder="Optional note" />
+              </div>
+              <div className="space-y-2">
+                <Label className="text-gray-400">Attachment URL (Optional)</Label>
+                <Input value={depositForm.attachmentUrl} onChange={(e) => setDepositForm((prev) => ({ ...prev, attachmentUrl: e.target.value }))} className="border-white/10 bg-white/5 text-white" placeholder="Optional proof link" />
+              </div>
+              <Button type="submit" className="bg-emerald-600 text-white hover:bg-emerald-500" disabled={submittingDeposit}>
+                {submittingDeposit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
+                Submit for Approval
+              </Button>
+            </form>
+          </CardContent>
+        </Card>
+
+        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+          <CardHeader className="pb-2">
+            <CardTitle className="text-white">Deposit History</CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-3 max-h-[460px] overflow-y-auto">
+            {deposits.length === 0 ? (
+              <p className="text-sm text-gray-500 py-6 text-center">No deposits recorded yet.</p>
+            ) : (
+              deposits.map((deposit) => (
+                <div key={deposit.id} className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2">
+                  <div className="flex items-center justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-medium text-white">{depositSourceLabels[deposit.source] || deposit.source}</p>
+                      <p className="text-[11px] text-gray-500">{new Date(deposit.date).toLocaleDateString()} • ৳{deposit.amount.toLocaleString()}</p>
+                    </div>
+                    <Badge variant="outline" className={deposit.status === 'APPROVED' ? 'border-emerald-500/20 text-emerald-400' : deposit.status === 'REJECTED' ? 'border-red-500/20 text-red-400' : 'border-amber-500/20 text-amber-400'}>{deposit.status}</Badge>
+                  </div>
+                  {deposit.note && <p className="text-[11px] text-gray-500">{deposit.note}</p>}
+                  <div className="flex flex-wrap gap-2">
+                    {canApproveDeposits && deposit.status !== 'APPROVED' && deposit.status !== 'REJECTED' && (
+                      <>
+                        <Button size="sm" variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10" onClick={() => handleDepositApproval(deposit.id, 'PRESIDENT', 'APPROVED')} disabled={approvingDepositId === deposit.id}>
+                          <CheckCircle className="mr-1 h-3 w-3" />President Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="border-red-500/20 text-red-400 hover:bg-red-500/10" onClick={() => handleDepositApproval(deposit.id, 'PRESIDENT', 'REJECTED')} disabled={approvingDepositId === deposit.id}>
+                          <XCircle className="mr-1 h-3 w-3" />President Reject
+                        </Button>
+                        <Button size="sm" variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10" onClick={() => handleDepositApproval(deposit.id, 'GS', 'APPROVED')} disabled={approvingDepositId === deposit.id}>
+                          <CheckCircle className="mr-1 h-3 w-3" />GS Approve
+                        </Button>
+                        <Button size="sm" variant="outline" className="border-red-500/20 text-red-400 hover:bg-red-500/10" onClick={() => handleDepositApproval(deposit.id, 'GS', 'REJECTED')} disabled={approvingDepositId === deposit.id}>
+                          <XCircle className="mr-1 h-3 w-3" />GS Reject
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              ))
+            )}
+          </CardContent>
+        </Card>
+      </div>
+
+      {/* Additional Finance Sections */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <StatCard icon={Wallet} label="Net Treasury" value={`৳${stats.totalFunds.toLocaleString()}`} trend="up" delay={0} />
         <StatCard icon={BarChart3} label="Allocated Budget" value={`৳${allocatedBudget.toLocaleString()}`} trend="neutral" delay={0.1} />

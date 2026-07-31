@@ -3,6 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
 
+  // Mobile and performance optimizations
+  compress: true,
+  poweredByHeader: false,
+  productionBrowserSourceMaps: false,
+  optimizeFonts: true,
+  reactStrictMode: true,
+  swcMinify: true,
+
   // Security headers — mirrored from production meal-app
   async headers() {
     return [
@@ -25,8 +33,4 @@ const nextConfig: NextConfig = {
   typescript: {
     ignoreBuildErrors: false,
   },
-
-  reactStrictMode: true,
 };
-
-export default nextConfig;

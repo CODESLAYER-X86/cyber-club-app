@@ -148,6 +148,78 @@
   backface-visibility: hidden;
   -webkit-backface-visibility: hidden;
 }
+
+/* Mobile Performance Optimizations */
+html {
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  scroll-behavior: smooth;
+}
+
+body {
+  -webkit-tap-highlight-color: transparent;
+  /* Prevent layout shift from scrollbar */
+  scrollbar-gutter: stable;
+}
+
+/* Optimize animations for devices with reduced motion preference */
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+
+/* Mobile-first touch targets (44x44px minimum) */
+button,
+a,
+input,
+select,
+textarea {
+  min-height: 44px;
+  min-width: 44px;
+}
+
+/* Optimize scrolling on mobile */
+.overflow-y-auto,
+.overflow-auto {
+  -webkit-overflow-scrolling: touch;
+}
+
+/* Performance: Use hardware acceleration for animations */
+.motion-safe\:translate-gpu,
+[data-animate],
+.animate-in,
+.animate-out {
+  will-change: transform, opacity;
+}
+
+/* Mobile keyboard adjustments */
+@media (max-width: 768px) {
+  input,
+  textarea,
+  select {
+    font-size: 16px; /* Prevents auto-zoom on iOS input focus */
+    min-height: 44px;
+  }
+  
+  /* Smooth transitions for touch devices */
+  button,
+  a {
+    transition: all 150ms cubic-bezier(0.4, 0, 0.2, 1);
+  }
+}
+
+/* Reduce motion on low-end devices */
+@media (prefers-reduced-motion) {
+  * {
+    transition: none !important;
+    animation: none !important;
+  }
+}
 .rotate-y-180 {
   transform: rotateY(180deg);
 }

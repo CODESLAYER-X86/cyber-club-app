@@ -43,6 +43,13 @@ export type CertificateStatus =
   | "REVOKED";
 
 export type ExpenseStatus = "PENDING" | "APPROVED" | "REJECTED";
+export type TreasuryDepositSource =
+  | "UNIVERSITY_FUND"
+  | "SPONSOR"
+  | "EVENT_REGISTRATION"
+  | "MEMBERSHIP_REGISTRATION"
+  | "DONATION"
+  | "OTHER";
 
 export type AttendanceStatus = "PRESENT" | "ABSENT" | "LATE";
 
@@ -70,6 +77,19 @@ export interface User {
   updatedAt: string;
 }
 
+export interface EventPaymentConfig {
+  paymentRequired?: boolean;
+  feeAmount?: number;
+  bkashNumber?: string;
+  nagadNumber?: string;
+  rocketNumber?: string;
+  bankAccount?: string;
+  paymentInstructions?: string;
+  contactPersonName?: string;
+  contactPersonPhone?: string;
+  paymentDeadline?: string;
+}
+
 export interface Event {
   id: string;
   title: string;
@@ -88,6 +108,7 @@ export interface Event {
   passingScore?: number;
   verifierId?: string;
   certificateLayout?: string;
+  paymentConfig?: string | null;
   createdBy: string;
   createdAt: string;
   updatedAt: string;
@@ -168,6 +189,26 @@ export interface Expense {
   budget?: Budget;
   creator?: User;
   approver?: User;
+}
+
+export interface TreasuryDeposit {
+  id: string;
+  date: string;
+  amount: number;
+  source: TreasuryDepositSource;
+  note?: string | null;
+  attachmentUrl?: string | null;
+  status: ExpenseStatus;
+  presidentStatus: ExpenseStatus;
+  gsStatus: ExpenseStatus;
+  submittedBy: string;
+  presidentApprovedBy?: string | null;
+  gsApprovedBy?: string | null;
+  createdAt: string;
+  updatedAt: string;
+  submitter?: Pick<User, 'id' | 'name' | 'email' | 'role'>;
+  presidentApprover?: Pick<User, 'id' | 'name' | 'email' | 'role'> | null;
+  gsApprover?: Pick<User, 'id' | 'name' | 'email' | 'role'> | null;
 }
 
 export interface Attendance {

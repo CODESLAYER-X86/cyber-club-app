@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAppStore } from '@/store/use-app-store';
+import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
 import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Footer } from './footer';
@@ -105,11 +106,16 @@ const FULL_PAGE_VIEWS: Set<AppView> = new Set([
 ]);
 
 export function AppShell() {
-  const { currentView, isAuthenticated, currentUser } = useAppStore();
+  const { currentView, isAuthenticated, currentUser, setSidebarOpen } = useAppStore();
+  const { isMobile, transitionConfig } = useMobileOptimized();
 
   useEffect(() => {
     window.document.documentElement.classList.add('dark');
-  }, []);
+    // Close sidebar on mobile when navigating
+    if (isMobile) {
+      setSidebarOpen(false);
+    }
+  }, [currentView, isMobile, setSidebarOpen]);
 
   const allowed = isViewAllowed(currentView, isAuthenticated, currentUser?.role);
   const PageComponent = allowed ? (PAGE_MAP[currentView] || LandingPage) : (isAuthenticated ? DashboardPage : LandingPage);
@@ -144,17 +150,30 @@ export function AppShell() {
     <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100">
       <MatrixBackground />
       <div className="relative z-10 flex flex-1 min-h-0">
+        {/* Mobile Backdrop */}
+        {isMobile && <AnimatePresence>
+          <motion.div
+            key="sidebar-backdrop"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={transitionConfig}
+            onClick={() => setSidebarOpen(false)}
+            className="absolute inset-0 z-30 bg-black/50 md:hidden"
+          />
+        </AnimatePresence>}
+        
         <Sidebar />
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
           <Header />
-          <main className="flex-1 overflow-y-auto p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6">
             <AnimatePresence mode="wait">
               <motion.div
                 key={currentView}
                 initial={{ opacity: 0, y: 10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                transition={{ duration: 0.2, ease: 'easeOut' }}
+                transition={transitionConfig}
                 className="mx-auto w-full max-w-7xl"
               >
                 <PageComponent />

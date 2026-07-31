@@ -12,9 +12,9 @@ export async function POST(req: NextRequest) {
     const userId = caller.userId;
     
     const body = await req.json();
-    const { studentId, department, phone, transactionId, paymentMethod = "BKASH" } = body;
+    const { studentId, rollNumber, batch, department, phone, transactionId, paymentMethod = "BKASH" } = body;
 
-    if (!studentId || !department || !phone || !transactionId) {
+    if (!studentId || !rollNumber || !batch || !department || !phone || !transactionId) {
       return errorResponse("All fields are required", 400);
     }
 
@@ -33,6 +33,8 @@ export async function POST(req: NextRequest) {
       where: { id: userId },
       data: {
         studentId,
+        rollNumber,
+        batch,
         department,
         phone,
         transactionId,

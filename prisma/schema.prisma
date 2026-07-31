@@ -19,7 +19,9 @@ model User {
   role             String   @default("GUEST") // PLATFORM_ADMIN, PRESIDENT, VP, GS, TREASURER, MEDIA, VERIFIER, MEMBER, GUEST
   membershipStatus String   @default("NON_MEMBER") // NON_MEMBER, PENDING, ACTIVE, REJECTED
   avatar           String?
-  studentId        String?
+  studentId        String?  // Registration ID
+  rollNumber       String?
+  batch            String?
   department       String?
   phone            String?
   bio              String?
@@ -42,6 +44,9 @@ model User {
   createdExpenses     Expense[]            @relation("ExpenseCreator")
   createdBudgets      Budget[]             @relation("BudgetCreator")
   approvedBudgets     Budget[]             @relation("BudgetApprover")
+  treasuryDepositsSubmitted TreasuryDeposit[] @relation("TreasuryDepositSubmitter")
+  treasuryDepositsPresidentApproved TreasuryDeposit[] @relation("TreasuryDepositPresidentApprover")
+  treasuryDepositsGsApproved TreasuryDeposit[] @relation("TreasuryDepositGsApprover")
   ledgerEntries       LedgerEntry[]        @relation("LedgerOperator")
   assessments         AssessmentSubmission[]
   attendance          Attendance[]
@@ -74,6 +79,7 @@ model Event {
   verifierId         String?
   createdBy          String
   certificateLayout  String?  // JSON string: bg image, colors, logos, signatures, placements
+  paymentConfig      String?  @db.Text // JSON string: paymentRequired, feeAmount, bkashNumber, nagadNumber, rocketNumber, bankAccount, paymentInstructions, contactPersonName, contactPersonPhone, paymentDeadline
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
 
@@ -161,6 +167,30 @@ model Expense {
   budget   Budget @relation(fields: [budgetId], references: [id])
   creator  User   @relation("ExpenseCreator", fields: [createdBy], references: [id])
   approver User?  @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+}
+
+model TreasuryDeposit {
+  id                  String   @id @default(cuid())
+  date                DateTime
+  amount              Float
+  source              String   // UNIVERSITY_FUND, SPONSOR, EVENT_REGISTRATION, MEMBERSHIP_REGISTRATION, DONATION, OTHER
+  note                String?
+  attachmentUrl       String?
+  status              String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  presidentStatus     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  gsStatus            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  submittedBy         String
+  presidentApprovedBy String?
+  gsApprovedBy        String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  submitter          User  @relation("TreasuryDepositSubmitter", fields: [submittedBy], references: [id])
+  presidentApprover  User? @relation("TreasuryDepositPresidentApprover", fields: [presidentApprovedBy], references: [id])
+  gsApprover         User? @relation("TreasuryDepositGsApprover", fields: [gsApprovedBy], references: [id])
+
+  @@index([status])
+  @@index([submittedBy])
 }
 
 model LedgerEntry {

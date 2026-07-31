@@ -189,6 +189,7 @@ export async function PATCH(
       "passingScore",
       "verifierId",
       "certificateLayout",
+      "paymentConfig",
     ];
 
     const data: Record<string, unknown> = {};
@@ -196,6 +197,15 @@ export async function PATCH(
       if (body[field] !== undefined) {
         if (field === "startDate" || field === "endDate") {
           data[field] = new Date(body[field]);
+        } else if (field === "paymentConfig") {
+          if (typeof body[field] === "string") {
+            try {
+              JSON.parse(body[field]);
+            } catch {
+              return errorResponse("Invalid paymentConfig JSON payload", 400);
+            }
+          }
+          data[field] = body[field];
         } else {
           data[field] = body[field];
         }

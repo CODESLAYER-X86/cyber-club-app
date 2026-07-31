@@ -33,6 +33,7 @@ import {
   Globe,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
+import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
 import type { UserRole, AppView, NavItem } from '@/types';
 import { ROLE_LABELS } from '@/types';
 import { ScrollArea } from '@/components/ui/scroll-area';
@@ -237,6 +238,7 @@ const ROLE_GLOW_COLORS: Record<UserRole, string> = {
 
 export function Sidebar() {
   const { currentUser, currentView, sidebarOpen, toggleSidebar, setCurrentView, setSidebarOpen, notifications } = useAppStore();
+  const { isMobile, transitionConfig } = useMobileOptimized();
 
   const role = currentUser?.role ?? 'GUEST';
   const navItems = useMemo(() => NAV_ITEMS[role] ?? NAV_ITEMS.GUEST, [role]);
@@ -278,13 +280,16 @@ export function Sidebar() {
         initial={false}
         animate={{
           width: sidebarOpen ? 260 : 72,
+          transition: { duration: isMobile ? 0.2 : 0.3, ease: 'easeOut' }
         }}
         className={cn(
           'shrink-0 flex h-screen flex-col border-r border-white/5 bg-[#0a0a0a]',
           // Mobile: fixed overlay positioned sidebar
           'fixed left-0 top-0 z-50 md:static md:z-auto',
           // Mobile: hide when closed
-          !sidebarOpen && 'max-md:-translate-x-full max-md:w-[260px]'
+          !sidebarOpen && 'max-md:-translate-x-full max-md:w-[260px]',
+          // Smooth transition on all sizes
+          'transition-all duration-300 ease-out'
         )}
       >
         {/* Animated scan line effect */}
@@ -310,7 +315,7 @@ export function Sidebar() {
                 initial={{ opacity: 0, x: -10 }}
                 animate={{ opacity: 1, x: 0 }}
                 exit={{ opacity: 0, x: -10 }}
-                transition={{ duration: 0.2 }}
+                transition={transitionConfig}
                 className="flex flex-col overflow-hidden"
               >
                 <span className="text-sm font-bold tracking-wide text-white whitespace-nowrap">
@@ -331,6 +336,7 @@ export function Sidebar() {
               initial={{ opacity: 0, height: 0 }}
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
+              transition={transitionConfig}
               className="px-3 pt-3"
             >
               <div
@@ -392,7 +398,7 @@ export function Sidebar() {
                         initial={{ opacity: 0, x: -10 }}
                         animate={{ opacity: 1, x: 0 }}
                         exit={{ opacity: 0, x: -10 }}
-                        transition={{ duration: 0.15 }}
+                        transition={transitionConfig}
                         className="truncate whitespace-nowrap"
                       >
                         {item.label}
@@ -459,6 +465,7 @@ export function Sidebar() {
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
+              transition={transitionConfig}
               className="text-[10px] tracking-wider text-gray-600 font-mono"
             >
               CyberSec v1.0.0

@@ -3,19 +3,46 @@ import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-u
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 
+const DEFAULT_MEMBERSHIP_PAYMENT_SETTINGS = {
+  paymentRequired: true,
+  bkashNumber: "",
+  nagadNumber: "",
+  rocketNumber: "",
+  bankAccount: "",
+  paymentInstructions: "",
+  contactPersonName: "",
+  contactPersonPhone: "",
+};
+
+const parseMembershipPaymentSettings = (value?: string | null) => {
+  if (!value) return { ...DEFAULT_MEMBERSHIP_PAYMENT_SETTINGS };
+
+  try {
+    const parsed = JSON.parse(value);
+    return {
+      ...DEFAULT_MEMBERSHIP_PAYMENT_SETTINGS,
+      ...parsed,
+    };
+  } catch {
+    return { ...DEFAULT_MEMBERSHIP_PAYMENT_SETTINGS };
+  }
+};
+
 export async function GET(req: NextRequest) {
   try {
-    const [feeConfig, primaryConfig, secondaryConfig] = await Promise.all([
+    const [feeConfig, primaryConfig, secondaryConfig, paymentSettingsConfig] = await Promise.all([
       prisma.systemConfig.findUnique({ where: { key: "membership_fee" } }),
       prisma.systemConfig.findUnique({ where: { key: "default_cert_primary_color" } }),
       prisma.systemConfig.findUnique({ where: { key: "default_cert_secondary_color" } }),
+      prisma.systemConfig.findUnique({ where: { key: "membership_payment_settings" } }),
     ]);
 
     const membershipFee = feeConfig ? parseFloat(feeConfig.value) : 100;
     const defaultPrimaryColor = primaryConfig ? primaryConfig.value : "#10b981";
     const defaultSecondaryColor = secondaryConfig ? secondaryConfig.value : "#06b6d4";
+    const membershipPaymentSettings = parseMembershipPaymentSettings(paymentSettingsConfig?.value);
 
-    return successResponse({ membershipFee, defaultPrimaryColor, defaultSecondaryColor });
+    return successResponse({ membershipFee, defaultPrimaryColor, defaultSecondaryColor, membershipPaymentSettings });
   } catch (error) {
     console.error("GET config error:", error);
     return serverErrorResponse();
@@ -39,7 +66,7 @@ export async function PATCH(req: NextRequest) {
     }
 
     const body = await req.json();
-    const { membershipFee, defaultPrimaryColor, defaultSecondaryColor } = body;
+    const { membershipFee, defaultPrimaryColor, defaultSecondaryColor, membershipPaymentSettings } = body;
 
     const auditDetails: string[] = [];
     const updates: Promise<any>[] = [];
@@ -91,6 +118,32 @@ export async function PATCH(req: NextRequest) {
       auditDetails.push(`default certificate secondary color to ${defaultSecondaryColor}`);
     }
 
+    if (membershipPaymentSettings !== undefined) {
+      if (!membershipPaymentSettings || typeof membershipPaymentSettings !== "object") {
+        return errorResponse("membershipPaymentSettings must be an object", 400);
+      }
+
+      const sanitizedSettings = {
+        ...DEFAULT_MEMBERSHIP_PAYMENT_SETTINGS,
+        ...membershipPaymentSettings,
+      };
+
+      const previousSettings = await prisma.systemConfig.findUnique({ where: { key: "membership_payment_settings" } });
+      const previousSettingsValue = previousSettings?.value ?? JSON.stringify(DEFAULT_MEMBERSHIP_PAYMENT_SETTINGS);
+
+      updates.push(
+        prisma.systemConfig.upsert({
+          where: { key: "membership_payment_settings" },
+          update: { value: JSON.stringify(sanitizedSettings) },
+          create: { key: "membership_payment_settings", value: JSON.stringify(sanitizedSettings) },
+        })
+      );
+
+      if (previousSettingsValue !== JSON.stringify(sanitizedSettings)) {
+        auditDetails.push(`membership payment settings updated`);
+      }
+    }
+
     if (updates.length > 0) {
       await Promise.all(updates);
       // Detailed audit logging
@@ -104,16 +157,18 @@ export async function PATCH(req: NextRequest) {
     }
 
     // Return the updated config
-    const [feeConfig, primaryConfig, secondaryConfig] = await Promise.all([
+    const [feeConfig, primaryConfig, secondaryConfig, paymentSettingsConfig] = await Promise.all([
       prisma.systemConfig.findUnique({ where: { key: "membership_fee" } }),
       prisma.systemConfig.findUnique({ where: { key: "default_cert_primary_color" } }),
       prisma.systemConfig.findUnique({ where: { key: "default_cert_secondary_color" } }),
+      prisma.systemConfig.findUnique({ where: { key: "membership_payment_settings" } }),
     ]);
 
     return successResponse({
       membershipFee: feeConfig ? parseFloat(feeConfig.value) : 100,
       defaultPrimaryColor: primaryConfig ? primaryConfig.value : "#10b981",
       defaultSecondaryColor: secondaryConfig ? secondaryConfig.value : "#06b6d4",
+      membershipPaymentSettings: parseMembershipPaymentSettings(paymentSettingsConfig?.value),
     });
   } catch (error) {
     console.error("PATCH config error:", error);

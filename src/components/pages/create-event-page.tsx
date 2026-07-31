@@ -45,6 +45,15 @@ export function CreateEventPage() {
   const [form, setForm] = useState({
     title: '', description: '', type: 'PUBLIC' as EventType, category: 'WORKSHOP' as EventCategory,
     startDate: '', endDate: '', venue: '', fee: '0', maxSeats: '', requiresAssessment: false, passingScore: '60',
+    paymentRequired: true,
+    bkashNumber: '',
+    nagadNumber: '',
+    rocketNumber: '',
+    bankAccount: '',
+    paymentInstructions: '',
+    contactPersonName: '',
+    contactPersonPhone: '',
+    paymentDeadline: '',
   });
 
   const update = (field: string, value: string | boolean) => {
@@ -70,18 +79,33 @@ export function CreateEventPage() {
     setError('');
     setLoading(true);
     try {
+      const feeAmount = parseFloat(form.fee) || 0;
+      const paymentConfig = {
+        paymentRequired: form.paymentRequired && feeAmount > 0,
+        feeAmount,
+        bkashNumber: form.bkashNumber.trim(),
+        nagadNumber: form.nagadNumber.trim(),
+        rocketNumber: form.rocketNumber.trim(),
+        bankAccount: form.bankAccount.trim(),
+        paymentInstructions: form.paymentInstructions.trim(),
+        contactPersonName: form.contactPersonName.trim(),
+        contactPersonPhone: form.contactPersonPhone.trim(),
+        paymentDeadline: form.paymentDeadline,
+      };
+
       const res = await fetch('/api/events', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          fee: parseFloat(form.fee) || 0,
+          fee: feeAmount,
           maxSeats: form.maxSeats ? parseInt(form.maxSeats) : null,
           passingScore: form.requiresAssessment ? parseFloat(form.passingScore) : null,
           startDate: new Date(form.startDate).toISOString(),
           endDate: new Date(form.endDate).toISOString(),
           createdBy: currentUser.id,
           status: 'UPCOMING',
+          paymentConfig,
         }),
       });
       const data = await res.json();
@@ -245,6 +269,51 @@ export function CreateEventPage() {
                     <div className="space-y-1.5">
                       <Label className="text-gray-400">Fee (৳)</Label>
                       <Input type="number" value={form.fee} onChange={(e) => update('fee', e.target.value)} min="0" className="border-white/10 bg-white/5 text-white" />
+                    </div>
+                  </div>
+
+                  <div className="mt-6 rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-4 pl-11">
+                    <div className="flex items-center justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-white">Payment Information</p>
+                        <p className="text-[11px] text-gray-500">Configure the payment workflow for this event</p>
+                      </div>
+                      <Switch checked={form.paymentRequired} onCheckedChange={(value) => update('paymentRequired', value)} />
+                    </div>
+
+                    <div className="grid gap-4 sm:grid-cols-2">
+                      <div className="space-y-1.5">
+                        <Label className="text-gray-400">bKash Number</Label>
+                        <Input value={form.bkashNumber} onChange={(e) => update('bkashNumber', e.target.value)} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-gray-400">Nagad Number</Label>
+                        <Input value={form.nagadNumber} onChange={(e) => update('nagadNumber', e.target.value)} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-gray-400">Rocket Number (Optional)</Label>
+                        <Input value={form.rocketNumber} onChange={(e) => update('rocketNumber', e.target.value)} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-gray-400">Bank Account (Optional)</Label>
+                        <Input value={form.bankAccount} onChange={(e) => update('bankAccount', e.target.value)} placeholder="Account name / account no / branch" className="border-white/10 bg-white/5 text-white" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-gray-400">Contact Person Name</Label>
+                        <Input value={form.contactPersonName} onChange={(e) => update('contactPersonName', e.target.value)} placeholder="Treasurer / Event Lead" className="border-white/10 bg-white/5 text-white" />
+                      </div>
+                      <div className="space-y-1.5">
+                        <Label className="text-gray-400">Contact Person Phone</Label>
+                        <Input value={form.contactPersonPhone} onChange={(e) => update('contactPersonPhone', e.target.value)} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white" />
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label className="text-gray-400">Payment Deadline</Label>
+                        <Input type="datetime-local" value={form.paymentDeadline} onChange={(e) => update('paymentDeadline', e.target.value)} className="border-white/10 bg-white/5 text-white" />
+                      </div>
+                      <div className="space-y-1.5 sm:col-span-2">
+                        <Label className="text-gray-400">Payment Instructions</Label>
+                        <Textarea value={form.paymentInstructions} onChange={(e) => update('paymentInstructions', e.target.value)} rows={3} placeholder="Send payment via bKash, share the transaction ID, and then complete registration..." className="border-white/10 bg-white/5 text-white" />
+                      </div>
                     </div>
                   </div>
                 </div>

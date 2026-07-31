@@ -67,6 +67,39 @@ export async function GET(request: NextRequest) {
   }
 }
 
+const normalizePaymentConfig = (raw: unknown, fallbackFee: number) => {
+  if (!raw) return null;
+
+  let payload: any = raw;
+  if (typeof raw === "string") {
+    try {
+      payload = JSON.parse(raw);
+    } catch {
+      throw new Error("Invalid paymentConfig JSON payload");
+    }
+  }
+
+  if (!payload || typeof payload !== "object") {
+    throw new Error("paymentConfig must be an object");
+  }
+
+  const feeAmount = Number(payload.feeAmount ?? fallbackFee ?? 0);
+  const paymentRequired = Boolean(payload.paymentRequired ?? feeAmount > 0);
+
+  return {
+    paymentRequired,
+    feeAmount: Number.isFinite(feeAmount) ? feeAmount : 0,
+    bkashNumber: typeof payload.bkashNumber === "string" ? payload.bkashNumber.trim() : "",
+    nagadNumber: typeof payload.nagadNumber === "string" ? payload.nagadNumber.trim() : "",
+    rocketNumber: typeof payload.rocketNumber === "string" ? payload.rocketNumber.trim() : "",
+    bankAccount: typeof payload.bankAccount === "string" ? payload.bankAccount.trim() : "",
+    paymentInstructions: typeof payload.paymentInstructions === "string" ? payload.paymentInstructions.trim() : "",
+    contactPersonName: typeof payload.contactPersonName === "string" ? payload.contactPersonName.trim() : "",
+    contactPersonPhone: typeof payload.contactPersonPhone === "string" ? payload.contactPersonPhone.trim() : "",
+    paymentDeadline: typeof payload.paymentDeadline === "string" ? payload.paymentDeadline : "",
+  };
+};
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
@@ -85,6 +118,7 @@ export async function POST(request: NextRequest) {
       requiresAssessment = false,
       passingScore,
       verifierId,
+      paymentConfig,
     } = body;
 
     if (!title || !description || !startDate || !endDate || !venue) {
@@ -97,6 +131,15 @@ export async function POST(request: NextRequest) {
       return forbiddenResponse("Only President, VP, GS, Media, or Platform Admin can create events");
     }
     const createdBy = caller.userId;
+
+    let normalizedPaymentConfig: string | null = null;
+    try {
+      if (paymentConfig !== undefined) {
+        normalizedPaymentConfig = JSON.stringify(normalizePaymentConfig(paymentConfig, Number(fee) || 0));
+      }
+    } catch (configError) {
+      return errorResponse((configError as Error).message, 400);
+    }
 
     const event = await prisma.event.create({
       data: {
@@ -115,6 +158,7 @@ export async function POST(request: NextRequest) {
         passingScore,
         verifierId,
         createdBy,
+        paymentConfig: normalizedPaymentConfig,
       },
       include: {
         creator: {

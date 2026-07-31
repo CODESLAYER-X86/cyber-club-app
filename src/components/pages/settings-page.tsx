@@ -67,6 +67,16 @@ export function SettingsPage() {
   const [membershipFee, setMembershipFee] = useState<number | string>('');
   const [defaultPrimaryColor, setDefaultPrimaryColor] = useState('#10b981');
   const [defaultSecondaryColor, setDefaultSecondaryColor] = useState('#06b6d4');
+  const [membershipPaymentSettings, setMembershipPaymentSettings] = useState({
+    paymentRequired: true,
+    bkashNumber: '',
+    nagadNumber: '',
+    rocketNumber: '',
+    bankAccount: '',
+    paymentInstructions: '',
+    contactPersonName: '',
+    contactPersonPhone: '',
+  });
   const [isSavingConfig, setIsSavingConfig] = useState(false);
 
   useEffect(() => {
@@ -79,6 +89,16 @@ export function SettingsPage() {
             setMembershipFee(data.data.membershipFee);
             setDefaultPrimaryColor(data.data.defaultPrimaryColor || '#10b981');
             setDefaultSecondaryColor(data.data.defaultSecondaryColor || '#06b6d4');
+            setMembershipPaymentSettings({
+              paymentRequired: data.data.membershipPaymentSettings?.paymentRequired ?? true,
+              bkashNumber: data.data.membershipPaymentSettings?.bkashNumber ?? '',
+              nagadNumber: data.data.membershipPaymentSettings?.nagadNumber ?? '',
+              rocketNumber: data.data.membershipPaymentSettings?.rocketNumber ?? '',
+              bankAccount: data.data.membershipPaymentSettings?.bankAccount ?? '',
+              paymentInstructions: data.data.membershipPaymentSettings?.paymentInstructions ?? '',
+              contactPersonName: data.data.membershipPaymentSettings?.contactPersonName ?? '',
+              contactPersonPhone: data.data.membershipPaymentSettings?.contactPersonPhone ?? '',
+            });
           }
         } catch (error) {
           console.error('Failed to fetch config:', error);
@@ -231,6 +251,7 @@ export function SettingsPage() {
           membershipFee: feeNum,
           defaultPrimaryColor,
           defaultSecondaryColor,
+          membershipPaymentSettings,
         }),
       });
       const data = await res.json();
@@ -528,6 +549,86 @@ export function SettingsPage() {
                   />
                 </div>
                 <p className="text-[11px] text-gray-600">The membership fee must be between ৳100 and ৳1000. Changes will apply immediately to new applicants.</p>
+              </div>
+
+              <div className="rounded-xl border border-white/5 bg-white/[0.02] p-4 space-y-4">
+                <div className="flex items-center justify-between gap-3">
+                  <div>
+                    <p className="text-sm font-semibold text-white">Membership Payment Settings</p>
+                    <p className="text-[11px] text-gray-500">Global banking and payment instructions for new memberships</p>
+                  </div>
+                  <Switch
+                    checked={membershipPaymentSettings.paymentRequired}
+                    onCheckedChange={(checked) => setMembershipPaymentSettings((prev) => ({ ...prev, paymentRequired: checked }))}
+                  />
+                </div>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">bKash Number</Label>
+                    <Input
+                      value={membershipPaymentSettings.bkashNumber}
+                      onChange={(e) => setMembershipPaymentSettings((prev) => ({ ...prev, bkashNumber: e.target.value }))}
+                      placeholder="01XXXXXXXXX"
+                      className="border-white/10 bg-white/5 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Nagad Number</Label>
+                    <Input
+                      value={membershipPaymentSettings.nagadNumber}
+                      onChange={(e) => setMembershipPaymentSettings((prev) => ({ ...prev, nagadNumber: e.target.value }))}
+                      placeholder="01XXXXXXXXX"
+                      className="border-white/10 bg-white/5 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Rocket Number</Label>
+                    <Input
+                      value={membershipPaymentSettings.rocketNumber}
+                      onChange={(e) => setMembershipPaymentSettings((prev) => ({ ...prev, rocketNumber: e.target.value }))}
+                      placeholder="01XXXXXXXXX"
+                      className="border-white/10 bg-white/5 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Bank Account</Label>
+                    <Input
+                      value={membershipPaymentSettings.bankAccount}
+                      onChange={(e) => setMembershipPaymentSettings((prev) => ({ ...prev, bankAccount: e.target.value }))}
+                      placeholder="Account name / number / branch"
+                      className="border-white/10 bg-white/5 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Contact Person Name</Label>
+                    <Input
+                      value={membershipPaymentSettings.contactPersonName}
+                      onChange={(e) => setMembershipPaymentSettings((prev) => ({ ...prev, contactPersonName: e.target.value }))}
+                      placeholder="Treasurer"
+                      className="border-white/10 bg-white/5 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Contact Person Phone</Label>
+                    <Input
+                      value={membershipPaymentSettings.contactPersonPhone}
+                      onChange={(e) => setMembershipPaymentSettings((prev) => ({ ...prev, contactPersonPhone: e.target.value }))}
+                      placeholder="01XXXXXXXXX"
+                      className="border-white/10 bg-white/5 text-white"
+                    />
+                  </div>
+                  <div className="space-y-2 md:col-span-2">
+                    <Label className="text-gray-400">Payment Instructions</Label>
+                    <Textarea
+                      value={membershipPaymentSettings.paymentInstructions}
+                      onChange={(e) => setMembershipPaymentSettings((prev) => ({ ...prev, paymentInstructions: e.target.value }))}
+                      rows={3}
+                      placeholder="Share the payment proof, include the transaction ID, and note the deadline."
+                      className="border-white/10 bg-white/5 text-white"
+                    />
+                  </div>
+                </div>
               </div>
 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

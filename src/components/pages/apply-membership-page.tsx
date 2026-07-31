@@ -10,11 +10,22 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 const DEPARTMENTS = [
-  'Computer Science',
-  'IT',
-  'Electrical Engineering',
-  'Software Engineering',
-  'Cybersecurity',
+  // Science and Engineering
+  'Computer Science and Engineering (CSE)',
+  'Electrical and Electronic Engineering (EEE)',
+  'Civil Engineering',
+  'Pharmacy',
+  'Biochemistry and Molecular Biology',
+  'Microbiology',
+  // Arts and Social Sciences
+  'English',
+  'Economics',
+  'Sociology',
+  'Political Science',
+  'Development Studies',
+  // Business and Law
+  'Business Administration',
+  'Law',
   'Other',
 ];
 
@@ -22,6 +33,8 @@ export function ApplyMembershipPage() {
   const { currentUser, updateCurrentUser } = useAppStore();
   const [form, setForm] = useState({
     studentId: '',
+    rollNumber: '',
+    batch: '',
     department: '',
     phone: '',
     transactionId: '',
@@ -50,7 +63,9 @@ export function ApplyMembershipPage() {
   const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
   const validate = (): string | null => {
-    if (!form.studentId.trim()) return 'Student ID is required';
+    if (!form.studentId.trim()) return 'Registration ID is required';
+    if (!form.rollNumber.trim()) return 'Roll Number is required';
+    if (!form.batch.trim()) return 'Batch is required';
     if (!form.department.trim()) return 'Department is required';
     if (!form.phone.trim()) return 'Phone number is required';
     if (!form.transactionId.trim()) return 'Transaction ID is required';
@@ -152,13 +167,40 @@ export function ApplyMembershipPage() {
 
             <div className="grid gap-6 sm:grid-cols-2">
               <div className="space-y-1.5">
-                <label className="text-xs font-medium text-gray-400">Student ID *</label>
+                <label className="text-xs font-medium text-gray-400">Registration ID *</label>
                 <div className="relative">
                   <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                   <Input
                     value={form.studentId}
                     onChange={(e) => update('studentId', e.target.value)}
                     placeholder="CS2024001"
+                    className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-400">Roll Number *</label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Input
+                    value={form.rollNumber}
+                    onChange={(e) => update('rollNumber', e.target.value)}
+                    placeholder="001"
+                    className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-400">Batch *</label>
+                <div className="relative">
+                  <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Input
+                    value={form.batch}
+                    onChange={(e) => update('batch', e.target.value)}
+                    placeholder="2022"
                     className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20"
                   />
                 </div>

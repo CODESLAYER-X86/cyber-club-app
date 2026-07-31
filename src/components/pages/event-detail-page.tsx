@@ -24,7 +24,14 @@ type EventDetailData = Omit<Event, 'registrations'> & {
   })[];
   _count?: { registrations: number };
 };
-
+const parsePaymentConfig = (paymentConfig?: string | null) => {
+  if (!paymentConfig) return null;
+  try {
+    return JSON.parse(paymentConfig);
+  } catch {
+    return null;
+  }
+};
 export function EventDetailPage() {
   const { currentUser, selectedEventId, setCurrentView } = useAppStore();
   const [event, setEvent] = useState<EventDetailData | null>(null);
@@ -288,6 +295,14 @@ export function EventDetailPage() {
   const canEdit = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'MEDIA'].includes(currentUser.role);
   const canDelete = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'MEDIA', 'VP', 'GS'].includes(currentUser.role);
   const registrationCount = event._count?.registrations ?? event.registrations?.length ?? event.currentSeats;
+  const paymentConfig = parsePaymentConfig(event.paymentConfig);
+  const paymentFee = paymentConfig?.feeAmount ?? event.fee ?? 0;
+  const paymentMethods = [
+    { key: 'bkashNumber', label: 'bKash', value: paymentConfig?.bkashNumber },
+    { key: 'nagadNumber', label: 'Nagad', value: paymentConfig?.nagadNumber },
+    { key: 'rocketNumber', label: 'Rocket', value: paymentConfig?.rocketNumber },
+    { key: 'bankAccount', label: 'Bank Transfer', value: paymentConfig?.bankAccount },
+  ].filter((method) => method.value);
 
   return (
     <div className="space-y-6">
@@ -597,28 +612,55 @@ export function EventDetailPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {event.fee > 0 && (
-                    <div className="space-y-2">
-                      <label className="text-xs font-medium text-gray-400">Payment Details (Fee: ৳{event.fee})</label>
-                      <div className="grid grid-cols-3 gap-2">
-                        <select
-                          value={paymentMethod}
-                          onChange={(e) => setPaymentMethod(e.target.value)}
-                          className="col-span-1 h-10 px-2 rounded-md border border-white/10 bg-[#111] text-white focus:border-emerald-500/50 focus:ring-emerald-500/20 text-sm focus:outline-none"
-                        >
-                          <option value="BKASH">bKash</option>
-                          <option value="NAGAD">Nagad</option>
-                          <option value="BANK">Bank</option>
-                          <option value="CASH">Cash</option>
-                        </select>
-                        <Input
-                          value={transactionId}
-                          onChange={(e) => setTransactionId(e.target.value)}
-                          placeholder="TXN-XXXXXXX"
-                          className="col-span-2 border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-                        />
+                  {paymentFee > 0 && (
+                    <div className="space-y-3">
+                      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+                        <div className="flex items-center justify-between gap-2">
+                          <span className="text-xs font-semibold text-emerald-300">Payment Details</span>
+                          <span className="text-xs text-emerald-400">Fee: ৳{paymentFee}</span>
+                        </div>
+                        {paymentMethods.length > 0 && (
+                          <div className="grid gap-2">
+                            {paymentMethods.map((method) => (
+                              <div key={method.key} className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-300">
+                                <span className="font-semibold text-white">{method.label}:</span> {method.value}
+                              </div>
+                            ))}
+                          </div>
+                        )}
+                        {paymentConfig?.paymentInstructions && (
+                          <p className="text-xs text-gray-400">{paymentConfig.paymentInstructions}</p>
+                        )}
+                        {paymentConfig?.contactPersonName && (
+                          <p className="text-xs text-gray-400">Contact: {paymentConfig.contactPersonName}{paymentConfig.contactPersonPhone ? ` • ${paymentConfig.contactPersonPhone}` : ''}</p>
+                        )}
+                        {paymentConfig?.paymentDeadline && (
+                          <p className="text-xs text-amber-300">Payment deadline: {new Date(paymentConfig.paymentDeadline).toLocaleString()}</p>
+                        )}
                       </div>
-                      <p className="text-xs text-gray-500">Pay ৳{event.fee} via MFS or Bank and select your method and transaction ID</p>
+
+                      <div className="space-y-2">
+                        <label className="text-xs font-medium text-gray-400">Payment Method & Transaction ID</label>
+                        <div className="grid grid-cols-3 gap-2">
+                          <select
+                            value={paymentMethod}
+                            onChange={(e) => setPaymentMethod(e.target.value)}
+                            className="col-span-1 h-10 px-2 rounded-md border border-white/10 bg-[#111] text-white focus:border-emerald-500/50 focus:ring-emerald-500/20 text-sm focus:outline-none"
+                          >
+                            <option value="BKASH">bKash</option>
+                            <option value="NAGAD">Nagad</option>
+                            <option value="BANK">Bank</option>
+                            <option value="CASH">Cash</option>
+                          </select>
+                          <Input
+                            value={transactionId}
+                            onChange={(e) => setTransactionId(e.target.value)}
+                            placeholder="TXN-XXXXXXX"
+                            className="col-span-2 border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500">Pay ৳{paymentFee} via the method shown above and then submit your transaction ID.</p>
+                      </div>
                     </div>
                   )}
                   {message && (

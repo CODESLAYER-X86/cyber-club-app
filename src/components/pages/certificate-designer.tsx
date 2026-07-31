@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Save, Loader2, Sparkles, Image as ImageIcon,
@@ -14,11 +14,61 @@ import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
 
+type TextElementKey =
+  | 'headerTitle'
+  | 'headerSubtitle'
+  | 'intro'
+  | 'recipientName'
+  | 'eventLabel'
+  | 'eventName'
+  | 'certificateTitle'
+  | 'description'
+  | 'issueDate'
+  | 'issueDateLabel'
+  | 'certificateId'
+  | 'footer';
+
+type LogoKey = 'clubLogo' | 'orgLogo' | 'eventLogo';
+
+type SelectedElement =
+  | { kind: 'text'; key: TextElementKey }
+  | { kind: 'logo'; key: LogoKey }
+  | { kind: 'signature'; index: number }
+  | null;
+
+interface PositionedTextElement {
+  x: number;
+  y: number;
+  fontSize: number;
+  color: string;
+  fontWeight?: number | string;
+  textAnchor?: 'start' | 'middle' | 'end';
+  letterSpacing?: number;
+}
+
+interface PositionedLogo {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  keepAspectRatio: boolean;
+}
+
+interface SignatureLayout {
+  x: number;
+  y: number;
+  nameFontSize: number;
+  titleFontSize: number;
+  nameColor: string;
+  titleColor: string;
+}
+
 interface SignatureConfig {
   name: string;
   title: string;
   image: string;
   visible: boolean;
+  layout?: SignatureLayout;
 }
 
 interface TextTemplate {
@@ -49,6 +99,9 @@ interface LayoutConfig {
     y: number;
   };
   textColors?: Record<string, string>;
+  textElements?: Partial<Record<TextElementKey, PositionedTextElement>>;
+  logoElements?: Partial<Record<LogoKey, PositionedLogo>>;
+  signatureLayouts?: SignatureLayout[];
   templates: Record<string, TextTemplate>;
   selectedTypes: string[];
   signatures: SignatureConfig[];
@@ -95,11 +148,48 @@ const DEFAULT_TEXT_COLORS = {
   signatureTitle: '#6b7280',
 } as const;
 
+const createDefaultTextElements = (isLandscape: boolean): Record<TextElementKey, PositionedTextElement> => {
+  const width = isLandscape ? 1200 : 840;
+  return {
+    headerTitle: { x: width / 2, y: isLandscape ? 210 : 230, fontSize: 22, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle', letterSpacing: 6 },
+    headerSubtitle: { x: width / 2, y: isLandscape ? 235 : 255, fontSize: 12, color: '#6b7280', textAnchor: 'middle', letterSpacing: 2 },
+    intro: { x: width / 2, y: isLandscape ? 290 : 320, fontSize: 16, color: '#9ca3af', textAnchor: 'middle' },
+    recipientName: { x: width / 2, y: isLandscape ? 350 : 390, fontSize: 42, color: '#10b981', fontWeight: 'bold', textAnchor: 'middle' },
+    eventLabel: { x: width / 2, y: isLandscape ? 395 : 440, fontSize: 16, color: '#9ca3af', textAnchor: 'middle' },
+    eventName: { x: width / 2, y: isLandscape ? 435 : 480, fontSize: 26, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle' },
+    certificateTitle: { x: width / 2, y: isLandscape ? 485 : 540, fontSize: 12, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle' },
+    description: { x: width / 2, y: isLandscape ? 535 : 600, fontSize: 13, color: '#6b7280', textAnchor: 'middle' },
+    issueDate: { x: 140, y: isLandscape ? 750 : 1010, fontSize: 12, color: '#9ca3af', textAnchor: 'middle' },
+    issueDateLabel: { x: 140, y: isLandscape ? 768 : 1028, fontSize: 10, color: '#4b5563', textAnchor: 'middle' },
+    certificateId: { x: width / 2, y: 480, fontSize: 14, color: '#10b981', textAnchor: 'middle' },
+    footer: { x: width / 2, y: isLandscape ? 810 : 1170, fontSize: 10, color: '#4b5563', textAnchor: 'middle' },
+  };
+};
+
+const createDefaultLogoElements = (isLandscape: boolean): Record<LogoKey, PositionedLogo> => {
+  const width = isLandscape ? 1200 : 840;
+  return {
+    clubLogo: { x: width / 2 - 40, y: 45, width: 80, height: 80, keepAspectRatio: true },
+    orgLogo: { x: 50, y: 45, width: 80, height: 80, keepAspectRatio: true },
+    eventLogo: { x: isLandscape ? 1070 : 710, y: 45, width: 80, height: 80, keepAspectRatio: true },
+  };
+};
+
+const createDefaultSignatureLayouts = (isLandscape: boolean): SignatureLayout[] => {
+  const y = isLandscape ? 700 : 960;
+  return [
+    { x: isLandscape ? 300 : 210, y, nameFontSize: 14, titleFontSize: 11, nameColor: '#ffffff', titleColor: '#6b7280' },
+    { x: isLandscape ? 600 : 420, y, nameFontSize: 14, titleFontSize: 11, nameColor: '#ffffff', titleColor: '#6b7280' },
+    { x: isLandscape ? 900 : 630, y, nameFontSize: 14, titleFontSize: 11, nameColor: '#ffffff', titleColor: '#6b7280' },
+  ];
+};
+
 export function CertificateDesigner() {
   const { selectedEventId, setCurrentView } = useAppStore();
   const [saving, setSaving] = useState(false);
   const [eventTitle, setEventTitle] = useState('Dynamic Event Title');
   const [loading, setLoading] = useState(true);
+  const svgRef = useRef<SVGSVGElement | null>(null);
 
   // Layout states
   const [orientation, setOrientation] = useState<"LANDSCAPE" | "PORTRAIT">("LANDSCAPE");
@@ -128,13 +218,34 @@ export function CertificateDesigner() {
   const [templates, setTemplates] = useState<Record<string, TextTemplate>>(DEFAULT_TEMPLATES);
   const [previewType, setPreviewType] = useState('PARTICIPATION');
   const [textColors, setTextColors] = useState<Record<string, string>>(DEFAULT_TEXT_COLORS);
+  const [textElements, setTextElements] = useState<Record<TextElementKey, PositionedTextElement>>(() => createDefaultTextElements(true));
+  const [logoElements, setLogoElements] = useState<Record<LogoKey, PositionedLogo>>(() => createDefaultLogoElements(true));
+  const [signatureLayouts, setSignatureLayouts] = useState<SignatureLayout[]>(() => createDefaultSignatureLayouts(true));
+  const [selectedElement, setSelectedElement] = useState<SelectedElement>(null);
+  const [dragState, setDragState] = useState<{
+    kind: 'text' | 'logo' | 'signature';
+    key: TextElementKey | LogoKey | number;
+    mode: 'move' | 'resize';
+    startPointerX: number;
+    startPointerY: number;
+    startX: number;
+    startY: number;
+    startWidth?: number;
+    startHeight?: number;
+    aspectRatio?: number;
+  } | null>(null);
+  const [alignmentGuides, setAlignmentGuides] = useState<{ vertical?: number; horizontal?: number } | null>(null);
 
   // Signatures
   const [signatures, setSignatures] = useState<SignatureConfig[]>([
-    { name: 'Dr. John Doe', title: 'President', image: '', visible: true },
-    { name: 'Alice Smith', title: 'General Secretary', image: '', visible: true },
-    { name: 'Bob Johnson', title: 'Event Coordinator', image: '', visible: false },
+    { name: 'Dr. John Doe', title: 'President', image: '', visible: true, layout: { x: 300, y: 700, nameFontSize: 14, titleFontSize: 11, nameColor: '#ffffff', titleColor: '#6b7280' } },
+    { name: 'Alice Smith', title: 'General Secretary', image: '', visible: true, layout: { x: 600, y: 700, nameFontSize: 14, titleFontSize: 11, nameColor: '#ffffff', titleColor: '#6b7280' } },
+    { name: 'Bob Johnson', title: 'Event Coordinator', image: '', visible: false, layout: { x: 900, y: 700, nameFontSize: 14, titleFontSize: 11, nameColor: '#ffffff', titleColor: '#6b7280' } },
   ]);
+
+  const isLandscape = orientation === 'LANDSCAPE';
+  const width = isLandscape ? 1200 : 840;
+  const height = isLandscape ? 840 : 1200;
 
   useEffect(() => {
     if (!selectedEventId) return;
@@ -197,8 +308,29 @@ export function CertificateDesigner() {
                 setTextColors({ ...DEFAULT_TEXT_COLORS, ...layout.textColors });
               }
 
+              setTextElements({
+                ...createDefaultTextElements(layout.orientation === 'LANDSCAPE' || !layout.orientation),
+                ...(layout.textElements || {}),
+              } as Record<TextElementKey, PositionedTextElement>);
+
+              setLogoElements({
+                ...createDefaultLogoElements(layout.orientation === 'LANDSCAPE' || !layout.orientation),
+                ...(layout.logoElements || {}),
+              } as Record<LogoKey, PositionedLogo>);
+
+              setSignatureLayouts(
+                (layout.signatureLayouts && Array.isArray(layout.signatureLayouts) && layout.signatureLayouts.length > 0)
+                  ? layout.signatureLayouts
+                  : createDefaultSignatureLayouts(layout.orientation === 'LANDSCAPE' || !layout.orientation)
+              );
+
               if (layout.signatures && Array.isArray(layout.signatures)) {
-                setSignatures(layout.signatures);
+                setSignatures(
+                  layout.signatures.map((sig: SignatureConfig, index: number) => ({
+                    ...sig,
+                    layout: sig.layout || createDefaultSignatureLayouts(layout.orientation === 'LANDSCAPE' || !layout.orientation)[index] || createDefaultSignatureLayouts(layout.orientation === 'LANDSCAPE' || !layout.orientation)[0],
+                  }))
+                );
               }
             } catch (e) {
               console.error('Failed to parse certificate layout JSON:', e);
@@ -241,6 +373,125 @@ export function CertificateDesigner() {
       [key]: value,
     }));
   };
+
+  const updateTextElement = (key: TextElementKey, patch: Partial<PositionedTextElement>) => {
+    setTextElements(prev => ({
+      ...prev,
+      [key]: { ...prev[key], ...patch },
+    }));
+  };
+
+  const updateLogoElement = (key: LogoKey, patch: Partial<PositionedLogo>) => {
+    setLogoElements(prev => ({
+      ...prev,
+      [key]: { ...prev[key], ...patch },
+    }));
+  };
+
+  const updateSignatureLayout = (index: number, patch: Partial<SignatureLayout>) => {
+    setSignatureLayouts(prev => prev.map((layout, currentIndex) => currentIndex === index ? { ...layout, ...patch } : layout));
+    setSignatures(prev => prev.map((sig, currentIndex) => currentIndex === index ? { ...sig, layout: { ...((sig.layout) || createDefaultSignatureLayouts(true)[currentIndex] || createDefaultSignatureLayouts(true)[0]), ...patch } } : sig));
+  };
+
+  const svgPointFromEvent = (event: PointerEvent | React.PointerEvent) => {
+    const svg = svgRef.current;
+    if (!svg) return { x: 0, y: 0 };
+    const point = svg.createSVGPoint();
+    point.x = event.clientX;
+    point.y = event.clientY;
+    const ctm = svg.getScreenCTM();
+    if (!ctm) return { x: 0, y: 0 };
+    const transformed = point.matrixTransform(ctm.inverse());
+    return { x: transformed.x, y: transformed.y };
+  };
+
+  const snapToGuides = (x: number, y: number) => {
+    const xGuide = Math.abs(x - width / 2) < 10 ? width / 2 : undefined;
+    const yGuide = Math.abs(y - height / 2) < 10 ? height / 2 : undefined;
+    return {
+      x: xGuide ?? x,
+      y: yGuide ?? y,
+      guides: { vertical: xGuide, horizontal: yGuide },
+    };
+  };
+
+  const beginDrag = (
+    kind: 'text' | 'logo' | 'signature',
+    key: TextElementKey | LogoKey | number,
+    mode: 'move' | 'resize',
+    event: React.PointerEvent,
+    current: { x: number; y: number; width?: number; height?: number }
+  ) => {
+    event.preventDefault();
+    const point = svgPointFromEvent(event);
+    setSelectedElement(kind === 'signature' ? { kind, index: key as number } : { kind, key: key as any });
+    setDragState({
+      kind,
+      key,
+      mode,
+      startPointerX: point.x,
+      startPointerY: point.y,
+      startX: current.x,
+      startY: current.y,
+      startWidth: current.width,
+      startHeight: current.height,
+      aspectRatio: current.width && current.height ? current.width / current.height : undefined,
+    });
+  };
+
+  useEffect(() => {
+    if (!dragState) return;
+
+    const handleMove = (event: PointerEvent) => {
+      const point = svgPointFromEvent(event);
+      if (dragState.kind === 'text') {
+        if (dragState.mode === 'move') {
+          const nextX = dragState.startX + (point.x - dragState.startPointerX);
+          const nextY = dragState.startY + (point.y - dragState.startPointerY);
+          const snapped = snapToGuides(nextX, nextY);
+          updateTextElement(dragState.key as TextElementKey, { x: snapped.x, y: snapped.y });
+          setAlignmentGuides(snapped.guides);
+        }
+      }
+
+      if (dragState.kind === 'logo') {
+        if (dragState.mode === 'move') {
+          const nextX = dragState.startX + (point.x - dragState.startPointerX);
+          const nextY = dragState.startY + (point.y - dragState.startPointerY);
+          const snapped = snapToGuides(nextX, nextY);
+          updateLogoElement(dragState.key as LogoKey, { x: snapped.x, y: snapped.y });
+          setAlignmentGuides(snapped.guides);
+        } else if (dragState.mode === 'resize') {
+          const delta = Math.max(point.x - dragState.startPointerX, point.y - dragState.startPointerY);
+          const nextWidth = Math.max(40, (dragState.startWidth || 80) + delta);
+          const ratio = dragState.aspectRatio || 1;
+          const nextHeight = Math.max(40, nextWidth / ratio);
+          updateLogoElement(dragState.key as LogoKey, { width: nextWidth, height: nextHeight });
+        }
+      }
+
+      if (dragState.kind === 'signature') {
+        const index = dragState.key as number;
+        const nextX = dragState.startX + (point.x - dragState.startPointerX);
+        const nextY = dragState.startY + (point.y - dragState.startPointerY);
+        const snapped = snapToGuides(nextX, nextY);
+        updateSignatureLayout(index, { x: snapped.x, y: snapped.y });
+        setAlignmentGuides(snapped.guides);
+      }
+    };
+
+    const handleUp = () => {
+      setDragState(null);
+      setAlignmentGuides(null);
+    };
+
+    window.addEventListener('pointermove', handleMove);
+    window.addEventListener('pointerup', handleUp);
+    return () => {
+      window.removeEventListener('pointermove', handleMove);
+      window.removeEventListener('pointerup', handleUp);
+    };
+  }, [dragState, width, height]);
 
   const textColorControls: Array<{ key: keyof typeof DEFAULT_TEXT_COLORS; label: string }> = [
     { key: 'headerTitle', label: 'Header Title' },
@@ -290,9 +541,12 @@ export function CertificateDesigner() {
       eventLogo: collabMode ? eventLogo : '',
       qrCode: { visible: qrVisible, size: qrSize, x: qrX, y: qrY },
       certId: { visible: idVisible, x: idX, y: idY },
+      textElements,
+      logoElements,
       selectedTypes,
       templates,
       textColors,
+      signatureLayouts,
       signatures,
     };
 
@@ -338,10 +592,23 @@ export function CertificateDesigner() {
     .replace('{{certificate_id}}', 'CSC-2026-CYBERSEC-00125')
     .replace('{{issue_date}}', 'June 15, 2026');
 
-  // SVG parameters
-  const isLandscape = orientation === 'LANDSCAPE';
-  const width = isLandscape ? 1200 : 840;
-  const height = isLandscape ? 840 : 1200;
+  const textPreviewValues: Record<TextElementKey, string> = {
+    headerTitle: 'CYBER SECURITY CLUB',
+    headerSubtitle: 'VERIFIED DIGITAL CERTIFICATE',
+    intro: 'This is to certify that',
+    recipientName: 'Md. Rahim Uddin Shuvo',
+    eventLabel: 'has successfully completed the event',
+    eventName: eventTitle,
+    certificateTitle: previewTitle,
+    description: previewDesc,
+    issueDate: 'June 15, 2026',
+    issueDateLabel: 'Issue Date',
+    certificateId: 'CSC-2026-CYBERSEC-00125',
+    footer: 'Verification URL: https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125',
+  };
+
+  const selectedTextKey = selectedElement?.kind === 'text' ? selectedElement.key : null;
+  const selectedLogoKey = selectedElement?.kind === 'logo' ? selectedElement.key : null;
 
   return (
     <div className="space-y-6">
@@ -835,14 +1102,90 @@ export function CertificateDesigner() {
               <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
 
               {/* Collaborator Logo */}
-              {collabMode && orgLogo && <image x="50" y="45" width="80" height="80" href={orgLogo} />}
+              {collabMode && orgLogo && (
+                <g
+                  onPointerDown={(e) => beginDrag('logo', 'orgLogo', 'move', e, logoElements.orgLogo || createDefaultLogoElements(isLandscape).orgLogo)}
+                  style={{ cursor: 'move' }}
+                >
+                  <image
+                    x={logoElements.orgLogo?.x ?? 50}
+                    y={logoElements.orgLogo?.y ?? 45}
+                    width={logoElements.orgLogo?.width ?? 80}
+                    height={logoElements.orgLogo?.height ?? 80}
+                    href={orgLogo}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                  {selectedLogoKey === 'orgLogo' && (
+                    <rect
+                      x={(logoElements.orgLogo?.x ?? 50) - 4}
+                      y={(logoElements.orgLogo?.y ?? 45) - 4}
+                      width={(logoElements.orgLogo?.width ?? 80) + 8}
+                      height={(logoElements.orgLogo?.height ?? 80) + 8}
+                      fill="none"
+                      stroke={primaryColor}
+                      strokeWidth="2"
+                      strokeDasharray="6 4"
+                    />
+                  )}
+                </g>
+              )}
 
               {/* Co-Host Logo */}
-              {collabMode && eventLogo && <image x={isLandscape ? "1070" : "710"} y="45" width="80" height="80" href={eventLogo} />}
+              {collabMode && eventLogo && (
+                <g
+                  onPointerDown={(e) => beginDrag('logo', 'eventLogo', 'move', e, logoElements.eventLogo || createDefaultLogoElements(isLandscape).eventLogo)}
+                  style={{ cursor: 'move' }}
+                >
+                  <image
+                    x={logoElements.eventLogo?.x ?? (isLandscape ? 1070 : 710)}
+                    y={logoElements.eventLogo?.y ?? 45}
+                    width={logoElements.eventLogo?.width ?? 80}
+                    height={logoElements.eventLogo?.height ?? 80}
+                    href={eventLogo}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                  {selectedLogoKey === 'eventLogo' && (
+                    <rect
+                      x={(logoElements.eventLogo?.x ?? (isLandscape ? 1070 : 710)) - 4}
+                      y={(logoElements.eventLogo?.y ?? 45) - 4}
+                      width={(logoElements.eventLogo?.width ?? 80) + 8}
+                      height={(logoElements.eventLogo?.height ?? 80) + 8}
+                      fill="none"
+                      stroke={primaryColor}
+                      strokeWidth="2"
+                      strokeDasharray="6 4"
+                    />
+                  )}
+                </g>
+              )}
 
               {/* Decorative Seal/Club Logo */}
               {clubLogo ? (
-                <image x={width / 2 - 40} y="45" width="80" height="80" href={clubLogo} />
+                <g
+                  onPointerDown={(e) => beginDrag('logo', 'clubLogo', 'move', e, logoElements.clubLogo || createDefaultLogoElements(isLandscape).clubLogo)}
+                  style={{ cursor: 'move' }}
+                >
+                  <image
+                    x={logoElements.clubLogo?.x ?? width / 2 - 40}
+                    y={logoElements.clubLogo?.y ?? 45}
+                    width={logoElements.clubLogo?.width ?? 80}
+                    height={logoElements.clubLogo?.height ?? 80}
+                    href={clubLogo}
+                    preserveAspectRatio="xMidYMid meet"
+                  />
+                  {selectedLogoKey === 'clubLogo' && (
+                    <rect
+                      x={(logoElements.clubLogo?.x ?? width / 2 - 40) - 4}
+                      y={(logoElements.clubLogo?.y ?? 45) - 4}
+                      width={(logoElements.clubLogo?.width ?? 80) + 8}
+                      height={(logoElements.clubLogo?.height ?? 80) + 8}
+                      fill="none"
+                      stroke={primaryColor}
+                      strokeWidth="2"
+                      strokeDasharray="6 4"
+                    />
+                  )}
+                </g>
               ) : (
                 <g transform={`translate(${width / 2 - 60}, 45)`}>
                   <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} strokeWidth="2" opacity="0.6" />
@@ -852,14 +1195,72 @@ export function CertificateDesigner() {
               )}
 
               {/* Certificate Authority Headers */}
-              <text x={width / 2} y={isLandscape ? "210" : "230"} textAnchor="middle" fontFamily="sans-serif" fontSize="22" fontWeight="bold" fill={textColors.headerTitle} letterSpacing="6">CYBER SECURITY CLUB</text>
-              <text x={width / 2} y={isLandscape ? "235" : "255"} textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill={textColors.headerSubtitle} letterSpacing="2">VERIFIED DIGITAL CERTIFICATE</text>
+              {(['headerTitle', 'headerSubtitle'] as TextElementKey[]).map((key) => {
+                const position = textElements[key];
+                return (
+                  <g key={key} onPointerDown={(e) => beginDrag('text', key, 'move', e, { x: position.x, y: position.y })} style={{ cursor: 'move' }}>
+                    <text
+                      x={position.x}
+                      y={position.y}
+                      textAnchor={position.textAnchor}
+                      fontFamily="sans-serif"
+                      fontSize={position.fontSize}
+                      fontWeight={position.fontWeight}
+                      fill={textColors[key]}
+                      letterSpacing={position.letterSpacing}
+                    >
+                      {textPreviewValues[key]}
+                    </text>
+                    {selectedTextKey === key && (
+                      <rect
+                        x={position.x - 30}
+                        y={position.y - 20}
+                        width="60"
+                        height="20"
+                        fill="none"
+                        stroke={primaryColor}
+                        strokeWidth="1.5"
+                        strokeDasharray="5 4"
+                      />
+                    )}
+                  </g>
+                );
+              })}
 
               {/* Core Text Elements */}
-              <text x={width / 2} y={isLandscape ? "290" : "320"} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill={textColors.intro}>This is to certify that</text>
-              <text x={width / 2} y={isLandscape ? "350" : "390"} textAnchor="middle" fontFamily="sans-serif" fontSize="42" fontWeight="bold" fill={textColors.recipientName}>Md. Rahim Uddin Shuvo</text>
-              <text x={width / 2} y={isLandscape ? "395" : "440"} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill={textColors.eventLabel}>has successfully completed the event</text>
-              <text x={width / 2} y={isLandscape ? "435" : "480"} textAnchor="middle" fontFamily="sans-serif" fontSize="26" fontWeight="bold" fill={textColors.eventName}>{eventTitle}</text>
+              {(['intro', 'recipientName', 'eventLabel', 'eventName', 'certificateTitle', 'description', 'certificateId', 'footer'] as TextElementKey[]).map((key) => {
+                const position = textElements[key];
+                const isSelected = selectedTextKey === key;
+                const fontWeight = key === 'recipientName' || key === 'eventName' || key === 'certificateTitle' ? 'bold' : undefined;
+                return (
+                  <g key={key} onPointerDown={(e) => beginDrag('text', key, 'move', e, { x: position.x, y: position.y })} style={{ cursor: 'move' }}>
+                    <text
+                      x={position.x}
+                      y={position.y}
+                      textAnchor={position.textAnchor}
+                      fontFamily="sans-serif"
+                      fontSize={position.fontSize}
+                      fontWeight={fontWeight}
+                      fill={textColors[key]}
+                      letterSpacing={position.letterSpacing}
+                    >
+                      {textPreviewValues[key]}
+                    </text>
+                    {isSelected && (
+                      <rect
+                        x={position.x - 80}
+                        y={position.y - position.fontSize - 6}
+                        width="160"
+                        height={position.fontSize + 12}
+                        fill="none"
+                        stroke={primaryColor}
+                        strokeWidth="1.5"
+                        strokeDasharray="5 4"
+                      />
+                    )}
+                  </g>
+                );
+              })}
 
               {/* Certificate Type Banner */}
               <g transform={`translate(${width / 2 - 130}, ${isLandscape ? 465 : 520})`}>
@@ -867,11 +1268,6 @@ export function CertificateDesigner() {
                 <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
                 <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill={textColors.certificateTitle}>{previewTitle}</text>
               </g>
-
-              {/* Dynamic Recipient Description Text */}
-              <text x={width / 2} y={isLandscape ? "535" : "600"} textAnchor="middle" fontFamily="sans-serif" fontSize="13" fill={textColors.description} width={width - 200}>
-                {previewDesc}
-              </text>
 
               {/* Custom Placed Certificate ID */}
               {idVisible && (
