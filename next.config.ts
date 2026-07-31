@@ -7,7 +7,6 @@ const nextConfig: NextConfig = {
   compress: true,
   poweredByHeader: false,
   productionBrowserSourceMaps: false,
-  optimizeFonts: true,
   reactStrictMode: true,
   swcMinify: true,
 
