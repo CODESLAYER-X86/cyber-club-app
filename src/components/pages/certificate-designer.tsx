@@ -1,10 +1,12 @@
 'use client';
 
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import { motion } from 'framer-motion';
 import {
   ArrowLeft, Save, Loader2, Sparkles, Image as ImageIcon,
-  Paintbrush, Settings, Sliders, Type, CheckCircle, Plus, Trash2, Award
+  Paintbrush, Settings, Sliders, Type, CheckCircle, Plus, Trash2, Award,
+  Move, Maximize2, AlignCenter, AlignLeft, AlignRight, Lock, Unlock,
+  ChevronDown, ChevronUp, X
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { Button } from '@/components/ui/button';
@@ -13,6 +15,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
 import { toast } from '@/hooks/use-toast';
+
+/* ─── Types ─── */
 
 type TextElementKey =
   | 'headerTitle'
@@ -44,6 +48,8 @@ interface PositionedTextElement {
   fontWeight?: number | string;
   textAnchor?: 'start' | 'middle' | 'end';
   letterSpacing?: number;
+  fontFamily?: string;
+  visible?: boolean;
 }
 
 interface PositionedLogo {
@@ -52,6 +58,8 @@ interface PositionedLogo {
   width: number;
   height: number;
   keepAspectRatio: boolean;
+  opacity?: number;
+  visible?: boolean;
 }
 
 interface SignatureLayout {
@@ -74,6 +82,11 @@ interface SignatureConfig {
 interface TextTemplate {
   title: string;
   description: string;
+}
+
+interface AlignmentGuide {
+  vertical?: number;
+  horizontal?: number;
 }
 
 interface LayoutConfig {
@@ -106,6 +119,8 @@ interface LayoutConfig {
   selectedTypes: string[];
   signatures: SignatureConfig[];
 }
+
+/* ─── Constants ─── */
 
 const DEFAULT_TEMPLATES: Record<string, TextTemplate> = {
   PARTICIPATION: { title: 'CERTIFICATE OF PARTICIPATION', description: 'This certifies that {{recipient_name}} successfully participated in {{event_name}}.' },
@@ -142,36 +157,53 @@ const DEFAULT_TEXT_COLORS = {
   eventName: '#ffffff',
   certificateTitle: '#ffffff',
   description: '#6b7280',
+  issueDate: '#9ca3af',
+  issueDateLabel: '#4b5563',
   certificateId: '#10b981',
   footer: '#4b5563',
   signatureName: '#ffffff',
   signatureTitle: '#6b7280',
 } as const;
 
+const TEXT_ELEMENT_LABELS: Record<TextElementKey, string> = {
+  headerTitle: 'Header Title',
+  headerSubtitle: 'Header Subtitle',
+  intro: 'Intro Text',
+  recipientName: 'Recipient Name',
+  eventLabel: 'Event Label',
+  eventName: 'Event Name',
+  certificateTitle: 'Certificate Title',
+  description: 'Description',
+  issueDate: 'Issue Date',
+  issueDateLabel: 'Issue Date Label',
+  certificateId: 'Certificate ID',
+  footer: 'Footer',
+};
+
 const createDefaultTextElements = (isLandscape: boolean): Record<TextElementKey, PositionedTextElement> => {
   const width = isLandscape ? 1200 : 840;
   return {
-    headerTitle: { x: width / 2, y: isLandscape ? 210 : 230, fontSize: 22, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle', letterSpacing: 6 },
-    headerSubtitle: { x: width / 2, y: isLandscape ? 235 : 255, fontSize: 12, color: '#6b7280', textAnchor: 'middle', letterSpacing: 2 },
-    intro: { x: width / 2, y: isLandscape ? 290 : 320, fontSize: 16, color: '#9ca3af', textAnchor: 'middle' },
-    recipientName: { x: width / 2, y: isLandscape ? 350 : 390, fontSize: 42, color: '#10b981', fontWeight: 'bold', textAnchor: 'middle' },
-    eventLabel: { x: width / 2, y: isLandscape ? 395 : 440, fontSize: 16, color: '#9ca3af', textAnchor: 'middle' },
-    eventName: { x: width / 2, y: isLandscape ? 435 : 480, fontSize: 26, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle' },
-    certificateTitle: { x: width / 2, y: isLandscape ? 485 : 540, fontSize: 12, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle' },
-    description: { x: width / 2, y: isLandscape ? 535 : 600, fontSize: 13, color: '#6b7280', textAnchor: 'middle' },
-    issueDate: { x: 140, y: isLandscape ? 750 : 1010, fontSize: 12, color: '#9ca3af', textAnchor: 'middle' },
-    issueDateLabel: { x: 140, y: isLandscape ? 768 : 1028, fontSize: 10, color: '#4b5563', textAnchor: 'middle' },
-    certificateId: { x: width / 2, y: 480, fontSize: 14, color: '#10b981', textAnchor: 'middle' },
-    footer: { x: width / 2, y: isLandscape ? 810 : 1170, fontSize: 10, color: '#4b5563', textAnchor: 'middle' },
+    headerTitle: { x: width / 2, y: isLandscape ? 210 : 230, fontSize: 22, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle', letterSpacing: 6, visible: true },
+    headerSubtitle: { x: width / 2, y: isLandscape ? 235 : 255, fontSize: 12, color: '#6b7280', textAnchor: 'middle', letterSpacing: 2, visible: true },
+    intro: { x: width / 2, y: isLandscape ? 290 : 320, fontSize: 16, color: '#9ca3af', textAnchor: 'middle', visible: true },
+    recipientName: { x: width / 2, y: isLandscape ? 350 : 390, fontSize: 42, color: '#10b981', fontWeight: 'bold', textAnchor: 'middle', visible: true },
+    eventLabel: { x: width / 2, y: isLandscape ? 395 : 440, fontSize: 16, color: '#9ca3af', textAnchor: 'middle', visible: true },
+    eventName: { x: width / 2, y: isLandscape ? 435 : 480, fontSize: 26, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle', visible: true },
+    certificateTitle: { x: width / 2, y: isLandscape ? 485 : 540, fontSize: 12, color: '#ffffff', fontWeight: 'bold', textAnchor: 'middle', visible: true },
+    description: { x: width / 2, y: isLandscape ? 535 : 600, fontSize: 13, color: '#6b7280', textAnchor: 'middle', visible: true },
+    issueDate: { x: 140, y: isLandscape ? 750 : 1010, fontSize: 12, color: '#9ca3af', textAnchor: 'middle', visible: true },
+    issueDateLabel: { x: 140, y: isLandscape ? 768 : 1028, fontSize: 10, color: '#4b5563', textAnchor: 'middle', visible: true },
+    certificateId: { x: width / 2, y: 480, fontSize: 14, color: '#10b981', textAnchor: 'middle', visible: true },
+    footer: { x: width / 2, y: isLandscape ? 810 : 1170, fontSize: 10, color: '#4b5563', textAnchor: 'middle', visible: true },
   };
 };
 
 const createDefaultLogoElements = (isLandscape: boolean): Record<LogoKey, PositionedLogo> => {
   const width = isLandscape ? 1200 : 840;
   return {
-    clubLogo: { x: width / 2 - 40, y: 45, width: 80, height: 80, keepAspectRatio: true },
-    orgLogo: { x: 50, y: 45, width: 80, height: 80, keepAspectRatio: true },
-    eventLogo: { x: isLandscape ? 1070 : 710, y: 45, width: 80, height: 80, keepAspectRatio: true },
+    clubLogo: { x: width / 2 - 40, y: 45, width: 80, height: 80, keepAspectRatio: true, opacity: 1, visible: true },
+    orgLogo: { x: 50, y: 45, width: 80, height: 80, keepAspectRatio: true, opacity: 1, visible: true },
+    eventLogo: { x: isLandscape ? 1070 : 710, y: 45, width: 80, height: 80, keepAspectRatio: true, opacity: 1, visible: true },
   };
 };
 
@@ -183,6 +215,8 @@ const createDefaultSignatureLayouts = (isLandscape: boolean): SignatureLayout[] 
     { x: isLandscape ? 900 : 630, y, nameFontSize: 14, titleFontSize: 11, nameColor: '#ffffff', titleColor: '#6b7280' },
   ];
 };
+
+/* ─── Component ─── */
 
 export function CertificateDesigner() {
   const { selectedEventId, setCurrentView } = useAppStore();
@@ -203,7 +237,7 @@ export function CertificateDesigner() {
   const [orgLogo, setOrgLogo] = useState('');
   const [eventLogo, setEventLogo] = useState('');
 
-  // Placements
+  // QR & ID placements
   const [qrVisible, setQrVisible] = useState(true);
   const [qrSize, setQrSize] = useState(80);
   const [qrX, setQrX] = useState(1040);
@@ -233,8 +267,9 @@ export function CertificateDesigner() {
     startWidth?: number;
     startHeight?: number;
     aspectRatio?: number;
+    resizeCorner?: 'br' | 'bl' | 'tr' | 'tl';
   } | null>(null);
-  const [alignmentGuides, setAlignmentGuides] = useState<{ vertical?: number; horizontal?: number } | null>(null);
+  const [alignmentGuides, setAlignmentGuides] = useState<AlignmentGuide | null>(null);
 
   // Signatures
   const [signatures, setSignatures] = useState<SignatureConfig[]>([
@@ -246,6 +281,8 @@ export function CertificateDesigner() {
   const isLandscape = orientation === 'LANDSCAPE';
   const width = isLandscape ? 1200 : 840;
   const height = isLandscape ? 840 : 1200;
+
+  /* ─── Load Event Data ─── */
 
   useEffect(() => {
     if (!selectedEventId) return;
@@ -349,6 +386,8 @@ export function CertificateDesigner() {
     fetchEvent();
   }, [selectedEventId]);
 
+  /* ─── Updaters ─── */
+
   const updateSignature = (index: number, field: keyof SignatureConfig, value: any) => {
     setSignatures(prev => {
       const copy = [...prev];
@@ -360,18 +399,12 @@ export function CertificateDesigner() {
   const updateTemplate = (type: string, field: keyof TextTemplate, value: string) => {
     setTemplates(prev => ({
       ...prev,
-      [type]: {
-        ...prev[type],
-        [field]: value
-      }
+      [type]: { ...prev[type], [field]: value }
     }));
   };
 
   const updateTextColor = (key: keyof typeof DEFAULT_TEXT_COLORS, value: string) => {
-    setTextColors(prev => ({
-      ...prev,
-      [key]: value,
-    }));
+    setTextColors(prev => ({ ...prev, [key]: value }));
   };
 
   const updateTextElement = (key: TextElementKey, patch: Partial<PositionedTextElement>) => {
@@ -393,6 +426,8 @@ export function CertificateDesigner() {
     setSignatures(prev => prev.map((sig, currentIndex) => currentIndex === index ? { ...sig, layout: { ...((sig.layout) || createDefaultSignatureLayouts(true)[currentIndex] || createDefaultSignatureLayouts(true)[0]), ...patch } } : sig));
   };
 
+  /* ─── SVG Coordinate Helpers ─── */
+
   const svgPointFromEvent = (event: PointerEvent | React.PointerEvent) => {
     const svg = svgRef.current;
     if (!svg) return { x: 0, y: 0 };
@@ -405,9 +440,58 @@ export function CertificateDesigner() {
     return { x: transformed.x, y: transformed.y };
   };
 
-  const snapToGuides = (x: number, y: number) => {
-    const xGuide = Math.abs(x - width / 2) < 10 ? width / 2 : undefined;
-    const yGuide = Math.abs(y - height / 2) < 10 ? height / 2 : undefined;
+  /* ─── Enhanced Alignment Guides ─── */
+
+  const snapToGuides = (x: number, y: number, elementWidth?: number, elementHeight?: number) => {
+    const SNAP_THRESHOLD = 8;
+    const cx = width / 2;
+    const cy = height / 2;
+
+    // Center guides
+    let xGuide: number | undefined;
+    let yGuide: number | undefined;
+
+    // Horizontal center snap
+    if (Math.abs(x - cx) < SNAP_THRESHOLD) xGuide = cx;
+    // Left margin snap
+    if (Math.abs(x - 50) < SNAP_THRESHOLD) xGuide = 50;
+    // Right margin snap
+    if (Math.abs(x - (width - 50)) < SNAP_THRESHOLD) xGuide = width - 50;
+    // Quarter snaps
+    if (Math.abs(x - width / 4) < SNAP_THRESHOLD) xGuide = width / 4;
+    if (Math.abs(x - (3 * width / 4)) < SNAP_THRESHOLD) xGuide = 3 * width / 4;
+
+    // Vertical center snap
+    if (Math.abs(y - cy) < SNAP_THRESHOLD) yGuide = cy;
+    // Top margin snap
+    if (Math.abs(y - 50) < SNAP_THRESHOLD) yGuide = 50;
+    // Bottom margin snap
+    if (Math.abs(y - (height - 50)) < SNAP_THRESHOLD) yGuide = height - 50;
+
+    // Element-to-element snapping: check against other text elements
+    const allTextPositions = Object.entries(textElements).filter(([k]) => {
+      if (selectedElement?.kind === 'text' && k === selectedElement.key) return false;
+      return true;
+    });
+    for (const [, pos] of allTextPositions) {
+      if (Math.abs(x - pos.x) < SNAP_THRESHOLD && !xGuide) xGuide = pos.x;
+      if (Math.abs(y - pos.y) < SNAP_THRESHOLD && !yGuide) yGuide = pos.y;
+    }
+
+    // Element-to-element snapping: check against other logos
+    const allLogoPositions = Object.entries(logoElements).filter(([k]) => {
+      if (selectedElement?.kind === 'logo' && k === selectedElement.key) return false;
+      return true;
+    });
+    for (const [, pos] of allLogoPositions) {
+      if (Math.abs(x - pos.x) < SNAP_THRESHOLD && !xGuide) xGuide = pos.x;
+      if (Math.abs(y - pos.y) < SNAP_THRESHOLD && !yGuide) yGuide = pos.y;
+      // Right edge snap
+      if (elementWidth && Math.abs(x - (pos.x + pos.width)) < SNAP_THRESHOLD && !xGuide) xGuide = pos.x + pos.width;
+      // Bottom edge snap
+      if (elementHeight && Math.abs(y - (pos.y + pos.height)) < SNAP_THRESHOLD && !yGuide) yGuide = pos.y + pos.height;
+    }
+
     return {
       x: xGuide ?? x,
       y: yGuide ?? y,
@@ -415,14 +499,18 @@ export function CertificateDesigner() {
     };
   };
 
+  /* ─── Drag & Resize ─── */
+
   const beginDrag = (
     kind: 'text' | 'logo' | 'signature',
     key: TextElementKey | LogoKey | number,
     mode: 'move' | 'resize',
     event: React.PointerEvent,
-    current: { x: number; y: number; width?: number; height?: number }
+    current: { x: number; y: number; width?: number; height?: number },
+    resizeCorner?: 'br' | 'bl' | 'tr' | 'tl'
   ) => {
     event.preventDefault();
+    event.stopPropagation();
     const point = svgPointFromEvent(event);
     setSelectedElement(kind === 'signature' ? { kind, index: key as number } : { kind, key: key as any });
     setDragState({
@@ -436,6 +524,7 @@ export function CertificateDesigner() {
       startWidth: current.width,
       startHeight: current.height,
       aspectRatio: current.width && current.height ? current.width / current.height : undefined,
+      resizeCorner,
     });
   };
 
@@ -444,6 +533,7 @@ export function CertificateDesigner() {
 
     const handleMove = (event: PointerEvent) => {
       const point = svgPointFromEvent(event);
+
       if (dragState.kind === 'text') {
         if (dragState.mode === 'move') {
           const nextX = dragState.startX + (point.x - dragState.startPointerX);
@@ -458,15 +548,71 @@ export function CertificateDesigner() {
         if (dragState.mode === 'move') {
           const nextX = dragState.startX + (point.x - dragState.startPointerX);
           const nextY = dragState.startY + (point.y - dragState.startPointerY);
-          const snapped = snapToGuides(nextX, nextY);
+          const logo = logoElements[dragState.key as LogoKey];
+          const snapped = snapToGuides(nextX, nextY, logo?.width, logo?.height);
           updateLogoElement(dragState.key as LogoKey, { x: snapped.x, y: snapped.y });
           setAlignmentGuides(snapped.guides);
         } else if (dragState.mode === 'resize') {
-          const delta = Math.max(point.x - dragState.startPointerX, point.y - dragState.startPointerY);
-          const nextWidth = Math.max(40, (dragState.startWidth || 80) + delta);
-          const ratio = dragState.aspectRatio || 1;
-          const nextHeight = Math.max(40, nextWidth / ratio);
-          updateLogoElement(dragState.key as LogoKey, { width: nextWidth, height: nextHeight });
+          const logo = logoElements[dragState.key as LogoKey];
+          const keepRatio = logo?.keepAspectRatio ?? true;
+
+          if (dragState.resizeCorner === 'br') {
+            const dx = point.x - dragState.startPointerX;
+            const dy = point.y - dragState.startPointerY;
+            const delta = Math.max(dx, dy);
+            const nextWidth = Math.max(30, (dragState.startWidth || 80) + delta);
+            if (keepRatio && dragState.aspectRatio) {
+              const nextHeight = Math.max(30, nextWidth / dragState.aspectRatio);
+              updateLogoElement(dragState.key as LogoKey, { width: nextWidth, height: nextHeight });
+            } else {
+              const nextHeight = Math.max(30, (dragState.startHeight || 80) + dy);
+              updateLogoElement(dragState.key as LogoKey, { width: nextWidth, height: nextHeight });
+            }
+          } else if (dragState.resizeCorner === 'bl') {
+            const dx = dragState.startPointerX - point.x;
+            const dy = point.y - dragState.startPointerY;
+            const delta = Math.max(dx, dy);
+            const nextWidth = Math.max(30, (dragState.startWidth || 80) + delta);
+            if (keepRatio && dragState.aspectRatio) {
+              const nextHeight = Math.max(30, nextWidth / dragState.aspectRatio);
+              const newX = dragState.startX + (dragState.startWidth || 80) - nextWidth;
+              updateLogoElement(dragState.key as LogoKey, { x: newX, y: dragState.startY, width: nextWidth, height: nextHeight });
+            } else {
+              const nextHeight = Math.max(30, (dragState.startHeight || 80) + dy);
+              const newX = dragState.startX + (dragState.startWidth || 80) - nextWidth;
+              updateLogoElement(dragState.key as LogoKey, { x: newX, y: dragState.startY, width: nextWidth, height: nextHeight });
+            }
+          } else if (dragState.resizeCorner === 'tr') {
+            const dx = point.x - dragState.startPointerX;
+            const dy = dragState.startPointerY - point.y;
+            const delta = Math.max(dx, dy);
+            const nextWidth = Math.max(30, (dragState.startWidth || 80) + delta);
+            if (keepRatio && dragState.aspectRatio) {
+              const nextHeight = Math.max(30, nextWidth / dragState.aspectRatio);
+              const newY = dragState.startY + (dragState.startHeight || 80) - nextHeight;
+              updateLogoElement(dragState.key as LogoKey, { x: dragState.startX, y: newY, width: nextWidth, height: nextHeight });
+            } else {
+              const nextHeight = Math.max(30, (dragState.startHeight || 80) + dy);
+              const newY = dragState.startY + (dragState.startHeight || 80) - nextHeight;
+              updateLogoElement(dragState.key as LogoKey, { x: dragState.startX, y: newY, width: nextWidth, height: nextHeight });
+            }
+          } else if (dragState.resizeCorner === 'tl') {
+            const dx = dragState.startPointerX - point.x;
+            const dy = dragState.startPointerY - point.y;
+            const delta = Math.max(dx, dy);
+            const nextWidth = Math.max(30, (dragState.startWidth || 80) + delta);
+            if (keepRatio && dragState.aspectRatio) {
+              const nextHeight = Math.max(30, nextWidth / dragState.aspectRatio);
+              const newX = dragState.startX + (dragState.startWidth || 80) - nextWidth;
+              const newY = dragState.startY + (dragState.startHeight || 80) - nextHeight;
+              updateLogoElement(dragState.key as LogoKey, { x: newX, y: newY, width: nextWidth, height: nextHeight });
+            } else {
+              const nextHeight = Math.max(30, (dragState.startHeight || 80) + dy);
+              const newX = dragState.startX + (dragState.startWidth || 80) - nextWidth;
+              const newY = dragState.startY + (dragState.startHeight || 80) - nextHeight;
+              updateLogoElement(dragState.key as LogoKey, { x: newX, y: newY, width: nextWidth, height: nextHeight });
+            }
+          }
         }
       }
 
@@ -491,22 +637,9 @@ export function CertificateDesigner() {
       window.removeEventListener('pointermove', handleMove);
       window.removeEventListener('pointerup', handleUp);
     };
-  }, [dragState, width, height]);
+  }, [dragState, width, height, logoElements]);
 
-  const textColorControls: Array<{ key: keyof typeof DEFAULT_TEXT_COLORS; label: string }> = [
-    { key: 'headerTitle', label: 'Header Title' },
-    { key: 'headerSubtitle', label: 'Header Subtitle' },
-    { key: 'intro', label: 'Intro Text' },
-    { key: 'recipientName', label: 'Recipient Name' },
-    { key: 'eventLabel', label: 'Event Label' },
-    { key: 'eventName', label: 'Event Name' },
-    { key: 'certificateTitle', label: 'Certificate Title' },
-    { key: 'description', label: 'Description Text' },
-    { key: 'certificateId', label: 'Certificate ID' },
-    { key: 'footer', label: 'Footer Text' },
-    { key: 'signatureName', label: 'Signature Name' },
-    { key: 'signatureTitle', label: 'Signature Title' },
-  ];
+  /* ─── Type Toggle ─── */
 
   const toggleType = (type: string) => {
     setSelectedTypes(prev => {
@@ -519,6 +652,8 @@ export function CertificateDesigner() {
       return active;
     });
   };
+
+  /* ─── Save ─── */
 
   const handleSave = async () => {
     if (!selectedEventId) return;
@@ -570,6 +705,8 @@ export function CertificateDesigner() {
     }
   };
 
+  /* ─── Loading ─── */
+
   if (loading) {
     return (
       <div className="flex h-[60vh] flex-col items-center justify-center space-y-4">
@@ -579,9 +716,9 @@ export function CertificateDesigner() {
     );
   }
 
-  const activeSigs = signatures.filter(s => s.visible);
-  const sigCount = activeSigs.length;
+  /* ─── Preview Data ─── */
 
+  const activeSigs = signatures.filter(s => s.visible);
   const currentTemplate = templates[previewType] || DEFAULT_TEMPLATES.PARTICIPATION;
   const previewTitle = currentTemplate.title;
   const previewDesc = currentTemplate.description
@@ -609,6 +746,601 @@ export function CertificateDesigner() {
 
   const selectedTextKey = selectedElement?.kind === 'text' ? selectedElement.key : null;
   const selectedLogoKey = selectedElement?.kind === 'logo' ? selectedElement.key : null;
+  const selectedSigIndex = selectedElement?.kind === 'signature' ? selectedElement.index : null;
+
+  /* ─── Render Logo with Resize Handles ─── */
+
+  const renderLogo = (key: LogoKey, href: string, show: boolean) => {
+    if (!show || !href) return null;
+    const logo = logoElements[key];
+    const isSelected = selectedLogoKey === key;
+    const lx = logo?.x ?? createDefaultLogoElements(isLandscape)[key].x;
+    const ly = logo?.y ?? createDefaultLogoElements(isLandscape)[key].y;
+    const lw = logo?.width ?? 80;
+    const lh = logo?.height ?? 80;
+    const opacity = logo?.opacity ?? 1;
+
+    return (
+      <g
+        onPointerDown={(e) => beginDrag('logo', key, 'move', e, { x: lx, y: ly, width: lw, height: lh })}
+        style={{ cursor: 'move' }}
+      >
+        <image
+          x={lx}
+          y={ly}
+          width={lw}
+          height={lh}
+          href={href}
+          preserveAspectRatio={logo?.keepAspectRatio !== false ? 'xMidYMid meet' : 'none'}
+          opacity={opacity}
+        />
+        {/* Selection border */}
+        {isSelected && (
+          <rect
+            x={lx - 2}
+            y={ly - 2}
+            width={lw + 4}
+            height={lh + 4}
+            fill="none"
+            stroke={primaryColor}
+            strokeWidth="2"
+            strokeDasharray="6 4"
+          />
+        )}
+        {/* Resize handles - only when selected */}
+        {isSelected && (
+          <>
+            {/* Bottom-right handle */}
+            <rect
+              x={lx + lw - 6}
+              y={ly + lh - 6}
+              width={12}
+              height={12}
+              fill={primaryColor}
+              stroke="#000"
+              strokeWidth="1"
+              rx="2"
+              style={{ cursor: 'nwse-resize' }}
+              onPointerDown={(e) => beginDrag('logo', key, 'resize', e, { x: lx, y: ly, width: lw, height: lh }, 'br')}
+            />
+            {/* Bottom-left handle */}
+            <rect
+              x={lx - 6}
+              y={ly + lh - 6}
+              width={12}
+              height={12}
+              fill={primaryColor}
+              stroke="#000"
+              strokeWidth="1"
+              rx="2"
+              style={{ cursor: 'nesw-resize' }}
+              onPointerDown={(e) => beginDrag('logo', key, 'resize', e, { x: lx, y: ly, width: lw, height: lh }, 'bl')}
+            />
+            {/* Top-right handle */}
+            <rect
+              x={lx + lw - 6}
+              y={ly - 6}
+              width={12}
+              height={12}
+              fill={primaryColor}
+              stroke="#000"
+              strokeWidth="1"
+              rx="2"
+              style={{ cursor: 'nesw-resize' }}
+              onPointerDown={(e) => beginDrag('logo', key, 'resize', e, { x: lx, y: ly, width: lw, height: lh }, 'tr')}
+            />
+            {/* Top-left handle */}
+            <rect
+              x={lx - 6}
+              y={ly - 6}
+              width={12}
+              height={12}
+              fill={primaryColor}
+              stroke="#000"
+              strokeWidth="1"
+              rx="2"
+              style={{ cursor: 'nwse-resize' }}
+              onPointerDown={(e) => beginDrag('logo', key, 'resize', e, { x: lx, y: ly, width: lw, height: lh }, 'tl')}
+            />
+            {/* Size label */}
+            <text
+              x={lx + lw / 2}
+              y={ly + lh + 16}
+              textAnchor="middle"
+              fontFamily="monospace"
+              fontSize="9"
+              fill={primaryColor}
+            >
+              {Math.round(lw)}x{Math.round(lh)}
+            </text>
+          </>
+        )}
+      </g>
+    );
+  };
+
+  /* ─── Render Text Element ─── */
+
+  const renderTextElement = (key: TextElementKey) => {
+    const position = textElements[key];
+    if (position.visible === false) return null;
+    const isSelected = selectedTextKey === key;
+    const previewValue = textPreviewValues[key];
+    const effectiveColor = position.color || textColors[key] || '#ffffff';
+
+    // Estimate text width for selection box
+    const estimatedWidth = Math.max(previewValue.length * position.fontSize * 0.6, 80);
+    const boxHeight = position.fontSize + 12;
+
+    return (
+      <g
+        key={key}
+        onPointerDown={(e) => beginDrag('text', key, 'move', e, { x: position.x, y: position.y })}
+        style={{ cursor: 'move' }}
+      >
+        <text
+          x={position.x}
+          y={position.y}
+          textAnchor={position.textAnchor}
+          fontFamily={position.fontFamily || 'sans-serif'}
+          fontSize={position.fontSize}
+          fontWeight={position.fontWeight}
+          fill={effectiveColor}
+          letterSpacing={position.letterSpacing}
+        >
+          {previewValue}
+        </text>
+        {isSelected && (
+          <>
+            <rect
+              x={position.textAnchor === 'middle' ? position.x - estimatedWidth / 2 : position.textAnchor === 'end' ? position.x - estimatedWidth : position.x}
+              y={position.y - position.fontSize - 4}
+              width={estimatedWidth}
+              height={boxHeight}
+              fill="none"
+              stroke={primaryColor}
+              strokeWidth="1.5"
+              strokeDasharray="5 4"
+              rx="2"
+            />
+            {/* Element label */}
+            <rect
+              x={position.textAnchor === 'middle' ? position.x - 40 : position.textAnchor === 'end' ? position.x - 80 : position.x}
+              y={position.y - position.fontSize - 18}
+              width="80"
+              height="14"
+              fill={primaryColor}
+              rx="3"
+            />
+            <text
+              x={position.textAnchor === 'middle' ? position.x : position.textAnchor === 'end' ? position.x - 40 : position.x + 40}
+              y={position.y - position.fontSize - 8}
+              textAnchor="middle"
+              fontFamily="sans-serif"
+              fontSize="8"
+              fill="#000"
+              fontWeight="bold"
+            >
+              {TEXT_ELEMENT_LABELS[key]}
+            </text>
+          </>
+        )}
+      </g>
+    );
+  };
+
+  /* ─── Color Controls ─── */
+
+  const textColorControls: Array<{ key: keyof typeof DEFAULT_TEXT_COLORS; label: string }> = [
+    { key: 'headerTitle', label: 'Header Title' },
+    { key: 'headerSubtitle', label: 'Header Subtitle' },
+    { key: 'intro', label: 'Intro Text' },
+    { key: 'recipientName', label: 'Recipient Name' },
+    { key: 'eventLabel', label: 'Event Label' },
+    { key: 'eventName', label: 'Event Name' },
+    { key: 'certificateTitle', label: 'Certificate Title' },
+    { key: 'description', label: 'Description Text' },
+    { key: 'certificateId', label: 'Certificate ID' },
+    { key: 'footer', label: 'Footer Text' },
+    { key: 'signatureName', label: 'Signature Name' },
+    { key: 'signatureTitle', label: 'Signature Title' },
+  ];
+
+  /* ─── Properties Panel ─── */
+
+  const renderPropertiesPanel = () => {
+    if (!selectedElement) {
+      return (
+        <div className="rounded-lg border border-white/5 bg-white/[0.01] p-4">
+          <p className="text-xs text-gray-500 text-center py-4">
+            Click any element on the canvas to edit its properties
+          </p>
+        </div>
+      );
+    }
+
+    if (selectedElement.kind === 'text') {
+      const key = selectedElement.key;
+      const el = textElements[key];
+      const effectiveColor = el.color || textColors[key] || '#ffffff';
+
+      return (
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.03] p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Type className="h-3.5 w-3.5" /> {TEXT_ELEMENT_LABELS[key]}
+            </span>
+            <button
+              onClick={() => setSelectedElement(null)}
+              className="text-gray-500 hover:text-white transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Visibility */}
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] text-gray-400 font-semibold uppercase">Visible</span>
+            <Switch
+              checked={el.visible !== false}
+              onCheckedChange={(v) => updateTextElement(key, { visible: v })}
+            />
+          </div>
+
+          {/* Position */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Position X</label>
+              <Input
+                type="number"
+                value={Math.round(el.x)}
+                onChange={(e) => updateTextElement(key, { x: parseInt(e.target.value) || 0 })}
+                className="h-7 text-xs border-white/10 bg-white/5 text-white font-mono"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Position Y</label>
+              <Input
+                type="number"
+                value={Math.round(el.y)}
+                onChange={(e) => updateTextElement(key, { y: parseInt(e.target.value) || 0 })}
+                className="h-7 text-xs border-white/10 bg-white/5 text-white font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Font Size */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-500 font-semibold uppercase">Font Size</span>
+              <span className="font-mono text-white">{el.fontSize}px</span>
+            </div>
+            <input
+              type="range"
+              min="6"
+              max="72"
+              value={el.fontSize}
+              onChange={(e) => updateTextElement(key, { fontSize: parseInt(e.target.value) })}
+              className="w-full accent-emerald-500 cursor-pointer"
+            />
+          </div>
+
+          {/* Color */}
+          <div className="space-y-1">
+            <label className="text-[10px] text-gray-500 font-semibold uppercase">Text Color</label>
+            <div className="flex gap-2">
+              <input
+                type="color"
+                value={effectiveColor}
+                onChange={(e) => {
+                  updateTextElement(key, { color: e.target.value });
+                  updateTextColor(key as keyof typeof DEFAULT_TEXT_COLORS, e.target.value);
+                }}
+                className="h-8 w-8 rounded border border-white/10 bg-transparent cursor-pointer shrink-0"
+              />
+              <Input
+                value={effectiveColor}
+                onChange={(e) => {
+                  updateTextElement(key, { color: e.target.value });
+                  updateTextColor(key as keyof typeof DEFAULT_TEXT_COLORS, e.target.value);
+                }}
+                className="h-8 text-xs border-white/10 bg-white/5 text-white font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Font Weight */}
+          <div className="space-y-1">
+            <label className="text-[10px] text-gray-500 font-semibold uppercase">Font Weight</label>
+            <div className="flex gap-1">
+              {['normal', 'bold'].map((w) => (
+                <button
+                  key={w}
+                  onClick={() => updateTextElement(key, { fontWeight: w })}
+                  className={`flex-1 h-7 text-[10px] font-semibold uppercase rounded border transition-all ${
+                    el.fontWeight === w
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                      : 'bg-white/[0.02] border-white/5 text-gray-400 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  {w}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Text Alignment */}
+          <div className="space-y-1">
+            <label className="text-[10px] text-gray-500 font-semibold uppercase">Text Alignment</label>
+            <div className="flex gap-1">
+              {([
+                { value: 'start', icon: AlignLeft, label: 'Left' },
+                { value: 'middle', icon: AlignCenter, label: 'Center' },
+                { value: 'end', icon: AlignRight, label: 'Right' },
+              ] as const).map(({ value, icon: Icon, label }) => (
+                <button
+                  key={value}
+                  onClick={() => updateTextElement(key, { textAnchor: value })}
+                  className={`flex-1 h-7 flex items-center justify-center gap-1 text-[10px] rounded border transition-all ${
+                    el.textAnchor === value
+                      ? 'bg-emerald-500/20 border-emerald-500/40 text-emerald-400'
+                      : 'bg-white/[0.02] border-white/5 text-gray-400 hover:bg-white/[0.04]'
+                  }`}
+                >
+                  <Icon className="h-3 w-3" /> {label}
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Letter Spacing */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-500 font-semibold uppercase">Letter Spacing</span>
+              <span className="font-mono text-white">{el.letterSpacing || 0}px</span>
+            </div>
+            <input
+              type="range"
+              min="0"
+              max="20"
+              value={el.letterSpacing || 0}
+              onChange={(e) => updateTextElement(key, { letterSpacing: parseInt(e.target.value) })}
+              className="w-full accent-emerald-500 cursor-pointer"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (selectedElement.kind === 'logo') {
+      const key = selectedElement.key;
+      const logo = logoElements[key];
+      const logoLabels: Record<LogoKey, string> = {
+        clubLogo: 'Club Logo',
+        orgLogo: 'Partner Logo',
+        eventLogo: 'Co-Host Logo',
+      };
+
+      return (
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.03] p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <ImageIcon className="h-3.5 w-3.5" /> {logoLabels[key]}
+            </span>
+            <button
+              onClick={() => setSelectedElement(null)}
+              className="text-gray-500 hover:text-white transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Position */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Position X</label>
+              <Input
+                type="number"
+                value={Math.round(logo.x)}
+                onChange={(e) => updateLogoElement(key, { x: parseInt(e.target.value) || 0 })}
+                className="h-7 text-xs border-white/10 bg-white/5 text-white font-mono"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Position Y</label>
+              <Input
+                type="number"
+                value={Math.round(logo.y)}
+                onChange={(e) => updateLogoElement(key, { y: parseInt(e.target.value) || 0 })}
+                className="h-7 text-xs border-white/10 bg-white/5 text-white font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Size */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-500 font-semibold uppercase">Width</span>
+              <span className="font-mono text-white">{Math.round(logo.width)}px</span>
+            </div>
+            <input
+              type="range"
+              min="20"
+              max="300"
+              value={logo.width}
+              onChange={(e) => {
+                const newWidth = parseInt(e.target.value);
+                if (logo.keepAspectRatio && logo.height > 0) {
+                  const ratio = logo.width / logo.height;
+                  updateLogoElement(key, { width: newWidth, height: newWidth / ratio });
+                } else {
+                  updateLogoElement(key, { width: newWidth });
+                }
+              }}
+              className="w-full accent-emerald-500 cursor-pointer"
+            />
+          </div>
+
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-500 font-semibold uppercase">Height</span>
+              <span className="font-mono text-white">{Math.round(logo.height)}px</span>
+            </div>
+            <input
+              type="range"
+              min="20"
+              max="300"
+              value={logo.height}
+              onChange={(e) => {
+                const newHeight = parseInt(e.target.value);
+                if (logo.keepAspectRatio && logo.width > 0) {
+                  const ratio = logo.height / logo.width;
+                  updateLogoElement(key, { height: newHeight, width: newHeight / ratio });
+                } else {
+                  updateLogoElement(key, { height: newHeight });
+                }
+              }}
+              className="w-full accent-emerald-500 cursor-pointer"
+            />
+          </div>
+
+          {/* Aspect Ratio Lock */}
+          <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-2.5">
+            <div className="flex items-center gap-2">
+              {logo.keepAspectRatio ? (
+                <Lock className="h-3.5 w-3.5 text-emerald-400" />
+              ) : (
+                <Unlock className="h-3.5 w-3.5 text-gray-400" />
+              )}
+              <span className="text-[10px] text-gray-300 font-semibold">Lock Aspect Ratio</span>
+            </div>
+            <Switch
+              checked={logo.keepAspectRatio}
+              onCheckedChange={(v) => updateLogoElement(key, { keepAspectRatio: v })}
+            />
+          </div>
+
+          {/* Opacity */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-500 font-semibold uppercase">Opacity</span>
+              <span className="font-mono text-white">{Math.round((logo.opacity ?? 1) * 100)}%</span>
+            </div>
+            <input
+              type="range"
+              min="10"
+              max="100"
+              value={Math.round((logo.opacity ?? 1) * 100)}
+              onChange={(e) => updateLogoElement(key, { opacity: parseInt(e.target.value) / 100 })}
+              className="w-full accent-emerald-500 cursor-pointer"
+            />
+          </div>
+        </div>
+      );
+    }
+
+    if (selectedElement.kind === 'signature') {
+      const idx = selectedElement.index;
+      const sig = signatures[idx];
+      const layout = sig.layout || signatureLayouts[idx];
+
+      return (
+        <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/[0.03] p-4 space-y-4">
+          <div className="flex items-center justify-between">
+            <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider flex items-center gap-1.5">
+              <Award className="h-3.5 w-3.5" /> Signature {idx + 1}
+            </span>
+            <button
+              onClick={() => setSelectedElement(null)}
+              className="text-gray-500 hover:text-white transition-colors"
+            >
+              <X className="h-3.5 w-3.5" />
+            </button>
+          </div>
+
+          {/* Position */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Position X</label>
+              <Input
+                type="number"
+                value={Math.round(layout.x)}
+                onChange={(e) => updateSignatureLayout(idx, { x: parseInt(e.target.value) || 0 })}
+                className="h-7 text-xs border-white/10 bg-white/5 text-white font-mono"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Position Y</label>
+              <Input
+                type="number"
+                value={Math.round(layout.y)}
+                onChange={(e) => updateSignatureLayout(idx, { y: parseInt(e.target.value) || 0 })}
+                className="h-7 text-xs border-white/10 bg-white/5 text-white font-mono"
+              />
+            </div>
+          </div>
+
+          {/* Name Font Size */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-500 font-semibold uppercase">Name Size</span>
+              <span className="font-mono text-white">{layout.nameFontSize}px</span>
+            </div>
+            <input
+              type="range"
+              min="8"
+              max="24"
+              value={layout.nameFontSize}
+              onChange={(e) => updateSignatureLayout(idx, { nameFontSize: parseInt(e.target.value) })}
+              className="w-full accent-emerald-500 cursor-pointer"
+            />
+          </div>
+
+          {/* Title Font Size */}
+          <div className="space-y-1">
+            <div className="flex justify-between text-[10px]">
+              <span className="text-gray-500 font-semibold uppercase">Title Size</span>
+              <span className="font-mono text-white">{layout.titleFontSize}px</span>
+            </div>
+            <input
+              type="range"
+              min="8"
+              max="18"
+              value={layout.titleFontSize}
+              onChange={(e) => updateSignatureLayout(idx, { titleFontSize: parseInt(e.target.value) })}
+              className="w-full accent-emerald-500 cursor-pointer"
+            />
+          </div>
+
+          {/* Colors */}
+          <div className="grid grid-cols-2 gap-2">
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Name Color</label>
+              <input
+                type="color"
+                value={layout.nameColor}
+                onChange={(e) => updateSignatureLayout(idx, { nameColor: e.target.value })}
+                className="h-8 w-full rounded border border-white/10 bg-transparent cursor-pointer"
+              />
+            </div>
+            <div className="space-y-1">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Title Color</label>
+              <input
+                type="color"
+                value={layout.titleColor}
+                onChange={(e) => updateSignatureLayout(idx, { titleColor: e.target.value })}
+                className="h-8 w-full rounded border border-white/10 bg-transparent cursor-pointer"
+              />
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    return null;
+  };
+
+  /* ─── MAIN RENDER ─── */
 
   return (
     <div className="space-y-6">
@@ -625,7 +1357,7 @@ export function CertificateDesigner() {
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Editor Controls (5 cols) */}
-        <div className="lg:col-span-5 space-y-6">
+        <div className="lg:col-span-5 space-y-4">
           <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
             <CardHeader className="border-b border-white/5 py-4">
               <CardTitle className="text-md text-white flex items-center gap-2">
@@ -634,15 +1366,107 @@ export function CertificateDesigner() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
-              <Tabs defaultValue="types" className="space-y-4">
+              <Tabs defaultValue="properties" className="space-y-4">
                 <TabsList className="bg-white/5 border border-white/10 w-full justify-start overflow-x-auto">
-                  <TabsTrigger value="types" className="text-xs">1. Types</TabsTrigger>
-                  <TabsTrigger value="branding" className="text-xs">2. Style</TabsTrigger>
-                  <TabsTrigger value="placements" className="text-xs">3. Layout</TabsTrigger>
-                  <TabsTrigger value="signatures" className="text-xs">4. Signatures</TabsTrigger>
+                  <TabsTrigger value="properties" className="text-xs">1. Element</TabsTrigger>
+                  <TabsTrigger value="types" className="text-xs">2. Types</TabsTrigger>
+                  <TabsTrigger value="branding" className="text-xs">3. Style</TabsTrigger>
+                  <TabsTrigger value="placements" className="text-xs">4. Layout</TabsTrigger>
+                  <TabsTrigger value="signatures" className="text-xs">5. Signatures</TabsTrigger>
                 </TabsList>
 
-                {/* TAB 1: Certificate Types Selection & Text Customization */}
+                {/* TAB 1: Properties Panel (NEW) */}
+                <TabsContent value="properties" className="space-y-4 pt-2">
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Selected Element Properties</label>
+                    {renderPropertiesPanel()}
+                  </div>
+
+                  {/* Quick Element Selection */}
+                  <div className="space-y-2">
+                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Element to Edit</label>
+                    <div className="space-y-1">
+                      {/* Text elements */}
+                      <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wider pt-1">Text Elements</div>
+                      {(Object.keys(TEXT_ELEMENT_LABELS) as TextElementKey[]).map((key) => {
+                        const el = textElements[key];
+                        const isSelected = selectedTextKey === key;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => {
+                              setSelectedElement({ kind: 'text', key });
+                            }}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all ${
+                              isSelected
+                                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                                : 'bg-white/[0.02] border border-white/5 text-gray-400 hover:bg-white/[0.04] hover:text-white'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Type className="h-3 w-3" />
+                              {TEXT_ELEMENT_LABELS[key]}
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-600">{el.fontSize}px</span>
+                          </button>
+                        );
+                      })}
+
+                      {/* Logo elements */}
+                      <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wider pt-2">Logo Elements</div>
+                      {(['clubLogo', 'orgLogo', 'eventLogo'] as LogoKey[]).map((key) => {
+                        const logo = logoElements[key];
+                        const isSelected = selectedLogoKey === key;
+                        const labels: Record<LogoKey, string> = { clubLogo: 'Club Logo', orgLogo: 'Partner Logo', eventLogo: 'Co-Host Logo' };
+                        const show = key === 'clubLogo' || (key === 'orgLogo' && collabMode) || (key === 'eventLogo' && collabMode);
+                        if (!show) return null;
+                        return (
+                          <button
+                            key={key}
+                            onClick={() => setSelectedElement({ kind: 'logo', key })}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all ${
+                              isSelected
+                                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                                : 'bg-white/[0.02] border border-white/5 text-gray-400 hover:bg-white/[0.04] hover:text-white'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <ImageIcon className="h-3 w-3" />
+                              {labels[key]}
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-600">{Math.round(logo.width)}x{Math.round(logo.height)}</span>
+                          </button>
+                        );
+                      })}
+
+                      {/* Signatures */}
+                      <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wider pt-2">Signatures</div>
+                      {signatures.map((sig, i) => {
+                        if (!sig.visible) return null;
+                        const isSelected = selectedSigIndex === i;
+                        return (
+                          <button
+                            key={i}
+                            onClick={() => setSelectedElement({ kind: 'signature', index: i })}
+                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all ${
+                              isSelected
+                                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+                                : 'bg-white/[0.02] border border-white/5 text-gray-400 hover:bg-white/[0.04] hover:text-white'
+                            }`}
+                          >
+                            <span className="flex items-center gap-1.5">
+                              <Award className="h-3 w-3" />
+                              {sig.name}
+                            </span>
+                            <span className="text-[10px] font-mono text-gray-600">{sig.title}</span>
+                          </button>
+                        );
+                      })}
+                    </div>
+                  </div>
+                </TabsContent>
+
+                {/* TAB 2: Certificate Types & Text Customization */}
                 <TabsContent value="types" className="space-y-4 pt-2">
                   <div className="space-y-2">
                     <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Available Certificate Types</label>
@@ -674,18 +1498,16 @@ export function CertificateDesigner() {
                   {selectedTypes.length > 0 && (
                     <div className="space-y-4 pt-4 border-t border-white/5">
                       <div className="space-y-2">
-                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Customize Text templates</label>
-                        <div className="flex gap-2">
-                          <select
-                            value={previewType}
-                            onChange={(e) => setPreviewType(e.target.value)}
-                            className="w-full h-9 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
-                          >
-                            {selectedTypes.map(t => (
-                              <option key={t} value={t}>{CERT_TYPE_LABELS[t]}</option>
-                            ))}
-                          </select>
-                        </div>
+                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Customize Text Templates</label>
+                        <select
+                          value={previewType}
+                          onChange={(e) => setPreviewType(e.target.value)}
+                          className="w-full h-9 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+                        >
+                          {selectedTypes.map(t => (
+                            <option key={t} value={t}>{CERT_TYPE_LABELS[t]}</option>
+                          ))}
+                        </select>
                       </div>
 
                       <div className="space-y-3 p-3 rounded-lg border border-white/5 bg-white/[0.01]">
@@ -728,7 +1550,7 @@ export function CertificateDesigner() {
                   )}
                 </TabsContent>
 
-                {/* TAB 2: Branding & Style Customization */}
+                {/* TAB 3: Branding & Style */}
                 <TabsContent value="branding" className="space-y-4 pt-2">
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
@@ -759,33 +1581,15 @@ export function CertificateDesigner() {
                     <div className="space-y-2">
                       <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Primary Color</label>
                       <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={primaryColor}
-                          onChange={e => setPrimaryColor(e.target.value)}
-                          className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0"
-                        />
-                        <Input
-                          value={primaryColor}
-                          onChange={e => setPrimaryColor(e.target.value)}
-                          className="border-white/10 bg-white/5 text-white text-xs font-mono"
-                        />
+                        <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+                        <Input value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
                       </div>
                     </div>
                     <div className="space-y-2">
                       <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Secondary Color</label>
                       <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={secondaryColor}
-                          onChange={e => setSecondaryColor(e.target.value)}
-                          className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0"
-                        />
-                        <Input
-                          value={secondaryColor}
-                          onChange={e => setSecondaryColor(e.target.value)}
-                          className="border-white/10 bg-white/5 text-white text-xs font-mono"
-                        />
+                        <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+                        <Input value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
                       </div>
                     </div>
                   </div>
@@ -794,17 +1598,8 @@ export function CertificateDesigner() {
                     <div className="space-y-2">
                       <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Background Color</label>
                       <div className="flex gap-2">
-                        <input
-                          type="color"
-                          value={bgColor}
-                          onChange={e => setBgColor(e.target.value)}
-                          className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0"
-                        />
-                        <Input
-                          value={bgColor}
-                          onChange={e => setBgColor(e.target.value)}
-                          className="border-white/10 bg-white/5 text-white text-xs font-mono"
-                        />
+                        <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+                        <Input value={bgColor} onChange={e => setBgColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
                       </div>
                     </div>
                     <div className="space-y-2">
@@ -814,7 +1609,7 @@ export function CertificateDesigner() {
                       <Input
                         value={bgImage}
                         onChange={e => setBgImage(e.target.value)}
-                        placeholder="https://example.com/certificate-bg.png (optional)"
+                        placeholder="https://example.com/certificate-bg.png"
                         className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
                       />
                     </div>
@@ -842,27 +1637,17 @@ export function CertificateDesigner() {
                     <div className="space-y-4 pt-2 border-t border-white/5">
                       <div className="space-y-2">
                         <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Partner Logo URL</label>
-                        <Input
-                          value={orgLogo}
-                          onChange={e => setOrgLogo(e.target.value)}
-                          placeholder="https://example.com/collaborator-logo.png"
-                          className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
-                        />
+                        <Input value={orgLogo} onChange={e => setOrgLogo(e.target.value)} placeholder="https://example.com/collaborator-logo.png" className="border-white/10 bg-white/5 text-white placeholder:text-gray-700" />
                       </div>
                       <div className="space-y-2">
                         <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Co-Host/Sponsor Logo URL</label>
-                        <Input
-                          value={eventLogo}
-                          onChange={e => setEventLogo(e.target.value)}
-                          placeholder="https://example.com/cohost-logo.png"
-                          className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
-                        />
+                        <Input value={eventLogo} onChange={e => setEventLogo(e.target.value)} placeholder="https://example.com/cohost-logo.png" className="border-white/10 bg-white/5 text-white placeholder:text-gray-700" />
                       </div>
                     </div>
                   )}
                 </TabsContent>
 
-                {/* TAB 3: Placement Sliders */}
+                {/* TAB 4: Placement Controls */}
                 <TabsContent value="placements" className="space-y-4 pt-2">
                   <div className="rounded-lg border border-white/5 bg-white/[0.01] p-4 space-y-4">
                     <div className="flex items-center justify-between">
@@ -877,35 +1662,21 @@ export function CertificateDesigner() {
                             <span>Position X</span>
                             <span className="font-mono text-white">{qrX}px</span>
                           </div>
-                          <input
-                            type="range" min="0" max={width} value={qrX}
-                            onChange={(e) => setQrX(parseInt(e.target.value))}
-                            className="w-full accent-emerald-500 cursor-pointer"
-                          />
+                          <input type="range" min="0" max={width} value={qrX} onChange={(e) => setQrX(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
                         </div>
-
                         <div className="space-y-1">
                           <div className="flex justify-between text-[10px] text-gray-500">
                             <span>Position Y</span>
                             <span className="font-mono text-white">{qrY}px</span>
                           </div>
-                          <input
-                            type="range" min="0" max={height} value={qrY}
-                            onChange={(e) => setQrY(parseInt(e.target.value))}
-                            className="w-full accent-emerald-500 cursor-pointer"
-                          />
+                          <input type="range" min="0" max={height} value={qrY} onChange={(e) => setQrY(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
                         </div>
-
                         <div className="space-y-1">
                           <div className="flex justify-between text-[10px] text-gray-500">
                             <span>Size</span>
                             <span className="font-mono text-white">{qrSize}px</span>
                           </div>
-                          <input
-                            type="range" min="40" max="200" value={qrSize}
-                            onChange={(e) => setQrSize(parseInt(e.target.value))}
-                            className="w-full accent-emerald-500 cursor-pointer"
-                          />
+                          <input type="range" min="40" max="200" value={qrSize} onChange={(e) => setQrSize(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
                         </div>
                       </div>
                     )}
@@ -924,30 +1695,21 @@ export function CertificateDesigner() {
                             <span>Position X</span>
                             <span className="font-mono text-white">{idX}px</span>
                           </div>
-                          <input
-                            type="range" min="0" max={width} value={idX}
-                            onChange={(e) => setIdX(parseInt(e.target.value))}
-                            className="w-full accent-emerald-500 cursor-pointer"
-                          />
+                          <input type="range" min="0" max={width} value={idX} onChange={(e) => setIdX(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
                         </div>
-
                         <div className="space-y-1">
                           <div className="flex justify-between text-[10px] text-gray-500">
                             <span>Position Y</span>
                             <span className="font-mono text-white">{idY}px</span>
                           </div>
-                          <input
-                            type="range" min="0" max={height} value={idY}
-                            onChange={(e) => setIdY(parseInt(e.target.value))}
-                            className="w-full accent-emerald-500 cursor-pointer"
-                          />
+                          <input type="range" min="0" max={height} value={idY} onChange={(e) => setIdY(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
                         </div>
                       </div>
                     )}
                   </div>
                 </TabsContent>
 
-                {/* TAB 4: Signatures */}
+                {/* TAB 5: Signatures */}
                 <TabsContent value="signatures" className="space-y-4 pt-2">
                   {signatures.map((sig, i) => (
                     <div key={i} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 space-y-3">
@@ -964,19 +1726,11 @@ export function CertificateDesigner() {
                           <div className="grid grid-cols-2 gap-2">
                             <div className="space-y-1">
                               <label className="text-[10px] text-gray-500 uppercase font-semibold">Name</label>
-                              <Input
-                                value={sig.name}
-                                onChange={e => updateSignature(i, 'name', e.target.value)}
-                                className="h-8 text-xs border-white/10 bg-white/5 text-white"
-                              />
+                              <Input value={sig.name} onChange={e => updateSignature(i, 'name', e.target.value)} className="h-8 text-xs border-white/10 bg-white/5 text-white" />
                             </div>
                             <div className="space-y-1">
                               <label className="text-[10px] text-gray-500 uppercase font-semibold">Title</label>
-                              <Input
-                                value={sig.title}
-                                onChange={e => updateSignature(i, 'title', e.target.value)}
-                                className="h-8 text-xs border-white/10 bg-white/5 text-white"
-                              />
+                              <Input value={sig.title} onChange={e => updateSignature(i, 'title', e.target.value)} className="h-8 text-xs border-white/10 bg-white/5 text-white" />
                             </div>
                           </div>
                           <div className="space-y-1">
@@ -1000,7 +1754,6 @@ export function CertificateDesigner() {
                                   onChange={(e) => {
                                     const file = e.target.files?.[0];
                                     if (!file) return;
-
                                     const img = new Image();
                                     const objectUrl = URL.createObjectURL(file);
                                     img.onload = () => {
@@ -1013,7 +1766,6 @@ export function CertificateDesigner() {
                                         URL.revokeObjectURL(objectUrl);
                                         return;
                                       }
-
                                       const reader = new FileReader();
                                       reader.onload = (event) => {
                                         if (event.target?.result) {
@@ -1056,7 +1808,7 @@ export function CertificateDesigner() {
               </select>
             </div>
             <span className="text-xs text-gray-500 flex items-center gap-1">
-              <Sparkles className="h-3 w-3 text-emerald-400 animate-pulse" /> Live canvas
+              <Sparkles className="h-3 w-3 text-emerald-400 animate-pulse" /> Drag elements to reposition
             </span>
           </div>
 
@@ -1064,7 +1816,17 @@ export function CertificateDesigner() {
             className="w-full rounded-xl overflow-hidden border border-white/10 bg-[#000000] shadow-2xl relative"
             style={{ aspectRatio: `${width}/${height}` }}
           >
-            <svg viewBox={`0 0 ${width} ${height}`} className="w-full h-full select-none">
+            <svg
+              ref={svgRef}
+              viewBox={`0 0 ${width} ${height}`}
+              className="w-full h-full select-none"
+              onClick={(e) => {
+                // Deselect when clicking empty canvas
+                if (e.target === svgRef.current || (e.target as Element).tagName === 'rect' && (e.target as Element).getAttribute('fill') === bgColor) {
+                  setSelectedElement(null);
+                }
+              }}
+            >
               <defs>
                 <linearGradient id="borderGradPreview" x1="0%" y1="0%" x2="100%" y2="100%">
                   <stop offset="0%" stopColor={primaryColor} stopOpacity="0.6" />
@@ -1101,92 +1863,36 @@ export function CertificateDesigner() {
               <path d={`M 30 ${height - 30} L 30 ${height - 60} M 30 ${height - 30} L 60 ${height - 30}`} stroke={primaryColor} strokeWidth="2" opacity="0.5" />
               <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
 
-              {/* Collaborator Logo */}
-              {collabMode && orgLogo && (
-                <g
-                  onPointerDown={(e) => beginDrag('logo', 'orgLogo', 'move', e, logoElements.orgLogo || createDefaultLogoElements(isLandscape).orgLogo)}
-                  style={{ cursor: 'move' }}
-                >
-                  <image
-                    x={logoElements.orgLogo?.x ?? 50}
-                    y={logoElements.orgLogo?.y ?? 45}
-                    width={logoElements.orgLogo?.width ?? 80}
-                    height={logoElements.orgLogo?.height ?? 80}
-                    href={orgLogo}
-                    preserveAspectRatio="xMidYMid meet"
-                  />
-                  {selectedLogoKey === 'orgLogo' && (
-                    <rect
-                      x={(logoElements.orgLogo?.x ?? 50) - 4}
-                      y={(logoElements.orgLogo?.y ?? 45) - 4}
-                      width={(logoElements.orgLogo?.width ?? 80) + 8}
-                      height={(logoElements.orgLogo?.height ?? 80) + 8}
-                      fill="none"
-                      stroke={primaryColor}
-                      strokeWidth="2"
-                      strokeDasharray="6 4"
-                    />
-                  )}
-                </g>
+              {/* Alignment Guide Lines */}
+              {alignmentGuides?.vertical != null && (
+                <line
+                  x1={alignmentGuides.vertical}
+                  y1="0"
+                  x2={alignmentGuides.vertical}
+                  y2={height}
+                  stroke="#10b981"
+                  strokeWidth="1"
+                  strokeDasharray="4 4"
+                  opacity="0.6"
+                />
+              )}
+              {alignmentGuides?.horizontal != null && (
+                <line
+                  x1="0"
+                  y1={alignmentGuides.horizontal}
+                  x2={width}
+                  y2={alignmentGuides.horizontal}
+                  stroke="#10b981"
+                  strokeWidth="1"
+                  strokeDasharray="4 4"
+                  opacity="0.6"
+                />
               )}
 
-              {/* Co-Host Logo */}
-              {collabMode && eventLogo && (
-                <g
-                  onPointerDown={(e) => beginDrag('logo', 'eventLogo', 'move', e, logoElements.eventLogo || createDefaultLogoElements(isLandscape).eventLogo)}
-                  style={{ cursor: 'move' }}
-                >
-                  <image
-                    x={logoElements.eventLogo?.x ?? (isLandscape ? 1070 : 710)}
-                    y={logoElements.eventLogo?.y ?? 45}
-                    width={logoElements.eventLogo?.width ?? 80}
-                    height={logoElements.eventLogo?.height ?? 80}
-                    href={eventLogo}
-                    preserveAspectRatio="xMidYMid meet"
-                  />
-                  {selectedLogoKey === 'eventLogo' && (
-                    <rect
-                      x={(logoElements.eventLogo?.x ?? (isLandscape ? 1070 : 710)) - 4}
-                      y={(logoElements.eventLogo?.y ?? 45) - 4}
-                      width={(logoElements.eventLogo?.width ?? 80) + 8}
-                      height={(logoElements.eventLogo?.height ?? 80) + 8}
-                      fill="none"
-                      stroke={primaryColor}
-                      strokeWidth="2"
-                      strokeDasharray="6 4"
-                    />
-                  )}
-                </g>
-              )}
-
-              {/* Decorative Seal/Club Logo */}
-              {clubLogo ? (
-                <g
-                  onPointerDown={(e) => beginDrag('logo', 'clubLogo', 'move', e, logoElements.clubLogo || createDefaultLogoElements(isLandscape).clubLogo)}
-                  style={{ cursor: 'move' }}
-                >
-                  <image
-                    x={logoElements.clubLogo?.x ?? width / 2 - 40}
-                    y={logoElements.clubLogo?.y ?? 45}
-                    width={logoElements.clubLogo?.width ?? 80}
-                    height={logoElements.clubLogo?.height ?? 80}
-                    href={clubLogo}
-                    preserveAspectRatio="xMidYMid meet"
-                  />
-                  {selectedLogoKey === 'clubLogo' && (
-                    <rect
-                      x={(logoElements.clubLogo?.x ?? width / 2 - 40) - 4}
-                      y={(logoElements.clubLogo?.y ?? 45) - 4}
-                      width={(logoElements.clubLogo?.width ?? 80) + 8}
-                      height={(logoElements.clubLogo?.height ?? 80) + 8}
-                      fill="none"
-                      stroke={primaryColor}
-                      strokeWidth="2"
-                      strokeDasharray="6 4"
-                    />
-                  )}
-                </g>
-              ) : (
+              {/* Logos */}
+              {renderLogo('orgLogo', orgLogo, collabMode && !!orgLogo)}
+              {renderLogo('eventLogo', eventLogo, collabMode && !!eventLogo)}
+              {clubLogo ? renderLogo('clubLogo', clubLogo, true) : (
                 <g transform={`translate(${width / 2 - 60}, 45)`}>
                   <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} strokeWidth="2" opacity="0.6" />
                   <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke={primaryColor} strokeWidth="1" />
@@ -1194,73 +1900,10 @@ export function CertificateDesigner() {
                 </g>
               )}
 
-              {/* Certificate Authority Headers */}
-              {(['headerTitle', 'headerSubtitle'] as TextElementKey[]).map((key) => {
-                const position = textElements[key];
-                return (
-                  <g key={key} onPointerDown={(e) => beginDrag('text', key, 'move', e, { x: position.x, y: position.y })} style={{ cursor: 'move' }}>
-                    <text
-                      x={position.x}
-                      y={position.y}
-                      textAnchor={position.textAnchor}
-                      fontFamily="sans-serif"
-                      fontSize={position.fontSize}
-                      fontWeight={position.fontWeight}
-                      fill={textColors[key]}
-                      letterSpacing={position.letterSpacing}
-                    >
-                      {textPreviewValues[key]}
-                    </text>
-                    {selectedTextKey === key && (
-                      <rect
-                        x={position.x - 30}
-                        y={position.y - 20}
-                        width="60"
-                        height="20"
-                        fill="none"
-                        stroke={primaryColor}
-                        strokeWidth="1.5"
-                        strokeDasharray="5 4"
-                      />
-                    )}
-                  </g>
-                );
-              })}
-
-              {/* Core Text Elements */}
-              {(['intro', 'recipientName', 'eventLabel', 'eventName', 'certificateTitle', 'description', 'certificateId', 'footer'] as TextElementKey[]).map((key) => {
-                const position = textElements[key];
-                const isSelected = selectedTextKey === key;
-                const fontWeight = key === 'recipientName' || key === 'eventName' || key === 'certificateTitle' ? 'bold' : undefined;
-                return (
-                  <g key={key} onPointerDown={(e) => beginDrag('text', key, 'move', e, { x: position.x, y: position.y })} style={{ cursor: 'move' }}>
-                    <text
-                      x={position.x}
-                      y={position.y}
-                      textAnchor={position.textAnchor}
-                      fontFamily="sans-serif"
-                      fontSize={position.fontSize}
-                      fontWeight={fontWeight}
-                      fill={textColors[key]}
-                      letterSpacing={position.letterSpacing}
-                    >
-                      {textPreviewValues[key]}
-                    </text>
-                    {isSelected && (
-                      <rect
-                        x={position.x - 80}
-                        y={position.y - position.fontSize - 6}
-                        width="160"
-                        height={position.fontSize + 12}
-                        fill="none"
-                        stroke={primaryColor}
-                        strokeWidth="1.5"
-                        strokeDasharray="5 4"
-                      />
-                    )}
-                  </g>
-                );
-              })}
+              {/* All Text Elements */}
+              {(['headerTitle', 'headerSubtitle', 'intro', 'recipientName', 'eventLabel', 'eventName', 'certificateTitle', 'description', 'issueDate', 'issueDateLabel', 'certificateId', 'footer'] as TextElementKey[]).map((key) => (
+                renderTextElement(key)
+              ))}
 
               {/* Certificate Type Banner */}
               <g transform={`translate(${width / 2 - 130}, ${isLandscape ? 465 : 520})`}>
@@ -1287,17 +1930,35 @@ export function CertificateDesigner() {
                 </g>
               )}
 
-              {/* Signatures Row */}
-              {sigCount > 0 ? (
+              {/* Signatures - using signatureLayouts */}
+              {activeSigs.length > 0 ? (
                 activeSigs.map((sig, idx) => {
-                  const xPos = sigCount === 1 ? (width / 2) : sigCount === 2 ? (width / 2 - 200 + idx * 400) : (width / 2 - 300 + idx * 300);
-                  const yPos = isLandscape ? 700 : 960;
+                  const layout = sig.layout || signatureLayouts[idx];
+                  const xPos = layout?.x ?? (width / 2);
+                  const yPos = layout?.y ?? (isLandscape ? 700 : 960);
                   return (
-                    <g key={idx} transform={`translate(${xPos}, ${yPos})`}>
-                      <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                      {sig.image && <image x="-50" y="-60" width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
-                      <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="bold" fill={textColors.signatureName}>{sig.name}</text>
-                      <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize="11" fill={textColors.signatureTitle}>{sig.title}</text>
+                    <g
+                      key={idx}
+                      onPointerDown={(e) => beginDrag('signature', idx, 'move', e, { x: xPos, y: yPos })}
+                      style={{ cursor: 'move' }}
+                    >
+                      <line x1={xPos - 90} y1={yPos} x2={xPos + 90} y2={yPos} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                      {sig.image && <image x={xPos - 50} y={yPos - 60} width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
+                      <text x={xPos} y={yPos + 20} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.nameFontSize || 14} fontWeight="bold" fill={layout?.nameColor || textColors.signatureName}>{sig.name}</text>
+                      <text x={xPos} y={yPos + 38} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.titleFontSize || 11} fill={layout?.titleColor || textColors.signatureTitle}>{sig.title}</text>
+                      {selectedSigIndex === idx && (
+                        <rect
+                          x={xPos - 100}
+                          y={yPos - 70}
+                          width="200"
+                          height="120"
+                          fill="none"
+                          stroke={primaryColor}
+                          strokeWidth="1.5"
+                          strokeDasharray="5 4"
+                          rx="2"
+                        />
+                      )}
                     </g>
                   );
                 })
@@ -1306,12 +1967,6 @@ export function CertificateDesigner() {
                   <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill={textColors.footer}>[No Signatures Configured]</text>
                 </g>
               )}
-
-              {/* Verification Info footer */}
-              <line x1="100" y1={height - 50} x2={width - 100} y2={height - 50} stroke="rgba(255,255,255,0.05)" strokeWidth="1" />
-              <text x={width / 2} y={height - 30} textAnchor="middle" fontFamily="sans-serif" fontSize="10" fill={textColors.footer}>
-                Verification URL: https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125
-              </text>
             </svg>
           </div>
         </div>
