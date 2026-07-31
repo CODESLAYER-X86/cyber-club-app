@@ -3,9 +3,8 @@
 import { useState } from 'react';
 import { createSupabaseBrowser } from '@/lib/supabase-browser';
 import { motion } from 'framer-motion';
-import { Mail, Lock, AlertCircle, Loader2, Zap } from 'lucide-react';
+import { AlertCircle, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
@@ -86,8 +85,8 @@ export function LoginPage() {
             )}
 
             <p className="mt-6 text-center text-xs text-gray-500">
-              Don&apos;t have an account?{' '}
-              <button onClick={() => setCurrentView('register')} className="text-emerald-400 hover:text-emerald-300">Join Club</button>
+              New member?{' '}
+              <button onClick={() => setCurrentView('register')} className="text-emerald-400 hover:text-emerald-300">Join with Google</button>
             </p>
           </CardContent>
         </Card>

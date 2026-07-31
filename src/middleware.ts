@@ -1,5 +1,4 @@
 import { NextRequest, NextResponse } from "next/server";
-import { auth } from "@/lib/auth";
 
 // ===== In-memory rate limiter (per-instance, resets on cold start) =====
 // For multi-instance production, replace with Redis (@upstash/ratelimit)
@@ -33,10 +32,9 @@ function getIP(request: NextRequest): string {
   );
 }
 
-// Sensitive endpoint rate limits — mirrors meal-app production config
+// Sensitive endpoint rate limits
 const RATE_LIMITS: Record<string, [number, number]> = {
-  "/api/auth/callback/credentials": [10, 15 * 60 * 1000], // 10 login attempts / 15min
-  "/api/auth/register":             [5,  15 * 60 * 1000], // 5 registrations / 15min
+  "/api/auth/callback":              [10, 15 * 60 * 1000], // 10 OAuth callbacks / 15min
   "/api/users":                     [30, 60 * 1000],       // 30 user list requests / min
   "/api/export":                    [10, 60 * 1000],       // 10 exports / min
   "/api/certificates":              [30, 60 * 1000],       // certificate issuance

@@ -1,42 +1,17 @@
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState } from 'react';
 import { createSupabaseBrowser } from '@/lib/supabase-browser';
 import { motion } from 'framer-motion';
-import { Shield, UserPlus, Mail, Lock, Hash, Building2, Phone, CreditCard, AlertCircle, Loader2, CheckCircle, Eye, EyeOff } from 'lucide-react';
+import { UserPlus, AlertCircle, Loader2 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
-import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
-import { Checkbox } from '@/components/ui/checkbox';
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-
-const DEPARTMENTS = [
-  'Computer Science',
-  'IT',
-  'Electrical Engineering',
-  'Software Engineering',
-  'Cybersecurity',
-  'Other',
-];
-
-function getPasswordStrength(password: string): { label: string; color: string; percent: number } {
-  if (!password) return { label: '', color: '', percent: 0 };
-  let score = 0;
-  if (password.length >= 6) score++;
-  if (password.length >= 8) score++;
-  if (/[A-Z]/.test(password)) score++;
-  if (/[0-9]/.test(password)) score++;
-  if (/[^A-Za-z0-9]/.test(password)) score++;
-
-  if (score <= 2) return { label: 'Weak', color: 'bg-red-500', percent: 33 };
-  if (score <= 3) return { label: 'Medium', color: 'bg-amber-500', percent: 66 };
-  return { label: 'Strong', color: 'bg-emerald-500', percent: 100 };
-}
 
 export function RegisterPage() {
   const [error, setError] = useState('');
   const [googleLoading, setGoogleLoading] = useState(false);
+  const { setCurrentView } = useAppStore();
 
   const handleGoogleSignIn = async () => {
     setGoogleLoading(true);
@@ -59,7 +34,6 @@ export function RegisterPage() {
       setGoogleLoading(false);
     }
   };
-  const { setCurrentView } = useAppStore();
 
   return (
     <div className="flex min-h-screen items-center justify-center px-4 py-12">

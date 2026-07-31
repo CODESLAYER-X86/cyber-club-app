@@ -5,7 +5,7 @@ import prisma from "@/lib/db";
 
 /**
  * Server-side session guard using Supabase cookies.
- * Replaces the NextAuth requireSession() which is dead code in this app.
+ * Primary session guard for all API routes.
  *
  * Returns { userId, role } for the currently signed-in user,
  * or null if unauthenticated or if the role is not in allowedRoles.
