@@ -7,15 +7,14 @@ export async function GET() {
       totalMembers,
       activeMembers,
       pendingMembers,
-      creditsResult,
       activeEvents,
       pendingPayments,
-      pendingApprovals,
       totalEvents,
       totalCertificates,
       recentAuditLogs,
       upcomingEvents,
-      debitsResult,
+      approvedDepositsResult,
+      approvedExpensesResult,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({
@@ -24,18 +23,11 @@ export async function GET() {
       prisma.user.count({
         where: { membershipStatus: "PENDING" },
       }),
-      prisma.ledgerEntry.aggregate({
-        where: { type: "CREDIT" },
-        _sum: { amount: true },
-      }),
       prisma.event.count({
         where: { status: { in: ["UPCOMING", "ONGOING"] } },
       }),
       prisma.payment.count({
         where: { status: "PENDING" },
-      }),
-      prisma.user.count({
-        where: { membershipStatus: "PENDING" },
       }),
       prisma.event.count(),
       prisma.certificate.count({
@@ -66,13 +58,21 @@ export async function GET() {
           },
         },
       }),
-      prisma.ledgerEntry.aggregate({
-        where: { type: "DEBIT" },
+      // Treasury: sum of approved deposits
+      prisma.treasuryDeposit.aggregate({
+        where: { status: "APPROVED" },
+        _sum: { amount: true },
+      }),
+      // Treasury: sum of approved expenses
+      prisma.expense.aggregate({
+        where: { status: "APPROVED" },
         _sum: { amount: true },
       }),
     ]);
 
-    const totalFunds = (creditsResult._sum.amount ?? 0) - (debitsResult._sum.amount ?? 0);
+    const totalDeposits = approvedDepositsResult._sum.amount ?? 0;
+    const totalExpenses = approvedExpensesResult._sum.amount ?? 0;
+    const totalFunds = totalDeposits - totalExpenses;
 
     return successResponse({
       stats: {
@@ -80,9 +80,11 @@ export async function GET() {
         activeMembers,
         pendingMembers,
         totalFunds,
+        totalDeposits,
+        totalExpenses,
         activeEvents,
         pendingPayments,
-        pendingApprovals,
+        pendingApprovals: pendingMembers,
         totalEvents,
         totalCertificates,
       },
@@ -91,20 +93,6 @@ export async function GET() {
     });
   } catch (e) {
     console.error("[Stats API] Error:", e);
-    return successResponse({
-      stats: {
-        totalMembers: 0,
-        activeMembers: 0,
-        pendingMembers: 0,
-        totalFunds: 0,
-        activeEvents: 0,
-        pendingPayments: 0,
-        pendingApprovals: 0,
-        totalEvents: 0,
-        totalCertificates: 0,
-      },
-      recentActivity: [],
-      upcomingEvents: [],
-    });
+    return serverErrorResponse();
   }
 }

@@ -5,45 +5,33 @@ import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   try {
-    const searchParams = request.nextUrl.searchParams;
-    const status = searchParams.get("status");
-    const budgetId = searchParams.get("budgetId");
-
-    const where: Record<string, unknown> = {};
-
-    if (status) {
-      where.status = status;
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to view expenses");
     }
 
-    if (budgetId) {
-      where.budgetId = budgetId;
+    const searchParams = request.nextUrl.searchParams;
+    const status = searchParams.get("status");
+
+    const where: Record<string, unknown> = {};
+    if (status) {
+      where.status = status;
     }
 
     const expenses = await prisma.expense.findMany({
       where,
       include: {
-        budget: {
-          select: {
-            id: true,
-            title: true,
-            category: true,
-            period: true,
-          },
-        },
         creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-          },
+          select: { id: true, name: true, email: true, avatar: true },
         },
-        approver: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+        items: {
+          orderBy: { id: "asc" },
+        },
+        presidentApprover: {
+          select: { id: true, name: true },
+        },
+        gsApprover: {
+          select: { id: true, name: true },
         },
       },
       orderBy: { createdAt: "desc" },
@@ -57,64 +45,56 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { title, amount, category, description, proofUrl, budgetId, fundingSource = "CLUB_FUND" } = body;
-
-    if (!title || !amount || !category || !budgetId) {
-      return errorResponse("title, amount, category, and budgetId are required");
-    }
-
-    if (!["CLUB_FUND", "UNIVERSITY_BUDGET"].includes(fundingSource)) {
-      return errorResponse("Invalid fundingSource. Must be 'CLUB_FUND' or 'UNIVERSITY_BUDGET'");
-    }
-
-    const caller = await getSupabaseUser();
+    const caller = await getSupabaseUser(["TREASURER", "PLATFORM_ADMIN"]);
     if (!caller) {
-      return forbiddenResponse("You must be logged in to submit expenses");
+      return forbiddenResponse("Only the Treasurer or Platform Admin can submit expenses");
     }
 
-    // Verify budget exists and is APPROVED
-    const budget = await prisma.budget.findUnique({
-      where: { id: budgetId },
-    });
+    const body = await request.json();
+    const { title, date, purchasedBy, attachmentUrl, items } = body;
 
-    if (!budget) {
-      return errorResponse("The specified budget does not exist");
+    if (!title || !items || !Array.isArray(items) || items.length === 0) {
+      return errorResponse("Title and at least one item are required");
     }
 
-    if (budget.status !== "APPROVED") {
-      return errorResponse("Expenses can only be logged against approved budgets");
+    // Validate each item
+    for (const item of items) {
+      if (!item.itemName || !item.price || item.price <= 0) {
+        return errorResponse("Each item must have a name and positive price");
+      }
+      if (!item.quantity || item.quantity <= 0) {
+        return errorResponse("Each item must have a positive quantity");
+      }
     }
 
-    const createdBy = caller.userId;
+    // Calculate total amount from items
+    const totalAmount = items.reduce((sum: number, item: { quantity: number; price: number }) => sum + item.quantity * item.price, 0);
 
     const expense = await prisma.expense.create({
       data: {
         title,
-        amount,
-        category,
-        description,
-        proofUrl,
-        budgetId,
-        createdBy,
+        amount: totalAmount,
+        date: date ? new Date(date) : new Date(),
+        purchasedBy: purchasedBy || null,
+        attachmentUrl: attachmentUrl || null,
+        createdBy: caller.userId,
         status: "PENDING",
-        fundingSource,
+        presidentStatus: "PENDING",
+        gsStatus: "PENDING",
+        items: {
+          create: items.map((item: { itemName: string; quantity: number; unit: string; price: number }) => ({
+            itemName: item.itemName,
+            quantity: item.quantity,
+            unit: item.unit || "pcs",
+            price: item.price,
+          })),
+        },
       },
       include: {
-        budget: {
-          select: {
-            id: true,
-            title: true,
-            category: true,
-          },
-        },
         creator: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-          },
+          select: { id: true, name: true, email: true, avatar: true },
         },
+        items: true,
       },
     });
 

@@ -9,8 +9,7 @@ import {
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 
-const APPROVE_ROLES = ["PRESIDENT", "TREASURER", "PLATFORM_ADMIN"];
-const VALID_WALLETS = ["BKASH_PERSONAL", "NAGAD_PERSONAL", "CLUB_BANK_ACCOUNT", "CASH_IN_HAND"];
+const APPROVAL_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
 
 export async function PATCH(
   request: NextRequest,
@@ -19,19 +18,21 @@ export async function PATCH(
   try {
     const { id: expenseId } = await params;
     const body = await request.json();
-    const { status = "APPROVED", wallet } = body;
+    const { approverRole, status } = body;
 
-    // Enforce authorization
-    const caller = await getSupabaseUser(APPROVE_ROLES);
+    if (!status || !["APPROVED", "REJECTED"].includes(status)) {
+      return errorResponse("status must be APPROVED or REJECTED");
+    }
+
+    if (!approverRole || !["PRESIDENT", "GS"].includes(approverRole)) {
+      return errorResponse("approverRole must be PRESIDENT or GS");
+    }
+
+    const caller = await getSupabaseUser(APPROVAL_ROLES);
     if (!caller) {
-      return forbiddenResponse("Only the President, Treasurer, or Platform Admin can approve or reject expenses");
+      return forbiddenResponse("Only the President, General Secretary, or Platform Admin can approve or reject expenses");
     }
 
-    if (!["APPROVED", "REJECTED"].includes(status)) {
-      return errorResponse("Invalid status value. Must be 'APPROVED' or 'REJECTED'");
-    }
-
-    // Verify expense exists
     const expense = await prisma.expense.findUnique({
       where: { id: expenseId },
     });
@@ -44,49 +45,84 @@ export async function PATCH(
       return errorResponse(`Expense has already been resolved as ${expense.status}`);
     }
 
-    // If approving a CLUB_FUND expense, a wallet must be specified to debit from
-    if (status === "APPROVED" && expense.fundingSource === "CLUB_FUND") {
-      if (!wallet || !VALID_WALLETS.includes(wallet)) {
-        return errorResponse(`A valid wallet is required to debit this CLUB_FUND expense. Must be one of: ${VALID_WALLETS.join(", ")}`);
-      }
+    // Verify the caller has the right role
+    const isPresident = caller.role === "PRESIDENT" || caller.role === "PLATFORM_ADMIN";
+    const isGs = caller.role === "GS" || caller.role === "PLATFORM_ADMIN";
+
+    if (approverRole === "PRESIDENT" && !isPresident) {
+      return forbiddenResponse("You are not authorized to act as President approver");
+    }
+    if (approverRole === "GS" && !isGs) {
+      return forbiddenResponse("You are not authorized to act as General Secretary approver");
     }
 
-    const updatedExpense = await prisma.$transaction(async (tx) => {
-      // 1. Update expense status
-      const updated = await tx.expense.update({
-        where: { id: expenseId },
-        data: {
-          status,
-          approvedBy: caller.userId,
-        },
-        include: {
-          budget: {
-            select: { id: true, title: true },
-          },
-          creator: {
-            select: { id: true, name: true, email: true },
-          },
-          approver: {
-            select: { id: true, name: true, email: true },
-          },
-        },
-      });
+    // Calculate next statuses
+    const nextPresidentStatus = approverRole === "PRESIDENT" ? status : expense.presidentStatus;
+    const nextGsStatus = approverRole === "GS" ? status : expense.gsStatus;
 
-      // 2. If approved and funded from club fund, post debit entry to ledger
-      if (status === "APPROVED" && expense.fundingSource === "CLUB_FUND") {
-        await tx.ledgerEntry.create({
-          data: {
-            type: "DEBIT",
-            amount: expense.amount,
-            wallet: wallet!,
-            description: `Expense payout: ${expense.title}`,
-            referenceId: expenseId,
-            performedBy: caller.userId,
-          },
-        });
-      }
+    // Determine overall status
+    // If either rejects → REJECTED
+    // If both approve → APPROVED
+    // Otherwise → PENDING
+    const overallStatus =
+      nextPresidentStatus === "REJECTED" || nextGsStatus === "REJECTED"
+        ? "REJECTED"
+        : nextPresidentStatus === "APPROVED" && nextGsStatus === "APPROVED"
+          ? "APPROVED"
+          : "PENDING";
 
-      return updated;
+    const updateData: Record<string, unknown> = {
+      presidentStatus: nextPresidentStatus,
+      gsStatus: nextGsStatus,
+      status: overallStatus,
+    };
+
+    if (approverRole === "PRESIDENT") {
+      updateData.presidentApprovedBy = caller.userId;
+    }
+    if (approverRole === "GS") {
+      updateData.gsApprovedBy = caller.userId;
+    }
+
+    const updatedExpense = await prisma.expense.update({
+      where: { id: expenseId },
+      data: updateData,
+      include: {
+        creator: {
+          select: { id: true, name: true, email: true, avatar: true },
+        },
+        items: true,
+        presidentApprover: {
+          select: { id: true, name: true },
+        },
+        gsApprover: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+
+    // Create notification for the submitter
+    await prisma.notification.create({
+      data: {
+        userId: expense.createdBy,
+        title: overallStatus === "APPROVED" ? "Expense Approved" : overallStatus === "REJECTED" ? "Expense Rejected" : `Expense: ${approverRole} ${status === "APPROVED" ? "Approved" : "Rejected"}`,
+        message:
+          overallStatus === "APPROVED"
+            ? `Your expense "${expense.title}" of ৳${expense.amount} has been fully approved.`
+            : overallStatus === "REJECTED"
+              ? `Your expense "${expense.title}" of ৳${expense.amount} has been rejected.`
+              : `Your expense "${expense.title}" has been ${status === "APPROVED" ? "approved" : "rejected"} by the ${approverRole}. Waiting for ${approverRole === "PRESIDENT" ? "General Secretary" : "President"} approval.`,
+        type: overallStatus === "APPROVED" || status === "APPROVED" ? "SUCCESS" : "WARNING",
+      },
+    });
+
+    // Log to audit log
+    await prisma.auditLog.create({
+      data: {
+        userId: caller.userId,
+        action: `EXPENSE_${status === "APPROVED" ? "APPROVED" : "REJECTED"}_BY_${approverRole}`,
+        details: `${status === "APPROVED" ? "Approved" : "Rejected"} expense "${expense.title}" (৳${expense.amount}) as ${approverRole}. Overall status: ${overallStatus}`,
+      },
     });
 
     return successResponse({ expense: updatedExpense });

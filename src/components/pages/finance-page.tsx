@@ -2,9 +2,13 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { DollarSign, TrendingUp, TrendingDown, BarChart3, Download, ArrowUpRight, ArrowDownRight, CircleDot, Loader2, Wallet, Receipt, CreditCard, Clock, Plus, CheckCircle, XCircle } from 'lucide-react';
+import {
+  DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
+  Loader2, Wallet, Receipt, Plus, CheckCircle, XCircle,
+  Eye, ChevronRight, Activity, Landmark, CreditCard,
+} from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
-import type { Payment, TreasuryDeposit } from '@/types';
+import type { TreasuryDeposit, Expense, ExpenseItem, TreasuryDepositSource } from '@/types';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -13,126 +17,184 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, AreaChart, Area } from 'recharts';
-import { exportToCSV } from '@/lib/export-utils';
 
-const PAYMENT_STATUS_CONFIG: Record<string, { color: string; dotColor: string; label: string }> = {
-  VERIFIED: { color: 'text-emerald-400', dotColor: 'bg-emerald-400', label: 'Verified' },
+/* ─── Deposit Source Labels ─── */
+const DEPOSIT_SOURCE_LABELS: Record<string, string> = {
+  UNIVERSITY_FUND: 'University Fund',
+  SPONSOR: 'Sponsor',
+  EVENT_REGISTRATION: 'Event Registration',
+  MEMBERSHIP_REGISTRATION: 'Membership Registration',
+  DONATION: 'Donation',
+  OTHER: 'Other',
+};
+
+/* ─── Status Badge Config ─── */
+const STATUS_CONFIG: Record<string, { color: string; dotColor: string; label: string }> = {
   PENDING: { color: 'text-amber-400', dotColor: 'bg-amber-400', label: 'Pending' },
+  APPROVED: { color: 'text-emerald-400', dotColor: 'bg-emerald-400', label: 'Approved' },
   REJECTED: { color: 'text-red-400', dotColor: 'bg-red-400', label: 'Rejected' },
 };
 
-const PAYMENT_TYPE_CONFIG: Record<string, { color: string; bg: string; icon: string; label: string }> = {
-  MEMBERSHIP_FEE: { color: 'text-emerald-400', bg: 'bg-emerald-500/10', icon: 'text-emerald-400', label: 'Membership' },
-  EVENT_FEE: { color: 'text-cyan-400', bg: 'bg-cyan-500/10', icon: 'text-cyan-400', label: 'Event' },
-  WORKSHOP_FEE: { color: 'text-amber-400', bg: 'bg-amber-500/10', icon: 'text-amber-400', label: 'Workshop' },
-  DONATION: { color: 'text-violet-400', bg: 'bg-violet-500/10', icon: 'text-violet-400', label: 'Donation' },
-  OTHER: { color: 'text-gray-400', bg: 'bg-gray-500/10', icon: 'text-gray-400', label: 'Other' },
-};
+/* ─── Tab Type ─── */
+type FinanceTab = 'overview' | 'deposits' | 'expenses';
 
-/* ─── Monthly Revenue Trend (generated from payments) ─── */
-function generateMonthlyRevenue(payments: Payment[]) {
-  const months = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
-  const now = new Date();
-  const data: { month: string; revenue: number; }[] = [];
-
-  for (let i = 5; i >= 0; i--) {
-    const monthIdx = (now.getMonth() - i + 12) % 12;
-    const year = now.getMonth() - i < 0 ? now.getFullYear() - 1 : now.getFullYear();
-    const monthPayments = payments.filter(p => {
-      const d = new Date(p.createdAt);
-      return d.getMonth() === monthIdx && d.getFullYear() === year && p.status === 'VERIFIED' && p.type !== 'EVENT';
-    });
-    const revenue = monthPayments.reduce((sum, p) => sum + p.amount, 0);
-    data.push({ month: months[monthIdx], revenue });
-  }
-
-  return data;
+/* ─── Activity Feed Item ─── */
+interface ActivityItem {
+  id: string;
+  type: 'deposit' | 'expense';
+  date: string;
+  description: string;
+  amount: number;
+  status: string;
+  source?: string;
 }
 
+/* ─── Status Badge Component ─── */
+function StatusBadge({ status }: { status: string }) {
+  const config = STATUS_CONFIG[status] || STATUS_CONFIG.PENDING;
+  return (
+    <Badge
+      variant="outline"
+      className={`border-transparent ${
+        status === 'APPROVED'
+          ? 'bg-emerald-500/15 text-emerald-400'
+          : status === 'REJECTED'
+          ? 'bg-red-500/15 text-red-400'
+          : 'bg-amber-500/15 text-amber-400'
+      }`}
+    >
+      <span className={`mr-1.5 inline-block h-1.5 w-1.5 rounded-full ${config.dotColor}`} />
+      {config.label}
+    </Badge>
+  );
+}
+
+/* ─── Format Currency ─── */
+function formatTaka(amount: number): string {
+  return `৳${amount.toLocaleString()}`;
+}
+
+/* ─── Format Date ─── */
+function formatDate(dateStr: string): string {
+  try {
+    return new Date(dateStr).toLocaleDateString('en-GB', {
+      day: '2-digit',
+      month: 'short',
+      year: 'numeric',
+    });
+  } catch {
+    return dateStr;
+  }
+}
+
+/* ─── Main Component ─── */
 export function FinancePage() {
   const { currentUser, setCurrentView } = useAppStore();
-  const [stats, setStats] = useState({ totalMembers: 0, totalFunds: 0, activeEvents: 0, pendingApprovals: 0, totalCertificates: 0 });
-  const [budgets, setBudgets] = useState<{ id: string; title: string; amount: number; status?: string; expenses: { amount: number; status: string }[] }[]>([]);
-  const [ledgerEntries, setLedgerEntries] = useState<any[]>([]);
-  const [walletBalances, setWalletBalances] = useState<any>({ BKASH_PERSONAL: 0, NAGAD_PERSONAL: 0, CLUB_BANK_ACCOUNT: 0, CASH_IN_HAND: 0 });
+
+  /* ─── State ─── */
+  const [activeTab, setActiveTab] = useState<FinanceTab>('overview');
+  const [loading, setLoading] = useState(true);
+  const [stats, setStats] = useState({
+    totalFunds: 0,
+    totalDeposits: 0,
+    totalExpenses: 0,
+  });
   const [deposits, setDeposits] = useState<TreasuryDeposit[]>([]);
-  const [expenses, setExpenses] = useState<any[]>([]);
-  const [depositForm, setDepositForm] = useState({ date: '', amount: '', source: 'EVENT_REGISTRATION', note: '', attachmentUrl: '' });
+  const [expenses, setExpenses] = useState<Expense[]>([]);
+  const [depositForm, setDepositForm] = useState({
+    date: '',
+    amount: '',
+    source: 'EVENT_REGISTRATION' as TreasuryDepositSource,
+    note: '',
+    attachmentUrl: '',
+  });
   const [submittingDeposit, setSubmittingDeposit] = useState(false);
   const [approvingDepositId, setApprovingDepositId] = useState<string | null>(null);
-  const [exporting, setExporting] = useState(false);
+  const [approvingExpenseId, setApprovingExpenseId] = useState<string | null>(null);
 
-  const loadTreasuryData = async () => {
+  /* ─── Role Checks ─── */
+  const canSubmitDeposit = currentUser && ['TREASURER', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const canApprove = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+
+  /* ─── Data Fetching ─── */
+  const loadData = async () => {
     try {
-      const [statsData, budgetsData, ledgerData, expenseData, depositData] = await Promise.all([
-        fetch('/api/stats').then(r => r.json()),
-        fetch('/api/budgets').then(r => r.json()),
-        fetch('/api/ledger').then(r => r.json()),
-        fetch('/api/expenses').then(r => r.json()),
-        fetch('/api/treasury/deposits').then(r => r.json()),
+      const [statsRes, depositsRes, expensesRes] = await Promise.all([
+        fetch('/api/stats').then((r) => r.json()),
+        fetch('/api/treasury/deposits').then((r) => r.json()),
+        fetch('/api/expenses').then((r) => r.json()),
       ]);
 
-      if (statsData.success && statsData.data) {
-        const s = statsData.data.stats || statsData.data;
+      if (statsRes.success && statsRes.data) {
+        const s = statsRes.data.stats || statsRes.data;
         setStats({
-          totalMembers: s.totalMembers ?? 0,
           totalFunds: s.totalFunds ?? 0,
-          activeEvents: s.activeEvents ?? 0,
-          pendingApprovals: s.pendingApprovals ?? 0,
-          totalCertificates: s.totalCertificates ?? 0,
+          totalDeposits: s.totalDeposits ?? 0,
+          totalExpenses: s.totalExpenses ?? 0,
         });
       }
-      if (budgetsData.success) {
-        setBudgets(budgetsData.data.budgets || []);
+
+      if (depositsRes.success) {
+        setDeposits(depositsRes.data.deposits || []);
       }
-      if (ledgerData.success && ledgerData.data) {
-        setLedgerEntries(ledgerData.data.ledgerEntries || []);
-        setWalletBalances(ledgerData.data.walletBalances || { BKASH_PERSONAL: 0, NAGAD_PERSONAL: 0, CLUB_BANK_ACCOUNT: 0, CASH_IN_HAND: 0 });
-      }
-      if (expenseData.success) {
-        setExpenses(expenseData.data.expenses || []);
-      }
-      if (depositData.success) {
-        setDeposits(depositData.data.deposits || []);
+
+      if (expensesRes.success) {
+        setExpenses(expensesRes.data.expenses || []);
       }
     } catch {
-      // Safe no-op; the screen can keep the current fallback state.
+      // Silently keep fallback state
+    } finally {
+      setLoading(false);
     }
   };
 
   useEffect(() => {
-    loadTreasuryData();
+    loadData();
   }, []);
 
-  const chartData = budgets.filter(b => b.status === 'APPROVED').map(b => ({
-    name: b.title.length > 20 ? b.title.substring(0, 20) + '...' : b.title,
-    Budget: b.amount,
-    Spent: b.expenses?.filter(e => e.status === 'APPROVED').reduce((sum, e) => sum + e.amount, 0) || 0,
-  }));
+  /* ─── Computed Values ─── */
+  const approvedDepositsTotal = useMemo(
+    () => deposits.filter((d) => d.status === 'APPROVED').reduce((sum, d) => sum + d.amount, 0),
+    [deposits]
+  );
 
-  const approvedDeposits = deposits.filter(d => d.status === 'APPROVED').reduce((sum, d) => sum + d.amount, 0);
-  const approvedExpenses = expenses.filter(e => e.status === 'APPROVED').reduce((sum, e) => sum + e.amount, 0);
-  const currentBalance = approvedDeposits - approvedExpenses;
+  const approvedExpensesTotal = useMemo(
+    () => expenses.filter((e) => e.status === 'APPROVED').reduce((sum, e) => sum + e.amount, 0),
+    [expenses]
+  );
 
-  // Calculations for budget limits and spending
-  const totalBudget = budgets.filter(b => b.status === 'APPROVED').reduce((sum, b) => sum + b.amount, 0);
-  const totalSpent = budgets.filter(b => b.status === 'APPROVED').reduce((sum, b) => sum + (b.expenses?.filter(e => e.status === 'APPROVED').reduce((s, e) => s + e.amount, 0) || 0), 0);
-  const allocatedBudget = totalBudget - totalSpent;
-  const availableFunds = stats.totalFunds - allocatedBudget;
-  const utilizationPercent = totalBudget > 0 ? Math.round((totalSpent / totalBudget) * 100) : 0;
+  const currentBalance = useMemo(
+    () => approvedDepositsTotal - approvedExpensesTotal,
+    [approvedDepositsTotal, approvedExpensesTotal]
+  );
 
-  const depositSourceLabels: Record<string, string> = {
-    UNIVERSITY_FUND: 'University Fund',
-    SPONSOR: 'Sponsor',
-    EVENT_REGISTRATION: 'Event Registration',
-    MEMBERSHIP_REGISTRATION: 'Membership Registration',
-    DONATION: 'Donation',
-    OTHER: 'Other',
-  };
+  /* ─── Recent Activity Feed ─── */
+  const recentActivity = useMemo<ActivityItem[]>(() => {
+    const depositItems: ActivityItem[] = deposits.map((d) => ({
+      id: d.id,
+      type: 'deposit' as const,
+      date: d.createdAt,
+      description: DEPOSIT_SOURCE_LABELS[d.source] || d.source,
+      amount: d.amount,
+      status: d.status,
+      source: d.source,
+    }));
 
-  const canApproveDeposits = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+    const expenseItems: ActivityItem[] = expenses.map((e) => ({
+      id: e.id,
+      type: 'expense' as const,
+      date: e.createdAt,
+      description: e.title || 'Expense',
+      amount: e.amount,
+      status: e.status,
+    }));
 
+    return [...depositItems, ...expenseItems]
+      .sort((a, b) => new Date(b.date).getTime() - new Date(a.date).getTime())
+      .slice(0, 5);
+  }, [deposits, expenses]);
+
+  /* ─── Deposit Form Submit ─── */
   const handleDepositSubmit = async (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (!currentUser) return;
@@ -146,24 +208,37 @@ export function FinancePage() {
           date: depositForm.date,
           amount: Number(depositForm.amount),
           source: depositForm.source,
-          note: depositForm.note,
-          attachmentUrl: depositForm.attachmentUrl,
+          note: depositForm.note || undefined,
+          attachmentUrl: depositForm.attachmentUrl || undefined,
         }),
       });
 
       const payload = await response.json();
       if (payload.success) {
-        setDepositForm({ date: '', amount: '', source: 'EVENT_REGISTRATION', note: '', attachmentUrl: '' });
-        await loadTreasuryData();
+        setDepositForm({
+          date: '',
+          amount: '',
+          source: 'EVENT_REGISTRATION',
+          note: '',
+          attachmentUrl: '',
+        });
+        await loadData();
       }
     } finally {
       setSubmittingDeposit(false);
     }
   };
 
-  const handleDepositApproval = async (depositId: string, approverRole: 'PRESIDENT' | 'GS', status: 'APPROVED' | 'REJECTED') => {
+  /* ─── Deposit Approval ─── */
+  const handleDepositApproval = async (
+    depositId: string,
+    approverRole: 'PRESIDENT' | 'GS',
+    status: 'APPROVED' | 'REJECTED'
+  ) => {
     if (!currentUser) return;
-    const confirmed = window.confirm(`${status === 'APPROVED' ? 'Approve' : 'Reject'} this deposit?`);
+    const confirmed = window.confirm(
+      `Are you sure you want to ${status === 'APPROVED' ? 'approve' : 'reject'} this deposit as ${approverRole === 'PRESIDENT' ? 'President' : 'General Secretary'}?`
+    );
     if (!confirmed) return;
 
     setApprovingDepositId(depositId);
@@ -175,21 +250,73 @@ export function FinancePage() {
       });
       const payload = await response.json();
       if (payload.success) {
-        await loadTreasuryData();
+        await loadData();
       }
     } finally {
       setApprovingDepositId(null);
     }
   };
 
-  // SVG donut parameters
-  const radius = 54;
-  const circumference = 2 * Math.PI * radius;
-  const strokeDashoffset = circumference - (utilizationPercent / 100) * circumference;
+  /* ─── Expense Approval ─── */
+  const handleExpenseApproval = async (
+    expenseId: string,
+    approverRole: 'PRESIDENT' | 'GS',
+    status: 'APPROVED' | 'REJECTED'
+  ) => {
+    if (!currentUser) return;
+    const confirmed = window.confirm(
+      `Are you sure you want to ${status === 'APPROVED' ? 'approve' : 'reject'} this expense as ${approverRole === 'PRESIDENT' ? 'President' : 'General Secretary'}?`
+    );
+    if (!confirmed) return;
+
+    setApprovingExpenseId(expenseId);
+    try {
+      const response = await fetch(`/api/expenses/${expenseId}/approve`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ approverRole, status }),
+      });
+      const payload = await response.json();
+      if (payload.success) {
+        await loadData();
+      }
+    } finally {
+      setApprovingExpenseId(null);
+    }
+  };
+
+  /* ─── Get Items Display String ─── */
+  const getItemsDisplay = (items?: ExpenseItem[]): string => {
+    if (!items || items.length === 0) return '—';
+    return items.map((item) => `${item.itemName} (${item.quantity} ${item.unit})`).join(', ');
+  };
+
+  /* ─── Tab Config ─── */
+  const tabs: { key: FinanceTab; label: string; icon: typeof DollarSign }[] = [
+    { key: 'overview', label: 'Overview', icon: Eye },
+    { key: 'deposits', label: 'Deposits', icon: Landmark },
+    { key: 'expenses', label: 'Expenses', icon: Receipt },
+  ];
+
+  /* ─── Loading State ─── */
+  if (loading) {
+    return (
+      <div className="flex min-h-[60vh] items-center justify-center">
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          className="flex flex-col items-center gap-4"
+        >
+          <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+          <p className="text-sm text-gray-400">Loading treasury data...</p>
+        </motion.div>
+      </div>
+    );
+  }
 
   return (
     <div className="space-y-6">
-      {/* Gradient Header Banner */}
+      {/* ─── Gradient Header Banner ─── */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
@@ -200,366 +327,588 @@ export function FinancePage() {
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMjBMMjAgMEw0MCAyMEwyMCA0MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2cpIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+')] opacity-50" />
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute -left-8 -bottom-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl" />
+
         <div className="relative flex items-center justify-between">
           <div className="flex items-center gap-4">
             <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
               <DollarSign className="h-6 w-6 text-emerald-400" />
             </div>
             <div>
-              <h1 className="text-2xl font-bold text-white">Finance Overview</h1>
-              <p className="text-sm text-gray-400">Club General Ledger & Transparency Board</p>
+              <h1 className="text-2xl font-bold text-white">Treasury Management</h1>
+              <p className="text-sm text-gray-400">Club Finance & Transparency Dashboard</p>
             </div>
           </div>
-          {/* Export Button */}
-          <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
-            <Button
-              variant="outline"
-              className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
-              disabled={exporting}
-              onClick={() => {
-                setExporting(true);
-                setTimeout(() => {
-                  exportToCSV(
-                    ledgerEntries.map(e => ({
-                      Date: new Date(e.createdAt).toLocaleDateString(),
-                      Description: e.description,
-                      Type: e.type,
-                      Amount: e.amount,
-                      Wallet: e.wallet,
-                      Operator: e.operator?.name || 'System',
-                    })),
-                    'ledger-export',
-                    [
-                      { key: 'Date', label: 'Date' },
-                      { key: 'Description', label: 'Description' },
-                      { key: 'Type', label: 'Type' },
-                      { key: 'Amount', label: 'Amount' },
-                      { key: 'Wallet', label: 'Wallet' },
-                      { key: 'Operator', label: 'Operator' },
-                    ]
-                  );
-                  setExporting(false);
-                }, 300);
-              }}
-            >
-              {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}
-              Export CSV
-            </Button>
-          </motion.div>
         </div>
       </motion.div>
 
-      {/* Treasury Summary Cards */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-        <StatCard icon={Wallet} label="Current Balance" value={`৳${currentBalance.toLocaleString()}`} trend={currentBalance >= 0 ? 'up' : 'down'} delay={0} />
-        <StatCard icon={ArrowUpRight} label="Total Deposits" value={`৳${approvedDeposits.toLocaleString()}`} trend="up" delay={0.1} />
-        <StatCard icon={ArrowDownRight} label="Total Expenses" value={`৳${approvedExpenses.toLocaleString()}`} trend="down" delay={0.2} />
-      </div>
+      {/* ─── Tab Navigation ─── */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3, delay: 0.1 }}
+        className="flex gap-2"
+      >
+        {tabs.map((tab) => {
+          const isActive = activeTab === tab.key;
+          return (
+            <button
+              key={tab.key}
+              onClick={() => setActiveTab(tab.key)}
+              className={`inline-flex items-center gap-2 rounded-full px-4 py-2 text-sm font-medium transition-all duration-200 ${
+                isActive
+                  ? 'bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 shadow-lg shadow-emerald-500/5'
+                  : 'bg-white/5 text-gray-400 border border-white/5 hover:bg-white/10 hover:text-gray-300'
+              }`}
+            >
+              <tab.icon className="h-4 w-4" />
+              {tab.label}
+            </button>
+          );
+        })}
+      </motion.div>
 
-      {/* Treasury Management Section */}
-      <div className="grid gap-6 lg:grid-cols-[1.05fr_0.95fr]">
-        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white flex items-center gap-2"><Plus className="h-4 w-4 text-emerald-400" />Record Deposit</CardTitle>
-          </CardHeader>
-          <CardContent>
-            <form onSubmit={handleDepositSubmit} className="grid gap-3">
-              <div className="grid gap-3 md:grid-cols-2">
-                <div className="space-y-2">
-                  <Label className="text-gray-400">Date</Label>
-                  <Input type="date" value={depositForm.date} onChange={(e) => setDepositForm((prev) => ({ ...prev, date: e.target.value }))} className="border-white/10 bg-white/5 text-white" required />
-                </div>
-                <div className="space-y-2">
-                  <Label className="text-gray-400">Amount (৳)</Label>
-                  <Input type="number" min="1" value={depositForm.amount} onChange={(e) => setDepositForm((prev) => ({ ...prev, amount: e.target.value }))} className="border-white/10 bg-white/5 text-white" required />
-                </div>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-400">Source</Label>
-                <Select value={depositForm.source} onValueChange={(value) => setDepositForm((prev) => ({ ...prev, source: value }))}>
-                  <SelectTrigger className="border-white/10 bg-white/5 text-white">
-                    <SelectValue placeholder="Select source" />
-                  </SelectTrigger>
-                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
-                    {Object.entries(depositSourceLabels).map(([key, label]) => (
-                      <SelectItem key={key} value={key}>{label}</SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-400">Note</Label>
-                <Textarea value={depositForm.note} onChange={(e) => setDepositForm((prev) => ({ ...prev, note: e.target.value }))} rows={3} className="border-white/10 bg-white/5 text-white" placeholder="Optional note" />
-              </div>
-              <div className="space-y-2">
-                <Label className="text-gray-400">Attachment URL (Optional)</Label>
-                <Input value={depositForm.attachmentUrl} onChange={(e) => setDepositForm((prev) => ({ ...prev, attachmentUrl: e.target.value }))} className="border-white/10 bg-white/5 text-white" placeholder="Optional proof link" />
-              </div>
-              <Button type="submit" className="bg-emerald-600 text-white hover:bg-emerald-500" disabled={submittingDeposit}>
-                {submittingDeposit ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                Submit for Approval
-              </Button>
-            </form>
-          </CardContent>
-        </Card>
-
-        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-          <CardHeader className="pb-2">
-            <CardTitle className="text-white">Deposit History</CardTitle>
-          </CardHeader>
-          <CardContent className="space-y-3 max-h-[460px] overflow-y-auto">
-            {deposits.length === 0 ? (
-              <p className="text-sm text-gray-500 py-6 text-center">No deposits recorded yet.</p>
-            ) : (
-              deposits.map((deposit) => (
-                <div key={deposit.id} className="rounded-lg border border-white/5 bg-black/20 p-3 space-y-2">
-                  <div className="flex items-center justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-medium text-white">{depositSourceLabels[deposit.source] || deposit.source}</p>
-                      <p className="text-[11px] text-gray-500">{new Date(deposit.date).toLocaleDateString()} • ৳{deposit.amount.toLocaleString()}</p>
-                    </div>
-                    <Badge variant="outline" className={deposit.status === 'APPROVED' ? 'border-emerald-500/20 text-emerald-400' : deposit.status === 'REJECTED' ? 'border-red-500/20 text-red-400' : 'border-amber-500/20 text-amber-400'}>{deposit.status}</Badge>
-                  </div>
-                  {deposit.note && <p className="text-[11px] text-gray-500">{deposit.note}</p>}
-                  <div className="flex flex-wrap gap-2">
-                    {canApproveDeposits && deposit.status !== 'APPROVED' && deposit.status !== 'REJECTED' && (
-                      <>
-                        <Button size="sm" variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10" onClick={() => handleDepositApproval(deposit.id, 'PRESIDENT', 'APPROVED')} disabled={approvingDepositId === deposit.id}>
-                          <CheckCircle className="mr-1 h-3 w-3" />President Approve
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-red-500/20 text-red-400 hover:bg-red-500/10" onClick={() => handleDepositApproval(deposit.id, 'PRESIDENT', 'REJECTED')} disabled={approvingDepositId === deposit.id}>
-                          <XCircle className="mr-1 h-3 w-3" />President Reject
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10" onClick={() => handleDepositApproval(deposit.id, 'GS', 'APPROVED')} disabled={approvingDepositId === deposit.id}>
-                          <CheckCircle className="mr-1 h-3 w-3" />GS Approve
-                        </Button>
-                        <Button size="sm" variant="outline" className="border-red-500/20 text-red-400 hover:bg-red-500/10" onClick={() => handleDepositApproval(deposit.id, 'GS', 'REJECTED')} disabled={approvingDepositId === deposit.id}>
-                          <XCircle className="mr-1 h-3 w-3" />GS Reject
-                        </Button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))
-            )}
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* Additional Finance Sections */}
-      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-        <StatCard icon={Wallet} label="Net Treasury" value={`৳${stats.totalFunds.toLocaleString()}`} trend="up" delay={0} />
-        <StatCard icon={BarChart3} label="Allocated Budget" value={`৳${allocatedBudget.toLocaleString()}`} trend="neutral" delay={0.1} />
-        <StatCard icon={Clock} label="Available Funds" value={`৳${availableFunds.toLocaleString()}`} trend="up" delay={0.2} />
-        <StatCard icon={Receipt} label="Total Entries" value={ledgerEntries.length} trend="neutral" delay={0.3} />
-      </div>
-
-      {/* Main Content Grid */}
-      <div className="grid gap-6 lg:grid-cols-3">
-        {/* Chart - 2 cols */}
-        <Card className="border-white/5 bg-[#111]/60 backdrop-blur lg:col-span-2">
-          <CardHeader><CardTitle className="text-white">Budget vs Expenses</CardTitle></CardHeader>
-          <CardContent>
-            {chartData.length > 0 ? (
-              <ResponsiveContainer width="100%" height={300}>
-                <BarChart data={chartData}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="name" stroke="#666" fontSize={12} />
-                  <YAxis stroke="#666" fontSize={12} />
-                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
-                  <Bar dataKey="Budget" fill="#10b981" radius={[4, 4, 0, 0]} />
-                  <Bar dataKey="Spent" fill="#06b6d4" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            ) : <p className="py-12 text-center text-gray-500">No approved budget data available</p>}
-          </CardContent>
-        </Card>
-
-        {/* Fund Utilization & Wallets - 1 col */}
-        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-          <CardHeader><CardTitle className="text-white text-sm">Asset & Utilization</CardTitle></CardHeader>
-          <CardContent className="flex flex-col items-center justify-center py-2">
-            <div className="relative">
-              <svg width="120" height="120" viewBox="0 0 140 140" className="-rotate-90">
-                <circle cx="70" cy="70" r={radius} fill="none" stroke="rgba(255,255,255,0.05)" strokeWidth="10" />
-                <motion.circle
-                  cx="70" cy="70" r={radius} fill="none"
-                  stroke="url(#gradient)" strokeWidth="10" strokeLinecap="round"
-                  strokeDasharray={circumference}
-                  initial={{ strokeDashoffset: circumference }}
-                  animate={{ strokeDashoffset }}
-                  transition={{ duration: 1.5, ease: 'easeOut', delay: 0.3 }}
-                />
-                <defs>
-                  <linearGradient id="gradient" x1="0%" y1="0%" x2="100%" y2="0%">
-                    <stop offset="0%" stopColor="#10b981" />
-                    <stop offset="100%" stopColor="#06b6d4" />
-                  </linearGradient>
-                </defs>
-              </svg>
-              <div className="absolute inset-0 flex flex-col items-center justify-center">
-                <span className="text-xl font-bold text-white">{utilizationPercent}%</span>
-                <span className="text-[9px] text-gray-500 uppercase tracking-wider">Spent</span>
-              </div>
-            </div>
-
-            <div className="mt-4 w-full space-y-2">
-              <div className="text-[10px] font-bold text-gray-500 uppercase tracking-wider mb-1">Asset Wallets</div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">Bank Account</span>
-                <span className="text-white font-medium">৳{(walletBalances.CLUB_BANK_ACCOUNT || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">bKash Personal</span>
-                <span className="text-white font-medium">৳{(walletBalances.BKASH_PERSONAL || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs">
-                <span className="text-gray-500">Nagad Personal</span>
-                <span className="text-white font-medium">৳{(walletBalances.NAGAD_PERSONAL || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs border-b border-white/5 pb-2">
-                <span className="text-gray-500">Cash in Hand</span>
-                <span className="text-white font-medium">৳{(walletBalances.CASH_IN_HAND || 0).toLocaleString()}</span>
-              </div>
-              <div className="flex items-center justify-between text-xs pt-1">
-                <span className="text-gray-400 font-semibold">Total Funds</span>
-                <span className="text-emerald-400 font-bold">৳{stats.totalFunds.toLocaleString()}</span>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
-      </div>
-
-      {/* General Ledger (Audit Feed) */}
-      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <div className="flex items-center gap-2">
-            <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
-              <Receipt className="h-4 w-4 text-emerald-400" />
-            </div>
-            <CardTitle className="text-white text-sm">General Ledger (Audit Feed)</CardTitle>
+      {/* ═══════════════════════════════════════════════════════════
+          TAB 1: OVERVIEW
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'overview' && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          {/* Summary Stat Cards */}
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            <StatCard
+              icon={Wallet}
+              label="Current Balance"
+              value={formatTaka(currentBalance)}
+              trend={currentBalance >= 0 ? 'up' : 'down'}
+              delay={0}
+            />
+            <StatCard
+              icon={ArrowUpRight}
+              label="Total Deposits"
+              value={formatTaka(approvedDepositsTotal)}
+              trend="up"
+              delay={0.1}
+            />
+            <StatCard
+              icon={ArrowDownRight}
+              label="Total Expenses"
+              value={formatTaka(approvedExpensesTotal)}
+              trend="down"
+              delay={0.2}
+            />
           </div>
-          <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 text-[10px]">Reconciled</Badge>
-        </CardHeader>
-        <CardContent>
-          {ledgerEntries.length > 0 ? (
-            <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
-              {ledgerEntries.map((entry, i) => {
-                const isCredit = entry.type === 'CREDIT';
-                const walletName = entry.wallet === 'BKASH_PERSONAL' ? 'bKash' :
-                             entry.wallet === 'NAGAD_PERSONAL' ? 'Nagad' :
-                             entry.wallet === 'CLUB_BANK_ACCOUNT' ? 'Bank' : 'Cash';
-                return (
-                  <motion.div
-                    key={entry.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.03 }}
-                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3 transition-colors hover:bg-white/[0.04]"
-                  >
-                    <div className={`flex h-9 w-9 items-center justify-center rounded-lg ${isCredit ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
-                      {isCredit ? <ArrowUpRight className="h-4 w-4" /> : <ArrowDownRight className="h-4 w-4" />}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate">{entry.description}</p>
-                      <p className="text-[10px] text-gray-500 mt-0.5">
-                        Wallet: <span className="text-gray-400 font-semibold">{walletName}</span> • Operator: {entry.operator?.name || 'System'}
-                      </p>
-                    </div>
-                    <div className="text-right shrink-0">
-                      <p className={`text-sm font-semibold ${isCredit ? 'text-emerald-400' : 'text-red-400'}`}>
-                        {isCredit ? '+' : '-'}৳{entry.amount.toLocaleString()}
-                      </p>
-                      <p className="text-[10px] text-gray-600">{new Date(entry.createdAt).toLocaleDateString()}</p>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="py-12 text-center text-gray-500">
-              <Receipt className="h-8 w-8 mx-auto text-gray-600 mb-2" />
-              <p className="text-sm">No ledger entries posted yet</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
 
-      {/* Budgets List with Double-Approval Status Badge */}
-      {budgets.length > 0 && (
-        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-white text-sm">Active & Pending Budgets</CardTitle>
-            {currentUser && ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role) && (
-              <Button variant="ghost" size="sm" onClick={() => setCurrentView('budgets')} className="text-emerald-400 hover:text-emerald-300 text-xs">
-                Manage →
-              </Button>
-            )}
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              {budgets.map((budget, i) => {
-                const spent = budget.expenses?.filter(e => e.status === 'APPROVED').reduce((s, e) => s + e.amount, 0) || 0;
-                const percent = budget.amount > 0 ? Math.round((spent / budget.amount) * 100) : 0;
-                const isApproved = budget.status === 'APPROVED';
-                const isRejected = budget.status === 'REJECTED';
-                const barColor = percent > 90 ? '#ef4444' : percent > 70 ? '#f59e0b' : '#10b981';
-
-                return (
-                  <motion.div
-                    key={budget.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: i * 0.05 }}
-                    className="p-3 rounded-lg border border-white/5 bg-white/[0.01]"
-                  >
-                    <div className="flex items-center justify-between mb-1.5 flex-wrap gap-2">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm text-white font-medium truncate max-w-[200px]">{budget.title}</span>
-                        <Badge
-                          variant="outline"
-                          className={`text-[9px] px-1.5 py-0 h-4 border-transparent ${
-                            isApproved ? 'bg-emerald-500/15 text-emerald-400' :
-                            isRejected ? 'bg-red-500/15 text-red-400' : 'bg-amber-500/15 text-amber-400'
+          {/* Recent Activity Feed */}
+          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+            <CardHeader className="flex flex-row items-center justify-between pb-2">
+              <div className="flex items-center gap-2">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
+                  <Activity className="h-4 w-4 text-emerald-400" />
+                </div>
+                <CardTitle className="text-white text-sm">Recent Activity</CardTitle>
+              </div>
+              <Badge variant="outline" className="border-emerald-500/20 text-emerald-400 text-[10px]">
+                Last 5
+              </Badge>
+            </CardHeader>
+            <CardContent>
+              {recentActivity.length > 0 ? (
+                <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar">
+                  {recentActivity.map((activity, i) => {
+                    const isDeposit = activity.type === 'deposit';
+                    return (
+                      <motion.div
+                        key={activity.id}
+                        initial={{ opacity: 0, x: -10 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ delay: i * 0.05 }}
+                        className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] px-4 py-3 transition-colors hover:bg-white/[0.04]"
+                      >
+                        <div
+                          className={`flex h-9 w-9 items-center justify-center rounded-lg ${
+                            isDeposit
+                              ? 'bg-emerald-500/10 text-emerald-400'
+                              : 'bg-red-500/10 text-red-400'
                           }`}
                         >
-                          {budget.status}
-                        </Badge>
-                      </div>
-                      <span className="text-xs text-gray-500 shrink-0">৳{spent.toLocaleString()} / ৳{budget.amount.toLocaleString()}</span>
-                    </div>
+                          {isDeposit ? (
+                            <ArrowUpRight className="h-4 w-4" />
+                          ) : (
+                            <ArrowDownRight className="h-4 w-4" />
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-sm font-medium text-white truncate">
+                            {activity.description}
+                          </p>
+                          <p className="text-[10px] text-gray-500 mt-0.5">
+                            {isDeposit ? 'Deposit' : 'Expense'} •{' '}
+                            {formatDate(activity.date)}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0 flex flex-col items-end gap-1">
+                          <p
+                            className={`text-sm font-semibold ${
+                              isDeposit ? 'text-emerald-400' : 'text-red-400'
+                            }`}
+                          >
+                            {isDeposit ? '+' : '-'}
+                            {formatTaka(activity.amount)}
+                          </p>
+                          <StatusBadge status={activity.status} />
+                        </div>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              ) : (
+                <div className="py-12 text-center text-gray-500">
+                  <Activity className="h-8 w-8 mx-auto text-gray-600 mb-2" />
+                  <p className="text-sm">No recent activity to display</p>
+                </div>
+              )}
+            </CardContent>
+          </Card>
 
-                    {isApproved && (
-                      <>
-                        <div className="h-2 w-full overflow-hidden rounded-full bg-white/5">
-                          <motion.div
-                            initial={{ width: 0 }}
-                            animate={{ width: `${percent}%` }}
-                            transition={{ duration: 1, ease: 'easeOut' }}
-                            className="h-full rounded-full"
-                            style={{ backgroundColor: barColor }}
-                          />
-                        </div>
-                        <div className="flex items-center justify-between mt-1 text-[10px] text-gray-600">
-                          <span>{percent}% utilized</span>
-                          <span>৳{(budget.amount - spent).toLocaleString()} remaining</span>
-                        </div>
-                      </>
-                    )}
-                  </motion.div>
-                );
-              })}
-            </div>
-          </CardContent>
-        </Card>
+          {/* Quick Navigation */}
+          <div className="flex gap-3 flex-wrap">
+            <Button
+              onClick={() => setActiveTab('deposits')}
+              variant="outline"
+              className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
+            >
+              <Landmark className="mr-2 h-4 w-4" />
+              View Deposits
+            </Button>
+            <Button
+              onClick={() => setActiveTab('expenses')}
+              variant="outline"
+              className="border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10"
+            >
+              <Receipt className="mr-2 h-4 w-4" />
+              View Expenses
+            </Button>
+          </div>
+        </motion.div>
       )}
 
-      {/* Action Buttons */}
-      <div className="flex gap-3 flex-wrap">
-        <Button onClick={() => setCurrentView('budgets')} variant="outline" className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10">Manage Budgets</Button>
-        <Button onClick={() => setCurrentView('expenses')} variant="outline" className="border-cyan-500/20 text-cyan-400 hover:bg-cyan-500/10">View Expenses</Button>
-        <Button onClick={() => setCurrentView('verify-payments')} variant="outline" className="border-amber-500/20 text-amber-400 hover:bg-amber-500/10">Verify Payments</Button>
-      </div>
+      {/* ═══════════════════════════════════════════════════════════
+          TAB 2: DEPOSITS
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'deposits' && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          {/* Deposit Form — Only for TREASURER / PLATFORM_ADMIN */}
+          {canSubmitDeposit && (
+            <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+              <CardHeader className="pb-2">
+                <CardTitle className="text-white flex items-center gap-2">
+                  <Plus className="h-4 w-4 text-emerald-400" />
+                  Record Deposit
+                </CardTitle>
+              </CardHeader>
+              <CardContent>
+                <form onSubmit={handleDepositSubmit} className="grid gap-3">
+                  <div className="grid gap-3 md:grid-cols-2">
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">Date</Label>
+                      <Input
+                        type="date"
+                        value={depositForm.date}
+                        onChange={(e) =>
+                          setDepositForm((prev) => ({ ...prev, date: e.target.value }))
+                        }
+                        className="border-white/10 bg-white/5 text-white"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label className="text-gray-400">Amount (৳)</Label>
+                      <Input
+                        type="number"
+                        min="1"
+                        value={depositForm.amount}
+                        onChange={(e) =>
+                          setDepositForm((prev) => ({ ...prev, amount: e.target.value }))
+                        }
+                        className="border-white/10 bg-white/5 text-white"
+                        placeholder="Enter amount"
+                        required
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Source</Label>
+                    <Select
+                      value={depositForm.source}
+                      onValueChange={(value) =>
+                        setDepositForm((prev) => ({
+                          ...prev,
+                          source: value as TreasuryDepositSource,
+                        }))
+                      }
+                    >
+                      <SelectTrigger className="border-white/10 bg-white/5 text-white">
+                        <SelectValue placeholder="Select source" />
+                      </SelectTrigger>
+                      <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                        {Object.entries(DEPOSIT_SOURCE_LABELS).map(([key, label]) => (
+                          <SelectItem key={key} value={key}>
+                            {label}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Note</Label>
+                    <Textarea
+                      value={depositForm.note}
+                      onChange={(e) =>
+                        setDepositForm((prev) => ({ ...prev, note: e.target.value }))
+                      }
+                      rows={3}
+                      className="border-white/10 bg-white/5 text-white"
+                      placeholder="Optional note"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label className="text-gray-400">Attachment URL (Optional)</Label>
+                    <Input
+                      value={depositForm.attachmentUrl}
+                      onChange={(e) =>
+                        setDepositForm((prev) => ({
+                          ...prev,
+                          attachmentUrl: e.target.value,
+                        }))
+                      }
+                      className="border-white/10 bg-white/5 text-white"
+                      placeholder="Optional proof link"
+                    />
+                  </div>
+                  <Button
+                    type="submit"
+                    className="bg-emerald-600 text-white hover:bg-emerald-500"
+                    disabled={submittingDeposit}
+                  >
+                    {submittingDeposit ? (
+                      <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                    ) : (
+                      <Plus className="mr-2 h-4 w-4" />
+                    )}
+                    Submit for Approval
+                  </Button>
+                </form>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Deposit History Table */}
+          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-white flex items-center gap-2">
+                <Landmark className="h-4 w-4 text-emerald-400" />
+                Deposit History
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              {deposits.length === 0 ? (
+                <div className="py-12 text-center text-gray-500">
+                  <Landmark className="h-8 w-8 mx-auto text-gray-600 mb-2" />
+                  <p className="text-sm">No deposits recorded yet.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/5 text-left">
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Date</th>
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Source</th>
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Amount</th>
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Submitted By</th>
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Status</th>
+                        {canApprove && (
+                          <th className="pb-3 pr-4 text-gray-500 font-medium">Actions</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {deposits.map((deposit, i) => (
+                        <motion.tr
+                          key={deposit.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.03 }}
+                          className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
+                        >
+                          <td className="py-3 pr-4 text-gray-300 whitespace-nowrap">
+                            {formatDate(deposit.date)}
+                          </td>
+                          <td className="py-3 pr-4 text-white whitespace-nowrap">
+                            {DEPOSIT_SOURCE_LABELS[deposit.source] || deposit.source}
+                          </td>
+                          <td className="py-3 pr-4 text-emerald-400 font-semibold whitespace-nowrap">
+                            {formatTaka(deposit.amount)}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-400 whitespace-nowrap">
+                            {deposit.submitter?.name || '—'}
+                          </td>
+                          <td className="py-3 pr-4 whitespace-nowrap">
+                            <StatusBadge status={deposit.status} />
+                          </td>
+                          {canApprove && (
+                            <td className="py-3 pr-4">
+                              {deposit.status !== 'APPROVED' &&
+                              deposit.status !== 'REJECTED' ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 h-7 text-[11px] px-2"
+                                    onClick={() =>
+                                      handleDepositApproval(
+                                        deposit.id,
+                                        'PRESIDENT',
+                                        'APPROVED'
+                                      )
+                                    }
+                                    disabled={approvingDepositId === deposit.id}
+                                  >
+                                    {approvingDepositId === deposit.id ? (
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <CheckCircle className="mr-1 h-3 w-3" />
+                                    )}
+                                    President Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-500/20 text-red-400 hover:bg-red-500/10 h-7 text-[11px] px-2"
+                                    onClick={() =>
+                                      handleDepositApproval(
+                                        deposit.id,
+                                        'PRESIDENT',
+                                        'REJECTED'
+                                      )
+                                    }
+                                    disabled={approvingDepositId === deposit.id}
+                                  >
+                                    <XCircle className="mr-1 h-3 w-3" />
+                                    President Reject
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 h-7 text-[11px] px-2"
+                                    onClick={() =>
+                                      handleDepositApproval(deposit.id, 'GS', 'APPROVED')
+                                    }
+                                    disabled={approvingDepositId === deposit.id}
+                                  >
+                                    {approvingDepositId === deposit.id ? (
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <CheckCircle className="mr-1 h-3 w-3" />
+                                    )}
+                                    GS Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-500/20 text-red-400 hover:bg-red-500/10 h-7 text-[11px] px-2"
+                                    onClick={() =>
+                                      handleDepositApproval(deposit.id, 'GS', 'REJECTED')
+                                    }
+                                    disabled={approvingDepositId === deposit.id}
+                                  >
+                                    <XCircle className="mr-1 h-3 w-3" />
+                                    GS Reject
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600 text-xs">—</span>
+                              )}
+                            </td>
+                          )}
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
+
+      {/* ═══════════════════════════════════════════════════════════
+          TAB 3: EXPENSES
+      ═══════════════════════════════════════════════════════════ */}
+      {activeTab === 'expenses' && (
+        <motion.div
+          initial={{ opacity: 0, y: 12 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3 }}
+          className="space-y-6"
+        >
+          {/* Action Bar */}
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <div className="flex h-8 w-8 items-center justify-center rounded-lg bg-emerald-500/10">
+                <Receipt className="h-4 w-4 text-emerald-400" />
+              </div>
+              <h2 className="text-lg font-semibold text-white">Expense History</h2>
+            </div>
+            <Button
+              onClick={() => setCurrentView('expenses')}
+              className="bg-emerald-600 text-white hover:bg-emerald-500"
+            >
+              <Plus className="mr-2 h-4 w-4" />
+              Add Expense
+            </Button>
+          </div>
+
+          {/* Expense History Table */}
+          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+            <CardContent className="pt-6">
+              {expenses.length === 0 ? (
+                <div className="py-12 text-center text-gray-500">
+                  <Receipt className="h-8 w-8 mx-auto text-gray-600 mb-2" />
+                  <p className="text-sm">No expenses recorded yet.</p>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-white/5 text-left">
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Date</th>
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Items</th>
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Total (৳)</th>
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Purchased By</th>
+                        <th className="pb-3 pr-4 text-gray-500 font-medium">Status</th>
+                        {canApprove && (
+                          <th className="pb-3 pr-4 text-gray-500 font-medium">Actions</th>
+                        )}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {expenses.map((expense, i) => (
+                        <motion.tr
+                          key={expense.id}
+                          initial={{ opacity: 0, x: -10 }}
+                          animate={{ opacity: 1, x: 0 }}
+                          transition={{ delay: i * 0.03 }}
+                          className="border-b border-white/5 hover:bg-white/[0.02] transition-colors"
+                        >
+                          <td className="py-3 pr-4 text-gray-300 whitespace-nowrap">
+                            {formatDate(expense.date)}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-300 max-w-[250px] truncate">
+                            {getItemsDisplay(expense.items)}
+                          </td>
+                          <td className="py-3 pr-4 text-red-400 font-semibold whitespace-nowrap">
+                            {formatTaka(expense.amount)}
+                          </td>
+                          <td className="py-3 pr-4 text-gray-400 whitespace-nowrap">
+                            {expense.creator?.name || expense.purchasedBy || '—'}
+                          </td>
+                          <td className="py-3 pr-4 whitespace-nowrap">
+                            <StatusBadge status={expense.status} />
+                          </td>
+                          {canApprove && (
+                            <td className="py-3 pr-4">
+                              {expense.status !== 'APPROVED' &&
+                              expense.status !== 'REJECTED' ? (
+                                <div className="flex flex-wrap gap-1.5">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 h-7 text-[11px] px-2"
+                                    onClick={() =>
+                                      handleExpenseApproval(
+                                        expense.id,
+                                        'PRESIDENT',
+                                        'APPROVED'
+                                      )
+                                    }
+                                    disabled={approvingExpenseId === expense.id}
+                                  >
+                                    {approvingExpenseId === expense.id ? (
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <CheckCircle className="mr-1 h-3 w-3" />
+                                    )}
+                                    President Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-500/20 text-red-400 hover:bg-red-500/10 h-7 text-[11px] px-2"
+                                    onClick={() =>
+                                      handleExpenseApproval(
+                                        expense.id,
+                                        'PRESIDENT',
+                                        'REJECTED'
+                                      )
+                                    }
+                                    disabled={approvingExpenseId === expense.id}
+                                  >
+                                    <XCircle className="mr-1 h-3 w-3" />
+                                    President Reject
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 h-7 text-[11px] px-2"
+                                    onClick={() =>
+                                      handleExpenseApproval(expense.id, 'GS', 'APPROVED')
+                                    }
+                                    disabled={approvingExpenseId === expense.id}
+                                  >
+                                    {approvingExpenseId === expense.id ? (
+                                      <Loader2 className="mr-1 h-3 w-3 animate-spin" />
+                                    ) : (
+                                      <CheckCircle className="mr-1 h-3 w-3" />
+                                    )}
+                                    GS Approve
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="border-red-500/20 text-red-400 hover:bg-red-500/10 h-7 text-[11px] px-2"
+                                    onClick={() =>
+                                      handleExpenseApproval(expense.id, 'GS', 'REJECTED')
+                                    }
+                                    disabled={approvingExpenseId === expense.id}
+                                  >
+                                    <XCircle className="mr-1 h-3 w-3" />
+                                    GS Reject
+                                  </Button>
+                                </div>
+                              ) : (
+                                <span className="text-gray-600 text-xs">—</span>
+                              )}
+                            </td>
+                          )}
+                        </motion.tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </motion.div>
+      )}
     </div>
   );
 }

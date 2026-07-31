@@ -42,6 +42,8 @@ model User {
   verifiedPayments    Payment[]            @relation("PaymentVerifier")
   approvedExpenses    Expense[]            @relation("ExpenseApprover")
   createdExpenses     Expense[]            @relation("ExpenseCreator")
+  presidentApprovedExpenses Expense[]      @relation("ExpensePresidentApprover")
+  gsApprovedExpenses  Expense[]            @relation("ExpenseGsApprover")
   createdBudgets      Budget[]             @relation("BudgetCreator")
   approvedBudgets     Budget[]             @relation("BudgetApprover")
   treasuryDepositsSubmitted TreasuryDeposit[] @relation("TreasuryDepositSubmitter")
@@ -150,23 +152,50 @@ model Budget {
 }
 
 model Expense {
-  id            String   @id @default(cuid())
-  title         String
-  amount        Float
-  category      String
-  description   String?
-  proofUrl      String?
-  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED
-  fundingSource String   @default("CLUB_FUND") // CLUB_FUND, UNIVERSITY_BUDGET
-  budgetId      String
-  createdBy     String
-  approvedBy    String?
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  id                  String   @id @default(cuid())
+  title               String   // Note / description
+  amount              Float    @default(0) // Auto-calculated from items
+  date                DateTime @default(now())
+  purchasedBy         String?  // Who went to purchase
+  attachmentUrl       String?  // Optional receipt attachment
+  status              String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  presidentStatus     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  gsStatus            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  // Legacy fields (kept for backward compatibility)
+  category            String   @default("GENERAL")
+  description         String?
+  proofUrl            String?
+  fundingSource       String   @default("CLUB_FUND")
+  budgetId            String?
+  approvedBy          String?
+  // Dual-approval fields
+  presidentApprovedBy String?
+  gsApprovedBy        String?
+  createdBy           String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
 
-  budget   Budget @relation(fields: [budgetId], references: [id])
-  creator  User   @relation("ExpenseCreator", fields: [createdBy], references: [id])
-  approver User?  @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+  items             ExpenseItem[]
+  budget            Budget?  @relation(fields: [budgetId], references: [id])
+  creator           User     @relation("ExpenseCreator", fields: [createdBy], references: [id])
+  approver          User?    @relation("ExpenseApprover", fields: [approvedBy], references: [id])
+  presidentApprover User?    @relation("ExpensePresidentApprover", fields: [presidentApprovedBy], references: [id])
+  gsApprover        User?    @relation("ExpenseGsApprover", fields: [gsApprovedBy], references: [id])
+
+  @@index([status])
+}
+
+model ExpenseItem {
+  id        String  @id @default(cuid())
+  expenseId String
+  itemName  String
+  quantity  Int     @default(1)
+  unit      String  @default("pcs")
+  price     Float
+
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
 }
 
 model TreasuryDeposit {

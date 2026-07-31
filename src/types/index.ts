@@ -172,23 +172,34 @@ export interface Budget {
   expenses?: Expense[];
 }
 
+export interface ExpenseItem {
+  id: string;
+  expenseId: string;
+  itemName: string;
+  quantity: number;
+  unit: string;
+  price: number;
+}
+
 export interface Expense {
   id: string;
   title: string;
   amount: number;
-  category: string;
-  description?: string;
-  proofUrl?: string;
+  date: string;
+  purchasedBy?: string | null;
+  attachmentUrl?: string | null;
   status: ExpenseStatus;
-  fundingSource?: string;
-  budgetId: string;
+  presidentStatus: ExpenseStatus;
+  gsStatus: ExpenseStatus;
+  presidentApprovedBy?: string | null;
+  gsApprovedBy?: string | null;
   createdBy: string;
-  approvedBy?: string;
   createdAt: string;
   updatedAt: string;
-  budget?: Budget;
+  items?: ExpenseItem[];
   creator?: User;
-  approver?: User;
+  presidentApprover?: Pick<User, 'id' | 'name'> | null;
+  gsApprover?: Pick<User, 'id' | 'name'> | null;
 }
 
 export interface TreasuryDeposit {
