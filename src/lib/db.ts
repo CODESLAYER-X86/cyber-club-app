@@ -5,11 +5,16 @@ import { Pool } from "pg";
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createClient(): PrismaClient {
-  // Supabase uses PgBouncer (transaction pooler) — require_ssl by default
-  // DATABASE_URL = pooler connection (port 6543) for app queries
-  // DIRECT_URL   = direct connection (port 5432) for migrations only
+  // Prefer the direct Supabase connection when available so runtime queries
+  // do not fail if the pooler URL is missing or unhealthy.
+  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    throw new Error("Database connection is not configured");
+  }
+
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL,
+    connectionString,
     ssl: { rejectUnauthorized: false }, // Supabase requires SSL
     max: 2, // Restrict pool size in serverless/edge to prevent connection exhaustion
     idleTimeoutMillis: 30000,

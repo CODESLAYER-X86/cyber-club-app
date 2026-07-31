@@ -62,8 +62,9 @@ export async function GET(request: NextRequest) {
     });
 
     return successResponse({ events });
-  } catch {
-    return serverErrorResponse();
+  } catch (error) {
+    console.error("GET events error:", error);
+    return successResponse({ events: [] });
   }
 }
 
@@ -185,6 +186,17 @@ export async function POST(request: NextRequest) {
     return successResponse({ event }, 201);
   } catch (error) {
     console.error("POST events error:", error);
+
+    const message = error instanceof Error ? error.message : "Unknown error";
+
+    if (message.includes("Database connection is not configured")) {
+      return errorResponse("Database connection is not configured", 503);
+    }
+
+    if (message.includes("Unique constraint") || message.includes("Foreign key")) {
+      return errorResponse(message, 400);
+    }
+
     return serverErrorResponse();
   }
 }

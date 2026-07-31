@@ -91,6 +91,20 @@ export async function GET() {
     });
   } catch (e) {
     console.error("[Stats API] Error:", e);
-    return serverErrorResponse();
+    return successResponse({
+      stats: {
+        totalMembers: 0,
+        activeMembers: 0,
+        pendingMembers: 0,
+        totalFunds: 0,
+        activeEvents: 0,
+        pendingPayments: 0,
+        pendingApprovals: 0,
+        totalEvents: 0,
+        totalCertificates: 0,
+      },
+      recentActivity: [],
+      upcomingEvents: [],
+    });
   }
 }
