@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback } from 'react';
+import type { Transition } from 'framer-motion';
 
 /**
  * Mobile-optimized hook to detect viewport size and reduce animations on low-end devices
@@ -54,14 +55,14 @@ export function useMobileOptimized() {
   }, [reduceMotion, isLowEndDevice]);
 
   // Transition values for framer-motion
-  const getTransitionConfig = useCallback(() => {
+  const getTransitionConfig = useCallback((): Transition => {
     if (reduceMotion) {
       return { duration: 0 };
     }
     if (isLowEndDevice) {
-      return { duration: 0.15, ease: 'linear' };
+      return { duration: 0.15, ease: 'linear' as const };
     }
-    return { duration: 0.2, ease: 'easeOut' };
+    return { duration: 0.2, ease: 'easeOut' as const };
   }, [reduceMotion, isLowEndDevice]);
 
   return {
