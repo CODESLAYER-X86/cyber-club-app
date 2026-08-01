@@ -13,6 +13,17 @@ import { Badge } from '@/components/ui/badge';
 import { Card } from '@/components/ui/card';
 import { toast } from 'sonner';
 import { jsPDF } from 'jspdf';
+import {
+  TextElementKey,
+  PositionedTextElement,
+  resolveTextElements,
+  resolveTextColors,
+  resolveLogoElements,
+  resolveSignatureLayouts,
+  buildDefaultTextValues,
+  applyCustomTextValues,
+  LogoKey,
+} from '@/lib/certificate-layout';
 
 interface CertificateData {
   id: string;
@@ -57,6 +68,12 @@ const CERT_TYPE_LABELS: Record<string, string> = {
   APPRECIATION: 'Appreciation',
   CUSTOM: 'Custom Type',
 };
+
+const ALL_TEXT_KEYS: TextElementKey[] = [
+  'headerTitle', 'headerSubtitle', 'intro', 'recipientName', 'eventLabel',
+  'eventName', 'certificateTitle', 'description', 'issueDate', 'issueDateLabel',
+  'certificateId', 'footer',
+];
 
 export function CertificatePublicPage() {
   const { certificateShareCode, setCurrentView } = useAppStore();
@@ -127,6 +144,20 @@ export function CertificatePublicPage() {
     .replace('{{certificate_id}}', cert?.certificateCode || '')
     .replace('{{issue_date}}', dateStr);
 
+  // ─── Resolve layout-driven styling from designer config ───
+  const textEls = resolveTextElements(layout, isLandscape);
+  const textColors = resolveTextColors(layout);
+  const logoEls = resolveLogoElements(layout, isLandscape);
+  const sigLayouts = resolveSignatureLayouts(layout, isLandscape);
+
+  const host = typeof window !== 'undefined' ? window.location.host : 'cybersec.club';
+  const protocol = typeof window !== 'undefined' && window.location.hostname.includes('localhost') ? 'http' : 'https';
+  const verifyUrl = `${protocol}://${host}/?cert=${cert?.certificateCode || ''}`;
+  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=ffffff&bgcolor=0a0a0a&data=${encodeURIComponent(verifyUrl)}`;
+
+  const defaultTextValues = buildDefaultTextValues(displayName, eventTitle, certTitle, resolvedDesc, dateStr, cert?.certificateCode || '', verifyUrl);
+  const textValues = applyCustomTextValues(defaultTextValues, layout.customTextValues);
+
   const activeSigs = layout.signatures ? layout.signatures.filter((s: any) => s.visible) : [];
   const sigCount = activeSigs.length;
 
@@ -135,14 +166,48 @@ export function CertificatePublicPage() {
   const qrX = layout.qrCode ? (layout.qrCode.x || (width - 160)) : (width - 160);
   const qrY = layout.qrCode ? (layout.qrCode.y || (height - 150)) : (height - 150);
 
-  const idVisible = layout.certId ? (layout.certId.visible ?? true) : true;
-  const idX = layout.certId ? (layout.certId.x || (width / 2)) : (width / 2);
-  const idY = layout.certId ? (layout.certId.y || 480) : 480;
+  // ─── Render Text Element ───
+  const renderText = (key: TextElementKey) => {
+    const el: PositionedTextElement = textEls[key];
+    if (el.visible === false) return null;
+    const value = textValues[key];
+    const effectiveColor = el.color || textColors[key] || '#ffffff';
+    const fillAttr = key === 'recipientName' ? 'url(#textGrad)' : effectiveColor;
+    return (
+      <text
+        key={key}
+        x={el.x}
+        y={el.y}
+        textAnchor={el.textAnchor || 'middle'}
+        fontFamily={el.fontFamily || 'sans-serif'}
+        fontSize={el.fontSize}
+        fontWeight={el.fontWeight}
+        fill={fillAttr}
+        letterSpacing={el.letterSpacing}
+      >
+        {value}
+      </text>
+    );
+  };
 
-  const host = typeof window !== 'undefined' ? window.location.host : 'cybersec.club';
-  const protocol = typeof window !== 'undefined' && window.location.hostname.includes('localhost') ? 'http' : 'https';
-  const verifyUrl = `${protocol}://${host}/?cert=${cert?.certificateCode || ''}`;
-  const qrCodeUrl = `https://api.qrserver.com/v1/create-qr-code/?size=150x150&color=ffffff&bgcolor=0a0a0a&data=${encodeURIComponent(verifyUrl)}`;
+  // ─── Render Logo ───
+  const renderLogo = (key: LogoKey, href: string, show: boolean) => {
+    if (!show || !href) return null;
+    const logo = logoEls[key];
+    if (logo.visible === false) return null;
+    return (
+      <image
+        key={key}
+        x={logo.x}
+        y={logo.y}
+        width={logo.width}
+        height={logo.height}
+        href={href}
+        preserveAspectRatio={logo.keepAspectRatio !== false ? 'xMidYMid meet' : 'none'}
+        opacity={logo.opacity ?? 1}
+      />
+    );
+  };
 
   const handleLinkedInShare = () => {
     window.open(
@@ -193,7 +258,6 @@ export function CertificatePublicPage() {
     }
 
     setDownloading(true);
-    // Convert SVG to canvas
     const svgString = new XMLSerializer().serializeToString(svgElement);
     const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
     const blobUrl = URL.createObjectURL(svgBlob);
@@ -201,13 +265,12 @@ export function CertificatePublicPage() {
     const img = new Image();
     img.onload = () => {
       const canvas = document.createElement("canvas");
-      canvas.width = width * 1.5; // Optimized scale factor for balance of quality and size
+      canvas.width = width * 1.5;
       canvas.height = height * 1.5;
       const ctx = canvas.getContext("2d");
       if (ctx) {
         ctx.scale(1.5, 1.5);
         ctx.drawImage(img, 0, 0, width, height);
-        // Use JPEG with 0.8 compression instead of lossless PNG to dramatically reduce PDF size
         const imgData = canvas.toDataURL("image/jpeg", 0.8);
 
         const pdf = new jsPDF({
@@ -328,7 +391,7 @@ export function CertificatePublicPage() {
                   <image x="0" y="0" width={width} height={height} href={layout.bgImage} preserveAspectRatio="xMidYMid slice" />
                 ) : (
                   <>
-                    <rect width={width} height={height} fill="#000000" />
+                    <rect width={width} height={height} fill={layout.bgColor || "#000000"} />
                     <rect width={width} height={height} fill="url(#grid)" />
                   </>
                 )}
@@ -336,71 +399,51 @@ export function CertificatePublicPage() {
                 {/* Borders */}
                 <rect x="15" y="15" width={width - 30} height={height - 30} rx="16" fill="none" stroke="url(#borderGrad)" strokeWidth="2"/>
                 <path d="M 30 30 L 30 60 M 30 30 L 60 30" stroke={primaryColor} strokeWidth="2" opacity="0.5"/>
-                <path d={`M ${width - 30} 30 L ${width - 30} 60 M ${width - 30} 30 L ${width - 60} 30`} stroke={secondaryColor} stroke-width="2" opacity="0.5"/>
-                <path d={`M 30 ${height - 30} L 30 ${height - 60} M 30 ${height - 30} L 60 ${height - 30}`} stroke={primaryColor} stroke-width="2" opacity="0.5"/>
-                <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} stroke-width="2" opacity="0.5"/>
+                <path d={`M ${width - 30} 30 L ${width - 30} 60 M ${width - 30} 30 L ${width - 60} 30`} stroke={secondaryColor} strokeWidth="2" opacity="0.5"/>
+                <path d={`M 30 ${height - 30} L 30 ${height - 60} M 30 ${height - 30} L 60 ${height - 30}`} stroke={primaryColor} strokeWidth="2" opacity="0.5"/>
+                <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.5"/>
                 
-                {layout.collabMode && layout.orgLogo && (
-                  <image x="50" y="45" width="80" height="80" href={layout.orgLogo} />
-                )}
-                {layout.collabMode && layout.eventLogo && (
-                  <image x={isLandscape ? 1070 : 710} y="45" width="80" height="80" href={layout.eventLogo} />
-                )}
-
-                {/* Badge/Seal */}
-                <g transform={`translate(${width / 2 - 60}, 45)`}>
-                  <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} stroke-width="2" opacity="0.6"/>
-                  <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke={primaryColor} stroke-width="1"/>
-                  <text x="60" y="75" text-anchor="middle" fontFamily="sans-serif" fontSize="28" fill={primaryColor}>✓</text>
-                </g>
-                
-                <text x={width / 2} y={isLandscape ? 210 : 230} text-anchor="middle" fontFamily="sans-serif" fontSize="22" fontWeight="bold" fill="#ffffff" letterSpacing="6">CYBER SECURITY CLUB</text>
-                <text x={width / 2} y={isLandscape ? 235 : 255} text-anchor="middle" fontFamily="sans-serif" fontSize="12" fill="#6b7280" letterSpacing="2">VERIFIED DIGITAL CERTIFICATE</text>
-                
-                <text x={width / 2} y={isLandscape ? 290 : 320} text-anchor="middle" fontFamily="sans-serif" fontSize="16" fill="#9ca3af">This is to certify that</text>
-                <text x={width / 2} y={isLandscape ? 350 : 390} text-anchor="middle" fontFamily="sans-serif" fontSize="42" fontWeight="bold" fill="url(#textGrad)">{displayName}</text>
-                <text x={width / 2} y={isLandscape ? 395 : 440} text-anchor="middle" fontFamily="sans-serif" fontSize="16" fill="#9ca3af">has successfully completed the event</text>
-                <text x={width / 2} y={isLandscape ? 435 : 480} text-anchor="middle" fontFamily="sans-serif" fontSize="26" fontWeight="bold" fill="#ffffff">{eventTitle}</text>
-                
-                <g transform={`translate(${width / 2 - 130}, ${isLandscape ? 465 : 520})`}>
-                  <rect width="260" height="32" rx="16" fill="url(#typeGrad)" opacity="0.2"/>
-                  <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGrad)" stroke-width="1"/>
-                  <text x="130" y="20" text-anchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill="#ffffff">{certTitle}</text>
-                </g>
-                
-                <text x={width / 2} y={isLandscape ? 535 : 600} text-anchor="middle" fontFamily="sans-serif" fontSize="13" fill="#6b7280" width={width - 200}>
-                  {resolvedDesc}
-                </text>
-                
-                {idVisible && (
-                  <text x={idX} y={idY} textAnchor="middle" fontFamily="monospace" fontSize="14" fill={primaryColor}>{cert.certificateCode}</text>
+                {/* Logos - from layout */}
+                {renderLogo('orgLogo', layout.orgLogo, layout.collabMode && !!layout.orgLogo)}
+                {renderLogo('eventLogo', layout.eventLogo, layout.collabMode && !!layout.eventLogo)}
+                {layout.clubLogo ? renderLogo('clubLogo', layout.clubLogo, true) : (
+                  <g transform={`translate(${logoEls.clubLogo.x}, ${logoEls.clubLogo.y})`}>
+                    <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} strokeWidth="2" opacity="0.6"/>
+                    <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke={primaryColor} strokeWidth="1"/>
+                    <text x="60" y="75" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fill={primaryColor}>✓</text>
+                  </g>
                 )}
 
+                {/* All Text Elements - from layout config */}
+                {ALL_TEXT_KEYS.map(key => renderText(key))}
+
+                {/* Score (not part of textElements, keep separate) */}
                 {cert.score !== null && cert.score !== undefined && (
-                  <text x={width / 2} y={isLandscape ? 565 : 640} text-anchor="middle" fontFamily="sans-serif" fontSize="16" fill="#22d3ee">Score: {cert.score}%</text>
+                  <text x={width / 2} y={isLandscape ? 565 : 640} textAnchor="middle" fontFamily="sans-serif" fontSize="16" fill="#22d3ee">Score: {cert.score}%</text>
                 )}
 
-                {/* Signatures */}
+                {/* Signatures - from layout config */}
                 {sigCount > 0 ? (
                   activeSigs.map((sig: any, idx: number) => {
-                    const xPos = sigCount === 1 ? (width / 2) : sigCount === 2 ? (width / 2 - 200 + idx * 400) : (width / 2 - 300 + idx * 300);
-                    const yPos = isLandscape ? 700 : 960;
+                    const sigLayout = sig.layout || sigLayouts[idx] || sigLayouts[0];
+                    const xPos = sigLayout?.x ?? (width / 2);
+                    const yPos = sigLayout?.y ?? (isLandscape ? 700 : 960);
                     return (
                       <g key={idx} transform={`translate(${xPos}, ${yPos})`}>
                         <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
                         {sig.image && <image x="-50" y="-60" width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
-                        <text x="0" y="20" text-anchor="middle" fontFamily="sans-serif" fontSize="14" fontWeight="bold" fill="#ffffff">{sig.name}</text>
-                        <text x="0" y="38" text-anchor="middle" fontFamily="sans-serif" fontSize="11" fill="#6b7280">{sig.title}</text>
+                        <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize={sigLayout?.nameFontSize || 14} fontWeight="bold" fill={sigLayout?.nameColor || textColors.signatureName}>{sig.name}</text>
+                        <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize={sigLayout?.titleFontSize || 11} fill={sigLayout?.titleColor || textColors.signatureTitle}>{sig.title}</text>
                       </g>
                     );
                   })
                 ) : (
                   <g transform={`translate(${width / 2}, ${isLandscape ? 700 : 960})`}>
-                    <text x="0" y="20" text-anchor="middle" fontFamily="sans-serif" fontSize="12" fill="#4b5563">[No Signatures Configured]</text>
+                    <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill="#4b5563">[No Signatures Configured]</text>
                   </g>
                 )}
 
-                {/* Custom Placed QR code */}
+                {/* QR Code */}
                 {qrVisible && (
                   <g transform={`translate(${qrX}, ${qrY})`}>
                     <rect x="-5" y="-5" width={qrSize + 10} height={qrSize + 10} fill="#ffffff" rx="4"/>
@@ -408,11 +451,8 @@ export function CertificatePublicPage() {
                   </g>
                 )}
 
-                <text x="140" y={isLandscape ? 750 : 1010} text-anchor="middle" fontFamily="sans-serif" fontSize="12" fill="#9ca3af">{dateStr}</text>
-                <text x="140" y={isLandscape ? 768 : 1028} text-anchor="middle" fontFamily="sans-serif" fontSize="10" fill="#4b5563">Issue Date</text>
-
-                <line x1="100" y1={height - 50} x2={width - 100} y2={height - 50} stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
-                <text x={width / 2} y={height - 30} text-anchor="middle" fontFamily="sans-serif" fontSize="10" fill="#4b5563">Verification URL: {verifyUrl}</text>
+                {/* Footer line */}
+                <line x1="100" y1={height - 50} x2={width - 100} y2={height - 50} stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>
               </svg>
             </div>
 
