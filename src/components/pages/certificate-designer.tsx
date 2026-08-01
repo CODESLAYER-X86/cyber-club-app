@@ -118,6 +118,7 @@ interface LayoutConfig {
   templates: Record<string, TextTemplate>;
   selectedTypes: string[];
   signatures: SignatureConfig[];
+  customTextValues?: Partial<Record<TextElementKey, string>>;
 }
 
 /* ─── Constants ─── */
@@ -371,8 +372,8 @@ export function CertificateDesigner() {
                 );
               }
 
-              if ((layout as any).customTextValues) {
-                setCustomTextValues((layout as any).customTextValues);
+              if (layout.customTextValues) {
+                setCustomTextValues(layout.customTextValues);
               }
             } catch (e) {
               console.error('Failed to parse certificate layout JSON:', e);
