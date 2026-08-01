@@ -1,0 +1,606 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useMemo } from 'react';
+     4→import { motion } from 'framer-motion';
+     5→import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity, TrendingUp, Bell, Info, Clock, UserCheck, Wallet, ShieldCheck, Ban, Receipt, Megaphone } from 'lucide-react';
+     6→import { useAppStore } from '@/store/use-app-store';
+     7→import type { UserRole, Event, Payment, Certificate, User } from '@/types';
+     8→import { StatCard } from '@/components/shared/stat-card';
+     9→import { EventBadge, MembershipBadge } from '@/components/shared/status-badge';
+    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    11→import { Button } from '@/components/ui/button';
+    12→import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+    13→
+    14→interface DashboardStats {
+    15→  totalMembers: number; totalFunds: number; activeEvents: number; pendingApprovals: number;
+    16→  recentActivity: { action: string; details: string; createdAt: string }[];
+    17→  upcomingEvents: Event[];
+    18→}
+    19→
+    20→interface AuditLogEntry {
+    21→  id: string;
+    22→  action: string;
+    23→  details: string;
+    24→  createdAt: string;
+    25→  user?: { name: string; email: string };
+    26→}
+    27→
+    28→const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string; label: string }> = {
+    29→  PAYMENT_VERIFIED: { icon: Wallet, color: '#10b981', label: 'Payment Verified' },
+    30→  EXPENSE_APPROVED: { icon: Receipt, color: '#10b981', label: 'Expense Approved' },
+    31→  ROLE_ASSIGNED: { icon: ShieldCheck, color: '#f59e0b', label: 'Role Assigned' },
+    32→  BUDGET_CREATED: { icon: DollarSign, color: '#06b6d4', label: 'Deposit Created' },
+    33→  PAYMENT_REJECTED: { icon: Ban, color: '#ef4444', label: 'Payment Rejected' },
+    34→  EXPENSE_REJECTED: { icon: Ban, color: '#ef4444', label: 'Expense Rejected' },
+    35→  USER_APPROVED: { icon: UserCheck, color: '#10b981', label: 'User Approved' },
+    36→  USER_REJECTED: { icon: Ban, color: '#ef4444', label: 'User Rejected' },
+    37→  ANNOUNCEMENT_CREATED: { icon: Megaphone, color: '#8b5cf6', label: 'Announcement Created' },
+    38→  EVENT_CREATED: { icon: Calendar, color: '#06b6d4', label: 'Event Created' },
+    39→};
+    40→
+    41→function timeAgo(date: string): string {
+    42→  const now = new Date();
+    43→  const then = new Date(date);
+    44→  const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+    45→  if (seconds < 60) return 'just now';
+    46→  const minutes = Math.floor(seconds / 60);
+    47→  if (minutes < 60) return `${minutes}m ago`;
+    48→  const hours = Math.floor(minutes / 60);
+    49→  if (hours < 24) return `${hours}h ago`;
+    50→  const days = Math.floor(hours / 24);
+    51→  if (days < 2) return 'yesterday';
+    52→  return `${days}d ago`;
+    53→}
+    54→
+    55→function getDaysUntil(dateStr: string): number {
+    56→  const now = new Date();
+    57→  now.setHours(0, 0, 0, 0);
+    58→  const target = new Date(dateStr);
+    59→  target.setHours(0, 0, 0, 0);
+    60→  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    61→}
+    62→
+    63→function getGreeting(): string {
+    64→  const hour = new Date().getHours();
+    65→  if (hour < 12) return 'Good Morning';
+    66→  if (hour < 17) return 'Good Afternoon';
+    67→  return 'Good Evening';
+    68→}
+    69→
+    70→const EVENT_CATEGORY_COLORS: Record<string, string> = {
+    71→  WORKSHOP: '#10b981',
+    72→  CTF: '#06b6d4',
+    73→  SEMINAR: '#f59e0b',
+    74→  MEETUP: '#8b5cf6',
+    75→  TRAINING: '#ef4444',
+    76→};
+    77→
+    78→export function DashboardPage() {
+    79→  const { currentUser, setCurrentView, setSelectedEventId, notifications } = useAppStore();
+    80→  const [stats, setStats] = useState<DashboardStats | null>(null);
+    81→  const [certificates, setCertificates] = useState<Certificate[]>([]);
+    82→  const [payments, setPayments] = useState<Payment[]>([]);
+    83→  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
+    84→  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+    85→  const [loading, setLoading] = useState(true);
+    86→
+    87→  useEffect(() => {
+    88→    const load = async () => {
+    89→      setLoading(true);
+    90→      try {
+    91→        const fetchPromises: Promise<any>[] = [
+    92→          fetch('/api/stats').then(res => res.json()),
+    93→          fetch('/api/audit-logs?limit=5').then(res => res.json())
+    94→        ];
+    95→
+    96→        if (currentUser) {
+    97→          fetchPromises.push(fetch(`/api/certificates?userId=${currentUser.id}`).then(res => res.json()));
+    98→          fetchPromises.push(fetch(`/api/payments?userId=${currentUser.id}`).then(res => res.json()));
+    99→
+   100→          if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+   101→            fetchPromises.push(fetch('/api/users/approval').then(res => res.json()));
+   102→          }
+   103→        }
+   104→
+   105→        const results = await Promise.all(fetchPromises);
+   106→
+   107→        const statsData = results[0];
+   108→        if (statsData?.success && statsData.data) {
+   109→          const d = statsData.data;
+   110→          const s = d.stats || d;
+   111→          setStats({
+   112→            totalMembers: s.totalMembers ?? 0,
+   113→            totalFunds: s.totalFunds ?? 0,
+   114→            activeEvents: s.activeEvents ?? 0,
+   115→            pendingApprovals: s.pendingApprovals ?? 0,
+   116→            recentActivity: d.recentActivity || [],
+   117→            upcomingEvents: d.upcomingEvents || [],
+   118→          });
+   119→        }
+   120→
+   121→        const auditData = results[1];
+   122→        if (auditData?.success) setAuditLogs(auditData.data.auditLogs || []);
+   123→
+   124→        if (currentUser) {
+   125→          const certData = results[2];
+   126→          if (certData?.success) setCertificates(certData.data.certificates || []);
+   127→
+   128→          const payData = results[3];
+   129→          if (payData?.success) setPayments(payData.data.payments || []);
+   130→
+   131→          if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+   132→            const pendingData = results[4];
+   133→            if (pendingData?.success) setPendingUsers(pendingData.data.users || []);
+   134→          }
+   135→        }
+   136→      } catch (e) { console.error(e); } finally { setLoading(false); }
+   137→    };
+   138→    load();
+   139→  }, [currentUser]);
+   140→
+   141→  const role = currentUser?.role || 'GUEST';
+   142→
+   143→  const recentNotifications = useMemo(() => {
+   144→    return notifications.slice(0, 3);
+   145→  }, [notifications]);
+   146→
+   147→  const greeting = useMemo(() => getGreeting(), []);
+   148→
+   149→  if (loading) {
+   150→    return (
+   151→      <div className="space-y-6 animate-pulse">
+   152→        {/* Skeleton Greeting */}
+   153→        <div className="space-y-2">
+   154→          <div className="h-7 w-48 rounded-lg bg-white/5" />
+   155→          <div className="h-4 w-32 rounded-lg bg-white/5" />
+   156→        </div>
+   157→
+   158→        {/* Skeleton Stat Cards */}
+   159→        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   160→          {[1, 2, 3, 4].map((i) => (
+   161→            <div key={i} className="h-32 rounded-xl border border-white/5 bg-white/[0.02]" />
+   162→          ))}
+   163→        </div>
+   164→
+   165→        {/* Skeleton Main Grid */}
+   166→        <div className="grid gap-6 lg:grid-cols-2">
+   167→          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+   168→          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+   169→        </div>
+   170→
+   171→        {/* Skeleton Second Grid */}
+   172→        <div className="grid gap-6 lg:grid-cols-2">
+   173→          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+   174→          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+   175→        </div>
+   176→      </div>
+   177→    );
+   178→  }
+   179→
+   180→  const renderStatCards = () => {
+   181→    switch (role) {
+   182→      case 'MEMBER':
+   183→        return (
+   184→          <>
+   185→            <StatCard icon={Calendar} label="My Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
+   186→            <StatCard icon={Award} label="My Certificates" value={certificates.length} trend="up" delay={0.1} />
+   187→            <StatCard icon={CreditCard} label="Payments" value={payments.length} trend="neutral" delay={0.2} />
+   188→            <StatCard icon={Calendar} label="Upcoming Events" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} />
+   189→          </>
+   190→        );
+   191→      case 'MEDIA':
+   192→        return (
+   193→          <>
+   194→            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
+   195→            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0.1} />
+   196→            <StatCard icon={FileText} label="Announcements" value={0} trend="neutral" delay={0.2} />
+   197→            <StatCard icon={BarChart3} label="Registrations" value={0} trend="up" delay={0.3} />
+   198→          </>
+   199→        );
+   200→      case 'TREASURER':
+   201→        return (
+   202→          <>
+   203→            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0} />
+   204→            <StatCard icon={CreditCard} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
+   205→            <StatCard icon={CheckCircle} label="Verified Payments" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
+   206→            <StatCard icon={Activity} label="Treasury Balance" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="neutral" delay={0.3} />
+   207→          </>
+   208→        );
+   209→      case 'GS':
+   210→        return (
+   211→          <>
+   212→            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+   213→            <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.1} />
+   214→            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
+   215→            <StatCard icon={FileText} label="Pending Expenses" value={0} trend="neutral" delay={0.3} />
+   216→          </>
+   217→        );
+   218→      case 'VP':
+   219→        return (
+   220→          <>
+   221→            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+   222→            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.1} />
+   223→            <StatCard icon={BarChart3} label="Growth Rate" value="12%" trend="up" delay={0.2} />
+   224→            <StatCard icon={Award} label="Certificates Issued" value={0} trend="neutral" delay={0.3} />
+   225→          </>
+   226→        );
+   227→      case 'PRESIDENT':
+   228→        return (
+   229→          <>
+   230→            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+   231→            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0.1} />
+   232→            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
+   233→            <StatCard icon={AlertTriangle} label="System Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
+   234→          </>
+   235→        );
+   236→      case 'VERIFIER':
+   237→        return (
+   238→          <>
+   239→            <StatCard icon={Calendar} label="Assigned Events" value={stats?.activeEvents ?? 0} trend="neutral" delay={0} />
+   240→            <StatCard icon={CheckCircle} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
+   241→            <StatCard icon={Shield} label="Verified Today" value={0} trend="up" delay={0.2} />
+   242→            <StatCard icon={Activity} label="Total Verified" value={0} trend="up" delay={0.3} />
+   243→          </>
+   244→        );
+   245→      case 'PLATFORM_ADMIN':
+   246→        return (
+   247→          <>
+   248→            <StatCard icon={Users} label="Total Users" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+   249→            <StatCard icon={Activity} label="System Health" value="99.9%" trend="up" delay={0.1} />
+   250→            <StatCard icon={Settings} label="Recent Actions" value={stats?.recentActivity?.length ?? 0} trend="neutral" delay={0.2} />
+   251→            <StatCard icon={AlertTriangle} label="Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
+   252→          </>
+   253→        );
+   254→      default:
+   255→        return (
+   256→          <>
+   257→            <StatCard icon={Users} label="Members" value={stats?.totalMembers ?? 0} delay={0} />
+   258→            <StatCard icon={Calendar} label="Events" value={stats?.activeEvents ?? 0} delay={0.1} />
+   259→          </>
+   260→        );
+   261→    }
+   262→  };
+   263→
+   264→  return (
+   265→    <div className="space-y-6">
+   266→      {/* Greeting Section */}
+   267→      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between">
+   268→        <div>
+   269→          <h1 className="text-2xl font-bold text-white">
+   270→            {greeting}, <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">{currentUser?.name?.split(' ')[0] || 'Guest'}</span>
+   271→          </h1>
+   272→          <p className="text-sm text-gray-500">
+   273→            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+   274→          </p>
+   275→        </div>
+   276→      </motion.div>
+   277→
+   278→      {/* Stat Cards */}
+   279→      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   280→        {renderStatCards()}
+   281→      </div>
+   282→
+   283→      {/* Main Content Grid */}
+   284→      <div className="grid gap-6 lg:grid-cols-2">
+   285→        {/* Upcoming Events */}
+   286→        <Card className={`border-white/5 bg-[#111]/60 backdrop-blur ${role === 'GUEST' ? 'lg:col-span-2' : ''}`}>
+   287→          <CardHeader className="flex flex-row items-center justify-between pb-2">
+   288→            <CardTitle className="text-lg font-semibold text-white">Upcoming Events</CardTitle>
+   289→            <Button variant="ghost" size="sm" onClick={() => setCurrentView('events')} className="text-xs text-emerald-400">View All</Button>
+   290→          </CardHeader>
+   291→          <CardContent>
+   292→            <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
+   293→              {(stats?.upcomingEvents || []).slice(0, 5).map((event, index) => {
+   294→                const borderColor = EVENT_CATEGORY_COLORS[event.category] || '#10b981';
+   295→                return (
+   296→                  <motion.div
+   297→                    key={event.id}
+   298→                    initial={{ opacity: 0, x: -10 }}
+   299→                    animate={{ opacity: 1, x: 0 }}
+   300→                    transition={{ delay: index * 0.05 }}
+   301→                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 cursor-pointer hover:bg-white/[0.04] transition-all duration-200 group"
+   302→                    style={{ borderLeftWidth: '3px', borderLeftColor: borderColor }}
+   303→                    onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}
+   304→                  >
+   305→                    <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: `${borderColor}15` }}>
+   306→                      <Calendar className="h-5 w-5" style={{ color: borderColor }} />
+   307→                    </div>
+   308→                    <div className="flex-1 min-w-0">
+   309→                      <p className="text-sm font-medium text-white truncate group-hover:text-emerald-300 transition-colors">{event.title}</p>
+   310→                      <p className="text-xs text-gray-500 truncate">{new Date(event.startDate).toLocaleDateString()} • {event.venue}</p>
+   311→                    </div>
+   312→                    <EventBadge status={event.status} />
+   313→                  </motion.div>
+   314→                );
+   315→              })}
+   316→              {(!stats?.upcomingEvents || stats.upcomingEvents.length === 0) && (
+   317→                <p className="py-8 text-center text-sm text-gray-500">No upcoming events</p>
+   318→              )}
+   319→            </div>
+   320→          </CardContent>
+   321→        </Card>
+   322→
+   323→        {/* Recent Activity Feed */}
+   324→        {role !== 'GUEST' && (
+   325→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   326→            <CardHeader className="flex flex-row items-center justify-between pb-2">
+   327→              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+   328→                <Activity className="h-5 w-5 text-emerald-400" />
+   329→                Recent Activity
+   330→              </CardTitle>
+   331→              <Button variant="ghost" size="sm" onClick={() => setCurrentView('audit-logs')} className="text-xs text-emerald-400">View All</Button>
+   332→            </CardHeader>
+   333→            <CardContent>
+   334→              <div className="space-y-0 max-h-80 overflow-y-auto custom-scrollbar">
+   335→                {auditLogs.length > 0 ? auditLogs.map((log, index) => {
+   336→                  const config = ACTION_CONFIG[log.action] || { icon: Activity, color: '#6b7280', label: log.action };
+   337→                  const IconComp = config.icon;
+   338→                  const isLast = index === auditLogs.length - 1;
+   339→                  return (
+   340→                    <motion.div
+   341→                      key={log.id}
+   342→                      initial={{ opacity: 0, x: -10 }}
+   343→                      animate={{ opacity: 1, x: 0 }}
+   344→                      transition={{ delay: index * 0.05 }}
+   345→                      className="flex gap-3 relative"
+   346→                    >
+   347→                      {/* Timeline line */}
+   348→                      {!isLast && (
+   349→                        <div className="absolute left-[15px] top-8 bottom-0 w-px bg-gradient-to-b from-white/10 to-transparent" />
+   350→                      )}
+   351→                      {/* Icon */}
+   352→                      <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full z-10" style={{ backgroundColor: `${config.color}15` }}>
+   353→                        <IconComp className="h-3.5 w-3.5" style={{ color: config.color }} />
+   354→                      </div>
+   355→                      {/* Content */}
+   356→                      <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
+   357→                        <p className="text-sm text-white">{config.label}</p>
+   358→                        <p className="text-xs text-gray-500 truncate">{log.details}</p>
+   359→                        <div className="flex items-center gap-2 mt-0.5">
+   360→                          <span className="text-[10px] text-gray-600">{log.user?.name || 'System'}</span>
+   361→                          <span className="text-[10px] text-gray-700">•</span>
+   362→                          <span className="text-[10px] text-gray-600">{timeAgo(log.createdAt)}</span>
+   363→                        </div>
+   364→                      </div>
+   365→                    </motion.div>
+   366→                  );
+   367→                }) : (
+   368→                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+   369→                    <Activity className="mb-2 h-8 w-8 text-gray-600" />
+   370→                    <p className="text-sm">No recent activity</p>
+   371→                  </div>
+   372→                )}
+   373→              </div>
+   374→            </CardContent>
+   375→          </Card>
+   376→        )}
+   377→      </div>
+   378→
+   379→      {/* Upcoming Deadlines & Pending Approvals Row */}
+   380→      <div className="grid gap-6 lg:grid-cols-2">
+   381→        {/* Upcoming Deadlines */}
+   382→        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   383→          <CardHeader className="flex flex-row items-center justify-between pb-2">
+   384→            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+   385→              <Clock className="h-5 w-5 text-amber-400" />
+   386→              Upcoming Deadlines
+   387→            </CardTitle>
+   388→          </CardHeader>
+   389→          <CardContent>
+   390→            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+   391→              {(() => {
+   392→                const now = new Date();
+   393→                const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+   394→                const upcomingDeadlines = (stats?.upcomingEvents || []).filter(e => {
+   395→                  const eventDate = new Date(e.startDate);
+   396→                  return eventDate >= now && eventDate <= nextWeek;
+   397→                });
+   398→                if (upcomingDeadlines.length === 0) {
+   399→                  return (
+   400→                    <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+   401→                      <Clock className="mb-2 h-8 w-8 text-gray-600" />
+   402→                      <p className="text-sm">No deadlines in the next 7 days</p>
+   403→                    </div>
+   404→                  );
+   405→                }
+   406→                return upcomingDeadlines.map((event, index) => {
+   407→                  const daysLeft = getDaysUntil(event.startDate);
+   408→                  const urgencyColor = daysLeft <= 1 ? '#ef4444' : daysLeft <= 3 ? '#f59e0b' : '#6b7280';
+   409→                  const urgencyLabel = daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft} days`;
+   410→                  const urgencyBg = daysLeft <= 1 ? 'bg-red-500/10 border-red-500/20' : daysLeft <= 3 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-gray-500/10 border-gray-500/20';
+   411→                  return (
+   412→                    <motion.div
+   413→                      key={event.id}
+   414→                      initial={{ opacity: 0, y: 10 }}
+   415→                      animate={{ opacity: 1, y: 0 }}
+   416→                      transition={{ delay: index * 0.05 }}
+   417→                      className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors cursor-pointer"
+   418→                      onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}
+   419→                    >
+   420→                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${urgencyColor}15` }}>
+   421→                        <Clock className="h-5 w-5" style={{ color: urgencyColor }} />
+   422→                      </div>
+   423→                      <div className="flex-1 min-w-0">
+   424→                        <p className="text-sm font-medium text-white truncate">{event.title}</p>
+   425→                        <p className="text-xs text-gray-500">{new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+   426→                      </div>
+   427→                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${urgencyBg}`} style={{ color: urgencyColor }}>
+   428→                        {urgencyLabel}
+   429→                      </span>
+   430→                    </motion.div>
+   431→                  );
+   432→                });
+   433→              })()}
+   434→            </div>
+   435→          </CardContent>
+   436→        </Card>
+   437→
+   438→        {/* Pending Approvals (for admin roles) */}
+   439→        {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && (
+   440→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   441→            <CardHeader className="flex flex-row items-center justify-between pb-2">
+   442→              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+   443→                <AlertTriangle className="h-5 w-5 text-amber-400" />
+   444→                Pending Approvals
+   445→              </CardTitle>
+   446→              <Button variant="ghost" size="sm" onClick={() => setCurrentView('member-approval')} className="text-xs text-amber-400">View All</Button>
+   447→            </CardHeader>
+   448→            <CardContent>
+   449→              <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+   450→                {pendingUsers.length > 0 ? pendingUsers.map((u) => (
+   451→                  <div key={u.id} className="flex items-center gap-3 rounded-lg border border-amber-500/10 bg-amber-500/5 p-3">
+   452→                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-400 text-sm font-bold">{u.name?.charAt(0)}</div>
+   453→                    <div className="flex-1 min-w-0">
+   454→                      <p className="text-sm font-medium text-white">{u.name}</p>
+   455→                      <p className="text-xs text-gray-500">{u.email} • {u.department}</p>
+   456→                    </div>
+   457→                    <MembershipBadge status={u.membershipStatus} />
+   458→                  </div>
+   459→                )) : (
+   460→                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+   461→                    <CheckCircle className="mb-2 h-8 w-8 text-emerald-600" />
+   462→                    <p className="text-sm">All caught up!</p>
+   463→                    <p className="text-xs text-gray-600">No pending approvals</p>
+   464→                  </div>
+   465→                )}
+   466→              </div>
+   467→            </CardContent>
+   468→          </Card>
+   469→        )}
+   470→      </div>
+   471→
+   472→      {/* Quick Actions */}
+   473→      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   474→        <CardHeader className="pb-2">
+   475→          <CardTitle className="text-lg font-semibold text-white">Quick Actions</CardTitle>
+   476→        </CardHeader>
+   477→        <CardContent>
+   478→          <div className="flex flex-wrap gap-3">
+   479→            {role === 'MEMBER' && (
+   480→              <>
+   481→                <Button onClick={() => setCurrentView('events')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20">
+   482→                  <Calendar className="mr-2 h-4 w-4" />Register for Event
+   483→                </Button>
+   484→                <Button onClick={() => setCurrentView('certificates')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20">
+   485→                  <Award className="mr-2 h-4 w-4" />View Certificates
+   486→                </Button>
+   487→              </>
+   488→            )}
+   489→            {role === 'MEDIA' && <Button onClick={() => setCurrentView('create-event')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Calendar className="mr-2 h-4 w-4" />Create Event</Button>}
+   490→            {role === 'TREASURER' && (
+   491→              <>
+   492→                <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>
+   493→                <Button onClick={() => setCurrentView('deposits')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><DollarSign className="mr-2 h-4 w-4" />Manage Deposits</Button>
+   494→              </>
+   495→            )}
+   496→            {role === 'PRESIDENT' && (
+   497→              <>
+   498→                <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Manage Members</Button>
+   499→                <Button onClick={() => setCurrentView('roles')} className="bg-gradient-to-r from-amber-600 to-amber-500 text-white hover:from-amber-500 hover:to-amber-400 border-0 shadow-lg shadow-amber-500/20"><Shield className="mr-2 h-4 w-4" />Assign Roles</Button>
+   500→                <Button onClick={() => setCurrentView('audit-logs')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><FileText className="mr-2 h-4 w-4" />Audit Logs</Button>
+   501→              </>
+   502→            )}
+   503→            {role === 'GS' && <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Approve Members</Button>}
+   504→            {role === 'VERIFIER' && <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>}
+   505→          </div>
+   506→        </CardContent>
+   507→      </Card>
+   508→
+   509→      {/* Insights Chart - For leadership roles */}
+   510→      {['PRESIDENT', 'VP', 'TREASURER', 'PLATFORM_ADMIN'].includes(role) && (
+   511→        <div className="grid gap-6 lg:grid-cols-2">
+   512→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   513→            <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><TrendingUp className="h-5 w-5 text-emerald-400" />Member Growth</CardTitle></CardHeader>
+   514→            <CardContent>
+   515→              <ResponsiveContainer width="100%" height={220}>
+   516→                <BarChart data={[
+   517→                  { month: 'Jan', members: 3 }, { month: 'Feb', members: 5 }, { month: 'Mar', members: 6 },
+   518→                  { month: 'Apr', members: 7 }, { month: 'May', members: 9 }, { month: 'Jun', members: stats?.totalMembers || 10 },
+   519→                ]}>
+   520→                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+   521→                  <XAxis dataKey="month" stroke="#666" fontSize={12} />
+   522→                  <YAxis stroke="#666" fontSize={12} />
+   523→                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+   524→                  <Bar dataKey="members" fill="#10b981" radius={[4, 4, 0, 0]} />
+   525→                </BarChart>
+   526→              </ResponsiveContainer>
+   527→            </CardContent>
+   528→          </Card>
+   529→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   530→            <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><BarChart3 className="h-5 w-5 text-cyan-400" />Event Distribution</CardTitle></CardHeader>
+   531→            <CardContent className="flex items-center justify-center">
+   532→              <ResponsiveContainer width="100%" height={220}>
+   533→                <PieChart>
+   534→                  <Pie
+   535→                    data={[
+   536→                      { name: 'Workshops', value: 35, fill: '#10b981' },
+   537→                      { name: 'CTF', value: 25, fill: '#06b6d4' },
+   538→                      { name: 'Seminars', value: 20, fill: '#f59e0b' },
+   539→                      { name: 'Meetups', value: 15, fill: '#8b5cf6' },
+   540→                      { name: 'Training', value: 5, fill: '#ef4444' },
+   541→                    ]}
+   542→                    cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value"
+   543→                  >
+   544→                  </Pie>
+   545→                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+   546→                </PieChart>
+   547→              </ResponsiveContainer>
+   548→              <div className="absolute flex flex-wrap justify-center gap-3">
+   549→                {[{n:'Workshops',c:'#10b981'},{n:'CTF',c:'#06b6d4'},{n:'Seminars',c:'#f59e0b'},{n:'Meetups',c:'#8b5cf6'},{n:'Training',c:'#ef4444'}].map(item => (
+   550→                  <div key={item.n} className="flex items-center gap-1.5 text-xs"><div className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:item.c}}/><span className="text-gray-400">{item.n}</span></div>
+   551→                ))}
+   552→              </div>
+   553→            </CardContent>
+   554→          </Card>
+   555→        </div>
+   556→      )}
+   557→
+   558→      {/* Recent Notifications Section */}
+   559→      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   560→        <CardHeader className="flex flex-row items-center justify-between pb-2">
+   561→          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+   562→            <Bell className="h-5 w-5 text-cyan-400" />
+   563→            Recent Notifications
+   564→          </CardTitle>
+   565→          <Button variant="ghost" size="sm" onClick={() => setCurrentView('notifications')} className="text-xs text-cyan-400">View All</Button>
+   566→        </CardHeader>
+   567→        <CardContent>
+   568→          {recentNotifications.length > 0 ? (
+   569→            <div className="space-y-3">
+   570→              {recentNotifications.map((notification, index) => {
+   571→                const typeColor = notification.type === 'SUCCESS' ? '#10b981' : notification.type === 'WARNING' ? '#f59e0b' : notification.type === 'ERROR' ? '#ef4444' : '#06b6d4';
+   572→                return (
+   573→                  <motion.div
+   574→                    key={notification.id}
+   575→                    initial={{ opacity: 0, y: 10 }}
+   576→                    animate={{ opacity: 1, y: 0 }}
+   577→                    transition={{ delay: index * 0.1 }}
+   578→                    className="flex items-start gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors"
+   579→                    style={{ borderLeftWidth: '3px', borderLeftColor: typeColor }}
+   580→                  >
+   581→                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${typeColor}15` }}>
+   582→                      <Info className="h-4 w-4" style={{ color: typeColor }} />
+   583→                    </div>
+   584→                    <div className="flex-1 min-w-0">
+   585→                      <p className="text-sm font-medium text-white">{notification.title}</p>
+   586→                      <p className="text-xs text-gray-500 truncate">{notification.message}</p>
+   587→                    </div>
+   588→                    <span className="shrink-0 text-[10px] text-gray-600">
+   589→                      {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+   590→                    </span>
+   591→                  </motion.div>
+   592→                );
+   593→              })}
+   594→            </div>
+   595→          ) : (
+   596→            <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+   597→              <Bell className="mb-2 h-8 w-8 text-gray-600" />
+   598→              <p className="text-sm">No notifications yet</p>
+   599→            </div>
+   600→          )}
+   601→        </CardContent>
+   602→      </Card>
+   603→    </div>
+   604→  );
+   605→}
+   606→
