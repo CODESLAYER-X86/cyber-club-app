@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/db';
-import { successResponse, errorResponse, serverErrorResponse } from '@/lib/api-utils';
+import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from '@/lib/api-utils';
+import { getSupabaseUser } from '@/lib/supabase-server';
 
 // ─── PATCH /api/treasury/deposits/[id]/approve ─── Dual approval (President + GS)
 export async function PATCH(
@@ -10,16 +11,35 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { action, approvedBy, role } = body;
+    const { action } = body;
 
     // action: "PRESIDENT_APPROVE" | "GS_APPROVE" | "PRESIDENT_REJECT" | "GS_REJECT"
-    if (!action || !approvedBy || !role) {
-      return errorResponse('action, approvedBy, and role are required', 400);
+    if (!action) {
+      return errorResponse('action is required', 400);
     }
 
-    const validRoles = ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'];
-    if (!validRoles.includes(role)) {
-      return errorResponse('Only President, GS, or Platform Admin can approve/reject', 403);
+    const validActions = ['PRESIDENT_APPROVE', 'GS_APPROVE', 'PRESIDENT_REJECT', 'GS_REJECT'];
+    if (!validActions.includes(action)) {
+      return errorResponse('Invalid action. Use PRESIDENT_APPROVE, GS_APPROVE, PRESIDENT_REJECT, or GS_REJECT', 400);
+    }
+
+    // Authenticate and authorize based on action type
+    let caller: { userId: string; email: string; role: string } | null = null;
+
+    if (action.startsWith('PRESIDENT_')) {
+      caller = await getSupabaseUser(['PRESIDENT', 'PLATFORM_ADMIN']);
+      if (!caller) {
+        return forbiddenResponse('Only President or Platform Admin can give president approval');
+      }
+    } else if (action.startsWith('GS_')) {
+      caller = await getSupabaseUser(['GS', 'PLATFORM_ADMIN']);
+      if (!caller) {
+        return forbiddenResponse('Only GS or Platform Admin can give GS approval');
+      }
+    }
+
+    if (!caller) {
+      return forbiddenResponse('Unauthorized');
     }
 
     const deposit = await prisma.treasuryDeposit.findUnique({ where: { id } });
@@ -35,45 +55,31 @@ export async function PATCH(
     let auditAction = '';
 
     if (action === 'PRESIDENT_APPROVE') {
-      if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only President can give president approval', 403);
-      }
       updateData = {
         presidentStatus: 'APPROVED',
-        presidentApprovedBy: approvedBy,
+        presidentApprovedBy: caller.userId,
       };
       auditAction = 'DEPOSIT_PRESIDENT_APPROVED';
     } else if (action === 'PRESIDENT_REJECT') {
-      if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only President can reject', 403);
-      }
       updateData = {
         presidentStatus: 'REJECTED',
-        presidentApprovedBy: approvedBy,
+        presidentApprovedBy: caller.userId,
         status: 'REJECTED',
       };
       auditAction = 'DEPOSIT_PRESIDENT_REJECTED';
     } else if (action === 'GS_APPROVE') {
-      if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only GS can give GS approval', 403);
-      }
       updateData = {
         gsStatus: 'APPROVED',
-        gsApprovedBy: approvedBy,
+        gsApprovedBy: caller.userId,
       };
       auditAction = 'DEPOSIT_GS_APPROVED';
     } else if (action === 'GS_REJECT') {
-      if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only GS can reject', 403);
-      }
       updateData = {
         gsStatus: 'REJECTED',
-        gsApprovedBy: approvedBy,
+        gsApprovedBy: caller.userId,
         status: 'REJECTED',
       };
       auditAction = 'DEPOSIT_GS_REJECTED';
-    } else {
-      return errorResponse('Invalid action. Use PRESIDENT_APPROVE, GS_APPROVE, PRESIDENT_REJECT, or GS_REJECT', 400);
     }
 
     // If both approved, set overall status to APPROVED
@@ -96,7 +102,7 @@ export async function PATCH(
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        userId: approvedBy,
+        userId: caller.userId,
         action: auditAction,
         details: JSON.stringify({ depositId: id, amount: deposit.amount, action }),
       },

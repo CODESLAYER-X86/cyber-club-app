@@ -1,10 +1,22 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/db';
-import { successResponse, errorResponse, serverErrorResponse } from '@/lib/api-utils';
+import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from '@/lib/api-utils';
+import { getSupabaseUser } from '@/lib/supabase-server';
 
-// ─── GET /api/treasury/deposits ─── List all deposits (with submitter & approver info)
+// ─── GET /api/treasury/deposits ─── List all deposits (authenticated users with finance access)
 export async function GET() {
   try {
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse('Authentication required');
+    }
+
+    // Only finance-related roles can view deposits
+    const FINANCE_ROLES = ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN'];
+    if (!FINANCE_ROLES.includes(caller.role)) {
+      return forbiddenResponse('You do not have access to treasury data');
+    }
+
     const deposits = await prisma.treasuryDeposit.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
@@ -24,12 +36,17 @@ export async function GET() {
 // ─── POST /api/treasury/deposits ─── Create a new deposit (Treasurer/Platform Admin only)
 export async function POST(request: NextRequest) {
   try {
+    const caller = await getSupabaseUser(['TREASURER', 'PLATFORM_ADMIN']);
+    if (!caller) {
+      return forbiddenResponse('Only Treasurer or Platform Admin can create deposits');
+    }
+
     const body = await request.json();
-    const { date, amount, source, note, attachmentUrl, submittedBy } = body;
+    const { date, amount, source, note, attachmentUrl } = body;
 
     // Validate required fields
-    if (!date || !amount || !source || !submittedBy) {
-      return errorResponse('Date, amount, source, and submittedBy are required', 400);
+    if (!date || !amount || !source) {
+      return errorResponse('Date, amount, and source are required', 400);
     }
 
     if (amount <= 0) {
@@ -44,12 +61,6 @@ export async function POST(request: NextRequest) {
       return errorResponse('Invalid source type', 400);
     }
 
-    // Verify the submitter is a TREASURER or PLATFORM_ADMIN
-    const user = await prisma.user.findUnique({ where: { id: submittedBy } });
-    if (!user || !['TREASURER', 'PLATFORM_ADMIN'].includes(user.role)) {
-      return errorResponse('Only Treasurer or Platform Admin can create deposits', 403);
-    }
-
     const deposit = await prisma.treasuryDeposit.create({
       data: {
         date: new Date(date),
@@ -57,7 +68,7 @@ export async function POST(request: NextRequest) {
         source,
         note: note || null,
         attachmentUrl: attachmentUrl || null,
-        submittedBy,
+        submittedBy: caller.userId,
         status: 'PENDING',
         presidentStatus: 'PENDING',
         gsStatus: 'PENDING',
@@ -70,7 +81,7 @@ export async function POST(request: NextRequest) {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        userId: submittedBy,
+        userId: caller.userId,
         action: 'DEPOSIT_CREATED',
         details: JSON.stringify({ depositId: deposit.id, amount: deposit.amount, source: deposit.source }),
       },

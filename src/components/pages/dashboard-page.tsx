@@ -13,6 +13,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGri
 
 interface DashboardStats {
   totalMembers: number; totalFunds: number; activeEvents: number; pendingApprovals: number;
+  totalDeposits: number; totalExpenses: number; currentBalance: number;
+  pendingDepositsCount: number; pendingExpensesCount: number;
   recentActivity: { action: string; details: string; createdAt: string }[];
   upcomingEvents: Event[];
 }
@@ -113,6 +115,11 @@ export function DashboardPage() {
             totalFunds: s.totalFunds ?? 0,
             activeEvents: s.activeEvents ?? 0,
             pendingApprovals: s.pendingApprovals ?? 0,
+            totalDeposits: s.totalDeposits ?? 0,
+            totalExpenses: s.totalExpenses ?? 0,
+            currentBalance: s.currentBalance ?? s.totalFunds ?? 0,
+            pendingDepositsCount: s.pendingDepositsCount ?? 0,
+            pendingExpensesCount: s.pendingExpensesCount ?? 0,
             recentActivity: d.recentActivity || [],
             upcomingEvents: d.upcomingEvents || [],
           });
@@ -200,10 +207,10 @@ export function DashboardPage() {
       case 'TREASURER':
         return (
           <>
-            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0} />
-            <StatCard icon={CreditCard} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
-            <StatCard icon={CheckCircle} label="Verified Payments" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
-            <StatCard icon={Activity} label="Treasury Balance" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="neutral" delay={0.3} />
+            <StatCard icon={Wallet} label="Current Balance" value={`৳${(stats?.currentBalance ?? 0).toLocaleString()}`} trend={stats?.currentBalance && stats.currentBalance >= 0 ? 'up' : 'down'} delay={0} />
+            <StatCard icon={TrendingUp} label="Total Deposits" value={`৳${(stats?.totalDeposits ?? 0).toLocaleString()}`} trend="up" delay={0.1} />
+            <StatCard icon={Receipt} label="Total Expenses" value={`৳${(stats?.totalExpenses ?? 0).toLocaleString()}`} trend="down" delay={0.2} />
+            <StatCard icon={Activity} label="Pending Approvals" value={`${(stats?.pendingDepositsCount ?? 0) + (stats?.pendingExpensesCount ?? 0)}`} trend="neutral" delay={0.3} />
           </>
         );
       case 'GS':
@@ -211,8 +218,8 @@ export function DashboardPage() {
           <>
             <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
             <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.1} />
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
-            <StatCard icon={FileText} label="Pending Expenses" value={0} trend="neutral" delay={0.3} />
+            <StatCard icon={Wallet} label="Current Balance" value={`৳${(stats?.currentBalance ?? 0).toLocaleString()}`} trend={stats?.currentBalance && stats.currentBalance >= 0 ? 'up' : 'down'} delay={0.2} />
+            <StatCard icon={Receipt} label="Pending Expenses" value={stats?.pendingExpensesCount ?? 0} trend="neutral" delay={0.3} />
           </>
         );
       case 'VP':
@@ -228,9 +235,9 @@ export function DashboardPage() {
         return (
           <>
             <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
-            <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0.1} />
+            <StatCard icon={Wallet} label="Current Balance" value={`৳${(stats?.currentBalance ?? 0).toLocaleString()}`} trend={stats?.currentBalance && stats.currentBalance >= 0 ? 'up' : 'down'} delay={0.1} />
             <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
-            <StatCard icon={AlertTriangle} label="System Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
+            <StatCard icon={AlertTriangle} label="Pending Approvals" value={`${(stats?.pendingDepositsCount ?? 0) + (stats?.pendingExpensesCount ?? 0) + pendingUsers.length}`} trend="neutral" delay={0.3} />
           </>
         );
       case 'VERIFIER':

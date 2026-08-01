@@ -106,7 +106,6 @@ export function ExpensesPage() {
             unit: i.unit,
             price: parseFloat(i.price) || 0,
           })),
-          createdBy: currentUser.id,
         }),
       });
       const d = await r.json();
@@ -132,7 +131,7 @@ export function ExpensesPage() {
       const r = await fetch(`/api/expenses/${expenseId}/approve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, approvedBy: currentUser.id, role: currentUser.role }),
+        body: JSON.stringify({ action }),
       });
       const d = await r.json();
       if (d.success) {

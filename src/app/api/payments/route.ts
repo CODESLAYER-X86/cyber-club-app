@@ -58,12 +58,7 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    const paymentsWithReconciled = payments.map(p => ({
-      ...p,
-      reconciled: false,
-    }));
-
-    return successResponse({ payments: paymentsWithReconciled });
+    return successResponse({ payments });
   } catch (e) {
     console.error("[Payments GET API] Error:", e);
     return serverErrorResponse();

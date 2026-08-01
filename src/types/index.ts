@@ -154,7 +154,6 @@ export interface Payment {
   user?: User;
   event?: Event;
   verifier?: User;
-  reconciled?: boolean;
 }
 
 

@@ -55,6 +55,7 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'gallery',
         'achievements',
         'committee',
+        'deposits',
         'expenses',
         'analytics',
         'finance',

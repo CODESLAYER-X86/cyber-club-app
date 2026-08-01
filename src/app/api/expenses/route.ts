@@ -1,10 +1,22 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/db';
-import { successResponse, errorResponse, serverErrorResponse } from '@/lib/api-utils';
+import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from '@/lib/api-utils';
+import { getSupabaseUser } from '@/lib/supabase-server';
 
-// ─── GET /api/expenses ─── List all expenses (with items, creator, approvers)
+// ─── GET /api/expenses ─── List all expenses (authenticated users with finance access)
 export async function GET(request: NextRequest) {
   try {
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse('Authentication required');
+    }
+
+    // Only finance-related roles can view expenses
+    const FINANCE_ROLES = ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN'];
+    if (!FINANCE_ROLES.includes(caller.role)) {
+      return forbiddenResponse('You do not have access to expense data');
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 
@@ -34,18 +46,17 @@ export async function GET(request: NextRequest) {
 // ─── POST /api/expenses ─── Create expense with items (Treasurer/Platform Admin only)
 export async function POST(request: NextRequest) {
   try {
-    const body = await request.json();
-    const { date, note, purchasedBy, attachmentUrl, items, createdBy } = body;
-
-    // Validate required fields
-    if (!date || !items || !items.length || !createdBy) {
-      return errorResponse('Date, items, and createdBy are required', 400);
+    const caller = await getSupabaseUser(['TREASURER', 'PLATFORM_ADMIN']);
+    if (!caller) {
+      return forbiddenResponse('Only Treasurer or Platform Admin can create expenses');
     }
 
-    // Verify the creator is a TREASURER or PLATFORM_ADMIN
-    const user = await prisma.user.findUnique({ where: { id: createdBy } });
-    if (!user || !['TREASURER', 'PLATFORM_ADMIN'].includes(user.role)) {
-      return errorResponse('Only Treasurer or Platform Admin can create expenses', 403);
+    const body = await request.json();
+    const { date, note, purchasedBy, attachmentUrl, items } = body;
+
+    // Validate required fields
+    if (!date || !items || !items.length) {
+      return errorResponse('Date and items are required', 400);
     }
 
     // Validate items and calculate total
@@ -67,7 +78,7 @@ export async function POST(request: NextRequest) {
         status: 'PENDING',
         presidentStatus: 'PENDING',
         gsStatus: 'PENDING',
-        createdBy,
+        createdBy: caller.userId,
         items: {
           create: items.map((item: any) => ({
             itemName: item.itemName,
@@ -86,7 +97,7 @@ export async function POST(request: NextRequest) {
     // Create audit log
     await prisma.auditLog.create({
       data: {
-        userId: createdBy,
+        userId: caller.userId,
         action: 'EXPENSE_CREATED',
         details: JSON.stringify({ expenseId: expense.id, amount: expense.amount, itemCount: items.length }),
       },

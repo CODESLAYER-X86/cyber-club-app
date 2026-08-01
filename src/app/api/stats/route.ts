@@ -1,9 +1,15 @@
 import prisma from '@/lib/db';
-import { successResponse, serverErrorResponse } from '@/lib/api-utils';
+import { successResponse, forbiddenResponse, serverErrorResponse } from '@/lib/api-utils';
+import { getSupabaseUser } from '@/lib/supabase-server';
 
-// ─── GET /api/stats ─── Dashboard stats with treasury data
+// ─── GET /api/stats ─── Dashboard stats with treasury data (authenticated users only)
 export async function GET() {
   try {
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse('Authentication required');
+    }
+
     const [
       totalMembers,
       activeMembers,

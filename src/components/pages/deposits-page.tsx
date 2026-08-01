@@ -86,7 +86,6 @@ export function DepositsPage() {
         body: JSON.stringify({
           ...form,
           amount: parseFloat(form.amount),
-          submittedBy: currentUser.id,
         }),
       });
       const d = await r.json();
@@ -111,7 +110,7 @@ export function DepositsPage() {
       const r = await fetch(`/api/treasury/deposits/${depositId}/approve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, approvedBy: currentUser.id, role: currentUser.role }),
+        body: JSON.stringify({ action }),
       });
       const d = await r.json();
       if (d.success) {
