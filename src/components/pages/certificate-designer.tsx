@@ -255,6 +255,7 @@ export function CertificateDesigner() {
   const [textElements, setTextElements] = useState<Record<TextElementKey, PositionedTextElement>>(() => createDefaultTextElements(true));
   const [logoElements, setLogoElements] = useState<Record<LogoKey, PositionedLogo>>(() => createDefaultLogoElements(true));
   const [signatureLayouts, setSignatureLayouts] = useState<SignatureLayout[]>(() => createDefaultSignatureLayouts(true));
+  const [customTextValues, setCustomTextValues] = useState<Partial<Record<TextElementKey, string>>>({});
   const [selectedElement, setSelectedElement] = useState<SelectedElement>(null);
   const [dragState, setDragState] = useState<{
     kind: 'text' | 'logo' | 'signature';
@@ -368,6 +369,10 @@ export function CertificateDesigner() {
                     layout: sig.layout || createDefaultSignatureLayouts(layout.orientation === 'LANDSCAPE' || !layout.orientation)[index] || createDefaultSignatureLayouts(layout.orientation === 'LANDSCAPE' || !layout.orientation)[0],
                   }))
                 );
+              }
+
+              if ((layout as any).customTextValues) {
+                setCustomTextValues((layout as any).customTextValues);
               }
             } catch (e) {
               console.error('Failed to parse certificate layout JSON:', e);
@@ -683,6 +688,7 @@ export function CertificateDesigner() {
       textColors,
       signatureLayouts,
       signatures,
+      customTextValues,
     };
 
     try {
@@ -729,7 +735,7 @@ export function CertificateDesigner() {
     .replace('{{certificate_id}}', 'CSC-2026-CYBERSEC-00125')
     .replace('{{issue_date}}', 'June 15, 2026');
 
-  const textPreviewValues: Record<TextElementKey, string> = {
+  const defaultTextPreviewValues: Record<TextElementKey, string> = {
     headerTitle: 'CYBER SECURITY CLUB',
     headerSubtitle: 'VERIFIED DIGITAL CERTIFICATE',
     intro: 'This is to certify that',
@@ -741,8 +747,15 @@ export function CertificateDesigner() {
     issueDate: 'June 15, 2026',
     issueDateLabel: 'Issue Date',
     certificateId: 'CSC-2026-CYBERSEC-00125',
-    footer: 'Verification URL: https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125',
+    footer: 'https://cybersec.club/?cert=CSC-2026-CYBERSEC-00125',
   };
+
+  const textPreviewValues: Record<TextElementKey, string> = (
+    Object.keys(defaultTextPreviewValues) as TextElementKey[]
+  ).reduce((acc, key) => {
+    acc[key] = customTextValues[key] ?? defaultTextPreviewValues[key];
+    return acc;
+  }, {} as Record<TextElementKey, string>);
 
   const selectedTextKey = selectedElement?.kind === 'text' ? selectedElement.key : null;
   const selectedLogoKey = selectedElement?.kind === 'logo' ? selectedElement.key : null;
@@ -976,6 +989,17 @@ export function CertificateDesigner() {
             >
               <X className="h-3.5 w-3.5" />
             </button>
+          </div>
+
+          {/* Text Content */}
+          <div className="space-y-1">
+            <label className="text-[10px] text-gray-500 font-semibold uppercase">Text Content</label>
+            <Input
+              value={textPreviewValues[key]}
+              onChange={(e) => setCustomTextValues(prev => ({ ...prev, [key]: e.target.value }))}
+              className="h-8 text-xs border-white/10 bg-white/5 text-white"
+              placeholder={`Enter ${TEXT_ELEMENT_LABELS[key].toLowerCase()}`}
+            />
           </div>
 
           {/* Visibility */}
@@ -1519,19 +1543,8 @@ export function CertificateDesigner() {
                             className="h-8 text-xs border-white/10 bg-white/5 text-white"
                           />
                         </div>
-                        <div className="grid grid-cols-2 gap-2">
-                          {textColorControls.map((control) => (
-                            <div key={control.key} className="space-y-1">
-                              <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{control.label}</label>
-                              <input
-                                type="color"
-                                value={textColors[control.key]}
-                                onChange={(e) => updateTextColor(control.key, e.target.value)}
-                                className="h-8 w-full rounded-md border border-white/10 bg-transparent cursor-pointer"
-                              />
-                            </div>
-                          ))}
-                        </div>
+                        {/* Color controls removed from Types tab - use Element tab instead */}
+                        <p className="text-[10px] text-gray-600 italic">To customize element colors, select an element in the Element tab</p>
                         <div className="space-y-1">
                           <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
                             <span>Certificate Text Template</span>
@@ -1905,19 +1918,9 @@ export function CertificateDesigner() {
                 renderTextElement(key)
               ))}
 
-              {/* Certificate Type Banner */}
-              <g transform={`translate(${width / 2 - 130}, ${isLandscape ? 465 : 520})`}>
-                <rect width="260" height="32" rx="16" fill="url(#typeGradPreview)" opacity="0.2" />
-                <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
-                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill={textColors.certificateTitle}>{previewTitle}</text>
-              </g>
+              {/* Certificate Type Banner removed - certificateTitle text element already renders the title */}
 
-              {/* Custom Placed Certificate ID */}
-              {idVisible && (
-                <text x={idX} y={idY} textAnchor="middle" fontFamily="monospace" fontSize="14" fill={textColors.certificateId}>
-                  CSC-2026-CYBERSEC-00125
-                </text>
-              )}
+              {/* Custom Placed Certificate ID removed - certificateId text element already renders it */}
 
               {/* Custom Placed QR Code */}
               {qrVisible && (
