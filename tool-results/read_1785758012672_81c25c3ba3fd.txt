@@ -1,0 +1,636 @@
+     1→     1→'use client';
+     2→     2→
+     3→     3→import { useState, useEffect, useMemo } from 'react';
+     4→     4→import { motion } from 'framer-motion';
+     5→     5→import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity, TrendingUp, Bell, Info, Clock, UserCheck, Wallet, ShieldCheck, Ban, Receipt, Megaphone } from 'lucide-react';
+     6→     6→import { useAppStore } from '@/store/use-app-store';
+     7→     7→import type { UserRole, Event, Payment, Certificate, User } from '@/types';
+     8→     8→import { StatCard } from '@/components/shared/stat-card';
+     9→     9→import { EventBadge, MembershipBadge } from '@/components/shared/status-badge';
+    10→    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    11→    11→import { Button } from '@/components/ui/button';
+    12→    12→import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
+    13→    13→
+    14→    14→interface DashboardStats {
+    15→    15→  totalMembers: number; totalFunds: number; activeEvents: number; pendingApprovals: number;
+    16→    16→  totalDeposits: number; totalExpenses: number; currentBalance: number;
+    17→    17→  pendingDepositsCount: number; pendingExpensesCount: number;
+    18→    18→  totalCertificates: number;
+    19→    19→  recentActivity: { action: string; details: string; createdAt: string }[];
+    20→    20→  upcomingEvents: Event[];
+    21→    21→  memberGrowth: { month: string; members: number }[];
+    22→    22→  eventDistribution: { category: string; count: number }[];
+    23→    23→}
+    24→    24→
+    25→    25→interface ActivityEntry {
+    26→    26→  id: string;
+    27→    27→  type: string;
+    28→    28→  action: string;
+    29→    29→  description: string;
+    30→    30→  createdAt: string;
+    31→    31→  user?: { name: string; email: string } | null;
+    32→    32→}
+    33→    33→
+    34→    34→const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string; label: string }> = {
+    35→    35→  // Audit log actions
+    36→    36→  PAYMENT_VERIFIED: { icon: Wallet, color: '#10b981', label: 'Payment Verified' },
+    37→    37→  EXPENSE_APPROVED: { icon: Receipt, color: '#10b981', label: 'Expense Approved' },
+    38→    38→  ROLE_ASSIGNED: { icon: ShieldCheck, color: '#f59e0b', label: 'Role Assigned' },
+    39→    39→  BUDGET_CREATED: { icon: DollarSign, color: '#06b6d4', label: 'Deposit Created' },
+    40→    40→  PAYMENT_REJECTED: { icon: Ban, color: '#ef4444', label: 'Payment Rejected' },
+    41→    41→  EXPENSE_REJECTED: { icon: Ban, color: '#ef4444', label: 'Expense Rejected' },
+    42→    42→  USER_APPROVED: { icon: UserCheck, color: '#10b981', label: 'User Approved' },
+    43→    43→  USER_REJECTED: { icon: Ban, color: '#ef4444', label: 'User Rejected' },
+    44→    44→  ANNOUNCEMENT_CREATED: { icon: Megaphone, color: '#8b5cf6', label: 'Announcement Created' },
+    45→    45→  EVENT_CREATED: { icon: Calendar, color: '#06b6d4', label: 'Event Created' },
+    46→    46→  // Personal activity actions
+    47→    47→  EVENT_REGISTERED: { icon: Calendar, color: '#06b6d4', label: 'Event Registration' },
+    48→    48→  CERTIFICATE_ISSUED: { icon: Award, color: '#10b981', label: 'Certificate Issued' },
+    49→    49→  CERTIFICATE_REVOKED: { icon: Ban, color: '#ef4444', label: 'Certificate Revoked' },
+    50→    50→  PAYMENT_SUBMITTED: { icon: CreditCard, color: '#f59e0b', label: 'Payment Submitted' },
+    51→    51→  ATTENDANCE_MARKED: { icon: CheckCircle, color: '#10b981', label: 'Attendance Marked' },
+    52→    52→};
+    53→    53→
+    54→    54→function timeAgo(date: string): string {
+    55→    55→  const now = new Date();
+    56→    56→  const then = new Date(date);
+    57→    57→  const seconds = Math.floor((now.getTime() - then.getTime()) / 1000);
+    58→    58→  if (seconds < 60) return 'just now';
+    59→    59→  const minutes = Math.floor(seconds / 60);
+    60→    60→  if (minutes < 60) return `${minutes}m ago`;
+    61→    61→  const hours = Math.floor(minutes / 60);
+    62→    62→  if (hours < 24) return `${hours}h ago`;
+    63→    63→  const days = Math.floor(hours / 24);
+    64→    64→  if (days < 2) return 'yesterday';
+    65→    65→  return `${days}d ago`;
+    66→    66→}
+    67→    67→
+    68→    68→function getDaysUntil(dateStr: string): number {
+    69→    69→  const now = new Date();
+    70→    70→  now.setHours(0, 0, 0, 0);
+    71→    71→  const target = new Date(dateStr);
+    72→    72→  target.setHours(0, 0, 0, 0);
+    73→    73→  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
+    74→    74→}
+    75→    75→
+    76→    76→function getGreeting(): string {
+    77→    77→  const hour = new Date().getHours();
+    78→    78→  if (hour < 12) return 'Good Morning';
+    79→    79→  if (hour < 17) return 'Good Afternoon';
+    80→    80→  return 'Good Evening';
+    81→    81→}
+    82→    82→
+    83→    83→const EVENT_CATEGORY_COLORS: Record<string, string> = {
+    84→    84→  WORKSHOP: '#10b981',
+    85→    85→  CTF: '#06b6d4',
+    86→    86→  SEMINAR: '#f59e0b',
+    87→    87→  MEETUP: '#8b5cf6',
+    88→    88→  TRAINING: '#ef4444',
+    89→    89→};
+    90→    90→
+    91→    91→export function DashboardPage() {
+    92→    92→  const { currentUser, setCurrentView, setSelectedEventId, notifications } = useAppStore();
+    93→    93→  const [stats, setStats] = useState<DashboardStats | null>(null);
+    94→    94→  const [certificates, setCertificates] = useState<Certificate[]>([]);
+    95→    95→  const [payments, setPayments] = useState<Payment[]>([]);
+    96→    96→  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
+    97→    97→  const [activities, setActivities] = useState<ActivityEntry[]>([]);
+    98→    98→  const [loading, setLoading] = useState(true);
+    99→    99→
+   100→   100→  useEffect(() => {
+   101→   101→    const load = async () => {
+   102→   102→      setLoading(true);
+   103→   103→      try {
+   104→   104→        const fetchPromises: Promise<any>[] = [
+   105→   105→          fetch('/api/stats').then(res => res.json()),
+   106→   106→          fetch('/api/activity').then(res => res.json())
+   107→   107→        ];
+   108→   108→
+   109→   109→        if (currentUser) {
+   110→   110→          fetchPromises.push(fetch(`/api/certificates?userId=${currentUser.id}`).then(res => res.json()));
+   111→   111→          fetchPromises.push(fetch(`/api/payments?userId=${currentUser.id}`).then(res => res.json()));
+   112→   112→
+   113→   113→          if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+   114→   114→            fetchPromises.push(fetch('/api/users/approval').then(res => res.json()));
+   115→   115→          }
+   116→   116→        }
+   117→   117→
+   118→   118→        const results = await Promise.all(fetchPromises);
+   119→   119→
+   120→   120→        const statsData = results[0];
+   121→   121→        if (statsData?.success && statsData.data) {
+   122→   122→          const d = statsData.data;
+   123→   123→          const s = d.stats || d;
+   124→   124→          setStats({
+   125→   125→            totalMembers: s.totalMembers ?? 0,
+   126→   126→            totalFunds: s.totalFunds ?? 0,
+   127→   127→            activeEvents: s.activeEvents ?? 0,
+   128→   128→            pendingApprovals: s.pendingApprovals ?? 0,
+   129→   129→            totalDeposits: s.totalDeposits ?? 0,
+   130→   130→            totalExpenses: s.totalExpenses ?? 0,
+   131→   131→            currentBalance: s.currentBalance ?? s.totalFunds ?? 0,
+   132→   132→            pendingDepositsCount: s.pendingDepositsCount ?? 0,
+   133→   133→            pendingExpensesCount: s.pendingExpensesCount ?? 0,
+   134→   134→            totalCertificates: s.totalCertificates ?? 0,
+   135→   135→            recentActivity: d.recentActivity || [],
+   136→   136→            upcomingEvents: d.upcomingEvents || [],
+   137→   137→            memberGrowth: d.memberGrowth || [],
+   138→   138→            eventDistribution: d.eventDistribution || [],
+   139→   139→          });
+   140→   140→        }
+   141→   141→
+   142→   142→        const activityData = results[1];
+   143→   143→        if (activityData?.success) setActivities(activityData.data.activities || []);
+   144→   144→
+   145→   145→        if (currentUser) {
+   146→   146→          const certData = results[2];
+   147→   147→          if (certData?.success) setCertificates(certData.data.certificates || []);
+   148→   148→
+   149→   149→          const payData = results[3];
+   150→   150→          if (payData?.success) setPayments(payData.data.payments || []);
+   151→   151→
+   152→   152→          if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+   153→   153→            const pendingData = results[4];
+   154→   154→            if (pendingData?.success) setPendingUsers(pendingData.data.users || []);
+   155→   155→          }
+   156→   156→        }
+   157→   157→      } catch (e) { console.error(e); } finally { setLoading(false); }
+   158→   158→    };
+   159→   159→    load();
+   160→   160→  }, [currentUser]);
+   161→   161→
+   162→   162→  const role = currentUser?.role || 'GUEST';
+   163→   163→
+   164→   164→  const recentNotifications = useMemo(() => {
+   165→   165→    return notifications.slice(0, 3);
+   166→   166→  }, [notifications]);
+   167→   167→
+   168→   168→  const greeting = useMemo(() => getGreeting(), []);
+   169→   169→
+   170→   170→  if (loading) {
+   171→   171→    return (
+   172→   172→      <div className="space-y-6 animate-pulse">
+   173→   173→        {/* Skeleton Greeting */}
+   174→   174→        <div className="space-y-2">
+   175→   175→          <div className="h-7 w-48 rounded-lg bg-white/5" />
+   176→   176→          <div className="h-4 w-32 rounded-lg bg-white/5" />
+   177→   177→        </div>
+   178→   178→
+   179→   179→        {/* Skeleton Stat Cards */}
+   180→   180→        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   181→   181→          {[1, 2, 3, 4].map((i) => (
+   182→   182→            <div key={i} className="h-32 rounded-xl border border-white/5 bg-white/[0.02]" />
+   183→   183→          ))}
+   184→   184→        </div>
+   185→   185→
+   186→   186→        {/* Skeleton Main Grid */}
+   187→   187→        <div className="grid gap-6 lg:grid-cols-2">
+   188→   188→          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+   189→   189→          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+   190→   190→        </div>
+   191→   191→
+   192→   192→        {/* Skeleton Second Grid */}
+   193→   193→        <div className="grid gap-6 lg:grid-cols-2">
+   194→   194→          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+   195→   195→          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
+   196→   196→        </div>
+   197→   197→      </div>
+   198→   198→    );
+   199→   199→  }
+   200→   200→
+   201→   201→  const renderStatCards = () => {
+   202→   202→    switch (role) {
+   203→   203→      case 'MEMBER':
+   204→   204→        return (
+   205→   205→          <>
+   206→   206→            <StatCard icon={Calendar} label="My Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
+   207→   207→            <StatCard icon={Award} label="My Certificates" value={certificates.length} trend="up" delay={0.1} />
+   208→   208→            <StatCard icon={CreditCard} label="Payments" value={payments.length} trend="neutral" delay={0.2} />
+   209→   209→            <StatCard icon={Calendar} label="Upcoming Events" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} />
+   210→   210→          </>
+   211→   211→        );
+   212→   212→      case 'MEDIA':
+   213→   213→        return (
+   214→   214→          <>
+   215→   215→            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
+   216→   216→            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0.1} />
+   217→   217→            <StatCard icon={Megaphone} label="Announcements" value={stats?.recentActivity?.filter(a => a.action === 'ANNOUNCEMENT_CREATED').length ?? 0} trend="neutral" delay={0.2} />
+   218→   218→            <StatCard icon={Calendar} label="Total Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.3} />
+   219→   219→          </>
+   220→   220→        );
+   221→   221→      case 'TREASURER':
+   222→   222→        return (
+   223→   223→          <>
+   224→   224→            <StatCard icon={Wallet} label="Current Balance" value={`৳${(stats?.currentBalance ?? 0).toLocaleString()}`} trend={stats?.currentBalance && stats.currentBalance >= 0 ? 'up' : 'down'} delay={0} />
+   225→   225→            <StatCard icon={TrendingUp} label="Total Deposits" value={`৳${(stats?.totalDeposits ?? 0).toLocaleString()}`} trend="up" delay={0.1} />
+   226→   226→            <StatCard icon={Receipt} label="Total Expenses" value={`৳${(stats?.totalExpenses ?? 0).toLocaleString()}`} trend="down" delay={0.2} />
+   227→   227→            <StatCard icon={Activity} label="Pending Approvals" value={`${(stats?.pendingDepositsCount ?? 0) + (stats?.pendingExpensesCount ?? 0)}`} trend="neutral" delay={0.3} />
+   228→   228→          </>
+   229→   229→        );
+   230→   230→      case 'GS':
+   231→   231→        return (
+   232→   232→          <>
+   233→   233→            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+   234→   234→            <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.1} />
+   235→   235→            <StatCard icon={Wallet} label="Current Balance" value={`৳${(stats?.currentBalance ?? 0).toLocaleString()}`} trend={stats?.currentBalance && stats.currentBalance >= 0 ? 'up' : 'down'} delay={0.2} />
+   236→   236→            <StatCard icon={Receipt} label="Pending Expenses" value={stats?.pendingExpensesCount ?? 0} trend="neutral" delay={0.3} />
+   237→   237→          </>
+   238→   238→        );
+   239→   239→      case 'VP':
+   240→   240→        return (
+   241→   241→          <>
+   242→   242→            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+   243→   243→            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.1} />
+   244→   244→            <StatCard icon={Wallet} label="Current Balance" value={`৳${(stats?.currentBalance ?? 0).toLocaleString()}`} trend={stats?.currentBalance && stats.currentBalance >= 0 ? 'up' : 'down'} delay={0.2} />
+   245→   245→            <StatCard icon={Award} label="Certificates Issued" value={stats?.totalCertificates ?? 0} trend="neutral" delay={0.3} />
+   246→   246→          </>
+   247→   247→        );
+   248→   248→      case 'PRESIDENT':
+   249→   249→        return (
+   250→   250→          <>
+   251→   251→            <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+   252→   252→            <StatCard icon={Wallet} label="Current Balance" value={`৳${(stats?.currentBalance ?? 0).toLocaleString()}`} trend={stats?.currentBalance && stats.currentBalance >= 0 ? 'up' : 'down'} delay={0.1} />
+   253→   253→            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
+   254→   254→            <StatCard icon={AlertTriangle} label="Pending Approvals" value={`${(stats?.pendingDepositsCount ?? 0) + (stats?.pendingExpensesCount ?? 0) + pendingUsers.length}`} trend="neutral" delay={0.3} />
+   255→   255→          </>
+   256→   256→        );
+   257→   257→      case 'VERIFIER':
+   258→   258→        return (
+   259→   259→          <>
+   260→   260→            <StatCard icon={Calendar} label="Assigned Events" value={stats?.activeEvents ?? 0} trend="neutral" delay={0} />
+   261→   261→            <StatCard icon={CheckCircle} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
+   262→   262→            <StatCard icon={Wallet} label="Payments Verified" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
+   263→   263→            <StatCard icon={Activity} label="Total Payments" value={payments.length} trend="up" delay={0.3} />
+   264→   264→          </>
+   265→   265→        );
+   266→   266→      case 'PLATFORM_ADMIN':
+   267→   267→        return (
+   268→   268→          <>
+   269→   269→            <StatCard icon={Users} label="Total Users" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
+   270→   270→            <StatCard icon={Activity} label="System Health" value="99.9%" trend="up" delay={0.1} />
+   271→   271→            <StatCard icon={Settings} label="Recent Actions" value={stats?.recentActivity?.length ?? 0} trend="neutral" delay={0.2} />
+   272→   272→            <StatCard icon={AlertTriangle} label="Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
+   273→   273→          </>
+   274→   274→        );
+   275→   275→      default:
+   276→   276→        return (
+   277→   277→          <>
+   278→   278→            <StatCard icon={Users} label="Members" value={stats?.totalMembers ?? 0} delay={0} />
+   279→   279→            <StatCard icon={Calendar} label="Events" value={stats?.activeEvents ?? 0} delay={0.1} />
+   280→   280→          </>
+   281→   281→        );
+   282→   282→    }
+   283→   283→  };
+   284→   284→
+   285→   285→  return (
+   286→   286→    <div className="space-y-6">
+   287→   287→      {/* Greeting Section */}
+   288→   288→      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between">
+   289→   289→        <div>
+   290→   290→          <h1 className="text-2xl font-bold text-white">
+   291→   291→            {greeting}, <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">{currentUser?.name?.split(' ')[0] || 'Guest'}</span>
+   292→   292→          </h1>
+   293→   293→          <p className="text-sm text-gray-500">
+   294→   294→            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
+   295→   295→          </p>
+   296→   296→        </div>
+   297→   297→      </motion.div>
+   298→   298→
+   299→   299→      {/* Stat Cards */}
+   300→   300→      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
+   301→   301→        {renderStatCards()}
+   302→   302→      </div>
+   303→   303→
+   304→   304→      {/* Main Content Grid */}
+   305→   305→      <div className="grid gap-6 lg:grid-cols-2">
+   306→   306→        {/* Upcoming Events */}
+   307→   307→        <Card className={`border-white/5 bg-[#111]/60 backdrop-blur ${role === 'GUEST' ? 'lg:col-span-2' : ''}`}>
+   308→   308→          <CardHeader className="flex flex-row items-center justify-between pb-2">
+   309→   309→            <CardTitle className="text-lg font-semibold text-white">Upcoming Events</CardTitle>
+   310→   310→            <Button variant="ghost" size="sm" onClick={() => setCurrentView('events')} className="text-xs text-emerald-400">View All</Button>
+   311→   311→          </CardHeader>
+   312→   312→          <CardContent>
+   313→   313→            <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
+   314→   314→              {(stats?.upcomingEvents || []).slice(0, 5).map((event, index) => {
+   315→   315→                const borderColor = EVENT_CATEGORY_COLORS[event.category] || '#10b981';
+   316→   316→                return (
+   317→   317→                  <motion.div
+   318→   318→                    key={event.id}
+   319→   319→                    initial={{ opacity: 0, x: -10 }}
+   320→   320→                    animate={{ opacity: 1, x: 0 }}
+   321→   321→                    transition={{ delay: index * 0.05 }}
+   322→   322→                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 cursor-pointer hover:bg-white/[0.04] transition-all duration-200 group"
+   323→   323→                    style={{ borderLeftWidth: '3px', borderLeftColor: borderColor }}
+   324→   324→                    onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}
+   325→   325→                  >
+   326→   326→                    <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: `${borderColor}15` }}>
+   327→   327→                      <Calendar className="h-5 w-5" style={{ color: borderColor }} />
+   328→   328→                    </div>
+   329→   329→                    <div className="flex-1 min-w-0">
+   330→   330→                      <p className="text-sm font-medium text-white truncate group-hover:text-emerald-300 transition-colors">{event.title}</p>
+   331→   331→                      <p className="text-xs text-gray-500 truncate">{new Date(event.startDate).toLocaleDateString()} • {event.venue}</p>
+   332→   332→                    </div>
+   333→   333→                    <EventBadge status={event.status} />
+   334→   334→                  </motion.div>
+   335→   335→                );
+   336→   336→              })}
+   337→   337→              {(!stats?.upcomingEvents || stats.upcomingEvents.length === 0) && (
+   338→   338→                <p className="py-8 text-center text-sm text-gray-500">No upcoming events</p>
+   339→   339→              )}
+   340→   340→            </div>
+   341→   341→          </CardContent>
+   342→   342→        </Card>
+   343→   343→
+   344→   344→        {/* Recent Activity Feed */}
+   345→   345→        {role !== 'GUEST' && (
+   346→   346→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   347→   347→            <CardHeader className="flex flex-row items-center justify-between pb-2">
+   348→   348→              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+   349→   349→                <Activity className="h-5 w-5 text-emerald-400" />
+   350→   350→                Recent Activity
+   351→   351→              </CardTitle>
+   352→   352→              <Button variant="ghost" size="sm" onClick={() => setCurrentView('audit-logs')} className="text-xs text-emerald-400">View All</Button>
+   353→   353→            </CardHeader>
+   354→   354→            <CardContent>
+   355→   355→              <div className="space-y-0 max-h-80 overflow-y-auto custom-scrollbar">
+   356→   356→                {activities.length > 0 ? activities.map((act, index) => {
+   357→   357→                  const config = ACTION_CONFIG[act.action] || { icon: Activity, color: '#6b7280', label: act.action };
+   358→   358→                  const IconComp = config.icon;
+   359→   359→                  const isLast = index === activities.length - 1;
+   360→   360→                  return (
+   361→   361→                    <motion.div
+   362→   362→                      key={act.id}
+   363→   363→                      initial={{ opacity: 0, x: -10 }}
+   364→   364→                      animate={{ opacity: 1, x: 0 }}
+   365→   365→                      transition={{ delay: index * 0.05 }}
+   366→   366→                      className="flex gap-3 relative"
+   367→   367→                    >
+   368→   368→                      {/* Timeline line */}
+   369→   369→                      {!isLast && (
+   370→   370→                        <div className="absolute left-[15px] top-8 bottom-0 w-px bg-gradient-to-b from-white/10 to-transparent" />
+   371→   371→                      )}
+   372→   372→                      {/* Icon */}
+   373→   373→                      <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full z-10" style={{ backgroundColor: `${config.color}15` }}>
+   374→   374→                        <IconComp className="h-3.5 w-3.5" style={{ color: config.color }} />
+   375→   375→                      </div>
+   376→   376→                      {/* Content */}
+   377→   377→                      <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
+   378→   378→                        <p className="text-sm text-white">{config.label}</p>
+   379→   379→                        <p className="text-xs text-gray-500 truncate">{act.description}</p>
+   380→   380→                        <div className="flex items-center gap-2 mt-0.5">
+   381→   381→                          <span className="text-[10px] text-gray-600">{act.user?.name || 'You'}</span>
+   382→   382→                          <span className="text-[10px] text-gray-700">•</span>
+   383→   383→                          <span className="text-[10px] text-gray-600">{timeAgo(act.createdAt)}</span>
+   384→   384→                        </div>
+   385→   385→                      </div>
+   386→   386→                    </motion.div>
+   387→   387→                  );
+   388→   388→                }) : (
+   389→   389→                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+   390→   390→                    <Activity className="mb-2 h-8 w-8 text-gray-600" />
+   391→   391→                    <p className="text-sm">No recent activity</p>
+   392→   392→                  </div>
+   393→   393→                )}
+   394→   394→              </div>
+   395→   395→            </CardContent>
+   396→   396→          </Card>
+   397→   397→        )}
+   398→   398→      </div>
+   399→   399→
+   400→   400→      {/* Upcoming Deadlines & Pending Approvals Row */}
+   401→   401→      <div className="grid gap-6 lg:grid-cols-2">
+   402→   402→        {/* Upcoming Deadlines */}
+   403→   403→        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   404→   404→          <CardHeader className="flex flex-row items-center justify-between pb-2">
+   405→   405→            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+   406→   406→              <Clock className="h-5 w-5 text-amber-400" />
+   407→   407→              Upcoming Deadlines
+   408→   408→            </CardTitle>
+   409→   409→          </CardHeader>
+   410→   410→          <CardContent>
+   411→   411→            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+   412→   412→              {(() => {
+   413→   413→                const now = new Date();
+   414→   414→                const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+   415→   415→                const upcomingDeadlines = (stats?.upcomingEvents || []).filter(e => {
+   416→   416→                  const eventDate = new Date(e.startDate);
+   417→   417→                  return eventDate >= now && eventDate <= nextWeek;
+   418→   418→                });
+   419→   419→                if (upcomingDeadlines.length === 0) {
+   420→   420→                  return (
+   421→   421→                    <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+   422→   422→                      <Clock className="mb-2 h-8 w-8 text-gray-600" />
+   423→   423→                      <p className="text-sm">No deadlines in the next 7 days</p>
+   424→   424→                    </div>
+   425→   425→                  );
+   426→   426→                }
+   427→   427→                return upcomingDeadlines.map((event, index) => {
+   428→   428→                  const daysLeft = getDaysUntil(event.startDate);
+   429→   429→                  const urgencyColor = daysLeft <= 1 ? '#ef4444' : daysLeft <= 3 ? '#f59e0b' : '#6b7280';
+   430→   430→                  const urgencyLabel = daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft} days`;
+   431→   431→                  const urgencyBg = daysLeft <= 1 ? 'bg-red-500/10 border-red-500/20' : daysLeft <= 3 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-gray-500/10 border-gray-500/20';
+   432→   432→                  return (
+   433→   433→                    <motion.div
+   434→   434→                      key={event.id}
+   435→   435→                      initial={{ opacity: 0, y: 10 }}
+   436→   436→                      animate={{ opacity: 1, y: 0 }}
+   437→   437→                      transition={{ delay: index * 0.05 }}
+   438→   438→                      className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors cursor-pointer"
+   439→   439→                      onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}
+   440→   440→                    >
+   441→   441→                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${urgencyColor}15` }}>
+   442→   442→                        <Clock className="h-5 w-5" style={{ color: urgencyColor }} />
+   443→   443→                      </div>
+   444→   444→                      <div className="flex-1 min-w-0">
+   445→   445→                        <p className="text-sm font-medium text-white truncate">{event.title}</p>
+   446→   446→                        <p className="text-xs text-gray-500">{new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
+   447→   447→                      </div>
+   448→   448→                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${urgencyBg}`} style={{ color: urgencyColor }}>
+   449→   449→                        {urgencyLabel}
+   450→   450→                      </span>
+   451→   451→                    </motion.div>
+   452→   452→                  );
+   453→   453→                });
+   454→   454→              })()}
+   455→   455→            </div>
+   456→   456→          </CardContent>
+   457→   457→        </Card>
+   458→   458→
+   459→   459→        {/* Pending Approvals (for admin roles) */}
+   460→   460→        {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && (
+   461→   461→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   462→   462→            <CardHeader className="flex flex-row items-center justify-between pb-2">
+   463→   463→              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+   464→   464→                <AlertTriangle className="h-5 w-5 text-amber-400" />
+   465→   465→                Pending Approvals
+   466→   466→              </CardTitle>
+   467→   467→              <Button variant="ghost" size="sm" onClick={() => setCurrentView('member-approval')} className="text-xs text-amber-400">View All</Button>
+   468→   468→            </CardHeader>
+   469→   469→            <CardContent>
+   470→   470→              <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
+   471→   471→                {pendingUsers.length > 0 ? pendingUsers.map((u) => (
+   472→   472→                  <div key={u.id} className="flex items-center gap-3 rounded-lg border border-amber-500/10 bg-amber-500/5 p-3">
+   473→   473→                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-400 text-sm font-bold">{u.name?.charAt(0)}</div>
+   474→   474→                    <div className="flex-1 min-w-0">
+   475→   475→                      <p className="text-sm font-medium text-white">{u.name}</p>
+   476→   476→                      <p className="text-xs text-gray-500">{u.email} • {u.department}</p>
+   477→   477→                    </div>
+   478→   478→                    <MembershipBadge status={u.membershipStatus} />
+   479→   479→                  </div>
+   480→   480→                )) : (
+   481→   481→                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+   482→   482→                    <CheckCircle className="mb-2 h-8 w-8 text-emerald-600" />
+   483→   483→                    <p className="text-sm">All caught up!</p>
+   484→   484→                    <p className="text-xs text-gray-600">No pending approvals</p>
+   485→   485→                  </div>
+   486→   486→                )}
+   487→   487→              </div>
+   488→   488→            </CardContent>
+   489→   489→          </Card>
+   490→   490→        )}
+   491→   491→      </div>
+   492→   492→
+   493→   493→      {/* Quick Actions */}
+   494→   494→      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   495→   495→        <CardHeader className="pb-2">
+   496→   496→          <CardTitle className="text-lg font-semibold text-white">Quick Actions</CardTitle>
+   497→   497→        </CardHeader>
+   498→   498→        <CardContent>
+   499→   499→          <div className="flex flex-wrap gap-3">
+   500→   500→            {role === 'MEMBER' && (
+   501→   501→              <>
+   502→   502→                <Button onClick={() => setCurrentView('events')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20">
+   503→   503→                  <Calendar className="mr-2 h-4 w-4" />Register for Event
+   504→   504→                </Button>
+   505→   505→                <Button onClick={() => setCurrentView('certificates')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20">
+   506→   506→                  <Award className="mr-2 h-4 w-4" />View Certificates
+   507→   507→                </Button>
+   508→   508→              </>
+   509→   509→            )}
+   510→   510→            {role === 'MEDIA' && <Button onClick={() => setCurrentView('create-event')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Calendar className="mr-2 h-4 w-4" />Create Event</Button>}
+   511→   511→            {role === 'TREASURER' && (
+   512→   512→              <>
+   513→   513→                <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>
+   514→   514→                <Button onClick={() => setCurrentView('deposits')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><DollarSign className="mr-2 h-4 w-4" />Manage Deposits</Button>
+   515→   515→              </>
+   516→   516→            )}
+   517→   517→            {role === 'PRESIDENT' && (
+   518→   518→              <>
+   519→   519→                <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Manage Members</Button>
+   520→   520→                <Button onClick={() => setCurrentView('roles')} className="bg-gradient-to-r from-amber-600 to-amber-500 text-white hover:from-amber-500 hover:to-amber-400 border-0 shadow-lg shadow-amber-500/20"><Shield className="mr-2 h-4 w-4" />Assign Roles</Button>
+   521→   521→                <Button onClick={() => setCurrentView('audit-logs')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><FileText className="mr-2 h-4 w-4" />Audit Logs</Button>
+   522→   522→              </>
+   523→   523→            )}
+   524→   524→            {role === 'GS' && <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Approve Members</Button>}
+   525→   525→            {role === 'VERIFIER' && <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>}
+   526→   526→          </div>
+   527→   527→        </CardContent>
+   528→   528→      </Card>
+   529→   529→
+   530→   530→      {/* Insights Chart - For leadership roles */}
+   531→   531→      {['PRESIDENT', 'VP', 'TREASURER', 'PLATFORM_ADMIN'].includes(role) && (
+   532→   532→        <div className="grid gap-6 lg:grid-cols-2">
+   533→   533→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   534→   534→            <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><TrendingUp className="h-5 w-5 text-emerald-400" />Member Growth</CardTitle></CardHeader>
+   535→   535→            <CardContent>
+   536→   536→              <ResponsiveContainer width="100%" height={220}>
+   537→   537→                <BarChart data={
+   538→   538→                  stats?.memberGrowth && stats.memberGrowth.length > 0
+   539→   539→                    ? stats.memberGrowth
+   540→   540→                    : [{ month: 'No data', members: 0 }]
+   541→   541→                }>
+   542→   542→                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
+   543→   543→                  <XAxis dataKey="month" stroke="#666" fontSize={12} />
+   544→   544→                  <YAxis stroke="#666" fontSize={12} />
+   545→   545→                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+   546→   546→                  <Bar dataKey="members" fill="#10b981" radius={[4, 4, 0, 0]} />
+   547→   547→                </BarChart>
+   548→   548→              </ResponsiveContainer>
+   549→   549→            </CardContent>
+   550→   550→          </Card>
+   551→   551→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   552→   552→            <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><BarChart3 className="h-5 w-5 text-cyan-400" />Event Distribution</CardTitle></CardHeader>
+   553→   553→            <CardContent className="flex items-center justify-center">
+   554→   554→              <ResponsiveContainer width="100%" height={220}>
+   555→   555→                <PieChart>
+   556→   556→                  <Pie
+   557→   557→                    data={
+   558→   558→                      stats?.eventDistribution && stats.eventDistribution.length > 0
+   559→   559→                        ? stats.eventDistribution.map(e => ({
+   560→   560→                            name: e.category.charAt(0) + e.category.slice(1).toLowerCase(),
+   561→   561→                            value: e.count,
+   562→   562→                            fill: EVENT_CATEGORY_COLORS[e.category] || '#6b7280',
+   563→   563→                          }))
+   564→   564→                        : [{ name: 'No data', value: 1, fill: '#6b7280' }]
+   565→   565→                    }
+   566→   566→                    cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value"
+   567→   567→                  >
+   568→   568→                  </Pie>
+   569→   569→                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
+   570→   570→                </PieChart>
+   571→   571→              </ResponsiveContainer>
+   572→   572→              <div className="absolute flex flex-wrap justify-center gap-3">
+   573→   573→                {(stats?.eventDistribution && stats.eventDistribution.length > 0
+   574→   574→                  ? stats.eventDistribution.map(e => ({
+   575→   575→                      n: e.category.charAt(0) + e.category.slice(1).toLowerCase(),
+   576→   576→                      c: EVENT_CATEGORY_COLORS[e.category] || '#6b7280',
+   577→   577→                    }))
+   578→   578→                  : [{n:'No data', c:'#6b7280'}]
+   579→   579→                ).map(item => (
+   580→   580→                  <div key={item.n} className="flex items-center gap-1.5 text-xs"><div className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:item.c}}/><span className="text-gray-400">{item.n}</span></div>
+   581→   581→                ))}
+   582→   582→              </div>
+   583→   583→            </CardContent>
+   584→   584→          </Card>
+   585→   585→        </div>
+   586→   586→      )}
+   587→   587→
+   588→   588→      {/* Recent Notifications Section */}
+   589→   589→      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   590→   590→        <CardHeader className="flex flex-row items-center justify-between pb-2">
+   591→   591→          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
+   592→   592→            <Bell className="h-5 w-5 text-cyan-400" />
+   593→   593→            Recent Notifications
+   594→   594→          </CardTitle>
+   595→   595→          <Button variant="ghost" size="sm" onClick={() => setCurrentView('notifications')} className="text-xs text-cyan-400">View All</Button>
+   596→   596→        </CardHeader>
+   597→   597→        <CardContent>
+   598→   598→          {recentNotifications.length > 0 ? (
+   599→   599→            <div className="space-y-3">
+   600→   600→              {recentNotifications.map((notification, index) => {
+   601→   601→                const typeColor = notification.type === 'SUCCESS' ? '#10b981' : notification.type === 'WARNING' ? '#f59e0b' : notification.type === 'ERROR' ? '#ef4444' : '#06b6d4';
+   602→   602→                return (
+   603→   603→                  <motion.div
+   604→   604→                    key={notification.id}
+   605→   605→                    initial={{ opacity: 0, y: 10 }}
+   606→   606→                    animate={{ opacity: 1, y: 0 }}
+   607→   607→                    transition={{ delay: index * 0.1 }}
+   608→   608→                    className="flex items-start gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors"
+   609→   609→                    style={{ borderLeftWidth: '3px', borderLeftColor: typeColor }}
+   610→   610→                  >
+   611→   611→                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${typeColor}15` }}>
+   612→   612→                      <Info className="h-4 w-4" style={{ color: typeColor }} />
+   613→   613→                    </div>
+   614→   614→                    <div className="flex-1 min-w-0">
+   615→   615→                      <p className="text-sm font-medium text-white">{notification.title}</p>
+   616→   616→                      <p className="text-xs text-gray-500 truncate">{notification.message}</p>
+   617→   617→                    </div>
+   618→   618→                    <span className="shrink-0 text-[10px] text-gray-600">
+   619→   619→                      {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+   620→   620→                    </span>
+   621→   621→                  </motion.div>
+   622→   622→                );
+   623→   623→              })}
+   624→   624→            </div>
+   625→   625→          ) : (
+   626→   626→            <div className="flex flex-col items-center justify-center py-8 text-gray-500">
+   627→   627→              <Bell className="mb-2 h-8 w-8 text-gray-600" />
+   628→   628→              <p className="text-sm">No notifications yet</p>
+   629→   629→            </div>
+   630→   630→          )}
+   631→   631→        </CardContent>
+   632→   632→      </Card>
+   633→   633→    </div>
+   634→   634→  );
+   635→   635→}
+   636→   636→
