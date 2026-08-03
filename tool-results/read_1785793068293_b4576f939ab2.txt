@@ -1,0 +1,1927 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback, useMemo } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import {
+     6→  ShieldCheck,
+     7→  Award,
+     8→  CheckCircle2,
+     9→  XCircle,
+    10→  Clock,
+    11→  Search,
+    12→  AlertTriangle,
+    13→  FileCheck,
+    14→  Loader2,
+    15→  ChevronDown,
+    16→  Ban,
+    17→  Eye,
+    18→  Filter,
+    19→  ShieldAlert,
+    20→  User,
+    21→  Calendar,
+    22→  Hash,
+    23→  RefreshCw,
+    24→} from 'lucide-react';
+    25→import { useAppStore } from '@/store/use-app-store';
+    26→import { toast } from '@/hooks/use-toast';
+    27→import type {
+    28→  Certificate,
+    29→  CertificateType,
+    30→  CertificateStatus,
+    31→  CertificateAuditLog,
+    32→  CertificateAuditAction,
+    33→  EligibilityCheck,
+    34→  Event,
+    35→  EventRegistration,
+    36→} from '@/types';
+    37→import { CERTIFICATE_TYPE_LABELS } from '@/types';
+    38→import {
+    39→  CertificateStatusBadge,
+    40→  CertificateTypeBadge,
+    41→} from '@/components/shared/status-badge';
+    42→import { Card, CardContent } from '@/components/ui/card';
+    43→import { Button } from '@/components/ui/button';
+    44→import { Input } from '@/components/ui/input';
+    45→import { Badge } from '@/components/ui/badge';
+    46→import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
+    47→import {
+    48→  Select,
+    49→  SelectContent,
+    50→  SelectItem,
+    51→  SelectTrigger,
+    52→  SelectValue,
+    53→} from '@/components/ui/select';
+    54→import {
+    55→  Dialog,
+    56→  DialogContent,
+    57→  DialogDescription,
+    58→  DialogFooter,
+    59→  DialogHeader,
+    60→  DialogTitle,
+    61→} from '@/components/ui/dialog';
+    62→import { Textarea } from '@/components/ui/textarea';
+    63→import { Skeleton } from '@/components/ui/skeleton';
+    64→
+    65→// ──────────────────────────────────────────
+    66→// Animation variants
+    67→// ──────────────────────────────────────────
+    68→
+    69→const container = {
+    70→  hidden: { opacity: 0 },
+    71→  show: { opacity: 1, transition: { staggerChildren: 0.06 } },
+    72→};
+    73→
+    74→const item = {
+    75→  hidden: { opacity: 0, y: 20 },
+    76→  show: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+    77→};
+    78→
+    79→// ──────────────────────────────────────────
+    80→// Helper: Relative time
+    81→// ──────────────────────────────────────────
+    82→
+    83→function timeAgo(dateStr: string): string {
+    84→  const now = new Date();
+    85→  const date = new Date(dateStr);
+    86→  const seconds = Math.floor((now.getTime() - date.getTime()) / 1000);
+    87→
+    88→  if (seconds < 60) return 'just now';
+    89→  const minutes = Math.floor(seconds / 60);
+    90→  if (minutes < 60) return `${minutes}m ago`;
+    91→  const hours = Math.floor(minutes / 60);
+    92→  if (hours < 24) return `${hours}h ago`;
+    93→  const days = Math.floor(hours / 24);
+    94→  if (days === 1) return 'yesterday';
+    95→  if (days < 7) return `${days}d ago`;
+    96→  if (days < 30) return `${Math.floor(days / 7)}w ago`;
+    97→  return date.toLocaleDateString();
+    98→}
+    99→
+   100→// ──────────────────────────────────────────
+   101→// Audit action color mapping
+   102→// ──────────────────────────────────────────
+   103→
+   104→const AUDIT_ACTION_COLORS: Record<CertificateAuditAction, string> = {
+   105→  ISSUED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20',
+   106→  APPROVED: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20',
+   107→  REVOKED: 'bg-red-500/15 text-red-400 border-red-500/20',
+   108→  ELIGIBILITY_CHECKED: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
+   109→  VIEWED: 'bg-gray-500/15 text-gray-400 border-gray-500/20',
+   110→  SHARED: 'bg-purple-500/15 text-purple-400 border-purple-500/20',
+   111→};
+   112→
+   113→interface StatCardProps {
+   114→  label: string;
+   115→  value: number;
+   116→  icon: React.ComponentType<{ className?: string }>;
+   117→  color: string;
+   118→  delay: number;
+   119→  loading: boolean;
+   120→}
+   121→
+   122→const StatCard = ({
+   123→  label,
+   124→  value,
+   125→  icon: Icon,
+   126→  color,
+   127→  delay,
+   128→  loading,
+   129→}: StatCardProps) => (
+   130→  <motion.div
+   131→    initial={{ opacity: 0, y: 10 }}
+   132→    animate={{ opacity: 1, y: 0 }}
+   133→    transition={{ delay }}
+   134→    className="flex items-center gap-3 rounded-lg border border-white/5 bg-[#111]/60 px-4 py-3"
+   135→  >
+   136→    <div
+   137→      className={`flex h-9 w-9 items-center justify-center rounded-lg ${color}`}
+   138→    >
+   139→      <Icon className="h-4 w-4" />
+   140→    </div>
+   141→    <div>
+   142→      <p className="text-lg font-bold text-white">
+   143→        {loading ? (
+   144→          <Skeleton className="h-6 w-8 bg-white/10" />
+   145→        ) : (
+   146→          value
+   147→        )}
+   148→      </p>
+   149→      <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+   150→        {label}
+   151→      </p>
+   152→    </div>
+   153→  </motion.div>
+   154→);
+   155→
+   156→// ──────────────────────────────────────────
+   157→// Main Component
+   158→// ──────────────────────────────────────────
+   159→
+   160→export function CertificateAuthorityPage() {
+   161→  const { currentUser } = useAppStore();
+   162→  const role = currentUser?.role ?? 'GUEST';
+   163→
+   164→  const isGS = role === 'GS';
+   165→  const isPresident = role === 'PRESIDENT';
+   166→  const isAdmin = role === 'PLATFORM_ADMIN';
+   167→
+   168→  // Determine default tab based on role
+   169→  const getDefaultTab = () => {
+   170→    if (isGS) return 'issue';
+   171→    if (isPresident) return 'pending-approval';
+   172→    if (isAdmin) return 'audit';
+   173→    return 'audit';
+   174→  };
+   175→
+   176→  const [activeTab, setActiveTab] = useState(getDefaultTab);
+   177→
+   178→  // Stats
+   179→  const [stats, setStats] = useState({
+   180→    totalIssued: 0,
+   181→    pendingApproval: 0,
+   182→    valid: 0,
+   183→    revoked: 0,
+   184→  });
+   185→  const [statsLoading, setStatsLoading] = useState(true);
+   186→
+   187→  // ─── Tab 1: Issue Certificate ─────────────
+   188→  const [completedEvents, setCompletedEvents] = useState<Event[]>([]);
+   189→  const [selectedEventId, setSelectedEventId] = useState<string>('');
+   190→  const [registrations, setRegistrations] = useState<EventRegistration[]>([]);
+   191→  const [eligibilityMap, setEligibilityMap] = useState<
+   192→    Record<string, EligibilityCheck>
+   193→  >({});
+   194→  const [eventsLoading, setEventsLoading] = useState(false);
+   195→  const [regsLoading, setRegsLoading] = useState(false);
+   196→  const [issuingMemberId, setIssuingMemberId] = useState<string | null>(null);
+   197→
+   198→  // ─── Tab 2: Pending Approval ──────────────
+   199→  const [pendingCerts, setPendingCerts] = useState<Certificate[]>([]);
+   200→  const [pendingLoading, setPendingLoading] = useState(false);
+   201→  const [selectedPresidentEventId, setSelectedPresidentEventId] = useState<string>('');
+   202→  const [presidentCerts, setPresidentCerts] = useState<Certificate[]>([]);
+   203→  const [selectedCertIds, setSelectedCertIds] = useState<string[]>([]);
+   204→  const [presidentLoading, setPresidentLoading] = useState(false);
+   205→  const [approvingId, setApprovingId] = useState<string | null>(null);
+   206→  const [rejectingId, setRejectingId] = useState<string | null>(null);
+   207→  const [rejectionReason, setRejectionReason] = useState('');
+   208→  const [showRejectDialog, setShowRejectDialog] = useState(false);
+   209→
+   210→  // ─── Tab 3: Revoke Certificate ────────────
+   211→  const [searchQuery, setSearchQuery] = useState('');
+   212→  const [searchResults, setSearchResults] = useState<Certificate[]>([]);
+   213→  const [searching, setSearching] = useState(false);
+   214→  const [revokeCert, setRevokeCert] = useState<Certificate | null>(null);
+   215→  const [revocationReason, setRevocationReason] = useState('');
+   216→  const [revoking, setRevoking] = useState(false);
+   217→
+   218→  // ─── Tab 4: Audit Trail ──────────────────
+   219→  const [auditLogs, setAuditLogs] = useState<CertificateAuditLog[]>([]);
+   220→  const [auditLoading, setAuditLoading] = useState(false);
+   221→  const [auditFilter, setAuditFilter] = useState<string>('ALL');
+   222→
+   223→  // ─── Issue form state ────────────────────
+   224→  const [certType, setCertType] = useState<CertificateType>('PARTICIPATION');
+   225→  const [certScore, setCertScore] = useState('');
+   226→
+   227→  // ──────────────────────────────────────────
+   228→  // Data fetching
+   229→  // ──────────────────────────────────────────
+   230→
+   231→  // Fetch stats
+   232→  const fetchStats = useCallback(async () => {
+   233→    setStatsLoading(true);
+   234→    try {
+   235→      const r = await fetch('/api/certificates');
+   236→      const d = await r.json();
+   237→      if (d.success) {
+   238→        const certs: Certificate[] = d.data.certificates || [];
+   239→        setStats({
+   240→          totalIssued: certs.length,
+   241→          pendingApproval: certs.filter(
+   242→            (c) => c.status === 'ELIGIBLE'
+   243→          ).length,
+   244→          valid: certs.filter((c) => ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(c.status)).length,
+   245→          revoked: certs.filter((c) => c.status === 'REVOKED').length,
+   246→        });
+   247→      }
+   248→    } catch (e) {
+   249→      console.error(e);
+   250→    } finally {
+   251→      setStatsLoading(false);
+   252→    }
+   253→  }, []);
+   254→
+   255→  // Fetch completed events
+   256→  const fetchCompletedEvents = useCallback(async () => {
+   257→    setEventsLoading(true);
+   258→    try {
+   259→      const r = await fetch('/api/events');
+   260→      const d = await r.json();
+   261→      if (d.success) {
+   262→        setCompletedEvents(d.data.events || []);
+   263→      }
+   264→    } catch (e) {
+   265→      console.error(e);
+   266→    } finally {
+   267→      setEventsLoading(false);
+   268→    }
+   269→  }, []);
+   270→
+   271→  // Fetch registrations for selected event
+   272→  const fetchRegistrations = useCallback(
+   273→    async (eventId: string) => {
+   274→      setRegsLoading(true);
+   275→      setEligibilityMap({});
+   276→      try {
+   277→        const r = await fetch(`/api/events/${eventId}/registrations`);
+   278→        const d = await r.json();
+   279→        if (d.success) {
+   280→          const regs: EventRegistration[] =
+   281→            d.data.registrations || d.data || [];
+   282→          setRegistrations(regs);
+   283→        }
+   284→      } catch (e) {
+   285→        console.error(e);
+   286→      } finally {
+   287→        setRegsLoading(false);
+   288→      }
+   289→    },
+   290→    []
+   291→  );
+   292→
+   293→  // Check eligibility for a user
+   294→  const checkEligibility = useCallback(
+   295→    async (userId: string, eventId: string) => {
+   296→      try {
+   297→        const r = await fetch(
+   298→          `/api/certificates/eligibility/${userId}/${eventId}`
+   299→        );
+   300→        const d = await r.json();
+   301→        if (d.success) {
+   302→          const eligibility: EligibilityCheck = d.data.eligibility || d.data;
+   303→          setEligibilityMap((prev) => ({ ...prev, [userId]: eligibility }));
+   304→          return eligibility;
+   305→        }
+   306→      } catch (e) {
+   307→        console.error(e);
+   308→      }
+   309→      return null;
+   310→    },
+   311→    []
+   312→  );
+   313→
+   314→  // Fetch pending approval certs
+   315→  const fetchPendingCerts = useCallback(async () => {
+   316→    setPendingLoading(true);
+   317→    try {
+   318→      const r = await fetch('/api/certificates?status=PENDING_APPROVAL');
+   319→      const d = await r.json();
+   320→      if (d.success) {
+   321→        setPendingCerts(d.data.certificates || []);
+   322→      }
+   323→    } catch (e) {
+   324→      console.error(e);
+   325→    } finally {
+   326→      setPendingLoading(false);
+   327→    }
+   328→  }, []);
+   329→
+   330→  // Fetch audit logs
+   331→  const fetchAuditLogs = useCallback(async () => {
+   332→    setAuditLoading(true);
+   333→    try {
+   334→      const r = await fetch('/api/certificates/audit-logs');
+   335→      const d = await r.json();
+   336→      if (d.success) {
+   337→        setAuditLogs(d.data.auditLogs || d.data || []);
+   338→      }
+   339→    } catch (e) {
+   340→      console.error(e);
+   341→    } finally {
+   342→      setAuditLoading(false);
+   343→    }
+   344→  }, []);
+   345→
+   346→  // Fetch President certifications for the selected event
+   347→  const fetchPresidentCerts = useCallback(async (eventId: string) => {
+   348→    if (!eventId) return;
+   349→    setPresidentLoading(true);
+   350→    try {
+   351→      const r = await fetch(`/api/certificates?eventId=${eventId}`);
+   352→      const d = await r.json();
+   353→      if (d.success) {
+   354→        setPresidentCerts(d.data.certificates || []);
+   355→        setSelectedCertIds([]);
+   356→      }
+   357→    } catch (e) {
+   358→      console.error(e);
+   359→    } finally {
+   360→      setPresidentLoading(false);
+   361→    }
+   362→  }, []);
+   363→
+   364→  // ──────────────────────────────────────────
+   365→  // Effects
+   366→  // ──────────────────────────────────────────
+   367→
+   368→  useEffect(() => {
+   369→    const t = setTimeout(() => {
+   370→      fetchStats();
+   371→    }, 0);
+   372→    return () => clearTimeout(t);
+   373→  }, [fetchStats]);
+   374→
+   375→  useEffect(() => {
+   376→    if ((isGS && activeTab === 'issue') || (isPresident && activeTab === 'pending-approval')) {
+   377→      const t = setTimeout(() => {
+   378→        fetchCompletedEvents();
+   379→      }, 0);
+   380→      return () => clearTimeout(t);
+   381→    }
+   382→  }, [isGS, isPresident, activeTab, fetchCompletedEvents]);
+   383→
+   384→  // When selectedPresidentEventId changes, load its certificates
+   385→  useEffect(() => {
+   386→    const t = setTimeout(() => {
+   387→      if (selectedPresidentEventId) {
+   388→        fetchPresidentCerts(selectedPresidentEventId);
+   389→      } else {
+   390→        setPresidentCerts([]);
+   391→        setSelectedCertIds([]);
+   392→      }
+   393→    }, 0);
+   394→    return () => clearTimeout(t);
+   395→  }, [selectedPresidentEventId, fetchPresidentCerts]);
+   396→
+   397→  useEffect(() => {
+   398→    if (isPresident && activeTab === 'pending-approval') {
+   399→      const t = setTimeout(() => {
+   400→        fetchPendingCerts();
+   401→      }, 0);
+   402→      return () => clearTimeout(t);
+   403→    }
+   404→  }, [isPresident, activeTab, fetchPendingCerts]);
+   405→
+   406→  useEffect(() => {
+   407→    if (activeTab === 'audit') {
+   408→      const t = setTimeout(() => {
+   409→        fetchAuditLogs();
+   410→      }, 0);
+   411→      return () => clearTimeout(t);
+   412→    }
+   413→  }, [activeTab, fetchAuditLogs]);
+   414→
+   415→  // When event is selected, fetch registrations and auto-check eligibility
+   416→  useEffect(() => {
+   417→    const t = setTimeout(() => {
+   418→      if (selectedEventId) {
+   419→        fetchRegistrations(selectedEventId);
+   420→      } else {
+   421→        setRegistrations([]);
+   422→        setEligibilityMap({});
+   423→      }
+   424→    }, 0);
+   425→    return () => clearTimeout(t);
+   426→  }, [selectedEventId, fetchRegistrations]);
+   427→
+   428→  // Auto-check eligibility for all registrations
+   429→  useEffect(() => {
+   430→    if (registrations.length > 0 && selectedEventId) {
+   431→      const t = setTimeout(() => {
+   432→        registrations.forEach((reg) => {
+   433→          if (!eligibilityMap[reg.userId]) {
+   434→            checkEligibility(reg.userId, selectedEventId);
+   435→          }
+   436→        });
+   437→      }, 0);
+   438→      return () => clearTimeout(t);
+   439→    }
+   440→  }, [registrations, selectedEventId, eligibilityMap, checkEligibility]);
+   441→
+   442→  // ──────────────────────────────────────────
+   443→  // Actions
+   444→  // ──────────────────────────────────────────
+   445→
+   446→  const handleIssueCertificate = async (
+   447→    userId: string,
+   448→    eventId: string,
+   449→    type: CertificateType,
+   450→    score?: number
+   451→  ) => {
+   452→    setIssuingMemberId(userId);
+   453→    try {
+   454→      const eligibility = eligibilityMap[userId];
+   455→      const body: Record<string, unknown> = {
+   456→        userId,
+   457→        eventId,
+   458→        type,
+   459→        score: score || undefined,
+   460→        issuedBy: currentUser?.id,
+   461→        role: currentUser?.role,
+   462→        eligibilityVerified: eligibility?.eligible ?? false,
+   463→        eligibilityDetails: eligibility
+   464→          ? eligibility.checks
+   465→          : undefined,
+   466→      };
+   467→
+   468→      // EXCELLENCE type automatically goes to PENDING_APPROVAL (handled by API)
+   469→
+   470→      const r = await fetch('/api/certificates', {
+   471→        method: 'POST',
+   472→        headers: { 'Content-Type': 'application/json' },
+   473→        body: JSON.stringify(body),
+   474→      });
+   475→      const d = await r.json();
+   476→      if (d.success) {
+   477→        // Re-check eligibility for this user
+   478→        await checkEligibility(userId, eventId);
+   479→        fetchStats();
+   480→      }
+   481→    } catch (e) {
+   482→      console.error(e);
+   483→    } finally {
+   484→      setIssuingMemberId(null);
+   485→    }
+   486→  };
+   487→
+   488→  const [authorizingBatch, setAuthorizingBatch] = useState(false);
+   489→
+   490→  const handleAuthorizeBatch = async (idsToApprove: string[]) => {
+   491→    if (idsToApprove.length === 0) return;
+   492→    setAuthorizingBatch(true);
+   493→    try {
+   494→      await Promise.all(
+   495→        idsToApprove.map((certId) =>
+   496→          fetch(`/api/certificates/${certId}/approve`, {
+   497→            method: 'PATCH',
+   498→            headers: { 'Content-Type': 'application/json' },
+   499→            body: JSON.stringify({ performedBy: currentUser?.id, role: currentUser?.role }),
+   500→          })
+   501→        )
+   502→      );
+   503→      toast({ title: 'Success', description: `Successfully authorized ${idsToApprove.length} certificate(s).` });
+   504→      if (selectedPresidentEventId) {
+   505→        fetchPresidentCerts(selectedPresidentEventId);
+   506→      }
+   507→      fetchStats();
+   508→      fetchPendingCerts();
+   509→    } catch (e) {
+   510→      console.error(e);
+   511→      toast({ title: 'Error', description: 'Failed to authorize some certificates.', variant: 'destructive' });
+   512→    } finally {
+   513→      setAuthorizingBatch(false);
+   514→      setSelectedCertIds([]);
+   515→    }
+   516→  };
+   517→
+   518→  const handleRejectBatch = async () => {
+   519→    const idsToReject = rejectingId ? [rejectingId] : selectedCertIds;
+   520→    if (idsToReject.length === 0 || !rejectionReason.trim()) return;
+   521→    setAuthorizingBatch(true);
+   522→    try {
+   523→      await Promise.all(
+   524→        idsToReject.map((certId) =>
+   525→          fetch(`/api/certificates/${certId}/revoke`, {
+   526→            method: 'PATCH',
+   527→            headers: { 'Content-Type': 'application/json' },
+   528→            body: JSON.stringify({
+   529→              reason: rejectionReason,
+   530→              performedBy: currentUser?.id,
+   531→              role: currentUser?.role,
+   532→            }),
+   533→          })
+   534→        )
+   535→      );
+   536→      toast({ title: 'Success', description: `Successfully rejected ${idsToReject.length} certificate(s).` });
+   537→      setShowRejectDialog(false);
+   538→      setRejectionReason('');
+   539→      setRejectingId(null);
+   540→      if (selectedPresidentEventId) {
+   541→        fetchPresidentCerts(selectedPresidentEventId);
+   542→      }
+   543→      fetchStats();
+   544→      fetchPendingCerts();
+   545→    } catch (e) {
+   546→      console.error(e);
+   547→      toast({ title: 'Error', description: 'Failed to reject some certificates.', variant: 'destructive' });
+   548→    } finally {
+   549→      setAuthorizingBatch(false);
+   550→      setSelectedCertIds([]);
+   551→    }
+   552→  };
+   553→
+   554→  const handleApprove = async (certId: string) => {
+   555→    setApprovingId(certId);
+   556→    try {
+   557→      const res = await fetch(`/api/certificates/${certId}/approve`, {
+   558→        method: 'PATCH',
+   559→        headers: { 'Content-Type': 'application/json' },
+   560→        body: JSON.stringify({ performedBy: currentUser?.id, role: currentUser?.role }),
+   561→      });
+   562→      
+   563→      if (!res.ok) {
+   564→        const errorData = await res.json();
+   565→        throw new Error(errorData.error || 'Failed to approve certificate');
+   566→      }
+   567→      
+   568→      toast({ title: 'Success', description: 'Certificate approved successfully.' });
+   569→      
+   570→      if (selectedPresidentEventId) {
+   571→        fetchPresidentCerts(selectedPresidentEventId);
+   572→      }
+   573→      fetchPendingCerts();
+   574→      fetchStats();
+   575→    } catch (e: any) {
+   576→      console.error(e);
+   577→      toast({ title: 'Error', description: e.message || 'An error occurred.', variant: 'destructive' });
+   578→    } finally {
+   579→      setApprovingId(null);
+   580→    }
+   581→  };
+   582→
+   583→  const handleReject = async () => {
+   584→    await handleRejectBatch();
+   585→  };
+   586→
+   587→  const handleSearch = async () => {
+   588→    if (!searchQuery.trim()) return;
+   589→    setSearching(true);
+   590→    try {
+   591→      const r = await fetch(
+   592→        `/api/certificates?search=${encodeURIComponent(searchQuery)}&t=${Date.now()}`,
+   593→        { cache: 'no-store' }
+   594→      );
+   595→      const d = await r.json();
+   596→      if (d.success) {
+   597→        setSearchResults(d.data.certificates || []);
+   598→      }
+   599→    } catch (e) {
+   600→      console.error(e);
+   601→    } finally {
+   602→      setSearching(false);
+   603→    }
+   604→  };
+   605→
+   606→  const handleRevoke = async () => {
+   607→    if (!revokeCert || !revocationReason.trim()) return;
+   608→    setRevoking(true);
+   609→    try {
+   610→      await fetch(`/api/certificates/${revokeCert.id}/revoke`, {
+   611→        method: 'PATCH',
+   612→        headers: { 'Content-Type': 'application/json' },
+   613→        body: JSON.stringify({
+   614→          reason: revocationReason,
+   615→          performedBy: currentUser?.id,
+   616→          role: currentUser?.role,
+   617→        }),
+   618→      });
+   619→      setRevokeCert(null);
+   620→      setRevocationReason('');
+   621→      fetchStats();
+   622→      handleSearch();
+   623→    } catch (e) {
+   624→      console.error(e);
+   625→    } finally {
+   626→      setRevoking(false);
+   627→    }
+   628→  };
+   629→
+   630→  // ─── Filtered audit logs ─────────────────
+   631→  const filteredAuditLogs = useMemo(() => {
+   632→    if (auditFilter === 'ALL') return auditLogs;
+   633→    return auditLogs.filter(
+   634→      (log) => log.action === auditFilter
+   635→    );
+   636→  }, [auditLogs, auditFilter]);
+   637→
+   638→  // Stat cards are declared in the module scope above.
+   639→
+   640→  // ──────────────────────────────────────────
+   641→  // Render
+   642→  // ──────────────────────────────────────────
+   643→
+   644→  return (
+   645→    <div className="space-y-6">
+   646→      {/* Gradient Header Banner */}
+   647→      <motion.div
+   648→        initial={{ opacity: 0, y: -10 }}
+   649→        animate={{ opacity: 1, y: 0 }}
+   650→        transition={{ duration: 0.4 }}
+   651→        className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600/20 via-cyan-600/15 to-emerald-600/10 border border-emerald-500/10 p-6"
+   652→      >
+   653→        {/* SVG Pattern Overlay */}
+   654→        <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMjBMMjAgMEw0MCAyMEwyMCA0MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2cpIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+')] opacity-50" />
+   655→        {/* Blur Orbs */}
+   656→        <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl" />
+   657→        <div className="absolute -left-8 -bottom-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl" />
+   658→        <div className="relative flex items-center gap-4">
+   659→          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
+   660→            <ShieldCheck className="h-6 w-6 text-emerald-400" />
+   661→          </div>
+   662→          <div>
+   663→            <h1 className="text-2xl font-bold text-white">
+   664→              Certificate Authority
+   665→            </h1>
+   666→            <p className="text-sm text-gray-400">
+   667→              Issue, approve, and manage digital certificates
+   668→            </p>
+   669→          </div>
+   670→        </div>
+   671→      </motion.div>
+   672→
+   673→      {/* Stats Bar */}
+   674→      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+   675→        <StatCard
+   676→          label="Total Issued"
+   677→          value={stats.totalIssued}
+   678→          icon={FileCheck}
+   679→          color="bg-emerald-500/10 text-emerald-400"
+   680→          delay={0.1}
+   681→          loading={statsLoading}
+   682→        />
+   683→        <StatCard
+   684→          label="Pending Approval"
+   685→          value={stats.pendingApproval}
+   686→          icon={Clock}
+   687→          color="bg-amber-500/10 text-amber-400"
+   688→          delay={0.15}
+   689→          loading={statsLoading}
+   690→        />
+   691→        <StatCard
+   692→          label="Valid"
+   693→          value={stats.valid}
+   694→          icon={CheckCircle2}
+   695→          color="bg-cyan-500/10 text-cyan-400"
+   696→          delay={0.2}
+   697→          loading={statsLoading}
+   698→        />
+   699→        <StatCard
+   700→          label="Revoked"
+   701→          value={stats.revoked}
+   702→          icon={Ban}
+   703→          color="bg-red-500/10 text-red-400"
+   704→          delay={0.25}
+   705→          loading={statsLoading}
+   706→        />
+   707→      </div>
+   708→
+   709→      {/* Tabs */}
+   710→      <Tabs
+   711→        value={activeTab}
+   712→        onValueChange={setActiveTab}
+   713→        className="space-y-4"
+   714→      >
+   715→        <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto p-1 gap-1">
+   716→          {isGS && (
+   717→            <TabsTrigger
+   718→              value="issue"
+   719→              className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
+   720→            >
+   721→              <Award className="mr-1.5 h-4 w-4" />
+   722→              Issue Certificate
+   723→            </TabsTrigger>
+   724→          )}
+   725→          {isPresident && (
+   726→            <TabsTrigger
+   727→              value="pending-approval"
+   728→              className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400"
+   729→            >
+   730→              <Clock className="mr-1.5 h-4 w-4" />
+   731→              Pending Approval
+   732→              {stats.pendingApproval > 0 && (
+   733→                <Badge className="ml-1.5 h-5 min-w-5 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px] px-1.5">
+   734→                  {stats.pendingApproval}
+   735→                </Badge>
+   736→              )}
+   737→            </TabsTrigger>
+   738→          )}
+   739→          {(isPresident || isAdmin) && (
+   740→            <TabsTrigger
+   741→              value="revoke"
+   742→              className="data-[state=active]:bg-red-500/20 data-[state=active]:text-red-400"
+   743→            >
+   744→              <ShieldAlert className="mr-1.5 h-4 w-4" />
+   745→              Revoke Certificate
+   746→            </TabsTrigger>
+   747→          )}
+   748→          {(isGS || isPresident || isAdmin) && (
+   749→            <TabsTrigger
+   750→              value="audit"
+   751→              className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400"
+   752→            >
+   753→              <Eye className="mr-1.5 h-4 w-4" />
+   754→              Audit Trail
+   755→            </TabsTrigger>
+   756→          )}
+   757→        </TabsList>
+   758→
+   759→        {/* ─── Tab 1: Issue Certificate ─────────── */}
+   760→        {isGS && (
+   761→          <TabsContent value="issue">
+   762→            <motion.div
+   763→              variants={container}
+   764→              initial="hidden"
+   765→              animate="show"
+   766→              className="space-y-4"
+   767→            >
+   768→              {/* Event selector */}
+   769→              <Card className="border-white/5 bg-[#111]/60">
+   770→                <CardContent className="p-4 space-y-4">
+   771→                  <div className="flex items-center gap-2 mb-2">
+   772→                    <Calendar className="h-4 w-4 text-emerald-400" />
+   773→                    <h3 className="text-sm font-semibold text-white">
+   774→                      Select Completed Event
+   775→                    </h3>
+   776→                  </div>
+   777→
+   778→                  {eventsLoading ? (
+   779→                    <div className="space-y-2">
+   780→                      <Skeleton className="h-10 w-full bg-white/5" />
+   781→                      <Skeleton className="h-20 w-full bg-white/5" />
+   782→                    </div>
+   783→                  ) : (
+   784→                    <>
+   785→                      <Select
+   786→                        value={selectedEventId}
+   787→                        onValueChange={setSelectedEventId}
+   788→                      >
+   789→                        <SelectTrigger className="w-full border-white/10 bg-white/5 text-white">
+   790→                          <SelectValue placeholder="Choose a completed event..." />
+   791→                        </SelectTrigger>
+   792→                        <SelectContent className="border-white/10 bg-[#1a1a2e]">
+   793→                          {completedEvents.length === 0 ? (
+   794→                            <SelectItem value="__none" disabled>
+   795→                              No completed events found
+   796→                            </SelectItem>
+   797→                          ) : (
+   798→                            completedEvents.map((event) => (
+   799→                              <SelectItem
+   800→                                key={event.id}
+   801→                                value={event.id}
+   802→                                className="text-gray-300 focus:text-white focus:bg-white/10"
+   803→                              >
+   804→                                {event.title} —{' '}
+   805→                                {new Date(
+   806→                                  event.startDate
+   807→                                ).toLocaleDateString()}
+   808→                              </SelectItem>
+   809→                            ))
+   810→                          )}
+   811→                        </SelectContent>
+   812→                      </Select>
+   813→
+   814→                      {/* Certificate type and score */}
+   815→                      {selectedEventId && (
+   816→                        <motion.div
+   817→                          initial={{ opacity: 0, height: 0 }}
+   818→                          animate={{ opacity: 1, height: 'auto' }}
+   819→                          className="grid grid-cols-1 sm:grid-cols-2 gap-3"
+   820→                        >
+   821→                          <div className="space-y-1.5">
+   822→                            <label className="text-xs text-gray-400 font-medium">
+   823→                              Certificate Type
+   824→                            </label>
+   825→                            <Select
+   826→                              value={certType}
+   827→                              onValueChange={(v) =>
+   828→                                setCertType(v as CertificateType)
+   829→                              }
+   830→                            >
+   831→                              <SelectTrigger className="w-full border-white/10 bg-white/5 text-white">
+   832→                                <SelectValue />
+   833→                              </SelectTrigger>
+   834→                              <SelectContent className="border-white/10 bg-[#1a1a2e]">
+   835→                                {(
+   836→                                  Object.entries(CERTIFICATE_TYPE_LABELS) as [
+   837→                                    CertificateType,
+   838→                                    string,
+   839→                                  ][]
+   840→                                ).map(([value, label]) => (
+   841→                                  <SelectItem
+   842→                                    key={value}
+   843→                                    value={value}
+   844→                                    className="text-gray-300 focus:text-white focus:bg-white/10"
+   845→                                  >
+   846→                                    {label}
+   847→                                  </SelectItem>
+   848→                                ))}
+   849→                              </SelectContent>
+   850→                            </Select>
+   851→                          </div>
+   852→                          <div className="space-y-1.5">
+   853→                            <label className="text-xs text-gray-400 font-medium">
+   854→                              Score (optional)
+   855→                            </label>
+   856→                            <Input
+   857→                              type="number"
+   858→                              min="0"
+   859→                              max="100"
+   860→                              value={certScore}
+   861→                              onChange={(e) => setCertScore(e.target.value)}
+   862→                              placeholder="0-100"
+   863→                              className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+   864→                            />
+   865→                          </div>
+   866→                        </motion.div>
+   867→                      )}
+   868→
+   869→                      {/* Excellence warning */}
+   870→                      {certType === 'EXCELLENCE' && (
+   871→                        <motion.div
+   872→                          initial={{ opacity: 0, y: -5 }}
+   873→                          animate={{ opacity: 1, y: 0 }}
+   874→                          className="flex items-start gap-2 rounded-lg border border-amber-500/20 bg-amber-500/5 p-3"
+   875→                        >
+   876→                          <AlertTriangle className="h-4 w-4 text-amber-400 mt-0.5 shrink-0" />
+   877→                          <p className="text-xs text-amber-300">
+   878→                            <strong>President Approval Required:</strong>{' '}
+   879→                            EXCELLENCE certificates require approval from the
+   880→                            President before they become valid.
+   881→                          </p>
+   882→                        </motion.div>
+   883→                      )}
+   884→
+   885→                      {/* Registered Members List */}
+   886→                      {selectedEventId && (
+   887→                        <div className="space-y-2">
+   888→                          <div className="flex items-center justify-between">
+   889→                            <h4 className="text-xs text-gray-400 font-medium uppercase tracking-wider">
+   890→                              Registered Members
+   891→                            </h4>
+   892→                            <Button
+   893→                              variant="ghost"
+   894→                              size="sm"
+   895→                              onClick={() =>
+   896→                                fetchRegistrations(selectedEventId)
+   897→                              }
+   898→                              className="h-7 text-xs text-gray-400 hover:text-emerald-400"
+   899→                            >
+   900→                              <RefreshCw className="mr-1 h-3 w-3" />
+   901→                              Refresh
+   902→                            </Button>
+   903→                          </div>
+   904→
+   905→                          {regsLoading ? (
+   906→                            <div className="space-y-2">
+   907→                              {[1, 2, 3].map((i) => (
+   908→                                <Skeleton
+   909→                                  key={i}
+   910→                                  className="h-20 w-full bg-white/5"
+   911→                                />
+   912→                              ))}
+   913→                            </div>
+   914→                          ) : registrations.length === 0 ? (
+   915→                            <div className="flex flex-col items-center justify-center py-8 text-center">
+   916→                              <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-500/10 border border-white/5 mb-3">
+   917→                                <User className="h-5 w-5 text-gray-600" />
+   918→                              </div>
+   919→                              <p className="text-sm text-gray-500">
+   920→                                No registrations found for this event
+   921→                              </p>
+   922→                            </div>
+   923→                          ) : (
+   924→                            <div className="space-y-2 max-h-96 overflow-y-auto custom-scrollbar pr-1">
+   925→                              {registrations.map((reg, idx) => {
+   926→                                const eligibility =
+   927→                                  eligibilityMap[reg.userId];
+   928→                                const isEligible = eligibility?.eligible;
+   929→                                const isChecking =
+   930→                                  !eligibility && !!selectedEventId;
+   931→                                const isIssuing =
+   932→                                  issuingMemberId === reg.userId;
+   933→
+   934→                                return (
+   935→                                  <motion.div
+   936→                                    key={reg.id}
+   937→                                    variants={item}
+   938→                                    custom={idx}
+   939→                                    className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors"
+   940→                                  >
+   941→                                    <div className="flex items-center gap-3 min-w-0">
+   942→                                      {/* Eligibility indicator */}
+   943→                                      <div className="shrink-0">
+   944→                                        {isChecking ? (
+   945→                                          <Loader2 className="h-5 w-5 text-gray-500 animate-spin" />
+   946→                                        ) : isEligible ? (
+   947→                                          <CheckCircle2 className="h-5 w-5 text-emerald-400" />
+   948→                                        ) : isEligible === false ? (
+   949→                                          <XCircle className="h-5 w-5 text-red-400" />
+   950→                                        ) : (
+   951→                                          <div className="h-5 w-5 rounded-full bg-gray-500/20" />
+   952→                                        )}
+   953→                                      </div>
+   954→
+   955→                                      <div className="min-w-0">
+   956→                                        <p className="text-sm font-medium text-white truncate">
+   957→                                          {reg.user?.name || 'Unknown User'}
+   958→                                        </p>
+   959→                                        <div className="flex items-center gap-2 flex-wrap mt-0.5">
+   960→                                          {reg.user?.department && (
+   961→                                            <span className="text-[10px] text-gray-500">
+   962→                                              {reg.user.department}
+   963→                                            </span>
+   964→                                          )}
+   965→                                          <Badge
+   966→                                            variant="outline"
+   967→                                            className={`text-[9px] h-4 px-1 ${
+   968→                                              reg.status === 'APPROVED'
+   969→                                                ? 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10'
+   970→                                                : reg.status === 'PENDING'
+   971→                                                  ? 'border-amber-500/30 text-amber-400 bg-amber-500/10'
+   972→                                                  : 'border-red-500/30 text-red-400 bg-red-500/10'
+   973→                                            }`}
+   974→                                          >
+   975→                                            {reg.status}
+   976→                                          </Badge>
+   977→                                        </div>
+   978→                                        {/* Eligibility detail chips */}
+   979→                                        {eligibility && !isEligible && (
+   980→                                          <div className="flex flex-wrap gap-1 mt-1">
+   981→                                            {Object.entries(
+   982→                                              eligibility.checks
+   983→                                            ).map(([key, passed]) => (
+   984→                                              <span
+   985→                                                key={key}
+   986→                                                className={`text-[9px] px-1.5 py-0.5 rounded ${
+   987→                                                  passed
+   988→                                                    ? 'bg-emerald-500/10 text-emerald-400'
+   989→                                                    : 'bg-red-500/10 text-red-400'
+   990→                                                }`}
+   991→                                              >
+   992→                                                {key}
+   993→                                              </span>
+   994→                                            ))}
+   995→                                          </div>
+   996→                                        )}
+   997→                                      </div>
+   998→                                    </div>
+   999→
+  1000→                                    <Button
+  1001→                                      size="sm"
+  1002→                                      disabled={
+  1003→                                        !isEligible || isIssuing || isChecking
+  1004→                                      }
+  1005→                                      onClick={() =>
+  1006→                                        handleIssueCertificate(
+  1007→                                          reg.userId,
+  1008→                                          selectedEventId,
+  1009→                                          certType,
+  1010→                                          certScore
+  1011→                                            ? parseFloat(certScore)
+  1012→                                            : undefined
+  1013→                                        )
+  1014→                                      }
+  1015→                                      className={`shrink-0 h-7 text-xs ${
+  1016→                                        isEligible
+  1017→                                          ? 'bg-emerald-600 hover:bg-emerald-500 text-white'
+  1018→                                          : 'bg-white/5 text-gray-600 cursor-not-allowed'
+  1019→                                      }`}
+  1020→                                    >
+  1021→                                      {isIssuing ? (
+  1022→                                        <Loader2 className="h-3 w-3 animate-spin" />
+  1023→                                      ) : (
+  1024→                                        'Issue'
+  1025→                                      )}
+  1026→                                    </Button>
+  1027→                                  </motion.div>
+  1028→                                );
+  1029→                              })}
+  1030→                            </div>
+  1031→                          )}
+  1032→                        </div>
+  1033→                      )}
+  1034→                    </>
+  1035→                  )}
+  1036→                </CardContent>
+  1037→              </Card>
+  1038→            </motion.div>
+  1039→          </TabsContent>
+  1040→        )}
+  1041→
+  1042→        {/* ─── Tab 2: Pending Approval ──────────── */}
+  1043→        {isPresident && (
+  1044→          <TabsContent value="pending-approval">
+  1045→            <motion.div
+  1046→              variants={container}
+  1047→              initial="hidden"
+  1048→              animate="show"
+  1049→              className="space-y-4"
+  1050→            >
+  1051→              {/* Event Selector Card */}
+  1052→              <Card className="border-white/5 bg-[#111]/80 rounded-sm">
+  1053→                <CardContent className="p-6">
+  1054→                  <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
+  1055→                    <div className="space-y-1">
+  1056→                      <h3 className="text-base font-semibold text-white">
+  1057→                        Select Event to Review
+  1058→                      </h3>
+  1059→                      <p className="text-xs text-gray-500">
+  1060→                        Choose an event to view registrations and authorize certificates
+  1061→                      </p>
+  1062→                    </div>
+  1063→                    <div className="w-full md:w-80">
+  1064→                      {eventsLoading ? (
+  1065→                        <div className="h-10 w-full animate-pulse bg-white/5 rounded-sm" />
+  1066→                      ) : (
+  1067→                        <Select
+  1068→                          value={selectedPresidentEventId}
+  1069→                          onValueChange={setSelectedPresidentEventId}
+  1070→                        >
+  1071→                          <SelectTrigger className="border-white/10 bg-white/5 text-white rounded-sm h-10 hover:border-emerald-500/30 transition-colors">
+  1072→                            <SelectValue placeholder="Choose completed/active event..." />
+  1073→                          </SelectTrigger>
+  1074→                          <SelectContent className="border-white/10 bg-[#0e0e1a] text-white">
+  1075→                            {completedEvents.length === 0 ? (
+  1076→                              <div className="py-2 px-3 text-xs text-gray-500">No events found</div>
+  1077→                            ) : (
+  1078→                              completedEvents.map((ev) => (
+  1079→                                <SelectItem key={ev.id} value={ev.id} className="focus:bg-white/5 text-xs">
+  1080→                                  {ev.title} ({ev.status.replace(/_/g, ' ')})
+  1081→                                </SelectItem>
+  1082→                              ))
+  1083→                            )}
+  1084→                          </SelectContent>
+  1085→                        </Select>
+  1086→                      )}
+  1087→                    </div>
+  1088→                  </div>
+  1089→                </CardContent>
+  1090→              </Card>
+  1091→
+  1092→              {!selectedPresidentEventId ? (
+  1093→                <div className="flex flex-col items-center justify-center py-20 text-center border border-dashed border-white/5 rounded-sm bg-[#111]/20">
+  1094→                  <div className="flex h-16 w-16 items-center justify-center rounded-sm bg-emerald-500/10 border border-emerald-500/20 mb-4 text-emerald-400">
+  1095→                    <Award className="h-8 w-8" />
+  1096→                  </div>
+  1097→                  <h4 className="text-white font-semibold text-sm">No Event Selected</h4>
+  1098→                  <p className="text-xs text-gray-500 mt-1 max-w-xs mx-auto">
+  1099→                    Please select an event from the dropdown above to review participants and approve certificates.
+  1100→                  </p>
+  1101→                </div>
+  1102→              ) : presidentLoading ? (
+  1103→                <div className="space-y-4">
+  1104→                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+  1105→                    {[1, 2, 3, 4].map((i) => (
+  1106→                      <Skeleton key={i} className="h-20 w-full bg-white/5 rounded-sm" />
+  1107→                    ))}
+  1108→                  </div>
+  1109→                  <Skeleton className="h-64 w-full bg-white/5 rounded-sm" />
+  1110→                </div>
+  1111→              ) : (
+  1112→                <>
+  1113→                  {/* Event Certificates Stats Panel */}
+  1114→                  {presidentCerts.length > 0 && (
+  1115→                    <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+  1116→                      <div className="border border-white/5 bg-[#111]/40 rounded-sm px-4 py-3">
+  1117→                        <p className="text-lg font-bold text-white">
+  1118→                          {presidentCerts.length}
+  1119→                        </p>
+  1120→                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+  1121→                          Total Registrations
+  1122→                        </p>
+  1123→                      </div>
+  1124→                      <div className="border border-white/5 bg-[#111]/40 rounded-sm px-4 py-3">
+  1125→                        <p className="text-lg font-bold text-cyan-400">
+  1126→                          {presidentCerts.filter((c) => c.status === "PRESENT").length}
+  1127→                        </p>
+  1128→                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+  1129→                          Attendance Confirmed
+  1130→                        </p>
+  1131→                      </div>
+  1132→                      <div className="border border-white/5 bg-[#111]/40 rounded-sm px-4 py-3">
+  1133→                        <p className="text-lg font-bold text-amber-400">
+  1134→                          {presidentCerts.filter((c) => c.status === "ELIGIBLE").length}
+  1135→                        </p>
+  1136→                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+  1137→                          Eligible for Award
+  1138→                        </p>
+  1139→                      </div>
+  1140→                      <div className="border border-white/5 bg-[#111]/40 rounded-sm px-4 py-3">
+  1141→                        <p className="text-lg font-bold text-emerald-400">
+  1142→                          {
+  1143→                            presidentCerts.filter((c) =>
+  1144→                              ["AUTHORIZED", "GENERATED", "DOWNLOADED"].includes(c.status)
+  1145→                            ).length
+  1146→                          }
+  1147→                        </p>
+  1148→                        <p className="text-[10px] text-gray-500 uppercase tracking-wider">
+  1149→                          Authorized / Issued
+  1150→                        </p>
+  1151→                      </div>
+  1152→                    </div>
+  1153→                  )}
+  1154→
+  1155→                  {/* Actions Header Bar */}
+  1156→                  {presidentCerts.length > 0 && (
+  1157→                    <div className="flex flex-col sm:flex-row items-stretch sm:items-center justify-between gap-3 border border-white/5 bg-[#111]/80 rounded-sm p-4">
+  1158→                      <div className="flex items-center gap-2">
+  1159→                        <div className="flex h-6 items-center justify-center bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-2 rounded-sm text-[10px] font-bold">
+  1160→                          {selectedCertIds.length} Selected
+  1161→                        </div>
+  1162→                        {selectedCertIds.length > 0 && (
+  1163→                          <span className="text-xs text-gray-500">
+  1164→                            for batch action
+  1165→                          </span>
+  1166→                        )}
+  1167→                      </div>
+  1168→                      <div className="flex flex-wrap items-center gap-2">
+  1169→                        {/* Authorize Selected */}
+  1170→                        <Button
+  1171→                          size="sm"
+  1172→                          disabled={selectedCertIds.length === 0 || authorizingBatch}
+  1173→                          onClick={() => handleAuthorizeBatch(selectedCertIds)}
+  1174→                          className="bg-emerald-600 hover:bg-emerald-500 text-white rounded-sm text-xs h-8 px-3 transition-transform hover:scale-[1.01]"
+  1175→                        >
+  1176→                          {authorizingBatch ? (
+  1177→                            <Loader2 className="h-3.5 w-3.5 animate-spin mr-1" />
+  1178→                          ) : (
+  1179→                            <CheckCircle2 className="h-3.5 w-3.5 mr-1" />
+  1180→                          )}
+  1181→                          Authorize Selected
+  1182→                        </Button>
+  1183→
+  1184→                        {/* Authorize All Eligible */}
+  1185→                        {presidentCerts.some((c) => c.status === "ELIGIBLE") && (
+  1186→                          <Button
+  1187→                            size="sm"
+  1188→                            variant="outline"
+  1189→                            disabled={authorizingBatch}
+  1190→                            onClick={() => {
+  1191→                              const eligibleIds = presidentCerts
+  1192→                                .filter((c) => c.status === "ELIGIBLE")
+  1193→                                .map((c) => c.id);
+  1194→                              handleAuthorizeBatch(eligibleIds);
+  1195→                            }}
+  1196→                            className="border-amber-500/30 text-amber-400 hover:bg-amber-500/10 rounded-sm text-xs h-8 px-3"
+  1197→                          >
+  1198→                            <Award className="h-3.5 w-3.5 mr-1" />
+  1199→                            Authorize All Eligible (
+  1200→                            {presidentCerts.filter((c) => c.status === "ELIGIBLE").length})
+  1201→                          </Button>
+  1202→                        )}
+  1203→
+  1204→                        {/* Reject Selected */}
+  1205→                        <Button
+  1206→                          size="sm"
+  1207→                          variant="outline"
+  1208→                          disabled={selectedCertIds.length === 0 || authorizingBatch}
+  1209→                          onClick={() => {
+  1210→                            setRejectingId(null); // Indicates batch reject
+  1211→                            setShowRejectDialog(true);
+  1212→                          }}
+  1213→                          className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 rounded-sm text-xs h-8 px-3"
+  1214→                        >
+  1215→                          <XCircle className="h-3.5 w-3.5 mr-1" />
+  1216→                          Reject Selected
+  1217→                        </Button>
+  1218→                      </div>
+  1219→                    </div>
+  1220→                  )}
+  1221→
+  1222→                  {presidentCerts.length === 0 ? (
+  1223→                    <div className="flex flex-col items-center justify-center py-16 text-center border border-white/5 rounded-sm bg-[#111]/40">
+  1224→                      <div className="flex h-12 w-12 items-center justify-center rounded-sm bg-white/5 border border-white/10 mb-4 text-gray-500">
+  1225→                        <Award className="h-6 w-6" />
+  1226→                      </div>
+  1227→                      <p className="text-gray-400 font-medium text-sm">
+  1228→                        No Certificates Found
+  1229→                      </p>
+  1230→                      <p className="text-xs text-gray-600 mt-1">
+  1231→                        No participant registrations match certificates for this event yet.
+  1232→                      </p>
+  1233→                    </div>
+  1234→                  ) : (
+  1235→                    <div className="overflow-x-auto w-full border border-white/5 bg-[#111]/60 rounded-sm">
+  1236→                      <table className="min-w-full divide-y divide-white/5 text-left text-sm text-gray-300">
+  1237→                        <thead className="bg-[#16162a]/80 text-[10px] font-bold text-gray-400 uppercase tracking-wider">
+  1238→                          <tr>
+  1239→                            <th className="p-4 w-12">
+  1240→                              {presidentCerts.filter((c) =>
+  1241→                                ["REGISTERED", "PRESENT", "ELIGIBLE"].includes(c.status)
+  1242→                              ).length > 0 && (
+  1243→                                <input
+  1244→                                  type="checkbox"
+  1245→                                  checked={
+  1246→                                    presidentCerts
+  1247→                                      .filter((c) =>
+  1248→                                        ["REGISTERED", "PRESENT", "ELIGIBLE"].includes(c.status)
+  1249→                                      )
+  1250→                                      .every((c) => selectedCertIds.includes(c.id))
+  1251→                                  }
+  1252→                                  onChange={() => {
+  1253→                                    const selectable = presidentCerts.filter((c) =>
+  1254→                                      ["REGISTERED", "PRESENT", "ELIGIBLE"].includes(c.status)
+  1255→                                    );
+  1256→                                    const allSel = selectable.every((c) =>
+  1257→                                      selectedCertIds.includes(c.id)
+  1258→                                    );
+  1259→                                    if (allSel) {
+  1260→                                      setSelectedCertIds((prev) =>
+  1261→                                        prev.filter(
+  1262→                                          (id) => !selectable.some((c) => c.id === id)
+  1263→                                        )
+  1264→                                      );
+  1265→                                    } else {
+  1266→                                      setSelectedCertIds((prev) => {
+  1267→                                        const other = prev.filter(
+  1268→                                          (id) => !selectable.some((c) => c.id === id)
+  1269→                                        );
+  1270→                                        return [...other, ...selectable.map((c) => c.id)];
+  1271→                                      });
+  1272→                                    }
+  1273→                                  }}
+  1274→                                  className="accent-emerald-500 h-4 w-4 bg-white/5 border-white/10 cursor-pointer rounded-none"
+  1275→                                />
+  1276→                              )}
+  1277→                            </th>
+  1278→                            <th className="p-4">Participant</th>
+  1279→                            <th className="p-4">Student Info</th>
+  1280→                            <th className="p-4">Type</th>
+  1281→                            <th className="p-4">Status</th>
+  1282→                            <th className="p-4">Attendance</th>
+  1283→                            <th className="p-4 text-right">Actions</th>
+  1284→                          </tr>
+  1285→                        </thead>
+  1286→                        <tbody className="divide-y divide-white/5">
+  1287→                          {presidentCerts.map((cert) => {
+  1288→                            const isSelectable = ["REGISTERED", "PRESENT", "ELIGIBLE"].includes(
+  1289→                              cert.status
+  1290→                            );
+  1291→                            const displayName =
+  1292→                              (cert as any).registration?.preferredName ||
+  1293→                              cert.user?.name ||
+  1294→                              "Unknown";
+  1295→                            const studentId =
+  1296→                              (cert as any).registration?.studentId ||
+  1297→                              cert.user?.studentId ||
+  1298→                              "-";
+  1299→                            const dept =
+  1300→                              (cert as any).registration?.department ||
+  1301→                              (cert as any).registration?.institution ||
+  1302→                              "";
+  1303→
+  1304→                            return (
+  1305→                              <tr
+  1306→                                key={cert.id}
+  1307→                                className={`hover:bg-white/5 transition-colors ${
+  1308→                                  selectedCertIds.includes(cert.id) ? "bg-white/5" : ""
+  1309→                                }`}
+  1310→                              >
+  1311→                                <td className="p-4">
+  1312→                                  {isSelectable ? (
+  1313→                                    <input
+  1314→                                      type="checkbox"
+  1315→                                      checked={selectedCertIds.includes(cert.id)}
+  1316→                                      onChange={() => {
+  1317→                                        setSelectedCertIds((prev) =>
+  1318→                                          prev.includes(cert.id)
+  1319→                                            ? prev.filter((id) => id !== cert.id)
+  1320→                                            : [...prev, cert.id]
+  1321→                                        );
+  1322→                                      }}
+  1323→                                      className="accent-emerald-500 h-4 w-4 bg-white/5 border-white/10 cursor-pointer rounded-none"
+  1324→                                    />
+  1325→                                  ) : (
+  1326→                                    <div className="w-4 h-4 flex items-center justify-center">
+  1327→                                      <ShieldCheck className="h-3.5 w-3.5 text-emerald-500/40" />
+  1328→                                    </div>
+  1329→                                  )}
+  1330→                                </td>
+  1331→                                <td className="p-4">
+  1332→                                  <div className="flex items-center gap-3">
+  1333→                                    {cert.user?.avatar ? (
+  1334→                                      <img
+  1335→                                        src={cert.user.avatar}
+  1336→                                        alt={displayName}
+  1337→                                        className="h-8 w-8 rounded-full border border-white/10 object-cover"
+  1338→                                      />
+  1339→                                    ) : (
+  1340→                                      <div className="flex h-8 w-8 items-center justify-center bg-white/5 border border-white/10 rounded-full text-xs text-gray-400 uppercase">
+  1341→                                        {displayName.charAt(0)}
+  1342→                                      </div>
+  1343→                                    )}
+  1344→                                    <div className="min-w-0">
+  1345→                                      <p className="text-xs font-semibold text-white truncate">
+  1346→                                        {displayName}
+  1347→                                      </p>
+  1348→                                      <p className="text-[10px] text-gray-500 truncate">
+  1349→                                        {cert.user?.email || "No Email"}
+  1350→                                      </p>
+  1351→                                    </div>
+  1352→                                  </div>
+  1353→                                </td>
+  1354→                                <td className="p-4 text-xs">
+  1355→                                  <p className="text-white font-mono">{studentId}</p>
+  1356→                                  {dept && <p className="text-[10px] text-gray-500">{dept}</p>}
+  1357→                                </td>
+  1358→                                <td className="p-4">
+  1359→                                  <CertificateTypeBadge type={cert.type} />
+  1360→                                </td>
+  1361→                                <td className="p-4">
+  1362→                                  <CertificateStatusBadge
+  1363→                                    status={cert.status as CertificateStatus}
+  1364→                                  />
+  1365→                                </td>
+  1366→                                <td className="p-4">
+  1367→                                  {(() => {
+  1368→                                    const attStatus = (cert as any).attendance?.status;
+  1369→                                    if (!attStatus) {
+  1370→                                      return (
+  1371→                                        <Badge
+  1372→                                          variant="outline"
+  1373→                                          className="border-white/10 text-gray-500 text-[10px] bg-white/5 rounded-none"
+  1374→                                        >
+  1375→                                          Unmarked
+  1376→                                        </Badge>
+  1377→                                      );
+  1378→                                    }
+  1379→                                    if (attStatus === "PRESENT") {
+  1380→                                      return (
+  1381→                                        <Badge
+  1382→                                          variant="outline"
+  1383→                                          className="border-emerald-500/30 text-emerald-400 text-[10px] bg-emerald-500/5 rounded-none"
+  1384→                                        >
+  1385→                                          Present
+  1386→                                        </Badge>
+  1387→                                      );
+  1388→                                    }
+  1389→                                    if (attStatus === "LATE") {
+  1390→                                      return (
+  1391→                                        <Badge
+  1392→                                          variant="outline"
+  1393→                                          className="border-amber-500/30 text-amber-400 text-[10px] bg-amber-500/5 rounded-none"
+  1394→                                        >
+  1395→                                          Late
+  1396→                                        </Badge>
+  1397→                                      );
+  1398→                                    }
+  1399→                                    return (
+  1400→                                      <Badge
+  1401→                                        variant="outline"
+  1402→                                        className="border-red-500/30 text-red-400 text-[10px] bg-red-500/5 rounded-none"
+  1403→                                      >
+  1404→                                        Absent
+  1405→                                      </Badge>
+  1406→                                    );
+  1407→                                  })()}
+  1408→                                </td>
+  1409→                                <td className="p-4 text-right">
+  1410→                                  {isSelectable ? (
+  1411→                                    <div className="flex items-center justify-end gap-1.5">
+  1412→                                      <Button
+  1413→                                        size="sm"
+  1414→                                        disabled={approvingId === cert.id}
+  1415→                                        onClick={() => handleApprove(cert.id)}
+  1416→                                        className="h-7 px-2 bg-emerald-600 hover:bg-emerald-500 text-white rounded-none text-[10px] font-medium"
+  1417→                                      >
+  1418→                                        {approvingId === cert.id ? (
+  1419→                                          <Loader2 className="h-3 w-3 animate-spin" />
+  1420→                                        ) : (
+  1421→                                          "Approve"
+  1422→                                        )}
+  1423→                                      </Button>
+  1424→                                      <Button
+  1425→                                        size="sm"
+  1426→                                        variant="outline"
+  1427→                                        disabled={rejectingId === cert.id}
+  1428→                                        onClick={() => {
+  1429→                                          setRejectingId(cert.id);
+  1430→                                          setShowRejectDialog(true);
+  1431→                                        }}
+  1432→                                        className="h-7 px-2 border-red-500/20 text-red-400 hover:bg-red-500/10 rounded-none text-[10px] font-medium"
+  1433→                                      >
+  1434→                                        Reject
+  1435→                                      </Button>
+  1436→                                    </div>
+  1437→                                  ) : cert.status === "REVOKED" ? (
+  1438→                                    <span className="text-[10px] text-red-500 font-medium">
+  1439→                                      Revoked
+  1440→                                    </span>
+  1441→                                  ) : (
+  1442→                                    <span className="text-[10px] text-emerald-400 font-medium flex items-center justify-end gap-1">
+  1443→                                      <CheckCircle2 className="h-3 w-3" /> Issued
+  1444→                                    </span>
+  1445→                                  )}
+  1446→                                </td>
+  1447→                              </tr>
+  1448→                            );
+  1449→                          })}
+  1450→                        </tbody>
+  1451→                      </table>
+  1452→                    </div>
+  1453→                  )}
+  1454→                </>
+  1455→              )}
+  1456→            </motion.div>
+  1457→
+  1458→            {/* Reject Dialog */}
+  1459→            <Dialog
+  1460→              open={showRejectDialog}
+  1461→              onOpenChange={(open) => {
+  1462→                setShowRejectDialog(open);
+  1463→                if (!open) {
+  1464→                  setRejectionReason("");
+  1465→                  setRejectingId(null);
+  1466→                }
+  1467→              }}
+  1468→            >
+  1469→              <DialogContent className="border-white/10 bg-[#0e0e1a] text-white sm:max-w-md rounded-none">
+  1470→                <DialogHeader>
+  1471→                  <DialogTitle className="text-white flex items-center gap-2">
+  1472→                    <XCircle className="h-5 w-5 text-red-400" />
+  1473→                    Reject/Revoke Certificate
+  1474→                  </DialogTitle>
+  1475→                  <DialogDescription className="text-gray-400 text-xs">
+  1476→                    Please provide an audit reason for rejecting or revoking these certificates. This action will be logged.
+  1477→                  </DialogDescription>
+  1478→                </DialogHeader>
+  1479→                <Textarea
+  1480→                  value={rejectionReason}
+  1481→                  onChange={(e) => setRejectionReason(e.target.value)}
+  1482→                  placeholder="Enter rejection audit details..."
+  1483→                  className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 min-h-[100px] rounded-none focus:border-red-500/35"
+  1484→                />
+  1485→                <DialogFooter className="gap-2">
+  1486→                  <Button
+  1487→                    variant="ghost"
+  1488→                    onClick={() => setShowRejectDialog(false)}
+  1489→                    className="text-gray-400 hover:text-white rounded-none text-xs"
+  1490→                  >
+  1491→                    Cancel
+  1492→                  </Button>
+  1493→                  <Button
+  1494→                    disabled={!rejectionReason.trim()}
+  1495→                    onClick={handleReject}
+  1496→                    className="bg-red-600 hover:bg-red-500 text-white rounded-none text-xs"
+  1497→                  >
+  1498→                    Confirm Rejection
+  1499→                  </Button>
+  1500→                </DialogFooter>
+  1501→              </DialogContent>
+  1502→            </Dialog>
+  1503→          </TabsContent>
+  1504→        )}
+  1505→
+  1506→        {/* ─── Tab 3: Revoke Certificate ────────── */}
+  1507→        {(isPresident || isAdmin) && (
+  1508→          <TabsContent value="revoke">
+  1509→            <div className="space-y-4">
+  1510→              {/* Search */}
+  1511→              <Card className="border-white/5 bg-[#111]/60">
+  1512→                <CardContent className="p-4">
+  1513→                  <div className="flex items-center gap-2 mb-3">
+  1514→                    <Search className="h-4 w-4 text-red-400" />
+  1515→                    <h3 className="text-sm font-semibold text-white">
+  1516→                      Search Certificate
+  1517→                    </h3>
+  1518→                  </div>
+  1519→                  <div className="flex gap-2">
+  1520→                    <Input
+  1521→                      value={searchQuery}
+  1522→                      onChange={(e) => setSearchQuery(e.target.value)}
+  1523→                      onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+  1524→                      placeholder="Search by certificate code or recipient name..."
+  1525→                      className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 flex-1"
+  1526→                    />
+  1527→                    <Button
+  1528→                      onClick={handleSearch}
+  1529→                      disabled={searching}
+  1530→                      className="bg-red-600 hover:bg-red-500 text-white shrink-0"
+  1531→                    >
+  1532→                      {searching ? (
+  1533→                        <Loader2 className="h-4 w-4 animate-spin" />
+  1534→                      ) : (
+  1535→                        <Search className="h-4 w-4" />
+  1536→                      )}
+  1537→                    </Button>
+  1538→                  </div>
+  1539→                </CardContent>
+  1540→              </Card>
+  1541→
+  1542→              {/* Search Results */}
+  1543→              {searchResults.length > 0 && (
+  1544→                <motion.div
+  1545→                  variants={container}
+  1546→                  initial="hidden"
+  1547→                  animate="show"
+  1548→                  className="space-y-3"
+  1549→                >
+  1550→                  {searchResults.map((cert, idx) => (
+  1551→                    <motion.div key={cert.id} variants={item} custom={idx}>
+  1552→                      <Card
+  1553→                        className={`border-white/5 bg-[#111]/60 transition-colors ${
+  1554→                          cert.status === 'REVOKED'
+  1555→                            ? 'opacity-60'
+  1556→                            : 'hover:border-red-500/20'
+  1557→                        }`}
+  1558→                      >
+  1559→                        <CardContent className="p-4">
+  1560→                          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+  1561→                            <div className="space-y-1.5 min-w-0">
+  1562→                              <div className="flex items-center gap-2 flex-wrap">
+  1563→                                <p className="text-sm font-semibold text-white truncate">
+  1564→                                  {cert.user?.name || 'Unknown'}
+  1565→                                </p>
+  1566→                                <CertificateTypeBadge type={cert.type} />
+  1567→                                <CertificateStatusBadge
+  1568→                                  status={
+  1569→                                    cert.status as CertificateStatus
+  1570→                                  }
+  1571→                                />
+  1572→                              </div>
+  1573→                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-1 text-xs text-gray-500">
+  1574→                                <span className="flex items-center gap-1.5">
+  1575→                                  <Calendar className="h-3 w-3 shrink-0" />
+  1576→                                  {cert.event?.title || 'Unknown Event'}
+  1577→                                </span>
+  1578→                                <span className="flex items-center gap-1.5">
+  1579→                                  <Hash className="h-3 w-3 shrink-0" />
+  1580→                                  <span className="font-mono">
+  1581→                                    {cert.certificateCode}
+  1582→                                  </span>
+  1583→                                </span>
+  1584→                                <span className="flex items-center gap-1.5">
+  1585→                                  <Clock className="h-3 w-3 shrink-0" />
+  1586→                                  Issued:{' '}
+  1587→                                  {new Date(
+  1588→                                    cert.issuedAt
+  1589→                                  ).toLocaleDateString()}
+  1590→                                </span>
+  1591→                                {cert.issuer && (
+  1592→                                  <span className="flex items-center gap-1.5">
+  1593→                                    <User className="h-3 w-3 shrink-0" />
+  1594→                                    Issued by: {cert.issuer.name}
+  1595→                                  </span>
+  1596→                                )}
+  1597→                              </div>
+  1598→                              {cert.revocationReason && (
+  1599→                                <div className="mt-1.5 flex items-start gap-1.5 rounded bg-red-500/5 border border-red-500/10 p-2">
+  1600→                                  <AlertTriangle className="h-3 w-3 text-red-400 mt-0.5 shrink-0" />
+  1601→                                  <p className="text-[11px] text-red-300">
+  1602→                                    <strong>Reason:</strong>{' '}
+  1603→                                    {cert.revocationReason}
+  1604→                                  </p>
+  1605→                                </div>
+  1606→                              )}
+  1607→                            </div>
+  1608→
+  1609→                            <Button
+  1610→                              size="sm"
+  1611→                              disabled={cert.status === 'REVOKED'}
+  1612→                              onClick={() => {
+  1613→                                setRevokeCert(cert);
+  1614→                                setRevocationReason('');
+  1615→                              }}
+  1616→                              className={`shrink-0 h-8 text-xs ${
+  1617→                                cert.status === 'REVOKED'
+  1618→                                  ? 'bg-white/5 text-gray-600 cursor-not-allowed'
+  1619→                                  : 'bg-red-600 hover:bg-red-500 text-white'
+  1620→                              }`}
+  1621→                            >
+  1622→                              {cert.status === 'REVOKED' ? (
+  1623→                                <>
+  1624→                                  <Ban className="mr-1 h-3.5 w-3.5" />
+  1625→                                  Already Revoked
+  1626→                                </>
+  1627→                              ) : (
+  1628→                                <>
+  1629→                                  <ShieldAlert className="mr-1 h-3.5 w-3.5" />
+  1630→                                  Revoke
+  1631→                                </>
+  1632→                              )}
+  1633→                            </Button>
+  1634→                          </div>
+  1635→                        </CardContent>
+  1636→                      </Card>
+  1637→                    </motion.div>
+  1638→                  ))}
+  1639→                </motion.div>
+  1640→              )}
+  1641→
+  1642→              {/* Empty search state */}
+  1643→              {searchResults.length === 0 && searchQuery && !searching && (
+  1644→                <div className="flex flex-col items-center justify-center py-12 text-center">
+  1645→                  <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gray-500/10 border border-white/5 mb-3">
+  1646→                    <Search className="h-5 w-5 text-gray-600" />
+  1647→                  </div>
+  1648→                  <p className="text-sm text-gray-500">
+  1649→                    No certificates found
+  1650→                  </p>
+  1651→                  <p className="text-xs text-gray-600 mt-1">
+  1652→                    Try searching by certificate code or recipient name
+  1653→                  </p>
+  1654→                </div>
+  1655→              )}
+  1656→
+  1657→              {/* Initial state - no search yet */}
+  1658→              {searchResults.length === 0 && !searchQuery && !searching && (
+  1659→                <div className="flex flex-col items-center justify-center py-12 text-center">
+  1660→                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-red-500/10 to-amber-500/10 border border-white/5 mb-4">
+  1661→                    <ShieldAlert className="h-8 w-8 text-gray-500" />
+  1662→                  </div>
+  1663→                  <p className="text-gray-400 font-medium">
+  1664→                    Revoke a Certificate
+  1665→                  </p>
+  1666→                  <p className="text-xs text-gray-600 mt-1 max-w-sm">
+  1667→                    Search for a certificate by code or recipient name to view
+  1668→                    details and initiate revocation
+  1669→                  </p>
+  1670→                </div>
+  1671→              )}
+  1672→            </div>
+  1673→
+  1674→            {/* Revoke Dialog */}
+  1675→            <Dialog
+  1676→              open={!!revokeCert}
+  1677→              onOpenChange={(open) => {
+  1678→                if (!open) {
+  1679→                  setRevokeCert(null);
+  1680→                  setRevocationReason('');
+  1681→                }
+  1682→              }}
+  1683→            >
+  1684→              <DialogContent className="border-white/10 bg-[#1a1a2e] text-white sm:max-w-md">
+  1685→                <DialogHeader>
+  1686→                  <DialogTitle className="text-white flex items-center gap-2">
+  1687→                    <ShieldAlert className="h-5 w-5 text-red-400" />
+  1688→                    Revoke Certificate
+  1689→                  </DialogTitle>
+  1690→                  <DialogDescription className="text-gray-400">
+  1691→                    This action cannot be undone. The certificate will be
+  1692→                    permanently marked as revoked.
+  1693→                  </DialogDescription>
+  1694→                </DialogHeader>
+  1695→
+  1696→                {revokeCert && (
+  1697→                  <div className="space-y-3">
+  1698→                    {/* Certificate details */}
+  1699→                    <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
+  1700→                      <div className="flex items-center justify-between">
+  1701→                        <span className="text-xs text-gray-400">
+  1702→                          Recipient
+  1703→                        </span>
+  1704→                        <span className="text-xs text-white font-medium">
+  1705→                          {revokeCert.user?.name || 'Unknown'}
+  1706→                        </span>
+  1707→                      </div>
+  1708→                      <div className="flex items-center justify-between">
+  1709→                        <span className="text-xs text-gray-400">Event</span>
+  1710→                        <span className="text-xs text-white">
+  1711→                          {revokeCert.event?.title || 'Unknown'}
+  1712→                        </span>
+  1713→                      </div>
+  1714→                      <div className="flex items-center justify-between">
+  1715→                        <span className="text-xs text-gray-400">Type</span>
+  1716→                        <CertificateTypeBadge type={revokeCert.type} />
+  1717→                      </div>
+  1718→                      <div className="flex items-center justify-between">
+  1719→                        <span className="text-xs text-gray-400">Code</span>
+  1720→                        <span className="text-xs text-emerald-400 font-mono">
+  1721→                          {revokeCert.certificateCode}
+  1722→                        </span>
+  1723→                      </div>
+  1724→                    </div>
+  1725→
+  1726→                    {/* Reason selector */}
+  1727→                    <div className="space-y-2">
+  1728→                      <label className="text-xs text-gray-400 font-medium">
+  1729→                        Reason for Revocation <span className="text-red-400">*</span>
+  1730→                      </label>
+  1731→                      <div className="grid grid-cols-2 gap-2">
+  1732→                        {[
+  1733→                          'Fraud detected',
+  1734→                          'Cheating confirmed',
+  1735→                          'Wrong issuance',
+  1736→                          'Other',
+  1737→                        ].map((reason) => (
+  1738→                          <button
+  1739→                            key={reason}
+  1740→                            onClick={() =>
+  1741→                              setRevocationReason(
+  1742→                              revocationReason === reason
+  1743→                                ? ''
+  1744→                                : reason
+  1745→                            )
+  1746→                            }
+  1747→                            className={`rounded-lg border px-3 py-2 text-xs transition-all ${
+  1748→                              revocationReason === reason
+  1749→                                ? 'border-red-500/30 bg-red-500/10 text-red-300'
+  1750→                                : 'border-white/5 bg-white/[0.02] text-gray-400 hover:bg-white/5'
+  1751→                            }`}
+  1752→                          >
+  1753→                            {reason}
+  1754→                          </button>
+  1755→                        ))}
+  1756→                      </div>
+  1757→                      <Textarea
+  1758→                        value={
+  1759→                          revocationReason === 'Other' ||
+  1760→                          ![
+  1761→                            'Fraud detected',
+  1762→                            'Cheating confirmed',
+  1763→                            'Wrong issuance',
+  1764→                          ].includes(revocationReason)
+  1765→                            ? revocationReason === 'Other'
+  1766→                              ? ''
+  1767→                              : revocationReason
+  1768→                            : ''
+  1769→                        }
+  1770→                        onChange={(e) =>
+  1771→                          setRevocationReason(
+  1772→                            e.target.value || 'Other'
+  1773→                          )
+  1774→                        }
+  1775→                        placeholder="Provide additional details..."
+  1776→                        className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 min-h-[80px]"
+  1777→                      />
+  1778→                    </div>
+  1779→                  </div>
+  1780→                )}
+  1781→
+  1782→                <DialogFooter className="gap-2">
+  1783→                  <Button
+  1784→                    variant="ghost"
+  1785→                    onClick={() => {
+  1786→                      setRevokeCert(null);
+  1787→                      setRevocationReason('');
+  1788→                    }}
+  1789→                    className="text-gray-400 hover:text-white"
+  1790→                  >
+  1791→                    Cancel
+  1792→                  </Button>
+  1793→                  <Button
+  1794→                    disabled={!revocationReason.trim() || revoking}
+  1795→                    onClick={handleRevoke}
+  1796→                    className="bg-red-600 hover:bg-red-500 text-white"
+  1797→                  >
+  1798→                    {revoking ? (
+  1799→                      <Loader2 className="h-4 w-4 animate-spin mr-1" />
+  1800→                    ) : (
+  1801→                      <ShieldAlert className="h-4 w-4 mr-1" />
+  1802→                    )}
+  1803→                    Revoke Certificate
+  1804→                  </Button>
+  1805→                </DialogFooter>
+  1806→              </DialogContent>
+  1807→            </Dialog>
+  1808→          </TabsContent>
+  1809→        )}
+  1810→
+  1811→        {/* ─── Tab 4: Audit Trail ──────────────── */}
+  1812→        {(isGS || isPresident || isAdmin) && (
+  1813→          <TabsContent value="audit">
+  1814→            <div className="space-y-4">
+  1815→              {/* Filter */}
+  1816→              <div className="flex items-center gap-2">
+  1817→                <Filter className="h-4 w-4 text-cyan-400" />
+  1818→                <Select value={auditFilter} onValueChange={setAuditFilter}>
+  1819→                  <SelectTrigger className="w-48 border-white/10 bg-white/5 text-white">
+  1820→                    <SelectValue placeholder="Filter by action" />
+  1821→                  </SelectTrigger>
+  1822→                  <SelectContent className="border-white/10 bg-[#1a1a2e]">
+  1823→                    <SelectItem
+  1824→                      value="ALL"
+  1825→                      className="text-gray-300 focus:text-white focus:bg-white/10"
+  1826→                    >
+  1827→                      All Actions
+  1828→                    </SelectItem>
+  1829→                    {(
+  1830→                      [
+  1831→                        'ISSUED',
+  1832→                        'APPROVED',
+  1833→                        'REVOKED',
+  1834→                        'ELIGIBILITY_CHECKED',
+  1835→                      ] as CertificateAuditAction[]
+  1836→                    ).map((action) => (
+  1837→                      <SelectItem
+  1838→                        key={action}
+  1839→                        value={action}
+  1840→                        className="text-gray-300 focus:text-white focus:bg-white/10"
+  1841→                      >
+  1842→                        {action.replace(/_/g, ' ')}
+  1843→                      </SelectItem>
+  1844→                    ))}
+  1845→                  </SelectContent>
+  1846→                </Select>
+  1847→                <Button
+  1848→                  variant="ghost"
+  1849→                  size="sm"
+  1850→                  onClick={fetchAuditLogs}
+  1851→                  className="text-gray-400 hover:text-cyan-400"
+  1852→                >
+  1853→                  <RefreshCw className="h-4 w-4" />
+  1854→                </Button>
+  1855→              </div>
+  1856→
+  1857→              {/* Audit logs list */}
+  1858→              {auditLoading ? (
+  1859→                <div className="space-y-2">
+  1860→                  {[1, 2, 3, 4, 5].map((i) => (
+  1861→                    <Skeleton
+  1862→                      key={i}
+  1863→                      className="h-16 w-full bg-white/5 rounded-lg"
+  1864→                    />
+  1865→                  ))}
+  1866→                </div>
+  1867→              ) : filteredAuditLogs.length === 0 ? (
+  1868→                <div className="flex flex-col items-center justify-center py-16 text-center">
+  1869→                  <div className="flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-cyan-500/10 to-emerald-500/10 border border-white/5 mb-4">
+  1870→                    <Eye className="h-8 w-8 text-gray-600" />
+  1871→                  </div>
+  1872→                  <p className="text-gray-400 font-medium">No Audit Logs</p>
+  1873→                  <p className="text-xs text-gray-600 mt-1">
+  1874→                    Certificate actions will appear here
+  1875→                  </p>
+  1876→                </div>
+  1877→              ) : (
+  1878→                <div className="space-y-2 max-h-[500px] overflow-y-auto custom-scrollbar pr-1">
+  1879→                  <AnimatePresence>
+  1880→                    {filteredAuditLogs.map((log, idx) => (
+  1881→                      <motion.div
+  1882→                        key={log.id}
+  1883→                        initial={{ opacity: 0, x: -10 }}
+  1884→                        animate={{ opacity: 1, x: 0 }}
+  1885→                        transition={{ delay: idx * 0.03 }}
+  1886→                        className="flex items-start gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors"
+  1887→                      >
+  1888→                        {/* Action badge */}
+  1889→                        <Badge
+  1890→                          variant="outline"
+  1891→                          className={`shrink-0 text-[10px] font-medium mt-0.5 ${
+  1892→                            AUDIT_ACTION_COLORS[log.action] ||
+  1893→                            'bg-gray-500/15 text-gray-400 border-gray-500/20'
+  1894→                          }`}
+  1895→                        >
+  1896→                          {log.action.replace(/_/g, ' ')}
+  1897→                        </Badge>
+  1898→
+  1899→                        <div className="min-w-0 flex-1">
+  1900→                          <div className="flex items-center gap-2 flex-wrap">
+  1901→                            <span className="text-xs text-white font-medium">
+  1902→                              {log.performer?.name || 'System'}
+  1903→                            </span>
+  1904→                            <span className="text-[10px] text-gray-600">
+  1905→                              •
+  1906→                            </span>
+  1907→                            <span className="text-[10px] text-gray-500">
+  1908→                              {timeAgo(log.createdAt)}
+  1909→                            </span>
+  1910→                          </div>
+  1911→                          <p className="text-[11px] text-gray-400 mt-0.5 line-clamp-2">
+  1912→                            {log.details}
+  1913→                          </p>
+  1914→                        </div>
+  1915→                      </motion.div>
+  1916→                    ))}
+  1917→                  </AnimatePresence>
+  1918→                </div>
+  1919→              )}
+  1920→            </div>
+  1921→          </TabsContent>
+  1922→        )}
+  1923→      </Tabs>
+  1924→    </div>
+  1925→  );
+  1926→}
+  1927→

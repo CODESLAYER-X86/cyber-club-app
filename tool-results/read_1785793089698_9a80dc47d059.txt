@@ -1,0 +1,939 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback } from 'react';
+     4→import { motion, AnimatePresence } from 'framer-motion';
+     5→import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag } from 'lucide-react';
+     6→import { useAppStore } from '@/store/use-app-store';
+     7→import type { Event, EventRegistration, User as UserType } from '@/types';
+     8→import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, ROLE_LABELS, CERTIFICATE_TYPE_LABELS, CertificateType } from '@/types';
+     9→import { EventBadge, RegistrationBadge } from '@/components/shared/status-badge';
+    10→import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+    11→import { Button } from '@/components/ui/button';
+    12→import { Badge } from '@/components/ui/badge';
+    13→import { Input } from '@/components/ui/input';
+    14→import { Progress } from '@/components/ui/progress';
+    15→import { Separator } from '@/components/ui/separator';
+    16→import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
+    17→import { toast } from '@/hooks/use-toast';
+    18→
+    19→type EventDetailData = Omit<Event, 'registrations'> & {
+    20→  creator?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role'>;
+    21→  verifier?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role'>;
+    22→  registrations?: (EventRegistration & {
+    23→    user?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role' | 'membershipStatus'>;
+    24→  })[];
+    25→  _count?: { registrations: number };
+    26→};
+    27→const parsePaymentConfig = (paymentConfig?: string | null) => {
+    28→  if (!paymentConfig) return null;
+    29→  try {
+    30→    return JSON.parse(paymentConfig);
+    31→  } catch {
+    32→    return null;
+    33→  }
+    34→};
+    35→export function EventDetailPage() {
+    36→  const { currentUser, selectedEventId, setCurrentView } = useAppStore();
+    37→  const [event, setEvent] = useState<EventDetailData | null>(null);
+    38→  const [loading, setLoading] = useState(true);
+    39→  const [registering, setRegistering] = useState(false);
+    40→  const [transactionId, setTransactionId] = useState('');
+    41→  const [paymentMethod, setPaymentMethod] = useState('BKASH');
+    42→  const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+    43→  const [userRegistration, setUserRegistration] = useState<EventRegistration | null>(null);
+    44→  const [showRegistrants, setShowRegistrants] = useState(false);
+    45→  const [shareMsg, setShareMsg] = useState<string | null>(null);
+    46→  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+    47→  const [deleting, setDeleting] = useState(false);
+    48→  const [updatingCertUserId, setUpdatingCertUserId] = useState<string | null>(null);
+    49→  const [updatingRegId, setUpdatingRegId] = useState<string | null>(null);
+    50→
+    51→  // Enhanced certificate states
+    52→  const [prefName, setPrefName] = useState('');
+    53→  const [studId, setStudId] = useState('');
+    54→  const [dept, setDept] = useState('');
+    55→  const [inst, setInst] = useState('');
+    56→  const [savingName, setSavingName] = useState(false);
+    57→  const [certificateStatus, setCertificateStatus] = useState<string>('REGISTERED');
+    58→  const [updatingAttendanceId, setUpdatingAttendanceId] = useState<string | null>(null);
+    59→
+    60→  const loadEvent = useCallback(async () => {
+    61→    if (!selectedEventId) return;
+    62→    setLoading(true);
+    63→    try {
+    64→      const res = await fetch(`/api/events/${selectedEventId}`);
+    65→      const data = await res.json();
+    66→      if (data.success) {
+    67→        setEvent(data.data.event);
+    68→        // Check if current user is already registered
+    69→        if (currentUser && data.data.event.registrations) {
+    70→          const reg = data.data.event.registrations.find(
+    71→            (r: EventRegistration) => r.userId === currentUser.id
+    72→          );
+    73→          setUserRegistration(reg || null);
+    74→
+    75→          // Fetch certificate status if registered
+    76→          try {
+    77→            const certRes = await fetch(`/api/certificates?userId=${currentUser.id}`);
+    78→            const certData = await certRes.json();
+    79→            if (certData.success && certData.data.certificates) {
+    80→              const userCert = certData.data.certificates.find((c: any) => c.eventId === selectedEventId);
+    81→              if (userCert) {
+    82→                setCertificateStatus(userCert.status);
+    83→              }
+    84→            }
+    85→          } catch (e) {
+    86→            console.error("Failed to load certificate status:", e);
+    87→          }
+    88→        }
+    89→      }
+    90→    } catch (e) {
+    91→      console.error(e);
+    92→    } finally {
+    93→      setLoading(false);
+    94→    }
+    95→  }, [selectedEventId, currentUser]);
+    96→
+    97→  useEffect(() => {
+    98→    loadEvent();
+    99→  }, [loadEvent]);
+   100→
+   101→  // Sync preferred name fields when registration loads
+   102→  useEffect(() => {
+   103→    if (userRegistration) {
+   104→      setPrefName(userRegistration.preferredName || '');
+   105→      setStudId(userRegistration.studentId || currentUser?.studentId || '');
+   106→      setDept(userRegistration.department || currentUser?.department || '');
+   107→      setInst(userRegistration.institution || '');
+   108→    }
+   109→  }, [userRegistration, currentUser]);
+   110→
+   111→  const handleSaveName = async () => {
+   112→    if (!userRegistration || !currentUser || !event) return;
+   113→    setSavingName(true);
+   114→    try {
+   115→      const res = await fetch(`/api/events/${event.id}/registrations/${userRegistration.id}/name`, {
+   116→        method: 'PATCH',
+   117→        headers: { 'Content-Type': 'application/json' },
+   118→        body: JSON.stringify({
+   119→          preferredName: prefName,
+   120→          studentId: studId,
+   121→          department: dept,
+   122→          institution: inst,
+   123→          requestingUserId: currentUser.id,
+   124→          requestingUserRole: currentUser.role,
+   125→        }),
+   126→      });
+   127→      const data = await res.json();
+   128→      if (data.success) {
+   129→        toast({ title: 'Information Saved', description: 'Your certificate details have been updated.' });
+   130→        loadEvent();
+   131→      } else {
+   132→        toast({ title: 'Failed to Save', description: data.error || 'Could not update information', variant: 'destructive' });
+   133→      }
+   134→    } catch {
+   135→      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+   136→    } finally {
+   137→      setSavingName(false);
+   138→    }
+   139→  };
+   140→
+   141→  const handleMarkAttendance = async (userId: string, status: 'PRESENT' | 'ABSENT' | 'LATE') => {
+   142→    if (!event || !currentUser) return;
+   143→    setUpdatingAttendanceId(userId);
+   144→    try {
+   145→      const r = await fetch(`/api/events/${event.id}/attendance`, {
+   146→        method: 'POST',
+   147→        headers: { 'Content-Type': 'application/json' },
+   148→        body: JSON.stringify({
+   149→          userId,
+   150→          status,
+   151→          verifierRole: currentUser.role,
+   152→          verifierId: currentUser.id,
+   153→        }),
+   154→      });
+   155→      const d = await r.json();
+   156→      if (d.success) {
+   157→        toast({ title: 'Attendance Marked', description: `Attendance marked as ${status.toLowerCase()}.` });
+   158→        loadEvent();
+   159→      } else {
+   160→        toast({ title: 'Error', description: d.error || 'Failed to update attendance', variant: 'destructive' });
+   161→      }
+   162→    } catch {
+   163→      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+   164→    } finally {
+   165→      setUpdatingAttendanceId(null);
+   166→    }
+   167→  };
+   168→
+   169→  const handleUpdateCertType = async (userId: string, type: string) => {
+   170→    if (!event || !currentUser) return;
+   171→    setUpdatingCertUserId(userId);
+   172→    try {
+   173→      const res = await fetch('/api/certificates', {
+   174→        method: 'POST',
+   175→        headers: { 'Content-Type': 'application/json' },
+   176→        body: JSON.stringify({
+   177→          userId,
+   178→          eventId: event.id,
+   179→          type,
+   180→        }),
+   181→      });
+   182→      const d = await res.json();
+   183→      if (d.success) {
+   184→        toast({ title: 'Certificate Updated', description: `Assigned as ${CERTIFICATE_TYPE_LABELS[type as CertificateType]}.` });
+   185→        loadEvent();
+   186→      } else {
+   187→        toast({ title: 'Failed to update', description: d.error || 'Please try again', variant: 'destructive' });
+   188→      }
+   189→    } catch {
+   190→      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+   191→    } finally {
+   192→      setUpdatingCertUserId(null);
+   193→    }
+   194→  };
+   195→
+   196→  const handleRegister = async () => {
+   197→    if (!event || !currentUser) return;
+   198→    setRegistering(true);
+   199→    setMessage(null);
+   200→    try {
+   201→      const res = await fetch(`/api/events/${event.id}/register`, {
+   202→        method: 'POST',
+   203→        headers: { 'Content-Type': 'application/json' },
+   204→        body: JSON.stringify({
+   205→          userId: currentUser.id,
+   206→          transactionId: event.fee > 0 ? transactionId : undefined,
+   207→          paymentMethod: event.fee > 0 ? paymentMethod : undefined,
+   208→        }),
+   209→      });
+   210→      const data = await res.json();
+   211→      if (data.success) {
+   212→        const reg = data.data.registration;
+   213→        const isPaid = event.fee > 0;
+   214→        const successMsg = isPaid
+   215→          ? 'Successfully registered! Your payment is pending verification. You will be approved once payment is confirmed.'
+   216→          : 'Successfully registered! Your registration has been approved.';
+   217→        setMessage({ type: 'success', text: successMsg });
+   218→        setUserRegistration(reg || { status: isPaid ? 'PENDING' : 'APPROVED' });
+   219→        // Reload event data to get updated registrations list and seat count
+   220→        loadEvent();
+   221→      } else {
+   222→        setMessage({ type: 'error', text: data.error || 'Registration failed' });
+   223→      }
+   224→    } catch {
+   225→      setMessage({ type: 'error', text: 'Network error' });
+   226→    } finally {
+   227→      setRegistering(false);
+   228→    }
+   229→  };
+   230→
+   231→  const handleShare = async () => {
+   232→    const url = `${window.location.origin}?event=${event?.id}`;
+   233→    try {
+   234→      await navigator.clipboard.writeText(url);
+   235→      setShareMsg('Link copied!');
+   236→    } catch {
+   237→      setShareMsg('Could not copy link');
+   238→    }
+   239→    setTimeout(() => setShareMsg(null), 2000);
+   240→  };
+   241→
+   242→  const handleEdit = () => {
+   243→    setCurrentView('create-event');
+   244→  };
+   245→
+   246→  const handleDeleteEvent = async () => {
+   247→    if (!event || !currentUser) return;
+   248→    setDeleting(true);
+   249→    try {
+   250→      const res = await fetch(`/api/events/${event.id}`, {
+   251→        method: 'DELETE',
+   252→        headers: { 'Content-Type': 'application/json' },
+   253→        body: JSON.stringify({ role: currentUser.role }),
+   254→      });
+   255→      const data = await res.json();
+   256→      if (data.success) {
+   257→        toast({ title: 'Event deleted', description: `"${event.title}" has been deleted.` });
+   258→        setCurrentView('events');
+   259→      } else {
+   260→        toast({ title: 'Delete failed', description: data.error || 'Could not delete event', variant: 'destructive' });
+   261→      }
+   262→    } catch {
+   263→      toast({ title: 'Delete failed', description: 'Something went wrong', variant: 'destructive' });
+   264→    } finally {
+   265→      setDeleting(false);
+   266→      setDeleteDialogOpen(false);
+   267→    }
+   268→  };
+   269→
+   270→  if (loading) {
+   271→    return (
+   272→      <div className="space-y-4">
+   273→        <div className="h-8 w-48 animate-pulse rounded bg-white/5" />
+   274→        <div className="h-64 animate-pulse rounded-xl bg-white/5" />
+   275→      </div>
+   276→    );
+   277→  }
+   278→  if (!event) return <div className="py-16 text-center text-gray-500">Event not found</div>;
+   279→
+   280→  const seatPercent = event.maxSeats ? Math.min((event.currentSeats / event.maxSeats) * 100, 100) : 0;
+   281→  const isFull = event.maxSeats ? event.currentSeats >= event.maxSeats : false;
+   282→  const isMember = currentUser?.membershipStatus === 'ACTIVE';
+   283→  // PUBLIC events: anyone logged in can register
+   284→  // MEMBER_ONLY events: only active members can register
+   285→  // PAID events: anyone logged in can register (payment required)
+   286→  // LIMITED events: anyone logged in can register (subject to seat availability)
+   287→  const canRegisterForEventType = event.type === 'MEMBER_ONLY' ? isMember : !!currentUser;
+   288→  const canRegister = canRegisterForEventType && !isFull && event.status === 'UPCOMING' && !userRegistration;
+   289→  const isAdmin = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role);
+   290→  const canApproveReg = currentUser && (
+   291→    ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS', 'VERIFIER'].includes(currentUser.role) ||
+   292→    event.verifierId === currentUser.id ||
+   293→    event.createdBy === currentUser.id
+   294→  );
+   295→  const canEdit = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'MEDIA'].includes(currentUser.role);
+   296→  const canDelete = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'MEDIA', 'VP', 'GS'].includes(currentUser.role);
+   297→  const registrationCount = event._count?.registrations ?? event.registrations?.length ?? event.currentSeats;
+   298→  const paymentConfig = parsePaymentConfig(event.paymentConfig);
+   299→  const paymentFee = paymentConfig?.feeAmount ?? event.fee ?? 0;
+   300→  const paymentMethods = [
+   301→    { key: 'bkashNumber', label: 'bKash', value: paymentConfig?.bkashNumber },
+   302→    { key: 'nagadNumber', label: 'Nagad', value: paymentConfig?.nagadNumber },
+   303→    { key: 'rocketNumber', label: 'Rocket', value: paymentConfig?.rocketNumber },
+   304→    { key: 'bankAccount', label: 'Bank Transfer', value: paymentConfig?.bankAccount },
+   305→  ].filter((method) => method.value);
+   306→
+   307→  return (
+   308→    <div className="space-y-6">
+   309→      {/* Back Button */}
+   310→      <div className="flex items-center justify-between">
+   311→        <Button variant="ghost" onClick={() => setCurrentView('events')} className="text-gray-400 hover:text-white">
+   312→          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Events
+   313→        </Button>
+   314→        <div className="flex items-center gap-2">
+   315→          {/* Share Button */}
+   316→          <div className="relative">
+   317→            <Button variant="outline" size="sm" onClick={handleShare} className="border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-emerald-500/30">
+   318→              <Share2 className="mr-2 h-4 w-4" /> Share
+   319→            </Button>
+   320→            {shareMsg && (
+   321→              <motion.div
+   322→                initial={{ opacity: 0, y: 5 }}
+   323→                animate={{ opacity: 1, y: 0 }}
+   324→                exit={{ opacity: 0 }}
+   325→                className="absolute -bottom-8 right-0 whitespace-nowrap rounded bg-emerald-600 px-2 py-1 text-xs text-white"
+   326→              >
+   327→                {shareMsg}
+   328→              </motion.div>
+   329→            )}
+   330→          </div>
+   331→          {/* Edit Button */}
+   332→          {canEdit && (
+   333→            <div className="flex gap-2">
+   334→              <Button variant="outline" size="sm" onClick={() => setCurrentView('certificate-designer')} className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-white">
+   335→                <Award className="mr-2 h-4 w-4" /> Design Certificate
+   336→              </Button>
+   337→              <Button variant="outline" size="sm" onClick={handleEdit} className="border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-emerald-500/30">
+   338→                <Pencil className="mr-2 h-4 w-4" /> Edit Event
+   339→              </Button>
+   340→            </div>
+   341→          )}
+   342→          {/* Delete Button */}
+   343→          {canDelete && (
+   344→            <Button variant="outline" size="sm" onClick={() => setDeleteDialogOpen(true)} className="border-red-500/20 bg-red-500/5 text-red-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/40">
+   345→              <Trash2 className="mr-2 h-4 w-4" /> Delete
+   346→            </Button>
+   347→          )}
+   348→          {/* Mark as Completed Button */}
+   349→          {isAdmin && (event.status === 'UPCOMING' || event.status === 'ONGOING') && (
+   350→            <Button variant="outline" size="sm" onClick={async () => {
+   351→              try {
+   352→                const res = await fetch(`/api/events/${event.id}`, {
+   353→                  method: 'PATCH',
+   354→                  headers: { 'Content-Type': 'application/json' },
+   355→                  body: JSON.stringify({ status: 'COMPLETED' }),
+   356→                });
+   357→                const d = await res.json();
+   358→                if (d.success) {
+   359→                  toast({ title: 'Event completed', description: 'Event marked as completed. Certificates can now be issued.' });
+   360→                  loadEvent();
+   361→                } else {
+   362→                  toast({ title: 'Failed', description: d.error || 'Could not update event', variant: 'destructive' });
+   363→                }
+   364→              } catch {
+   365→                toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+   366→              }
+   367→            }} className="border-cyan-500/20 bg-cyan-500/5 text-cyan-400 hover:text-white hover:bg-cyan-500/20 hover:border-cyan-500/40">
+   368→              <Flag className="mr-2 h-4 w-4" /> Mark Completed
+   369→            </Button>
+   370→          )}
+   371→        </div>
+   372→      </div>
+   373→
+   374→      {/* Event Detail Card */}
+   375→      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}>
+   376→        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   377→          <CardContent className="pt-6">
+   378→            <div className="flex flex-wrap items-center gap-2 mb-4">
+   379→              <EventBadge status={event.status} />
+   380→              <Badge variant="outline" className="border-white/10 text-gray-400">{EVENT_TYPE_LABELS[event.type]}</Badge>
+   381→              <Badge variant="outline" className="border-white/10 text-gray-400">{EVENT_CATEGORY_LABELS[event.category]}</Badge>
+   382→              {event.requiresAssessment && <Badge variant="outline" className="border-amber-500/30 text-amber-400">Assessment Required</Badge>}
+   383→            </div>
+   384→
+   385→            <h1 className="text-3xl font-bold text-white">{event.title}</h1>
+   386→            <p className="mt-4 text-gray-400 leading-relaxed">{event.description}</p>
+   387→
+   388→            <div className="mt-8 grid gap-6 sm:grid-cols-2">
+   389→              <div className="space-y-4">
+   390→                <div className="flex items-center gap-3">
+   391→                  <Calendar className="h-5 w-5 text-emerald-400" />
+   392→                  <div>
+   393→                    <p className="text-sm font-medium text-white">Start Date</p>
+   394→                    <p className="text-xs text-gray-500">{new Date(event.startDate).toLocaleString()}</p>
+   395→                  </div>
+   396→                </div>
+   397→                <div className="flex items-center gap-3">
+   398→                  <Clock className="h-5 w-5 text-cyan-400" />
+   399→                  <div>
+   400→                    <p className="text-sm font-medium text-white">End Date</p>
+   401→                    <p className="text-xs text-gray-500">{new Date(event.endDate).toLocaleString()}</p>
+   402→                  </div>
+   403→                </div>
+   404→                <div className="flex items-center gap-3">
+   405→                  <MapPin className="h-5 w-5 text-amber-400" />
+   406→                  <div>
+   407→                    <p className="text-sm font-medium text-white">Venue</p>
+   408→                    <p className="text-xs text-gray-500">{event.venue}</p>
+   409→                  </div>
+   410→                </div>
+   411→              </div>
+   412→              <div className="space-y-4">
+   413→                <div className="flex items-center gap-3">
+   414→                  <DollarSign className="h-5 w-5 text-emerald-400" />
+   415→                  <div>
+   416→                    <p className="text-sm font-medium text-white">Fee</p>
+   417→                    <p className="text-xs text-gray-500">{event.fee > 0 ? `৳${event.fee}` : 'Free'}</p>
+   418→                  </div>
+   419→                </div>
+   420→                <div className="flex items-center gap-3">
+   421→                  <Users className="h-5 w-5 text-cyan-400" />
+   422→                  <div>
+   423→                    <p className="text-sm font-medium text-white">Registrations</p>
+   424→                    <p className="text-xs text-gray-500">{registrationCount} / {event.maxSeats || 'Unlimited'}</p>
+   425→                  </div>
+   426→                </div>
+   427→                {event.requiresAssessment && (
+   428→                  <div className="flex items-center gap-3">
+   429→                    <Award className="h-5 w-5 text-amber-400" />
+   430→                    <div>
+   431→                      <p className="text-sm font-medium text-white">Passing Score</p>
+   432→                      <p className="text-xs text-gray-500">{event.passingScore}%</p>
+   433→                    </div>
+   434→                  </div>
+   435→                )}
+   436→              </div>
+   437→            </div>
+   438→
+   439→            {/* Organizer & Verifier Info */}
+   440→            <Separator className="my-6 bg-white/5" />
+   441→            <div className="grid gap-4 sm:grid-cols-2">
+   442→              {event.creator && (
+   443→                <div className="flex items-center gap-3">
+   444→                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10">
+   445→                    <User className="h-5 w-5 text-emerald-400" />
+   446→                  </div>
+   447→                  <div>
+   448→                    <p className="text-xs text-gray-500 uppercase tracking-wider">Organizer</p>
+   449→                    <p className="text-sm font-medium text-white">{event.creator.name}</p>
+   450→                    <p className="text-xs text-gray-500">{ROLE_LABELS[event.creator.role as keyof typeof ROLE_LABELS] || event.creator.role}</p>
+   451→                  </div>
+   452→                </div>
+   453→              )}
+   454→              {event.verifier && (
+   455→                <div className="flex items-center gap-3">
+   456→                  <div className="flex h-10 w-10 items-center justify-center rounded-full border border-cyan-500/20 bg-cyan-500/10">
+   457→                    <ShieldCheck className="h-5 w-5 text-cyan-400" />
+   458→                  </div>
+   459→                  <div>
+   460→                    <p className="text-xs text-gray-500 uppercase tracking-wider">Verifier</p>
+   461→                    <p className="text-sm font-medium text-white">{event.verifier.name}</p>
+   462→                    <p className="text-xs text-gray-500">{ROLE_LABELS[event.verifier.role as keyof typeof ROLE_LABELS] || event.verifier.role}</p>
+   463→                  </div>
+   464→                </div>
+   465→              )}
+   466→            </div>
+   467→
+   468→            {/* Seat Progress */}
+   469→            {event.maxSeats && (
+   470→              <div className="mt-6">
+   471→                <div className="mb-2 flex justify-between text-xs text-gray-500">
+   472→                  <span>{event.currentSeats} registered</span>
+   473→                  <span>{event.maxSeats} total</span>
+   474→                </div>
+   475→                <Progress value={seatPercent} className="h-2 bg-white/5 [&>div]:bg-emerald-500" />
+   476→                {isFull && <p className="mt-1 text-xs text-red-400">This event is fully booked</p>}
+   477→              </div>
+   478→            )}
+   479→          </CardContent>
+   480→        </Card>
+   481→      </motion.div>
+   482→
+   483→      {/* Registration Status Section (when user has already registered) */}
+   484→      {userRegistration && currentUser && (
+   485→        <div className="space-y-4">
+   486→          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.05 }}>
+   487→            <Card className="border-cyan-500/20 bg-cyan-500/5 backdrop-blur">
+   488→              <CardContent className="pt-6">
+   489→                <div className="flex items-center gap-3">
+   490→                  <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10">
+   491→                    {userRegistration.status === 'APPROVED' ? (
+   492→                      <CheckCircle className="h-6 w-6 text-emerald-400" />
+   493→                    ) : userRegistration.status === 'REJECTED' ? (
+   494→                      <XCircle className="h-6 w-6 text-red-400" />
+   495→                    ) : (
+   496→                      <Eye className="h-6 w-6 text-amber-400" />
+   497→                    )}
+   498→                  </div>
+   499→                  <div>
+   500→                    <p className="text-sm font-medium text-white">Your Registration Status</p>
+   501→                    <div className="mt-1 flex items-center gap-2">
+   502→                      <RegistrationBadge status={userRegistration.status} />
+   503→                      <span className="text-xs text-gray-500">
+   504→                        {userRegistration.status === 'APPROVED' && 'You are confirmed for this event!'}
+   505→                        {userRegistration.status === 'PENDING' && 'Your registration is awaiting approval.'}
+   506→                        {userRegistration.status === 'REJECTED' && 'Your registration was not approved.'}
+   507→                        {userRegistration.status === 'CANCELLED' && 'Your registration was cancelled.'}
+   508→                      </span>
+   509→                    </div>
+   510→                  </div>
+   511→                </div>
+   512→              </CardContent>
+   513→            </Card>
+   514→          </motion.div>
+   515→
+   516→          {/* Certificate Name Customization */}
+   517→          <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.08 }}>
+   518→            <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   519→              <CardHeader className="pb-2">
+   520→                <CardTitle className="text-md font-semibold text-white flex items-center gap-2">
+   521→                  <Award className="h-5 w-5 text-emerald-400" />
+   522→                  Certificate Customization
+   523→                </CardTitle>
+   524→              </CardHeader>
+   525→              <CardContent className="space-y-4">
+   526→                {['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) ? (
+   527→                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-3 text-xs text-amber-300">
+   528→                    <strong>Notice:</strong> Your certificate processing has started or completed. Information is locked.
+   529→                  </div>
+   530→                ) : (
+   531→                  <p className="text-xs text-gray-400">
+   532→                    Specify preferred details to print on your certificate. Changes are allowed until the certificate is authorized or generated.
+   533→                  </p>
+   534→                )}
+   535→
+   536→                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+   537→                  <div className="space-y-1.5">
+   538→                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Preferred Name</label>
+   539→                    <Input
+   540→                      value={prefName}
+   541→                      disabled={['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) || savingName}
+   542→                      onChange={e => setPrefName(e.target.value)}
+   543→                      placeholder={currentUser.name}
+   544→                      className="border-white/10 bg-white/5 text-white h-9"
+   545→                    />
+   546→                  </div>
+   547→                  <div className="space-y-1.5">
+   548→                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Student ID</label>
+   549→                    <Input
+   550→                      value={studId}
+   551→                      disabled={['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) || savingName}
+   552→                      onChange={e => setStudId(e.target.value)}
+   553→                      placeholder={currentUser.studentId || "Student ID"}
+   554→                      className="border-white/10 bg-white/5 text-white h-9"
+   555→                    />
+   556→                  </div>
+   557→                  <div className="space-y-1.5">
+   558→                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Department</label>
+   559→                    <Input
+   560→                      value={dept}
+   561→                      disabled={['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) || savingName}
+   562→                      onChange={e => setDept(e.target.value)}
+   563→                      placeholder={currentUser.department || "e.g. CSE"}
+   564→                      className="border-white/10 bg-white/5 text-white h-9"
+   565→                    />
+   566→                  </div>
+   567→                  <div className="space-y-1.5">
+   568→                    <label className="text-[10px] text-gray-500 uppercase font-bold tracking-wider">Institution (optional)</label>
+   569→                    <Input
+   570→                      value={inst}
+   571→                      disabled={['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) || savingName}
+   572→                      onChange={e => setInst(e.target.value)}
+   573→                      placeholder="e.g. University Name"
+   574→                      className="border-white/10 bg-white/5 text-white h-9"
+   575→                    />
+   576→                  </div>
+   577→                </div>
+   578→
+   579→                {!['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(certificateStatus) && (
+   580→                  <Button
+   581→                    onClick={handleSaveName}
+   582→                    disabled={savingName}
+   583→                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-4"
+   584→                  >
+   585→                    {savingName ? <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5" /> : null}
+   586→                    Save Certificate Info
+   587→                  </Button>
+   588→                )}
+   589→              </CardContent>
+   590→            </Card>
+   591→          </motion.div>
+   592→        </div>
+   593→      )}
+   594→
+   595→      {/* Registration Section */}
+   596→      {currentUser && event.status === 'UPCOMING' && !userRegistration && (
+   597→        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+   598→          <Card className="border-emerald-500/20 bg-emerald-500/5 backdrop-blur">
+   599→            <CardHeader>
+   600→              <CardTitle className="text-lg text-white">Registration</CardTitle>
+   601→            </CardHeader>
+   602→            <CardContent>
+   603→              {!canRegisterForEventType ? (
+   604→                <div className="flex items-center gap-2 text-amber-400">
+   605→                  <AlertTriangle className="h-4 w-4" />
+   606→                  <p className="text-sm">You need to be an approved member to register for this event.</p>
+   607→                </div>
+   608→              ) : isFull ? (
+   609→                <div className="flex items-center gap-2 text-red-400">
+   610→                  <AlertTriangle className="h-4 w-4" />
+   611→                  <p className="text-sm">This event is fully booked.</p>
+   612→                </div>
+   613→              ) : (
+   614→                <div className="space-y-4">
+   615→                  {paymentFee > 0 && (
+   616→                    <div className="space-y-3">
+   617→                      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+   618→                        <div className="flex items-center justify-between gap-2">
+   619→                          <span className="text-xs font-semibold text-emerald-300">Payment Details</span>
+   620→                          <span className="text-xs text-emerald-400">Fee: ৳{paymentFee}</span>
+   621→                        </div>
+   622→                        {paymentMethods.length > 0 && (
+   623→                          <div className="grid gap-2">
+   624→                            {paymentMethods.map((method) => (
+   625→                              <div key={method.key} className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-300">
+   626→                                <span className="font-semibold text-white">{method.label}:</span> {method.value}
+   627→                              </div>
+   628→                            ))}
+   629→                          </div>
+   630→                        )}
+   631→                        {paymentConfig?.paymentInstructions && (
+   632→                          <p className="text-xs text-gray-400">{paymentConfig.paymentInstructions}</p>
+   633→                        )}
+   634→                        {paymentConfig?.contactPersonName && (
+   635→                          <p className="text-xs text-gray-400">Contact: {paymentConfig.contactPersonName}{paymentConfig.contactPersonPhone ? ` • ${paymentConfig.contactPersonPhone}` : ''}</p>
+   636→                        )}
+   637→                        {paymentConfig?.paymentDeadline && (
+   638→                          <p className="text-xs text-amber-300">Payment deadline: {new Date(paymentConfig.paymentDeadline).toLocaleString()}</p>
+   639→                        )}
+   640→                      </div>
+   641→
+   642→                      <div className="space-y-2">
+   643→                        <label className="text-xs font-medium text-gray-400">Payment Method & Transaction ID</label>
+   644→                        <div className="grid grid-cols-3 gap-2">
+   645→                          <select
+   646→                            value={paymentMethod}
+   647→                            onChange={(e) => setPaymentMethod(e.target.value)}
+   648→                            className="col-span-1 h-10 px-2 rounded-md border border-white/10 bg-[#111] text-white focus:border-emerald-500/50 focus:ring-emerald-500/20 text-sm focus:outline-none"
+   649→                          >
+   650→                            <option value="BKASH">bKash</option>
+   651→                            <option value="NAGAD">Nagad</option>
+   652→                            <option value="BANK">Bank</option>
+   653→                            <option value="CASH">Cash</option>
+   654→                          </select>
+   655→                          <Input
+   656→                            value={transactionId}
+   657→                            onChange={(e) => setTransactionId(e.target.value)}
+   658→                            placeholder="TXN-XXXXXXX"
+   659→                            className="col-span-2 border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+   660→                          />
+   661→                        </div>
+   662→                        <p className="text-xs text-gray-500">Pay ৳{paymentFee} via the method shown above and then submit your transaction ID.</p>
+   663→                      </div>
+   664→                    </div>
+   665→                  )}
+   666→                  {message && (
+   667→                    <div className={`flex items-center gap-2 rounded-lg px-4 py-3 text-sm ${message.type === 'success' ? 'bg-emerald-500/10 text-emerald-400' : 'bg-red-500/10 text-red-400'}`}>
+   668→                      {message.type === 'success' ? <CheckCircle className="h-4 w-4" /> : <AlertTriangle className="h-4 w-4" />}
+   669→                      {message.text}
+   670→                    </div>
+   671→                  )}
+   672→                  <Button
+   673→                    onClick={handleRegister}
+   674→                    disabled={registering || (event.fee > 0 && !transactionId)}
+   675→                    className="bg-emerald-600 text-white hover:bg-emerald-500"
+   676→                  >
+   677→                    {registering ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
+   678→                    {registering ? 'Registering...' : 'Register for Event'}
+   679→                  </Button>
+   680→                </div>
+   681→              )}
+   682→            </CardContent>
+   683→          </Card>
+   684→        </motion.div>
+   685→      )}
+   686→
+   687→      {/* Not logged in prompt */}
+   688→      {!currentUser && event.status === 'UPCOMING' && (
+   689→        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}>
+   690→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   691→            <CardContent className="flex items-center justify-between pt-6">
+   692→              <p className="text-sm text-gray-400">Sign in to register for this event</p>
+   693→              <Button onClick={() => setCurrentView('login')} size="sm" className="bg-emerald-600 text-white hover:bg-emerald-500">
+   694→                Sign In
+   695→              </Button>
+   696→            </CardContent>
+   697→          </Card>
+   698→        </motion.div>
+   699→      )}
+   700→
+   701→      {/* Registrants List (Admin Only) */}
+   702→      {canApproveReg && event.registrations && event.registrations.length > 0 && (
+   703→        <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}>
+   704→          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
+   705→            <CardHeader className="cursor-pointer" onClick={() => setShowRegistrants(!showRegistrants)}>
+   706→              <div className="flex items-center justify-between">
+   707→                <CardTitle className="text-lg text-white flex items-center gap-2">
+   708→                  <Users className="h-5 w-5 text-emerald-400" />
+   709→                  Registrants ({event.registrations.length})
+   710→                </CardTitle>
+   711→                {showRegistrants ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+   712→              </div>
+   713→            </CardHeader>
+   714→            <AnimatePresence>
+   715→              {showRegistrants && (
+   716→                <motion.div
+   717→                  initial={{ height: 0, opacity: 0 }}
+   718→                  animate={{ height: 'auto', opacity: 1 }}
+   719→                  exit={{ height: 0, opacity: 0 }}
+   720→                  transition={{ duration: 0.2 }}
+   721→                  className="overflow-hidden"
+   722→                >
+   723→                  <CardContent className="pt-0">
+   724→                    <div className="max-h-96 overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
+   725→                      {event.registrations.map((reg, index) => (
+   726→                        <motion.div
+   727→                          key={reg.id}
+   728→                          initial={{ opacity: 0, x: -10 }}
+   729→                          animate={{ opacity: 1, x: 0 }}
+   730→                          transition={{ delay: index * 0.03 }}
+   731→                          className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-4 py-3"
+   732→                        >
+   733→                          <div className="flex items-center gap-3">
+   734→                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-xs font-medium text-emerald-400">
+   735→                              {reg.user?.name?.charAt(0)?.toUpperCase() || '?'}
+   736→                            </div>
+   737→                            <div>
+   738→                              <p className="text-sm font-medium text-white">{reg.user?.name || 'Unknown'}</p>
+   739→                              <p className="text-xs text-gray-500">{reg.user?.email}</p>
+   740→                              {reg.payment && (
+   741→                                <div className="mt-1 flex flex-wrap items-center gap-1.5">
+   742→                                  <span className="inline-flex items-center gap-1 rounded bg-white/5 border border-white/10 px-1.5 py-0.5 text-[9px] font-mono text-gray-400">
+   743→                                    TxID: <span className="text-emerald-400 select-all font-semibold">{reg.payment.transactionId}</span>
+   744→                                  </span>
+   745→                                  {reg.payment.status === 'PENDING' && (
+   746→                                    <span className="text-[8px] bg-amber-500/10 text-amber-500 border border-amber-500/20 px-1 rounded font-medium">Pending Confirm</span>
+   747→                                  )}
+   748→                                  {reg.payment.status === 'APPROVED' && (
+   749→                                    <span className="text-[8px] bg-cyan-500/10 text-cyan-400 border border-cyan-500/20 px-1 rounded font-medium">Approved</span>
+   750→                                  )}
+   751→                                  {reg.payment.status === 'VERIFIED' && (
+   752→                                    <span className="text-[8px] bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-1 rounded font-medium">Verified (৳{reg.payment.amount})</span>
+   753→                                  )}
+   754→                                  {reg.payment.status === 'REJECTED' && (
+   755→                                    <span className="text-[8px] bg-red-500/10 text-red-400 border border-red-500/20 px-1 rounded font-medium">Rejected</span>
+   756→                                  )}
+   757→                                </div>
+   758→                              )}
+   759→                            </div>
+   760→                          </div>
+   761→                          <div className="flex items-center gap-2">
+   762→                            <RegistrationBadge status={reg.status} />
+   763→                            <span className="text-xs text-gray-600">{new Date(reg.registeredAt).toLocaleDateString()}</span>
+   764→                            {reg.status === 'APPROVED' && (currentUser?.role === 'VERIFIER' || isAdmin || event.verifierId === currentUser?.id || event.createdBy === currentUser?.id) && (
+   765→                              (() => {
+   766→                                const userAttendance = (event as any).attendance?.find((a: any) => a.userId === reg.userId);
+   767→                                const attendanceStatus = userAttendance?.status || 'ABSENT';
+   768→                                return (
+   769→                                  <div className="flex items-center gap-1">
+   770→                                    <Button
+   771→                                      size="sm"
+   772→                                      variant="outline"
+   773→                                      disabled={updatingAttendanceId === reg.userId}
+   774→                                      onClick={() => handleMarkAttendance(reg.userId, 'PRESENT')}
+   775→                                      className={`h-7 text-[10px] px-2 ${attendanceStatus === 'PRESENT' ? 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' : 'border-white/10 text-gray-400 hover:text-white'}`}
+   776→                                    >
+   777→                                      Present
+   778→                                    </Button>
+   779→                                    <Button
+   780→                                      size="sm"
+   781→                                      variant="outline"
+   782→                                      disabled={updatingAttendanceId === reg.userId}
+   783→                                      onClick={() => handleMarkAttendance(reg.userId, 'LATE')}
+   784→                                      className={`h-7 text-[10px] px-2 ${attendanceStatus === 'LATE' ? 'bg-amber-500/20 text-amber-400 border-amber-500/30' : 'border-white/10 text-gray-400 hover:text-white'}`}
+   785→                                    >
+   786→                                      Late
+   787→                                    </Button>
+   788→                                    <Button
+   789→                                      size="sm"
+   790→                                      variant="outline"
+   791→                                      disabled={updatingAttendanceId === reg.userId}
+   792→                                      onClick={() => handleMarkAttendance(reg.userId, 'ABSENT')}
+   793→                                      className={`h-7 text-[10px] px-2 ${attendanceStatus === 'ABSENT' ? 'bg-red-500/20 text-red-400 border-red-500/30' : 'border-white/10 text-gray-400 hover:text-white'}`}
+   794→                                    >
+   795→                                      Absent
+   796→                                    </Button>
+   797→                                  </div>
+   798→                                );
+   799→                              })()
+   800→                            )}
+   801→                            {reg.status === 'APPROVED' && currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'GS'].includes(currentUser.role) && (
+   802→                              (() => {
+   803→                                const userCert = (event as any).certificates?.find((c: any) => c.userId === reg.userId);
+   804→                                const currentType = userCert?.type || 'PARTICIPATION';
+   805→                                return (
+   806→                                  <div className="flex items-center gap-1 ml-1 border-l border-white/10 pl-2">
+   807→                                    <span className="text-[9px] text-gray-500 font-bold uppercase tracking-wider mr-1">Cert:</span>
+   808→                                    {updatingCertUserId === reg.userId ? (
+   809→                                      <Loader2 className="h-3 w-3 animate-spin text-emerald-400" />
+   810→                                    ) : (
+   811→                                      <select
+   812→                                        value={currentType}
+   813→                                        onChange={(e) => handleUpdateCertType(reg.userId, e.target.value)}
+   814→                                        className="h-7 px-1 rounded border border-white/10 bg-black text-[10px] text-emerald-400 font-medium focus:outline-none focus:border-emerald-500/50"
+   815→                                      >
+   816→                                        {Object.entries(CERTIFICATE_TYPE_LABELS).map(([val, label]) => (
+   817→                                          <option key={val} value={val} className="bg-[#0f0f1f] text-white">
+   818→                                            {label}
+   819→                                          </option>
+   820→                                        ))}
+   821→                                      </select>
+   822→                                    )}
+   823→                                  </div>
+   824→                                );
+   825→                              })()
+   826→                            )}
+   827→                            {reg.status === 'PENDING' && canApproveReg && (
+   828→                              <>
+   829→                                <Button
+   830→                                  size="sm"
+   831→                                  variant="outline"
+   832→                                  className="h-7 text-[10px] border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 px-2"
+   833→                                  disabled={updatingRegId === reg.id}
+   834→                                  onClick={async () => {
+   835→                                    setUpdatingRegId(reg.id);
+   836→                                    try {
+   837→                                      const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
+   838→                                        method: 'PATCH',
+   839→                                        headers: { 'Content-Type': 'application/json' },
+   840→                                        body: JSON.stringify({ status: 'APPROVED', role: currentUser?.role }),
+   841→                                      });
+   842→                                      const d = await r.json();
+   843→                                      if (d.success) {
+   844→                                        toast({ title: 'Approved', description: `${reg.user?.name} has been approved.` });
+   845→                                        loadEvent();
+   846→                                      } else {
+   847→                                        toast({ title: 'Failed', description: d.error || 'Could not approve', variant: 'destructive' });
+   848→                                      }
+   849→                                    } catch {
+   850→                                      toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+   851→                                    } finally {
+   852→                                      setUpdatingRegId(null);
+   853→                                    }
+   854→                                  }}
+   855→                                >
+   856→                                  {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+   857→                                  Approve
+   858→                                </Button>
+   859→                                <Button
+   860→                                  size="sm"
+   861→                                  variant="outline"
+   862→                                  className="h-7 text-[10px] border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 px-2"
+   863→                                  disabled={updatingRegId === reg.id}
+   864→                                  onClick={async () => {
+   865→                                    setUpdatingRegId(reg.id);
+   866→                                    try {
+   867→                                      const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
+   868→                                        method: 'PATCH',
+   869→                                        headers: { 'Content-Type': 'application/json' },
+   870→                                        body: JSON.stringify({ status: 'REJECTED', role: currentUser?.role }),
+   871→                                      });
+   872→                                      const d = await r.json();
+   873→                                      if (d.success) {
+   874→                                        toast({ title: 'Rejected', description: `${reg.user?.name} has been rejected.` });
+   875→                                        loadEvent();
+   876→                                      } else {
+   877→                                        toast({ title: 'Failed', description: d.error || 'Could not reject', variant: 'destructive' });
+   878→                                      }
+   879→                                    } catch {
+   880→                                      toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+   881→                                    } finally {
+   882→                                      setUpdatingRegId(null);
+   883→                                    }
+   884→                                  }}
+   885→                                >
+   886→                                  {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+   887→                                  Reject
+   888→                                </Button>
+   889→                              </>
+   890→                            )}
+   891→                          </div>
+   892→                        </motion.div>
+   893→                      ))}
+   894→                    </div>
+   895→                  </CardContent>
+   896→                </motion.div>
+   897→              )}
+   898→            </AnimatePresence>
+   899→          </Card>
+   900→        </motion.div>
+   901→      )}
+   902→
+   903→      {/* Delete Confirmation Dialog */}
+   904→      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
+   905→        <AlertDialogContent className="border-white/10 bg-[#111111] text-white">
+   906→          <AlertDialogHeader>
+   907→            <AlertDialogTitle className="text-white">Delete Event</AlertDialogTitle>
+   908→            <AlertDialogDescription className="text-gray-400">
+   909→              Are you sure you want to delete &ldquo;{event?.title}&rdquo;? This will also remove all registrations, attendance records, and certificates associated with this event. This action cannot be undone.
+   910→            </AlertDialogDescription>
+   911→          </AlertDialogHeader>
+   912→          <AlertDialogFooter>
+   913→            <AlertDialogCancel className="border-white/10 bg-transparent text-gray-300 hover:bg-white/5 hover:text-white">
+   914→              Cancel
+   915→            </AlertDialogCancel>
+   916→            <AlertDialogAction
+   917→              onClick={handleDeleteEvent}
+   918→              disabled={deleting}
+   919→              className="gap-2 bg-rose-600 text-white hover:bg-rose-500"
+   920→            >
+   921→              {deleting ? (
+   922→                <>
+   923→                  <Loader2 className="h-4 w-4 animate-spin" />
+   924→                  Deleting...
+   925→                </>
+   926→              ) : (
+   927→                <>
+   928→                  <Trash2 className="h-4 w-4" />
+   929→                  Delete Event
+   930→                </>
+   931→              )}
+   932→            </AlertDialogAction>
+   933→          </AlertDialogFooter>
+   934→        </AlertDialogContent>
+   935→      </AlertDialog>
+   936→    </div>
+   937→  );
+   938→}
+   939→
