@@ -102,16 +102,16 @@ export function DashboardPage() {
       setLoading(true);
       try {
         const fetchPromises: Promise<any>[] = [
-          fetch('/api/stats').then(res => res.json()),
-          fetch('/api/activity').then(res => res.json())
+          fetch('/api/stats').then(res => res.ok ? res.json() : { success: false }),
+          fetch('/api/activity').then(res => res.ok ? res.json() : { success: false })
         ];
 
         if (currentUser) {
-          fetchPromises.push(fetch(`/api/certificates?userId=${currentUser.id}`).then(res => res.json()));
-          fetchPromises.push(fetch(`/api/payments?userId=${currentUser.id}`).then(res => res.json()));
+          fetchPromises.push(fetch(`/api/certificates?userId=${currentUser.id}`).then(res => res.ok ? res.json() : { success: false }));
+          fetchPromises.push(fetch(`/api/payments?userId=${currentUser.id}`).then(res => res.ok ? res.json() : { success: false }));
 
           if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
-            fetchPromises.push(fetch('/api/users/approval').then(res => res.json()));
+            fetchPromises.push(fetch('/api/users/approval').then(res => res.ok ? res.json() : { success: false }));
           }
         }
 
@@ -157,7 +157,7 @@ export function DashboardPage() {
       } catch (e) { console.error(e); } finally { setLoading(false); }
     };
     load();
-  }, [currentUser]);
+  }, [currentUser?.id]);
 
   const role = currentUser?.role || 'GUEST';
 

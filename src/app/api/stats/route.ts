@@ -66,30 +66,31 @@ export async function GET() {
         _count: { category: true },
       }),
       // Total certificates for VP card
-      prisma.certificate.count({ where: { status: 'ISSUED' } }),
+      prisma.certificate.count({ where: { status: 'GENERATED' } }),
     ]);
 
     const totalDeposits = approvedDepositsResult._sum.amount ?? 0;
     const totalExpenses = approvedExpensesResult._sum.amount ?? 0;
     const currentBalance = totalDeposits - totalExpenses;
 
-    // Build member growth data (last 6 months)
+    // Build member growth data (last 6 months) — parallelized
     const now = new Date();
-    const memberGrowth: { month: string; members: number }[] = [];
-    for (let i = 5; i >= 0; i--) {
-      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
-      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
-      const count = await prisma.user.count({
-        where: {
-          createdAt: { lt: nextMonth },
-          membershipStatus: { in: ['ACTIVE', 'PENDING'] },
-        },
-      });
-      memberGrowth.push({
-        month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
-        members: count,
-      });
-    }
+    const memberGrowth = await Promise.all(
+      Array.from({ length: 6 }, (_, i) => {
+        const idx = 5 - i;
+        const monthDate = new Date(now.getFullYear(), now.getMonth() - idx, 1);
+        const nextMonth = new Date(now.getFullYear(), now.getMonth() - idx + 1, 1);
+        return prisma.user.count({
+          where: {
+            createdAt: { lt: nextMonth },
+            membershipStatus: { in: ['ACTIVE', 'PENDING'] },
+          },
+        }).then(count => ({
+          month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
+          members: count,
+        }));
+      })
+    );
 
     return successResponse({
       stats: {
