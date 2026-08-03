@@ -40,3 +40,22 @@ Stage Summary:
 - Data caching: TanStack Query with 60s staleTime (return visits → instant, no re-fetch)
 - CSS: Removed GPU-intensive blur-[120px] and backdrop-blur-xl from persistent elements
 - Prisma: Added 12+ indexes on frequently queried fields
+---
+Task ID: bug-fixes
+Agent: main
+Task: Fix 6 bugs from user-reported issues
+
+Work Log:
+- Fix 1: Certificate View → Server Error: Added try/catch in verify/[code]/page.tsx with graceful error fallback, created VerifyErrorBoundary component
+- Fix 2: Edit Event → Blank Form: Added editingEventId to Zustand store, CreateEventPage pre-populates form via fetch when editingEventId set, uses PATCH on submit, shows "Edit Event" title and Pencil icon
+- Fix 3: Finance Page: Role-gated Manage Deposits/Expenses quick nav cards behind PRESIDENT/GS/TREASURER/PLATFORM_ADMIN/VP check
+- Fix 4: GS Gallery Upload: Added 'GS' to UPLOAD_ROLES in gallery-page.tsx
+- Fix 5: GS Create Events: Added 'GS' and 'VP' to canCreate in events-page.tsx
+- Fix 6: Added VerifyErrorBoundary component for certificate viewer runtime errors
+- Build verified: ✓ Compiled successfully
+- Pushed to GitHub: main branch (force-with-lease)
+
+Stage Summary:
+- 8 files changed, 286 insertions, 111 deletions
+- All 6 bugs fixed and verified with clean build
+- Pushed to github.com/CODESLAYER-X86/cyber-club-app
