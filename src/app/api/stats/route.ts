@@ -23,6 +23,9 @@ export async function GET() {
       approvedExpensesResult,
       pendingDepositsCount,
       pendingExpensesCount,
+      // Real data for charts
+      eventDistribution,
+      totalCertificates,
     ] = await Promise.all([
       prisma.user.count(),
       prisma.user.count({ where: { membershipStatus: 'ACTIVE' } }),
@@ -57,11 +60,36 @@ export async function GET() {
       prisma.treasuryDeposit.count({ where: { status: 'PENDING' } }),
       // Pending expenses count
       prisma.expense.count({ where: { status: 'PENDING' } }),
+      // Event distribution by category for pie chart
+      prisma.event.groupBy({
+        by: ['category'],
+        _count: { category: true },
+      }),
+      // Total certificates for VP card
+      prisma.certificate.count({ where: { status: 'ISSUED' } }),
     ]);
 
     const totalDeposits = approvedDepositsResult._sum.amount ?? 0;
     const totalExpenses = approvedExpensesResult._sum.amount ?? 0;
     const currentBalance = totalDeposits - totalExpenses;
+
+    // Build member growth data (last 6 months)
+    const now = new Date();
+    const memberGrowth: { month: string; members: number }[] = [];
+    for (let i = 5; i >= 0; i--) {
+      const monthDate = new Date(now.getFullYear(), now.getMonth() - i, 1);
+      const nextMonth = new Date(now.getFullYear(), now.getMonth() - i + 1, 1);
+      const count = await prisma.user.count({
+        where: {
+          createdAt: { lt: nextMonth },
+          membershipStatus: { in: ['ACTIVE', 'PENDING'] },
+        },
+      });
+      memberGrowth.push({
+        month: monthDate.toLocaleDateString('en-US', { month: 'short' }),
+        members: count,
+      });
+    }
 
     return successResponse({
       stats: {
@@ -78,9 +106,15 @@ export async function GET() {
         totalEvents,
         pendingDepositsCount,
         pendingExpensesCount,
+        totalCertificates,
       },
       recentActivity: recentAuditLogs,
       upcomingEvents,
+      memberGrowth,
+      eventDistribution: eventDistribution.map(e => ({
+        category: e.category,
+        count: e._count.category,
+      })),
     });
   } catch (e) {
     console.error('[Stats API] Error:', e);

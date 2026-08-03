@@ -15,19 +15,24 @@ interface DashboardStats {
   totalMembers: number; totalFunds: number; activeEvents: number; pendingApprovals: number;
   totalDeposits: number; totalExpenses: number; currentBalance: number;
   pendingDepositsCount: number; pendingExpensesCount: number;
+  totalCertificates: number;
   recentActivity: { action: string; details: string; createdAt: string }[];
   upcomingEvents: Event[];
+  memberGrowth: { month: string; members: number }[];
+  eventDistribution: { category: string; count: number }[];
 }
 
-interface AuditLogEntry {
+interface ActivityEntry {
   id: string;
+  type: string;
   action: string;
-  details: string;
+  description: string;
   createdAt: string;
-  user?: { name: string; email: string };
+  user?: { name: string; email: string } | null;
 }
 
 const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string; label: string }> = {
+  // Audit log actions
   PAYMENT_VERIFIED: { icon: Wallet, color: '#10b981', label: 'Payment Verified' },
   EXPENSE_APPROVED: { icon: Receipt, color: '#10b981', label: 'Expense Approved' },
   ROLE_ASSIGNED: { icon: ShieldCheck, color: '#f59e0b', label: 'Role Assigned' },
@@ -38,6 +43,12 @@ const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string; labe
   USER_REJECTED: { icon: Ban, color: '#ef4444', label: 'User Rejected' },
   ANNOUNCEMENT_CREATED: { icon: Megaphone, color: '#8b5cf6', label: 'Announcement Created' },
   EVENT_CREATED: { icon: Calendar, color: '#06b6d4', label: 'Event Created' },
+  // Personal activity actions
+  EVENT_REGISTERED: { icon: Calendar, color: '#06b6d4', label: 'Event Registration' },
+  CERTIFICATE_ISSUED: { icon: Award, color: '#10b981', label: 'Certificate Issued' },
+  CERTIFICATE_REVOKED: { icon: Ban, color: '#ef4444', label: 'Certificate Revoked' },
+  PAYMENT_SUBMITTED: { icon: CreditCard, color: '#f59e0b', label: 'Payment Submitted' },
+  ATTENDANCE_MARKED: { icon: CheckCircle, color: '#10b981', label: 'Attendance Marked' },
 };
 
 function timeAgo(date: string): string {
@@ -83,7 +94,7 @@ export function DashboardPage() {
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
-  const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
+  const [activities, setActivities] = useState<ActivityEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -92,7 +103,7 @@ export function DashboardPage() {
       try {
         const fetchPromises: Promise<any>[] = [
           fetch('/api/stats').then(res => res.json()),
-          fetch('/api/audit-logs?limit=5').then(res => res.json())
+          fetch('/api/activity').then(res => res.json())
         ];
 
         if (currentUser) {
@@ -120,13 +131,16 @@ export function DashboardPage() {
             currentBalance: s.currentBalance ?? s.totalFunds ?? 0,
             pendingDepositsCount: s.pendingDepositsCount ?? 0,
             pendingExpensesCount: s.pendingExpensesCount ?? 0,
+            totalCertificates: s.totalCertificates ?? 0,
             recentActivity: d.recentActivity || [],
             upcomingEvents: d.upcomingEvents || [],
+            memberGrowth: d.memberGrowth || [],
+            eventDistribution: d.eventDistribution || [],
           });
         }
 
-        const auditData = results[1];
-        if (auditData?.success) setAuditLogs(auditData.data.auditLogs || []);
+        const activityData = results[1];
+        if (activityData?.success) setActivities(activityData.data.activities || []);
 
         if (currentUser) {
           const certData = results[2];
@@ -200,8 +214,8 @@ export function DashboardPage() {
           <>
             <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
             <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0.1} />
-            <StatCard icon={FileText} label="Announcements" value={0} trend="neutral" delay={0.2} />
-            <StatCard icon={BarChart3} label="Registrations" value={0} trend="up" delay={0.3} />
+            <StatCard icon={Megaphone} label="Announcements" value={stats?.recentActivity?.filter(a => a.action === 'ANNOUNCEMENT_CREATED').length ?? 0} trend="neutral" delay={0.2} />
+            <StatCard icon={Calendar} label="Total Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.3} />
           </>
         );
       case 'TREASURER':
@@ -227,8 +241,8 @@ export function DashboardPage() {
           <>
             <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
             <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.1} />
-            <StatCard icon={BarChart3} label="Growth Rate" value="12%" trend="up" delay={0.2} />
-            <StatCard icon={Award} label="Certificates Issued" value={0} trend="neutral" delay={0.3} />
+            <StatCard icon={Wallet} label="Current Balance" value={`৳${(stats?.currentBalance ?? 0).toLocaleString()}`} trend={stats?.currentBalance && stats.currentBalance >= 0 ? 'up' : 'down'} delay={0.2} />
+            <StatCard icon={Award} label="Certificates Issued" value={stats?.totalCertificates ?? 0} trend="neutral" delay={0.3} />
           </>
         );
       case 'PRESIDENT':
@@ -245,8 +259,8 @@ export function DashboardPage() {
           <>
             <StatCard icon={Calendar} label="Assigned Events" value={stats?.activeEvents ?? 0} trend="neutral" delay={0} />
             <StatCard icon={CheckCircle} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
-            <StatCard icon={Shield} label="Verified Today" value={0} trend="up" delay={0.2} />
-            <StatCard icon={Activity} label="Total Verified" value={0} trend="up" delay={0.3} />
+            <StatCard icon={Wallet} label="Payments Verified" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
+            <StatCard icon={Activity} label="Total Payments" value={payments.length} trend="up" delay={0.3} />
           </>
         );
       case 'PLATFORM_ADMIN':
@@ -339,13 +353,13 @@ export function DashboardPage() {
             </CardHeader>
             <CardContent>
               <div className="space-y-0 max-h-80 overflow-y-auto custom-scrollbar">
-                {auditLogs.length > 0 ? auditLogs.map((log, index) => {
-                  const config = ACTION_CONFIG[log.action] || { icon: Activity, color: '#6b7280', label: log.action };
+                {activities.length > 0 ? activities.map((act, index) => {
+                  const config = ACTION_CONFIG[act.action] || { icon: Activity, color: '#6b7280', label: act.action };
                   const IconComp = config.icon;
-                  const isLast = index === auditLogs.length - 1;
+                  const isLast = index === activities.length - 1;
                   return (
                     <motion.div
-                      key={log.id}
+                      key={act.id}
                       initial={{ opacity: 0, x: -10 }}
                       animate={{ opacity: 1, x: 0 }}
                       transition={{ delay: index * 0.05 }}
@@ -362,11 +376,11 @@ export function DashboardPage() {
                       {/* Content */}
                       <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
                         <p className="text-sm text-white">{config.label}</p>
-                        <p className="text-xs text-gray-500 truncate">{log.details}</p>
+                        <p className="text-xs text-gray-500 truncate">{act.description}</p>
                         <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-gray-600">{log.user?.name || 'System'}</span>
+                          <span className="text-[10px] text-gray-600">{act.user?.name || 'You'}</span>
                           <span className="text-[10px] text-gray-700">•</span>
-                          <span className="text-[10px] text-gray-600">{timeAgo(log.createdAt)}</span>
+                          <span className="text-[10px] text-gray-600">{timeAgo(act.createdAt)}</span>
                         </div>
                       </div>
                     </motion.div>
@@ -520,10 +534,11 @@ export function DashboardPage() {
             <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><TrendingUp className="h-5 w-5 text-emerald-400" />Member Growth</CardTitle></CardHeader>
             <CardContent>
               <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={[
-                  { month: 'Jan', members: 3 }, { month: 'Feb', members: 5 }, { month: 'Mar', members: 6 },
-                  { month: 'Apr', members: 7 }, { month: 'May', members: 9 }, { month: 'Jun', members: stats?.totalMembers || 10 },
-                ]}>
+                <BarChart data={
+                  stats?.memberGrowth && stats.memberGrowth.length > 0
+                    ? stats.memberGrowth
+                    : [{ month: 'No data', members: 0 }]
+                }>
                   <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
                   <XAxis dataKey="month" stroke="#666" fontSize={12} />
                   <YAxis stroke="#666" fontSize={12} />
@@ -539,13 +554,15 @@ export function DashboardPage() {
               <ResponsiveContainer width="100%" height={220}>
                 <PieChart>
                   <Pie
-                    data={[
-                      { name: 'Workshops', value: 35, fill: '#10b981' },
-                      { name: 'CTF', value: 25, fill: '#06b6d4' },
-                      { name: 'Seminars', value: 20, fill: '#f59e0b' },
-                      { name: 'Meetups', value: 15, fill: '#8b5cf6' },
-                      { name: 'Training', value: 5, fill: '#ef4444' },
-                    ]}
+                    data={
+                      stats?.eventDistribution && stats.eventDistribution.length > 0
+                        ? stats.eventDistribution.map(e => ({
+                            name: e.category.charAt(0) + e.category.slice(1).toLowerCase(),
+                            value: e.count,
+                            fill: EVENT_CATEGORY_COLORS[e.category] || '#6b7280',
+                          }))
+                        : [{ name: 'No data', value: 1, fill: '#6b7280' }]
+                    }
                     cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value"
                   >
                   </Pie>
@@ -553,7 +570,13 @@ export function DashboardPage() {
                 </PieChart>
               </ResponsiveContainer>
               <div className="absolute flex flex-wrap justify-center gap-3">
-                {[{n:'Workshops',c:'#10b981'},{n:'CTF',c:'#06b6d4'},{n:'Seminars',c:'#f59e0b'},{n:'Meetups',c:'#8b5cf6'},{n:'Training',c:'#ef4444'}].map(item => (
+                {(stats?.eventDistribution && stats.eventDistribution.length > 0
+                  ? stats.eventDistribution.map(e => ({
+                      n: e.category.charAt(0) + e.category.slice(1).toLowerCase(),
+                      c: EVENT_CATEGORY_COLORS[e.category] || '#6b7280',
+                    }))
+                  : [{n:'No data', c:'#6b7280'}]
+                ).map(item => (
                   <div key={item.n} className="flex items-center gap-1.5 text-xs"><div className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:item.c}}/><span className="text-gray-400">{item.n}</span></div>
                 ))}
               </div>
