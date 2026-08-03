@@ -1,0 +1,479 @@
+   100→  1499→                    <div className="space-y-4 pt-4 border-t border-white/5">
+   101→  1500→                      <div className="space-y-2">
+   102→  1501→                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Customize Text Templates</label>
+   103→  1502→                        <select
+   104→  1503→                          value={previewType}
+   105→  1504→                          onChange={(e) => setPreviewType(e.target.value)}
+   106→  1505→                          className="w-full h-9 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+   107→  1506→                        >
+   108→  1507→                          {selectedTypes.map(t => (
+   109→  1508→                            <option key={t} value={t}>{CERT_TYPE_LABELS[t]}</option>
+   110→  1509→                          ))}
+   111→  1510→                        </select>
+   112→  1511→                      </div>
+   113→  1512→
+   114→  1513→                      <div className="space-y-3 p-3 rounded-lg border border-white/5 bg-white/[0.01]">
+   115→  1514→                        <div className="space-y-1">
+   116→  1515→                          <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Certificate Title</label>
+   117→  1516→                          <Input
+   118→  1517→                            value={templates[previewType]?.title || ''}
+   119→  1518→                            onChange={(e) => updateTemplate(previewType, 'title', e.target.value)}
+   120→  1519→                            className="h-8 text-xs border-white/10 bg-white/5 text-white"
+   121→  1520→                          />
+   122→  1521→                        </div>
+   123→  1522→                        <div className="grid grid-cols-2 gap-2">
+   124→  1523→                          {textColorControls.map((control) => (
+   125→  1524→                            <div key={control.key} className="space-y-1">
+   126→  1525→                              <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{control.label}</label>
+   127→  1526→                              <input
+   128→  1527→                                type="color"
+   129→  1528→                                value={textColors[control.key]}
+   130→  1529→                                onChange={(e) => updateTextColor(control.key, e.target.value)}
+   131→  1530→                                className="h-8 w-full rounded-md border border-white/10 bg-transparent cursor-pointer"
+   132→  1531→                              />
+   133→  1532→                            </div>
+   134→  1533→                          ))}
+   135→  1534→                        </div>
+   136→  1535→                        <div className="space-y-1">
+   137→  1536→                          <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
+   138→  1537→                            <span>Certificate Text Template</span>
+   139→  1538→                            <span className="text-[9px] text-gray-600 font-mono">{"Use {{recipient_name}}"}</span>
+   140→  1539→                          </label>
+   141→  1540→                          <textarea
+   142→  1541→                            rows={3}
+   143→  1542→                            value={templates[previewType]?.description || ''}
+   144→  1543→                            onChange={(e) => updateTemplate(previewType, 'description', e.target.value)}
+   145→  1544→                            className="w-full p-2 text-xs border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:border-emerald-500/50 resize-none font-sans"
+   146→  1545→                            placeholder="This certifies that {{recipient_name}}..."
+   147→  1546→                          />
+   148→  1547→                        </div>
+   149→  1548→                      </div>
+   150→  1549→                    </div>
+   151→  1550→                  )}
+   152→  1551→                </TabsContent>
+   153→  1552→
+   154→  1553→                {/* TAB 3: Branding & Style */}
+   155→  1554→                <TabsContent value="branding" className="space-y-4 pt-2">
+   156→  1555→                  <div className="grid grid-cols-2 gap-4">
+   157→  1556→                    <div className="space-y-2">
+   158→  1557→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Orientation</label>
+   159→  1558→                      <select
+   160→  1559→                        value={orientation}
+   161→  1560→                        onChange={(e) => setOrientation(e.target.value as any)}
+   162→  1561→                        className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+   163→  1562→                      >
+   164→  1563→                        <option value="LANDSCAPE">Landscape (A4)</option>
+   165→  1564→                        <option value="PORTRAIT">Portrait (A4)</option>
+   166→  1565→                      </select>
+   167→  1566→                    </div>
+   168→  1567→                    <div className="space-y-2">
+   169→  1568→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Paper Size</label>
+   170→  1569→                      <select
+   171→  1570→                        value={paperSize}
+   172→  1571→                        onChange={(e) => setPaperSize(e.target.value as any)}
+   173→  1572→                        className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+   174→  1573→                      >
+   175→  1574→                        <option value="A4">A4 Standard</option>
+   176→  1575→                        <option value="LETTER">US Letter</option>
+   177→  1576→                      </select>
+   178→  1577→                    </div>
+   179→  1578→                  </div>
+   180→  1579→
+   181→  1580→                  <div className="grid grid-cols-2 gap-4">
+   182→  1581→                    <div className="space-y-2">
+   183→  1582→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Primary Color</label>
+   184→  1583→                      <div className="flex gap-2">
+   185→  1584→                        <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+   186→  1585→                        <Input value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
+   187→  1586→                      </div>
+   188→  1587→                    </div>
+   189→  1588→                    <div className="space-y-2">
+   190→  1589→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Secondary Color</label>
+   191→  1590→                      <div className="flex gap-2">
+   192→  1591→                        <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+   193→  1592→                        <Input value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
+   194→  1593→                      </div>
+   195→  1594→                    </div>
+   196→  1595→                  </div>
+   197→  1596→
+   198→  1597→                  <div className="grid grid-cols-2 gap-4">
+   199→  1598→                    <div className="space-y-2">
+   200→  1599→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Background Color</label>
+   201→  1600→                      <div className="flex gap-2">
+   202→  1601→                        <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+   203→  1602→                        <Input value={bgColor} onChange={e => setBgColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
+   204→  1603→                      </div>
+   205→  1604→                    </div>
+   206→  1605→                    <div className="space-y-2">
+   207→  1606→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+   208→  1607→                        <ImageIcon className="h-3.5 w-3.5" /> Background Image URL
+   209→  1608→                      </label>
+   210→  1609→                      <Input
+   211→  1610→                        value={bgImage}
+   212→  1611→                        onChange={e => setBgImage(e.target.value)}
+   213→  1612→                        placeholder="https://example.com/certificate-bg.png"
+   214→  1613→                        className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
+   215→  1614→                      />
+   216→  1615→                    </div>
+   217→  1616→                  </div>
+   218→  1617→
+   219→  1618→                  <div className="space-y-2">
+   220→  1619→                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Club Logo URL</label>
+   221→  1620→                    <Input
+   222→  1621→                      value={clubLogo}
+   223→  1622→                      onChange={e => setClubLogo(e.target.value)}
+   224→  1623→                      placeholder="/logo.svg or https://example.com/club-logo.png"
+   225→  1624→                      className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
+   226→  1625→                    />
+   227→  1626→                  </div>
+   228→  1627→
+   229→  1628→                  <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3">
+   230→  1629→                    <div>
+   231→  1630→                      <p className="text-xs font-semibold text-gray-200">Collaboration Mode</p>
+   232→  1631→                      <p className="text-[10px] text-gray-500">Enable to display organizer and partner logos</p>
+   233→  1632→                    </div>
+   234→  1633→                    <Switch checked={collabMode} onCheckedChange={setCollabMode} />
+   235→  1634→                  </div>
+   236→  1635→
+   237→  1636→                  {collabMode && (
+   238→  1637→                    <div className="space-y-4 pt-2 border-t border-white/5">
+   239→  1638→                      <div className="space-y-2">
+   240→  1639→                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Partner Logo URL</label>
+   241→  1640→                        <Input value={orgLogo} onChange={e => setOrgLogo(e.target.value)} placeholder="https://example.com/collaborator-logo.png" className="border-white/10 bg-white/5 text-white placeholder:text-gray-700" />
+   242→  1641→                      </div>
+   243→  1642→                      <div className="space-y-2">
+   244→  1643→                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Co-Host/Sponsor Logo URL</label>
+   245→  1644→                        <Input value={eventLogo} onChange={e => setEventLogo(e.target.value)} placeholder="https://example.com/cohost-logo.png" className="border-white/10 bg-white/5 text-white placeholder:text-gray-700" />
+   246→  1645→                      </div>
+   247→  1646→                    </div>
+   248→  1647→                  )}
+   249→  1648→                </TabsContent>
+   250→  1649→
+   251→  1650→                {/* TAB 4: Placement Controls */}
+   252→  1651→                <TabsContent value="placements" className="space-y-4 pt-2">
+   253→  1652→                  <div className="rounded-lg border border-white/5 bg-white/[0.01] p-4 space-y-4">
+   254→  1653→                    <div className="flex items-center justify-between">
+   255→  1654→                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Verification QR Code</span>
+   256→  1655→                      <Switch checked={qrVisible} onCheckedChange={setQrVisible} />
+   257→  1656→                    </div>
+   258→  1657→
+   259→  1658→                    {qrVisible && (
+   260→  1659→                      <div className="space-y-3 pt-2">
+   261→  1660→                        <div className="space-y-1">
+   262→  1661→                          <div className="flex justify-between text-[10px] text-gray-500">
+   263→  1662→                            <span>Position X</span>
+   264→  1663→                            <span className="font-mono text-white">{qrX}px</span>
+   265→  1664→                          </div>
+   266→  1665→                          <input type="range" min="0" max={width} value={qrX} onChange={(e) => setQrX(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   267→  1666→                        </div>
+   268→  1667→                        <div className="space-y-1">
+   269→  1668→                          <div className="flex justify-between text-[10px] text-gray-500">
+   270→  1669→                            <span>Position Y</span>
+   271→  1670→                            <span className="font-mono text-white">{qrY}px</span>
+   272→  1671→                          </div>
+   273→  1672→                          <input type="range" min="0" max={height} value={qrY} onChange={(e) => setQrY(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   274→  1673→                        </div>
+   275→  1674→                        <div className="space-y-1">
+   276→  1675→                          <div className="flex justify-between text-[10px] text-gray-500">
+   277→  1676→                            <span>Size</span>
+   278→  1677→                            <span className="font-mono text-white">{qrSize}px</span>
+   279→  1678→                          </div>
+   280→  1679→                          <input type="range" min="40" max="200" value={qrSize} onChange={(e) => setQrSize(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   281→  1680→                        </div>
+   282→  1681→                      </div>
+   283→  1682→                    )}
+   284→  1683→                  </div>
+   285→  1684→
+   286→  1685→                  <div className="rounded-lg border border-white/5 bg-white/[0.01] p-4 space-y-4">
+   287→  1686→                    <div className="flex items-center justify-between">
+   288→  1687→                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Certificate ID Block</span>
+   289→  1688→                      <Switch checked={idVisible} onCheckedChange={setIdVisible} />
+   290→  1689→                    </div>
+   291→  1690→
+   292→  1691→                    {idVisible && (
+   293→  1692→                      <div className="space-y-3 pt-2">
+   294→  1693→                        <div className="space-y-1">
+   295→  1694→                          <div className="flex justify-between text-[10px] text-gray-500">
+   296→  1695→                            <span>Position X</span>
+   297→  1696→                            <span className="font-mono text-white">{idX}px</span>
+   298→  1697→                          </div>
+   299→  1698→                          <input type="range" min="0" max={width} value={idX} onChange={(e) => setIdX(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   300→  1699→                        </div>
+   301→  1700→                        <div className="space-y-1">
+   302→  1701→                          <div className="flex justify-between text-[10px] text-gray-500">
+   303→  1702→                            <span>Position Y</span>
+   304→  1703→                            <span className="font-mono text-white">{idY}px</span>
+   305→  1704→                          </div>
+   306→  1705→                          <input type="range" min="0" max={height} value={idY} onChange={(e) => setIdY(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   307→  1706→                        </div>
+   308→  1707→                      </div>
+   309→  1708→                    )}
+   310→  1709→                  </div>
+   311→  1710→                </TabsContent>
+   312→  1711→
+   313→  1712→                {/* TAB 5: Signatures */}
+   314→  1713→                <TabsContent value="signatures" className="space-y-4 pt-2">
+   315→  1714→                  {signatures.map((sig, i) => (
+   316→  1715→                    <div key={i} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 space-y-3">
+   317→  1716→                      <div className="flex items-center justify-between">
+   318→  1717→                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Signature {i + 1}</span>
+   319→  1718→                        <div className="flex items-center gap-2">
+   320→  1719→                          <span className="text-[10px] text-gray-500">Visible</span>
+   321→  1720→                          <Switch checked={sig.visible} onCheckedChange={v => updateSignature(i, 'visible', v)} />
+   322→  1721→                        </div>
+   323→  1722→                      </div>
+   324→  1723→
+   325→  1724→                      {sig.visible && (
+   326→  1725→                        <div className="space-y-3 mt-2">
+   327→  1726→                          <div className="grid grid-cols-2 gap-2">
+   328→  1727→                            <div className="space-y-1">
+   329→  1728→                              <label className="text-[10px] text-gray-500 uppercase font-semibold">Name</label>
+   330→  1729→                              <Input value={sig.name} onChange={e => updateSignature(i, 'name', e.target.value)} className="h-8 text-xs border-white/10 bg-white/5 text-white" />
+   331→  1730→                            </div>
+   332→  1731→                            <div className="space-y-1">
+   333→  1732→                              <label className="text-[10px] text-gray-500 uppercase font-semibold">Title</label>
+   334→  1733→                              <Input value={sig.title} onChange={e => updateSignature(i, 'title', e.target.value)} className="h-8 text-xs border-white/10 bg-white/5 text-white" />
+   335→  1734→                            </div>
+   336→  1735→                          </div>
+   337→  1736→                          <div className="space-y-1">
+   338→  1737→                            <label className="text-[10px] text-gray-500 uppercase font-semibold block">Signature Image (transparent PNG)</label>
+   339→  1738→                            <div className="flex gap-2 items-center">
+   340→  1739→                              {sig.image ? (
+   341→  1740→                                <div className="relative border border-white/10 bg-black/40 rounded p-1 flex items-center justify-center shrink-0">
+   342→  1741→                                  <img src={sig.image} alt="Signature Preview" className="h-10 w-10 object-contain" />
+   343→  1742→                                  <button
+   344→  1743→                                    onClick={() => updateSignature(i, 'image', '')}
+   345→  1744→                                    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 text-[8px] leading-none hover:bg-red-500"
+   346→  1745→                                    type="button"
+   347→  1746→                                  >
+   348→  1747→                                    ✕
+   349→  1748→                                  </button>
+   350→  1749→                                </div>
+   351→  1750→                              ) : (
+   352→  1751→                                <Input
+   353→  1752→                                  type="file"
+   354→  1753→                                  accept="image/png"
+   355→  1754→                                  onChange={(e) => {
+   356→  1755→                                    const file = e.target.files?.[0];
+   357→  1756→                                    if (!file) return;
+   358→  1757→                                    const img = new Image();
+   359→  1758→                                    const objectUrl = URL.createObjectURL(file);
+   360→  1759→                                    img.onload = () => {
+   361→  1760→                                      if (img.width > 200 || img.height > 200) {
+   362→  1761→                                        toast({
+   363→  1762→                                          title: "Invalid Signature Resolution",
+   364→  1763→                                          description: `Signature image resolution must not exceed 200x200 pixels (uploaded: ${img.width}x${img.height}).`,
+   365→  1764→                                          variant: "destructive"
+   366→  1765→                                        });
+   367→  1766→                                        URL.revokeObjectURL(objectUrl);
+   368→  1767→                                        return;
+   369→  1768→                                      }
+   370→  1769→                                      const reader = new FileReader();
+   371→  1770→                                      reader.onload = (event) => {
+   372→  1771→                                        if (event.target?.result) {
+   373→  1772→                                          updateSignature(i, 'image', event.target.result as string);
+   374→  1773→                                        }
+   375→  1774→                                      };
+   376→  1775→                                      reader.readAsDataURL(file);
+   377→  1776→                                      URL.revokeObjectURL(objectUrl);
+   378→  1777→                                    };
+   379→  1778→                                    img.src = objectUrl;
+   380→  1779→                                  }}
+   381→  1780→                                  className="h-8 text-xs border-white/10 bg-white/5 text-white cursor-pointer file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
+   382→  1781→                                />
+   383→  1782→                              )}
+   384→  1783→                            </div>
+   385→  1784→                          </div>
+   386→  1785→                        </div>
+   387→  1786→                      )}
+   388→  1787→                    </div>
+   389→  1788→                  ))}
+   390→  1789→                </TabsContent>
+   391→  1790→              </Tabs>
+   392→  1791→            </CardContent>
+   393→  1792→          </Card>
+   394→  1793→        </div>
+   395→  1794→
+   396→  1795→        {/* Live Preview Pane (7 cols) */}
+   397→  1796→        <div className="lg:col-span-7 space-y-4">
+   398→  1797→          <div className="flex items-center justify-between flex-wrap gap-2">
+   399→  1798→            <div className="flex items-center gap-2">
+   400→  1799→              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Live Preview</h3>
+   401→  1800→              <select
+   402→  1801→                value={previewType}
+   403→  1802→                onChange={(e) => setPreviewType(e.target.value)}
+   404→  1803→                className="h-7 px-2 rounded border border-white/10 bg-black text-xs text-white focus:outline-none"
+   405→  1804→              >
+   406→  1805→                {selectedTypes.map(t => (
+   407→  1806→                  <option key={t} value={t}>{CERT_TYPE_LABELS[t]}</option>
+   408→  1807→                ))}
+   409→  1808→              </select>
+   410→  1809→            </div>
+   411→  1810→            <span className="text-xs text-gray-500 flex items-center gap-1">
+   412→  1811→              <Sparkles className="h-3 w-3 text-emerald-400 animate-pulse" /> Drag elements to reposition
+   413→  1812→            </span>
+   414→  1813→          </div>
+   415→  1814→
+   416→  1815→          <div
+   417→  1816→            className="w-full rounded-xl overflow-hidden border border-white/10 bg-[#000000] shadow-2xl relative"
+   418→  1817→            style={{ aspectRatio: `${width}/${height}` }}
+   419→  1818→          >
+   420→  1819→            <svg
+   421→  1820→              ref={svgRef}
+   422→  1821→              viewBox={`0 0 ${width} ${height}`}
+   423→  1822→              className="w-full h-full select-none"
+   424→  1823→              onClick={(e) => {
+   425→  1824→                // Deselect when clicking empty canvas
+   426→  1825→                if (e.target === svgRef.current || (e.target as Element).tagName === 'rect' && (e.target as Element).getAttribute('fill') === bgColor) {
+   427→  1826→                  setSelectedElement(null);
+   428→  1827→                }
+   429→  1828→              }}
+   430→  1829→            >
+   431→  1830→              <defs>
+   432→  1831→                <linearGradient id="borderGradPreview" x1="0%" y1="0%" x2="100%" y2="100%">
+   433→  1832→                  <stop offset="0%" stopColor={primaryColor} stopOpacity="0.6" />
+   434→  1833→                  <stop offset="50%" stopColor={secondaryColor} stopOpacity="0.6" />
+   435→  1834→                  <stop offset="100%" stopColor={primaryColor} stopOpacity="0.6" />
+   436→  1835→                </linearGradient>
+   437→  1836→                <linearGradient id="textGradPreview" x1="0%" y1="0%" x2="100%" y2="0%">
+   438→  1837→                  <stop offset="0%" stopColor={primaryColor} />
+   439→  1838→                  <stop offset="100%" stopColor={secondaryColor} />
+   440→  1839→                </linearGradient>
+   441→  1840→                <linearGradient id="typeGradPreview" x1="0%" y1="0%" x2="100%" y2="0%">
+   442→  1841→                  <stop offset="0%" stopColor={primaryColor} />
+   443→  1842→                  <stop offset="100%" stopColor={secondaryColor} />
+   444→  1843→                </linearGradient>
+   445→  1844→                <pattern id="gridPreview" width="40" height="40" patternUnits="userSpaceOnUse">
+   446→  1845→                  <path d="M 40 0 L 0 0 0 40" fill="none" stroke="rgba(16,185,129,0.06)" strokeWidth="1" />
+   447→  1846→                </pattern>
+   448→  1847→              </defs>
+   449→  1848→
+   450→  1849→              {/* Background */}
+   451→  1850→              {bgImage ? (
+   452→  1851→                <image x="0" y="0" width={width} height={height} href={bgImage} preserveAspectRatio="xMidYMid slice" />
+   453→  1852→              ) : (
+   454→  1853→                <>
+   455→  1854→                  <rect width={width} height={height} fill={bgColor} />
+   456→  1855→                  <rect width={width} height={height} fill="url(#gridPreview)" />
+   457→  1856→                </>
+   458→  1857→              )}
+   459→  1858→
+   460→  1859→              {/* Borders */}
+   461→  1860→              <rect x="15" y="15" width={width - 30} height={height - 30} rx="16" fill="none" stroke="url(#borderGradPreview)" strokeWidth="2" />
+   462→  1861→              <path d={`M 30 30 L 30 60 M 30 30 L 60 30`} stroke={primaryColor} strokeWidth="2" opacity="0.5" />
+   463→  1862→              <path d={`M ${width - 30} 30 L ${width - 30} 60 M ${width - 30} 30 L ${width - 60} 30`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
+   464→  1863→              <path d={`M 30 ${height - 30} L 30 ${height - 60} M 30 ${height - 30} L 60 ${height - 30}`} stroke={primaryColor} strokeWidth="2" opacity="0.5" />
+   465→  1864→              <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
+   466→  1865→
+   467→  1866→              {/* Alignment Guide Lines */}
+   468→  1867→              {alignmentGuides?.vertical != null && (
+   469→  1868→                <line
+   470→  1869→                  x1={alignmentGuides.vertical}
+   471→  1870→                  y1="0"
+   472→  1871→                  x2={alignmentGuides.vertical}
+   473→  1872→                  y2={height}
+   474→  1873→                  stroke="#10b981"
+   475→  1874→                  strokeWidth="1"
+   476→  1875→                  strokeDasharray="4 4"
+   477→  1876→                  opacity="0.6"
+   478→  1877→                />
+   479→  1878→              )}
+   480→  1879→              {alignmentGuides?.horizontal != null && (
+   481→  1880→                <line
+   482→  1881→                  x1="0"
+   483→  1882→                  y1={alignmentGuides.horizontal}
+   484→  1883→                  x2={width}
+   485→  1884→                  y2={alignmentGuides.horizontal}
+   486→  1885→                  stroke="#10b981"
+   487→  1886→                  strokeWidth="1"
+   488→  1887→                  strokeDasharray="4 4"
+   489→  1888→                  opacity="0.6"
+   490→  1889→                />
+   491→  1890→              )}
+   492→  1891→
+   493→  1892→              {/* Logos */}
+   494→  1893→              {renderLogo('orgLogo', orgLogo, collabMode && !!orgLogo)}
+   495→  1894→              {renderLogo('eventLogo', eventLogo, collabMode && !!eventLogo)}
+   496→  1895→              {clubLogo ? renderLogo('clubLogo', clubLogo, true) : (
+   497→  1896→                <g transform={`translate(${width / 2 - 60}, 45)`}>
+   498→  1897→                  <path d="M 60 10 L 10 30 L 10 60 C 10 90 35 110 60 120 C 85 110 110 90 110 60 L 110 30 Z" fill="none" stroke={primaryColor} strokeWidth="2" opacity="0.6" />
+   499→  1898→                  <path d="M 60 30 L 30 42 L 30 62 C 30 80 45 92 60 98 C 75 92 90 80 90 62 L 90 42 Z" fill="rgba(16,185,129,0.1)" stroke={primaryColor} strokeWidth="1" />
+   500→  1899→                  <text x="60" y="75" textAnchor="middle" fontFamily="sans-serif" fontSize="28" fill={primaryColor}>✓</text>
+   501→  1900→                </g>
+   502→  1901→              )}
+   503→  1902→
+   504→  1903→              {/* All Text Elements */}
+   505→  1904→              {(['headerTitle', 'headerSubtitle', 'intro', 'recipientName', 'eventLabel', 'eventName', 'certificateTitle', 'description', 'issueDate', 'issueDateLabel', 'certificateId', 'footer'] as TextElementKey[]).map((key) => (
+   506→  1905→                renderTextElement(key)
+   507→  1906→              ))}
+   508→  1907→
+   509→  1908→              {/* Certificate Type Banner */}
+   510→  1909→              <g transform={`translate(${width / 2 - 130}, ${isLandscape ? 465 : 520})`}>
+   511→  1910→                <rect width="260" height="32" rx="16" fill="url(#typeGradPreview)" opacity="0.2" />
+   512→  1911→                <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
+   513→  1912→                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill={textColors.certificateTitle}>{previewTitle}</text>
+   514→  1913→              </g>
+   515→  1914→
+   516→  1915→              {/* Custom Placed Certificate ID */}
+   517→  1916→              {idVisible && (
+   518→  1917→                <text x={idX} y={idY} textAnchor="middle" fontFamily="monospace" fontSize="14" fill={textColors.certificateId}>
+   519→  1918→                  CSC-2026-CYBERSEC-00125
+   520→  1919→                </text>
+   521→  1920→              )}
+   522→  1921→
+   523→  1922→              {/* Custom Placed QR Code */}
+   524→  1923→              {qrVisible && (
+   525→  1924→                <g transform={`translate(${qrX}, ${qrY})`}>
+   526→  1925→                  <rect x="-5" y="-5" width={qrSize + 10} height={qrSize + 10} fill="#ffffff" rx="4" />
+   527→  1926→                  <rect x="5" y="5" width={qrSize / 3} height={qrSize / 3} fill="#000000" />
+   528→  1927→                  <rect x={qrSize - (qrSize / 3) - 5} y="5" width={qrSize / 3} height={qrSize / 3} fill="#000000" />
+   529→  1928→                  <rect x="5" y={qrSize - (qrSize / 3) - 5} width={qrSize / 3} height={qrSize / 3} fill="#000000" />
+   530→  1929→                  <rect x={qrSize / 3} y={qrSize / 3} width={qrSize / 3} height={qrSize / 3} fill="#000000" opacity="0.8" />
+   531→  1930→                </g>
+   532→  1931→              )}
+   533→  1932→
+   534→  1933→              {/* Signatures - using signatureLayouts */}
+   535→  1934→              {activeSigs.length > 0 ? (
+   536→  1935→                activeSigs.map((sig, idx) => {
+   537→  1936→                  const layout = sig.layout || signatureLayouts[idx];
+   538→  1937→                  const xPos = layout?.x ?? (width / 2);
+   539→  1938→                  const yPos = layout?.y ?? (isLandscape ? 700 : 960);
+   540→  1939→                  return (
+   541→  1940→                    <g
+   542→  1941→                      key={idx}
+   543→  1942→                      onPointerDown={(e) => beginDrag('signature', idx, 'move', e, { x: xPos, y: yPos })}
+   544→  1943→                      style={{ cursor: 'move' }}
+   545→  1944→                    >
+   546→  1945→                      <line x1={xPos - 90} y1={yPos} x2={xPos + 90} y2={yPos} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+   547→  1946→                      {sig.image && <image x={xPos - 50} y={yPos - 60} width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
+   548→  1947→                      <text x={xPos} y={yPos + 20} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.nameFontSize || 14} fontWeight="bold" fill={layout?.nameColor || textColors.signatureName}>{sig.name}</text>
+   549→  1948→                      <text x={xPos} y={yPos + 38} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.titleFontSize || 11} fill={layout?.titleColor || textColors.signatureTitle}>{sig.title}</text>
+   550→  1949→                      {selectedSigIndex === idx && (
+   551→  1950→                        <rect
+   552→  1951→                          x={xPos - 100}
+   553→  1952→                          y={yPos - 70}
+   554→  1953→                          width="200"
+   555→  1954→                          height="120"
+   556→  1955→                          fill="none"
+   557→  1956→                          stroke={primaryColor}
+   558→  1957→                          strokeWidth="1.5"
+   559→  1958→                          strokeDasharray="5 4"
+   560→  1959→                          rx="2"
+   561→  1960→                        />
+   562→  1961→                      )}
+   563→  1962→                    </g>
+   564→  1963→                  );
+   565→  1964→                })
+   566→  1965→              ) : (
+   567→  1966→                <g transform={`translate(${width / 2}, ${isLandscape ? 700 : 960})`}>
+   568→  1967→                  <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fill={textColors.footer}>[No Signatures Configured]</text>
+   569→  1968→                </g>
+   570→  1969→              )}
+   571→  1970→            </svg>
+   572→  1971→          </div>
+   573→  1972→        </div>
+   574→  1973→      </div>
+   575→  1974→    </div>
+   576→  1975→  );
+   577→  1976→}
+   578→  1977→

@@ -1,0 +1,402 @@
+     1→  1400→  1400→                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all ${
+     2→  1401→  1401→                              isSelected
+     3→  1402→  1402→                                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+     4→  1403→  1403→                                : 'bg-white/[0.02] border border-white/5 text-gray-400 hover:bg-white/[0.04] hover:text-white'
+     5→  1404→  1404→                            }`}
+     6→  1405→  1405→                          >
+     7→  1406→  1406→                            <span className="flex items-center gap-1.5">
+     8→  1407→  1407→                              <Type className="h-3 w-3" />
+     9→  1408→  1408→                              {TEXT_ELEMENT_LABELS[key]}
+    10→  1409→  1409→                            </span>
+    11→  1410→  1410→                            <span className="text-[10px] font-mono text-gray-600">{el.fontSize}px</span>
+    12→  1411→  1411→                          </button>
+    13→  1412→  1412→                        );
+    14→  1413→  1413→                      })}
+    15→  1414→  1414→
+    16→  1415→  1415→                      {/* Logo elements */}
+    17→  1416→  1416→                      <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wider pt-2">Logo Elements</div>
+    18→  1417→  1417→                      {(['clubLogo', 'orgLogo', 'eventLogo'] as LogoKey[]).map((key) => {
+    19→  1418→  1418→                        const logo = logoElements[key];
+    20→  1419→  1419→                        const isSelected = selectedLogoKey === key;
+    21→  1420→  1420→                        const labels: Record<LogoKey, string> = { clubLogo: 'Club Logo', orgLogo: 'Partner Logo', eventLogo: 'Co-Host Logo' };
+    22→  1421→  1421→                        const show = key === 'clubLogo' || (key === 'orgLogo' && collabMode) || (key === 'eventLogo' && collabMode);
+    23→  1422→  1422→                        if (!show) return null;
+    24→  1423→  1423→                        return (
+    25→  1424→  1424→                          <button
+    26→  1425→  1425→                            key={key}
+    27→  1426→  1426→                            onClick={() => setSelectedElement({ kind: 'logo', key })}
+    28→  1427→  1427→                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all ${
+    29→  1428→  1428→                              isSelected
+    30→  1429→  1429→                                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+    31→  1430→  1430→                                : 'bg-white/[0.02] border border-white/5 text-gray-400 hover:bg-white/[0.04] hover:text-white'
+    32→  1431→  1431→                            }`}
+    33→  1432→  1432→                          >
+    34→  1433→  1433→                            <span className="flex items-center gap-1.5">
+    35→  1434→  1434→                              <ImageIcon className="h-3 w-3" />
+    36→  1435→  1435→                              {labels[key]}
+    37→  1436→  1436→                            </span>
+    38→  1437→  1437→                            <span className="text-[10px] font-mono text-gray-600">{Math.round(logo.width)}x{Math.round(logo.height)}</span>
+    39→  1438→  1438→                          </button>
+    40→  1439→  1439→                        );
+    41→  1440→  1440→                      })}
+    42→  1441→  1441→
+    43→  1442→  1442→                      {/* Signatures */}
+    44→  1443→  1443→                      <div className="text-[10px] text-gray-600 font-bold uppercase tracking-wider pt-2">Signatures</div>
+    45→  1444→  1444→                      {signatures.map((sig, i) => {
+    46→  1445→  1445→                        if (!sig.visible) return null;
+    47→  1446→  1446→                        const isSelected = selectedSigIndex === i;
+    48→  1447→  1447→                        return (
+    49→  1448→  1448→                          <button
+    50→  1449→  1449→                            key={i}
+    51→  1450→  1450→                            onClick={() => setSelectedElement({ kind: 'signature', index: i })}
+    52→  1451→  1451→                            className={`w-full flex items-center justify-between px-2.5 py-1.5 rounded-md text-xs transition-all ${
+    53→  1452→  1452→                              isSelected
+    54→  1453→  1453→                                ? 'bg-emerald-500/15 border border-emerald-500/30 text-emerald-400'
+    55→  1454→  1454→                                : 'bg-white/[0.02] border border-white/5 text-gray-400 hover:bg-white/[0.04] hover:text-white'
+    56→  1455→  1455→                            }`}
+    57→  1456→  1456→                          >
+    58→  1457→  1457→                            <span className="flex items-center gap-1.5">
+    59→  1458→  1458→                              <Award className="h-3 w-3" />
+    60→  1459→  1459→                              {sig.name}
+    61→  1460→  1460→                            </span>
+    62→  1461→  1461→                            <span className="text-[10px] font-mono text-gray-600">{sig.title}</span>
+    63→  1462→  1462→                          </button>
+    64→  1463→  1463→                        );
+    65→  1464→  1464→                      })}
+    66→  1465→  1465→                    </div>
+    67→  1466→  1466→                  </div>
+    68→  1467→  1467→                </TabsContent>
+    69→  1468→  1468→
+    70→  1469→  1469→                {/* TAB 2: Certificate Types & Text Customization */}
+    71→  1470→  1470→                <TabsContent value="types" className="space-y-4 pt-2">
+    72→  1471→  1471→                  <div className="space-y-2">
+    73→  1472→  1472→                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Select Available Certificate Types</label>
+    74→  1473→  1473→                    <div className="grid grid-cols-2 gap-2">
+    75→  1474→  1474→                      {Object.keys(DEFAULT_TEMPLATES).map((type) => {
+    76→  1475→  1475→                        const isChecked = selectedTypes.includes(type);
+    77→  1476→  1476→                        return (
+    78→  1477→  1477→                          <div
+    79→  1478→  1478→                            key={type}
+    80→  1479→  1479→                            onClick={() => toggleType(type)}
+    81→  1480→  1480→                            className={`flex items-center gap-2 p-2.5 rounded-lg border cursor-pointer select-none transition-all ${
+    82→  1481→  1481→                              isChecked
+    83→  1482→  1482→                                ? 'bg-emerald-500/10 border-emerald-500/40 text-white'
+    84→  1483→  1483→                                : 'bg-white/[0.02] border-white/5 text-gray-400 hover:bg-white/[0.04]'
+    85→  1484→  1484→                            }`}
+    86→  1485→  1485→                          >
+    87→  1486→  1486→                            <div className={`h-4 w-4 rounded flex items-center justify-center border ${
+    88→  1487→  1487→                              isChecked ? 'bg-emerald-500 border-emerald-500 text-black' : 'border-gray-600 bg-transparent'
+    89→  1488→  1488→                            }`}>
+    90→  1489→  1489→                              {isChecked && <span className="text-[10px] font-bold">✓</span>}
+    91→  1490→  1490→                            </div>
+    92→  1491→  1491→                            <span className="text-xs font-medium">{CERT_TYPE_LABELS[type]}</span>
+    93→  1492→  1492→                          </div>
+    94→  1493→  1493→                        );
+    95→  1494→  1494→                      })}
+    96→  1495→  1495→                    </div>
+    97→  1496→  1496→                  </div>
+    98→  1497→  1497→
+    99→  1498→  1498→                  {selectedTypes.length > 0 && (
+   100→  1499→  1499→                    <div className="space-y-4 pt-4 border-t border-white/5">
+   101→  1500→  1500→                      <div className="space-y-2">
+   102→  1501→  1501→                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Customize Text Templates</label>
+   103→  1502→  1502→                        <select
+   104→  1503→  1503→                          value={previewType}
+   105→  1504→  1504→                          onChange={(e) => setPreviewType(e.target.value)}
+   106→  1505→  1505→                          className="w-full h-9 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+   107→  1506→  1506→                        >
+   108→  1507→  1507→                          {selectedTypes.map(t => (
+   109→  1508→  1508→                            <option key={t} value={t}>{CERT_TYPE_LABELS[t]}</option>
+   110→  1509→  1509→                          ))}
+   111→  1510→  1510→                        </select>
+   112→  1511→  1511→                      </div>
+   113→  1512→  1512→
+   114→  1513→  1513→                      <div className="space-y-3 p-3 rounded-lg border border-white/5 bg-white/[0.01]">
+   115→  1514→  1514→                        <div className="space-y-1">
+   116→  1515→  1515→                          <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Certificate Title</label>
+   117→  1516→  1516→                          <Input
+   118→  1517→  1517→                            value={templates[previewType]?.title || ''}
+   119→  1518→  1518→                            onChange={(e) => updateTemplate(previewType, 'title', e.target.value)}
+   120→  1519→  1519→                            className="h-8 text-xs border-white/10 bg-white/5 text-white"
+   121→  1520→  1520→                          />
+   122→  1521→  1521→                        </div>
+   123→  1522→  1522→                        <div className="grid grid-cols-2 gap-2">
+   124→  1523→  1523→                          {textColorControls.map((control) => (
+   125→  1524→  1524→                            <div key={control.key} className="space-y-1">
+   126→  1525→  1525→                              <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">{control.label}</label>
+   127→  1526→  1526→                              <input
+   128→  1527→  1527→                                type="color"
+   129→  1528→  1528→                                value={textColors[control.key]}
+   130→  1529→  1529→                                onChange={(e) => updateTextColor(control.key, e.target.value)}
+   131→  1530→  1530→                                className="h-8 w-full rounded-md border border-white/10 bg-transparent cursor-pointer"
+   132→  1531→  1531→                              />
+   133→  1532→  1532→                            </div>
+   134→  1533→  1533→                          ))}
+   135→  1534→  1534→                        </div>
+   136→  1535→  1535→                        <div className="space-y-1">
+   137→  1536→  1536→                          <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
+   138→  1537→  1537→                            <span>Certificate Text Template</span>
+   139→  1538→  1538→                            <span className="text-[9px] text-gray-600 font-mono">{"Use {{recipient_name}}"}</span>
+   140→  1539→  1539→                          </label>
+   141→  1540→  1540→                          <textarea
+   142→  1541→  1541→                            rows={3}
+   143→  1542→  1542→                            value={templates[previewType]?.description || ''}
+   144→  1543→  1543→                            onChange={(e) => updateTemplate(previewType, 'description', e.target.value)}
+   145→  1544→  1544→                            className="w-full p-2 text-xs border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:border-emerald-500/50 resize-none font-sans"
+   146→  1545→  1545→                            placeholder="This certifies that {{recipient_name}}..."
+   147→  1546→  1546→                          />
+   148→  1547→  1547→                        </div>
+   149→  1548→  1548→                      </div>
+   150→  1549→  1549→                    </div>
+   151→  1550→  1550→                  )}
+   152→  1551→  1551→                </TabsContent>
+   153→  1552→  1552→
+   154→  1553→  1553→                {/* TAB 3: Branding & Style */}
+   155→  1554→  1554→                <TabsContent value="branding" className="space-y-4 pt-2">
+   156→  1555→  1555→                  <div className="grid grid-cols-2 gap-4">
+   157→  1556→  1556→                    <div className="space-y-2">
+   158→  1557→  1557→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Orientation</label>
+   159→  1558→  1558→                      <select
+   160→  1559→  1559→                        value={orientation}
+   161→  1560→  1560→                        onChange={(e) => setOrientation(e.target.value as any)}
+   162→  1561→  1561→                        className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+   163→  1562→  1562→                      >
+   164→  1563→  1563→                        <option value="LANDSCAPE">Landscape (A4)</option>
+   165→  1564→  1564→                        <option value="PORTRAIT">Portrait (A4)</option>
+   166→  1565→  1565→                      </select>
+   167→  1566→  1566→                    </div>
+   168→  1567→  1567→                    <div className="space-y-2">
+   169→  1568→  1568→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Paper Size</label>
+   170→  1569→  1569→                      <select
+   171→  1570→  1570→                        value={paperSize}
+   172→  1571→  1571→                        onChange={(e) => setPaperSize(e.target.value as any)}
+   173→  1572→  1572→                        className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
+   174→  1573→  1573→                      >
+   175→  1574→  1574→                        <option value="A4">A4 Standard</option>
+   176→  1575→  1575→                        <option value="LETTER">US Letter</option>
+   177→  1576→  1576→                      </select>
+   178→  1577→  1577→                    </div>
+   179→  1578→  1578→                  </div>
+   180→  1579→  1579→
+   181→  1580→  1580→                  <div className="grid grid-cols-2 gap-4">
+   182→  1581→  1581→                    <div className="space-y-2">
+   183→  1582→  1582→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Primary Color</label>
+   184→  1583→  1583→                      <div className="flex gap-2">
+   185→  1584→  1584→                        <input type="color" value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+   186→  1585→  1585→                        <Input value={primaryColor} onChange={e => setPrimaryColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
+   187→  1586→  1586→                      </div>
+   188→  1587→  1587→                    </div>
+   189→  1588→  1588→                    <div className="space-y-2">
+   190→  1589→  1589→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Secondary Color</label>
+   191→  1590→  1590→                      <div className="flex gap-2">
+   192→  1591→  1591→                        <input type="color" value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+   193→  1592→  1592→                        <Input value={secondaryColor} onChange={e => setSecondaryColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
+   194→  1593→  1593→                      </div>
+   195→  1594→  1594→                    </div>
+   196→  1595→  1595→                  </div>
+   197→  1596→  1596→
+   198→  1597→  1597→                  <div className="grid grid-cols-2 gap-4">
+   199→  1598→  1598→                    <div className="space-y-2">
+   200→  1599→  1599→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Background Color</label>
+   201→  1600→  1600→                      <div className="flex gap-2">
+   202→  1601→  1601→                        <input type="color" value={bgColor} onChange={e => setBgColor(e.target.value)} className="h-9 w-9 rounded border border-white/10 bg-transparent cursor-pointer shrink-0" />
+   203→  1602→  1602→                        <Input value={bgColor} onChange={e => setBgColor(e.target.value)} className="border-white/10 bg-white/5 text-white text-xs font-mono" />
+   204→  1603→  1603→                      </div>
+   205→  1604→  1604→                    </div>
+   206→  1605→  1605→                    <div className="space-y-2">
+   207→  1606→  1606→                      <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+   208→  1607→  1607→                        <ImageIcon className="h-3.5 w-3.5" /> Background Image URL
+   209→  1608→  1608→                      </label>
+   210→  1609→  1609→                      <Input
+   211→  1610→  1610→                        value={bgImage}
+   212→  1611→  1611→                        onChange={e => setBgImage(e.target.value)}
+   213→  1612→  1612→                        placeholder="https://example.com/certificate-bg.png"
+   214→  1613→  1613→                        className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
+   215→  1614→  1614→                      />
+   216→  1615→  1615→                    </div>
+   217→  1616→  1616→                  </div>
+   218→  1617→  1617→
+   219→  1618→  1618→                  <div className="space-y-2">
+   220→  1619→  1619→                    <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Club Logo URL</label>
+   221→  1620→  1620→                    <Input
+   222→  1621→  1621→                      value={clubLogo}
+   223→  1622→  1622→                      onChange={e => setClubLogo(e.target.value)}
+   224→  1623→  1623→                      placeholder="/logo.svg or https://example.com/club-logo.png"
+   225→  1624→  1624→                      className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
+   226→  1625→  1625→                    />
+   227→  1626→  1626→                  </div>
+   228→  1627→  1627→
+   229→  1628→  1628→                  <div className="flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3">
+   230→  1629→  1629→                    <div>
+   231→  1630→  1630→                      <p className="text-xs font-semibold text-gray-200">Collaboration Mode</p>
+   232→  1631→  1631→                      <p className="text-[10px] text-gray-500">Enable to display organizer and partner logos</p>
+   233→  1632→  1632→                    </div>
+   234→  1633→  1633→                    <Switch checked={collabMode} onCheckedChange={setCollabMode} />
+   235→  1634→  1634→                  </div>
+   236→  1635→  1635→
+   237→  1636→  1636→                  {collabMode && (
+   238→  1637→  1637→                    <div className="space-y-4 pt-2 border-t border-white/5">
+   239→  1638→  1638→                      <div className="space-y-2">
+   240→  1639→  1639→                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Partner Logo URL</label>
+   241→  1640→  1640→                        <Input value={orgLogo} onChange={e => setOrgLogo(e.target.value)} placeholder="https://example.com/collaborator-logo.png" className="border-white/10 bg-white/5 text-white placeholder:text-gray-700" />
+   242→  1641→  1641→                      </div>
+   243→  1642→  1642→                      <div className="space-y-2">
+   244→  1643→  1643→                        <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Co-Host/Sponsor Logo URL</label>
+   245→  1644→  1644→                        <Input value={eventLogo} onChange={e => setEventLogo(e.target.value)} placeholder="https://example.com/cohost-logo.png" className="border-white/10 bg-white/5 text-white placeholder:text-gray-700" />
+   246→  1645→  1645→                      </div>
+   247→  1646→  1646→                    </div>
+   248→  1647→  1647→                  )}
+   249→  1648→  1648→                </TabsContent>
+   250→  1649→  1649→
+   251→  1650→  1650→                {/* TAB 4: Placement Controls */}
+   252→  1651→  1651→                <TabsContent value="placements" className="space-y-4 pt-2">
+   253→  1652→  1652→                  <div className="rounded-lg border border-white/5 bg-white/[0.01] p-4 space-y-4">
+   254→  1653→  1653→                    <div className="flex items-center justify-between">
+   255→  1654→  1654→                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Verification QR Code</span>
+   256→  1655→  1655→                      <Switch checked={qrVisible} onCheckedChange={setQrVisible} />
+   257→  1656→  1656→                    </div>
+   258→  1657→  1657→
+   259→  1658→  1658→                    {qrVisible && (
+   260→  1659→  1659→                      <div className="space-y-3 pt-2">
+   261→  1660→  1660→                        <div className="space-y-1">
+   262→  1661→  1661→                          <div className="flex justify-between text-[10px] text-gray-500">
+   263→  1662→  1662→                            <span>Position X</span>
+   264→  1663→  1663→                            <span className="font-mono text-white">{qrX}px</span>
+   265→  1664→  1664→                          </div>
+   266→  1665→  1665→                          <input type="range" min="0" max={width} value={qrX} onChange={(e) => setQrX(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   267→  1666→  1666→                        </div>
+   268→  1667→  1667→                        <div className="space-y-1">
+   269→  1668→  1668→                          <div className="flex justify-between text-[10px] text-gray-500">
+   270→  1669→  1669→                            <span>Position Y</span>
+   271→  1670→  1670→                            <span className="font-mono text-white">{qrY}px</span>
+   272→  1671→  1671→                          </div>
+   273→  1672→  1672→                          <input type="range" min="0" max={height} value={qrY} onChange={(e) => setQrY(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   274→  1673→  1673→                        </div>
+   275→  1674→  1674→                        <div className="space-y-1">
+   276→  1675→  1675→                          <div className="flex justify-between text-[10px] text-gray-500">
+   277→  1676→  1676→                            <span>Size</span>
+   278→  1677→  1677→                            <span className="font-mono text-white">{qrSize}px</span>
+   279→  1678→  1678→                          </div>
+   280→  1679→  1679→                          <input type="range" min="40" max="200" value={qrSize} onChange={(e) => setQrSize(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   281→  1680→  1680→                        </div>
+   282→  1681→  1681→                      </div>
+   283→  1682→  1682→                    )}
+   284→  1683→  1683→                  </div>
+   285→  1684→  1684→
+   286→  1685→  1685→                  <div className="rounded-lg border border-white/5 bg-white/[0.01] p-4 space-y-4">
+   287→  1686→  1686→                    <div className="flex items-center justify-between">
+   288→  1687→  1687→                      <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Certificate ID Block</span>
+   289→  1688→  1688→                      <Switch checked={idVisible} onCheckedChange={setIdVisible} />
+   290→  1689→  1689→                    </div>
+   291→  1690→  1690→
+   292→  1691→  1691→                    {idVisible && (
+   293→  1692→  1692→                      <div className="space-y-3 pt-2">
+   294→  1693→  1693→                        <div className="space-y-1">
+   295→  1694→  1694→                          <div className="flex justify-between text-[10px] text-gray-500">
+   296→  1695→  1695→                            <span>Position X</span>
+   297→  1696→  1696→                            <span className="font-mono text-white">{idX}px</span>
+   298→  1697→  1697→                          </div>
+   299→  1698→  1698→                          <input type="range" min="0" max={width} value={idX} onChange={(e) => setIdX(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   300→  1699→  1699→                        </div>
+   301→  1700→  1700→                        <div className="space-y-1">
+   302→  1701→  1701→                          <div className="flex justify-between text-[10px] text-gray-500">
+   303→  1702→  1702→                            <span>Position Y</span>
+   304→  1703→  1703→                            <span className="font-mono text-white">{idY}px</span>
+   305→  1704→  1704→                          </div>
+   306→  1705→  1705→                          <input type="range" min="0" max={height} value={idY} onChange={(e) => setIdY(parseInt(e.target.value))} className="w-full accent-emerald-500 cursor-pointer" />
+   307→  1706→  1706→                        </div>
+   308→  1707→  1707→                      </div>
+   309→  1708→  1708→                    )}
+   310→  1709→  1709→                  </div>
+   311→  1710→  1710→                </TabsContent>
+   312→  1711→  1711→
+   313→  1712→  1712→                {/* TAB 5: Signatures */}
+   314→  1713→  1713→                <TabsContent value="signatures" className="space-y-4 pt-2">
+   315→  1714→  1714→                  {signatures.map((sig, i) => (
+   316→  1715→  1715→                    <div key={i} className="rounded-lg border border-white/5 bg-white/[0.02] p-4 space-y-3">
+   317→  1716→  1716→                      <div className="flex items-center justify-between">
+   318→  1717→  1717→                        <span className="text-xs font-bold text-emerald-400 uppercase tracking-wider">Signature {i + 1}</span>
+   319→  1718→  1718→                        <div className="flex items-center gap-2">
+   320→  1719→  1719→                          <span className="text-[10px] text-gray-500">Visible</span>
+   321→  1720→  1720→                          <Switch checked={sig.visible} onCheckedChange={v => updateSignature(i, 'visible', v)} />
+   322→  1721→  1721→                        </div>
+   323→  1722→  1722→                      </div>
+   324→  1723→  1723→
+   325→  1724→  1724→                      {sig.visible && (
+   326→  1725→  1725→                        <div className="space-y-3 mt-2">
+   327→  1726→  1726→                          <div className="grid grid-cols-2 gap-2">
+   328→  1727→  1727→                            <div className="space-y-1">
+   329→  1728→  1728→                              <label className="text-[10px] text-gray-500 uppercase font-semibold">Name</label>
+   330→  1729→  1729→                              <Input value={sig.name} onChange={e => updateSignature(i, 'name', e.target.value)} className="h-8 text-xs border-white/10 bg-white/5 text-white" />
+   331→  1730→  1730→                            </div>
+   332→  1731→  1731→                            <div className="space-y-1">
+   333→  1732→  1732→                              <label className="text-[10px] text-gray-500 uppercase font-semibold">Title</label>
+   334→  1733→  1733→                              <Input value={sig.title} onChange={e => updateSignature(i, 'title', e.target.value)} className="h-8 text-xs border-white/10 bg-white/5 text-white" />
+   335→  1734→  1734→                            </div>
+   336→  1735→  1735→                          </div>
+   337→  1736→  1736→                          <div className="space-y-1">
+   338→  1737→  1737→                            <label className="text-[10px] text-gray-500 uppercase font-semibold block">Signature Image (transparent PNG)</label>
+   339→  1738→  1738→                            <div className="flex gap-2 items-center">
+   340→  1739→  1739→                              {sig.image ? (
+   341→  1740→  1740→                                <div className="relative border border-white/10 bg-black/40 rounded p-1 flex items-center justify-center shrink-0">
+   342→  1741→  1741→                                  <img src={sig.image} alt="Signature Preview" className="h-10 w-10 object-contain" />
+   343→  1742→  1742→                                  <button
+   344→  1743→  1743→                                    onClick={() => updateSignature(i, 'image', '')}
+   345→  1744→  1744→                                    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 text-[8px] leading-none hover:bg-red-500"
+   346→  1745→  1745→                                    type="button"
+   347→  1746→  1746→                                  >
+   348→  1747→  1747→                                    ✕
+   349→  1748→  1748→                                  </button>
+   350→  1749→  1749→                                </div>
+   351→  1750→  1750→                              ) : (
+   352→  1751→  1751→                                <Input
+   353→  1752→  1752→                                  type="file"
+   354→  1753→  1753→                                  accept="image/png"
+   355→  1754→  1754→                                  onChange={(e) => {
+   356→  1755→  1755→                                    const file = e.target.files?.[0];
+   357→  1756→  1756→                                    if (!file) return;
+   358→  1757→  1757→                                    const img = new Image();
+   359→  1758→  1758→                                    const objectUrl = URL.createObjectURL(file);
+   360→  1759→  1759→                                    img.onload = () => {
+   361→  1760→  1760→                                      if (img.width > 200 || img.height > 200) {
+   362→  1761→  1761→                                        toast({
+   363→  1762→  1762→                                          title: "Invalid Signature Resolution",
+   364→  1763→  1763→                                          description: `Signature image resolution must not exceed 200x200 pixels (uploaded: ${img.width}x${img.height}).`,
+   365→  1764→  1764→                                          variant: "destructive"
+   366→  1765→  1765→                                        });
+   367→  1766→  1766→                                        URL.revokeObjectURL(objectUrl);
+   368→  1767→  1767→                                        return;
+   369→  1768→  1768→                                      }
+   370→  1769→  1769→                                      const reader = new FileReader();
+   371→  1770→  1770→                                      reader.onload = (event) => {
+   372→  1771→  1771→                                        if (event.target?.result) {
+   373→  1772→  1772→                                          updateSignature(i, 'image', event.target.result as string);
+   374→  1773→  1773→                                        }
+   375→  1774→  1774→                                      };
+   376→  1775→  1775→                                      reader.readAsDataURL(file);
+   377→  1776→  1776→                                      URL.revokeObjectURL(objectUrl);
+   378→  1777→  1777→                                    };
+   379→  1778→  1778→                                    img.src = objectUrl;
+   380→  1779→  1779→                                  }}
+   381→  1780→  1780→                                  className="h-8 text-xs border-white/10 bg-white/5 text-white cursor-pointer file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
+   382→  1781→  1781→                                />
+   383→  1782→  1782→                              )}
+   384→  1783→  1783→                            </div>
+   385→  1784→  1784→                          </div>
+   386→  1785→  1785→                        </div>
+   387→  1786→  1786→                      )}
+   388→  1787→  1787→                    </div>
+   389→  1788→  1788→                  ))}
+   390→  1789→  1789→                </TabsContent>
+   391→  1790→  1790→              </Tabs>
+   392→  1791→  1791→            </CardContent>
+   393→  1792→  1792→          </Card>
+   394→  1793→  1793→        </div>
+   395→  1794→  1794→
+   396→  1795→  1795→        {/* Live Preview Pane (7 cols) */}
+   397→  1796→  1796→        <div className="lg:col-span-7 space-y-4">
+   398→  1797→  1797→          <div className="flex items-center justify-between flex-wrap gap-2">
+   399→  1798→  1798→            <div className="flex items-center gap-2">
+   400→  1799→  1799→              <h3 className="text-sm font-semibold text-gray-400 uppercase tracking-wider">Live Preview</h3>
+
+[showing lines 1-400 of 402; use offset=401 with limit to continue reading]
