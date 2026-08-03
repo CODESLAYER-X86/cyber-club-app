@@ -29,8 +29,7 @@ export async function GET() {
     return successResponse({ deposits });
   } catch (e) {
     console.error('[Deposits GET] Error:', e);
-    const detail = e instanceof Error ? e.message : String(e);
-    return serverErrorResponse(`Failed to load deposits: ${detail}`);
+    return serverErrorResponse();
   }
 }
 
@@ -92,7 +91,6 @@ export async function POST(request: NextRequest) {
     return successResponse({ deposit }, 201);
   } catch (e) {
     console.error('[Deposits POST] Error:', e);
-    const detail = e instanceof Error ? e.message : String(e);
-    return serverErrorResponse(`Failed to create deposit: ${detail}`);
+    return serverErrorResponse();
   }
 }
