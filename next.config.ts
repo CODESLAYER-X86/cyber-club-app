@@ -1,10 +1,10 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  output: "standalone",
+  // Remove "output: standalone" — Vercel handles its own build output.
+  // Standalone mode can conflict with Vercel's serverless runtime.
 
-  // Fix Turbopack workspace root detection — ensure module resolution
-  // starts from the cyber-club-app directory, not the parent workspace root
+  // Fix Turbopack workspace root detection
   turbopack: {
     root: ".",
   },
