@@ -1,12 +1,11 @@
 'use client';
 
-import { useState, useEffect, useRef, useCallback } from 'react';
-import { motion } from 'framer-motion';
+import { useState, useEffect, useRef } from 'react';
 import {
   ArrowLeft, Save, Loader2, Sparkles, Image as ImageIcon,
-  Paintbrush, Settings, Sliders, Type, CheckCircle, Plus, Trash2, Award,
-  Move, Maximize2, AlignCenter, AlignLeft, AlignRight, Lock, Unlock,
-  ChevronDown, ChevronUp, X
+  Paintbrush, Settings, Sliders, Type, Award,
+  AlignCenter, AlignLeft, AlignRight, Lock, Unlock,
+  X
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { Button } from '@/components/ui/button';
@@ -45,6 +44,7 @@ interface PositionedTextElement {
   y: number;
   fontSize: number;
   color: string;
+  text?: string; // Editable text content — overrides textPreviewValues when set
   fontWeight?: number | string;
   textAnchor?: 'start' | 'middle' | 'end';
   letterSpacing?: number;
@@ -642,15 +642,13 @@ export function CertificateDesigner() {
   /* ─── Type Toggle ─── */
 
   const toggleType = (type: string) => {
-    setSelectedTypes(prev => {
-      const active = prev.includes(type)
-        ? prev.filter(t => t !== type)
-        : [...prev, type];
-      if (active.length > 0 && !active.includes(previewType)) {
-        setPreviewType(active[0]);
-      }
-      return active;
-    });
+    const nextActive = selectedTypes.includes(type)
+      ? selectedTypes.filter(t => t !== type)
+      : [...selectedTypes, type];
+    setSelectedTypes(nextActive);
+    if (nextActive.length > 0 && !nextActive.includes(previewType)) {
+      setPreviewType(nextActive[0]);
+    }
   };
 
   /* ─── Save ─── */
@@ -865,7 +863,7 @@ export function CertificateDesigner() {
     const position = textElements[key];
     if (position.visible === false) return null;
     const isSelected = selectedTextKey === key;
-    const previewValue = textPreviewValues[key];
+    const previewValue = position.text || textPreviewValues[key]; // Custom text if set, else default
     const effectiveColor = position.color || textColors[key] || '#ffffff';
 
     // Estimate text width for selection box
@@ -984,6 +982,17 @@ export function CertificateDesigner() {
             <Switch
               checked={el.visible !== false}
               onCheckedChange={(v) => updateTextElement(key, { visible: v })}
+            />
+          </div>
+
+          {/* Text Content — Editable */}
+          <div className="space-y-1">
+            <label className="text-[10px] text-gray-500 font-semibold uppercase">Text Content</label>
+            <Input
+              value={el.text || textPreviewValues[key] || ''}
+              onChange={(e) => updateTextElement(key, { text: e.target.value })}
+              placeholder={textPreviewValues[key]}
+              className="h-7 text-xs border-white/10 bg-white/5 text-white"
             />
           </div>
 
@@ -1557,7 +1566,19 @@ export function CertificateDesigner() {
                       <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Orientation</label>
                       <select
                         value={orientation}
-                        onChange={(e) => setOrientation(e.target.value as any)}
+                        onChange={(e) => {
+                          const newOrientation = e.target.value as 'LANDSCAPE' | 'PORTRAIT';
+                          setOrientation(newOrientation);
+                          // Reposition all elements to defaults for the new orientation
+                          const newIsLandscape = newOrientation === 'LANDSCAPE';
+                          setTextElements(createDefaultTextElements(newIsLandscape));
+                          setLogoElements(createDefaultLogoElements(newIsLandscape));
+                          setSignatureLayouts(createDefaultSignatureLayouts(newIsLandscape));
+                          setSignatures(prev => prev.map((sig, i) => ({
+                            ...sig,
+                            layout: createDefaultSignatureLayouts(newIsLandscape)[i] || createDefaultSignatureLayouts(newIsLandscape)[0],
+                          })));
+                        }}
                         className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-xs focus:border-emerald-500/50 focus:outline-none"
                       >
                         <option value="LANDSCAPE">Landscape (A4)</option>
@@ -1905,19 +1926,14 @@ export function CertificateDesigner() {
                 renderTextElement(key)
               ))}
 
-              {/* Certificate Type Banner */}
-              <g transform={`translate(${width / 2 - 130}, ${isLandscape ? 465 : 520})`}>
+              {/* Certificate Type Banner — synced with textElements.certificateTitle */}
+              <g transform={`translate(${textElements.certificateTitle?.x ? textElements.certificateTitle.x - 130 : width / 2 - 130}, ${textElements.certificateTitle?.y ? textElements.certificateTitle.y - 20 : isLandscape ? 465 : 520})`}>
                 <rect width="260" height="32" rx="16" fill="url(#typeGradPreview)" opacity="0.2" />
                 <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
-                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill={textColors.certificateTitle}>{previewTitle}</text>
+                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize={textElements.certificateTitle?.fontSize || 12} fontWeight="bold" fill={textElements.certificateTitle?.color || textColors.certificateTitle || '#ffffff'}>{textElements.certificateTitle?.text || previewTitle}</text>
               </g>
 
-              {/* Custom Placed Certificate ID */}
-              {idVisible && (
-                <text x={idX} y={idY} textAnchor="middle" fontFamily="monospace" fontSize="14" fill={textColors.certificateId}>
-                  CSC-2026-CYBERSEC-00125
-                </text>
-              )}
+              {/* Certificate ID rendered via textElements — no duplicate */}
 
               {/* Custom Placed QR Code */}
               {qrVisible && (
@@ -1930,23 +1946,27 @@ export function CertificateDesigner() {
                 </g>
               )}
 
-              {/* Signatures - using signatureLayouts */}
-              {activeSigs.length > 0 ? (
-                activeSigs.map((sig, idx) => {
-                  const layout = sig.layout || signatureLayouts[idx];
+              {/* Signatures — with correct original indices */}
+              {(() => {
+                const visibleIndices: number[] = [];
+                signatures.forEach((s, i) => { if (s.visible) visibleIndices.push(i); });
+                return activeSigs.length > 0 ? (
+                activeSigs.map((sig, filteredIdx) => {
+                  const origIdx = visibleIndices[filteredIdx] ?? filteredIdx;
+                  const layout = sig.layout || signatureLayouts[origIdx];
                   const xPos = layout?.x ?? (width / 2);
                   const yPos = layout?.y ?? (isLandscape ? 700 : 960);
                   return (
                     <g
-                      key={idx}
-                      onPointerDown={(e) => beginDrag('signature', idx, 'move', e, { x: xPos, y: yPos })}
+                      key={origIdx}
+                      onPointerDown={(e) => beginDrag('signature', origIdx, 'move', e, { x: xPos, y: yPos })}
                       style={{ cursor: 'move' }}
                     >
                       <line x1={xPos - 90} y1={yPos} x2={xPos + 90} y2={yPos} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
                       {sig.image && <image x={xPos - 50} y={yPos - 60} width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
                       <text x={xPos} y={yPos + 20} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.nameFontSize || 14} fontWeight="bold" fill={layout?.nameColor || textColors.signatureName}>{sig.name}</text>
                       <text x={xPos} y={yPos + 38} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.titleFontSize || 11} fill={layout?.titleColor || textColors.signatureTitle}>{sig.title}</text>
-                      {selectedSigIndex === idx && (
+                      {selectedSigIndex === origIdx && (
                         <rect
                           x={xPos - 100}
                           y={yPos - 70}
