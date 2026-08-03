@@ -1,0 +1,919 @@
+     1→'use client';
+     2→
+     3→import { useState, useEffect, useCallback, useRef } from 'react';
+     4→import { motion } from 'framer-motion';
+     5→import {
+     6→  Camera,
+     7→  Plus,
+     8→  ImageIcon,
+     9→  Expand,
+    10→  Trash2,
+    11→  X,
+    12→  ChevronLeft,
+    13→  ChevronRight,
+    14→  Upload,
+    15→  Loader2,
+    16→  Calendar,
+    17→  User,
+    18→  FolderOpen,
+    19→} from 'lucide-react';
+    20→import { useAppStore } from '@/store/use-app-store';
+    21→import { toast } from '@/hooks/use-toast';
+    22→import { uploadToSupabase } from '@/lib/upload';
+    23→import type { GalleryImage, GalleryCategory, Event } from '@/types';
+    24→import { Button } from '@/components/ui/button';
+    25→import { Input } from '@/components/ui/input';
+    26→import { Textarea } from '@/components/ui/textarea';
+    27→import { Label } from '@/components/ui/label';
+    28→import { Badge } from '@/components/ui/badge';
+    29→import { Skeleton } from '@/components/ui/skeleton';
+    30→import {
+    31→  Dialog,
+    32→  DialogContent,
+    33→  DialogHeader,
+    34→  DialogTitle,
+    35→  DialogDescription,
+    36→} from '@/components/ui/dialog';
+    37→import {
+    38→  AlertDialog,
+    39→  AlertDialogContent,
+    40→  AlertDialogHeader,
+    41→  AlertDialogFooter,
+    42→  AlertDialogTitle,
+    43→  AlertDialogDescription,
+    44→  AlertDialogAction,
+    45→  AlertDialogCancel,
+    46→} from '@/components/ui/alert-dialog';
+    47→import {
+    48→  Select,
+    49→  SelectContent,
+    50→  SelectItem,
+    51→  SelectTrigger,
+    52→  SelectValue,
+    53→} from '@/components/ui/select';
+    54→
+    55→// ── Category config ──────────────────────────────────────────────
+    56→
+    57→const CATEGORY_CONFIG: Record<
+    58→  GalleryCategory,
+    59→  { label: string; bgClass: string; textClass: string; borderClass: string; dotClass: string }
+    60→> = {
+    61→  EVENT: {
+    62→    label: 'Event',
+    63→    bgClass: 'bg-emerald-500/15',
+    64→    textClass: 'text-emerald-400',
+    65→    borderClass: 'border-emerald-500/30',
+    66→    dotClass: 'bg-emerald-500',
+    67→  },
+    68→  WORKSHOP: {
+    69→    label: 'Workshop',
+    70→    bgClass: 'bg-cyan-500/15',
+    71→    textClass: 'text-cyan-400',
+    72→    borderClass: 'border-cyan-500/30',
+    73→    dotClass: 'bg-cyan-500',
+    74→  },
+    75→  CTF: {
+    76→    label: 'CTF',
+    77→    bgClass: 'bg-rose-500/15',
+    78→    textClass: 'text-rose-400',
+    79→    borderClass: 'border-rose-500/30',
+    80→    dotClass: 'bg-rose-500',
+    81→  },
+    82→  SEMINAR: {
+    83→    label: 'Seminar',
+    84→    bgClass: 'bg-amber-500/15',
+    85→    textClass: 'text-amber-400',
+    86→    borderClass: 'border-amber-500/30',
+    87→    dotClass: 'bg-amber-500',
+    88→  },
+    89→  MEETUP: {
+    90→    label: 'Meetup',
+    91→    bgClass: 'bg-violet-500/15',
+    92→    textClass: 'text-violet-400',
+    93→    borderClass: 'border-violet-500/30',
+    94→    dotClass: 'bg-violet-500',
+    95→  },
+    96→  GENERAL: {
+    97→    label: 'General',
+    98→    bgClass: 'bg-gray-500/15',
+    99→    textClass: 'text-gray-400',
+   100→    borderClass: 'border-gray-500/30',
+   101→    dotClass: 'bg-gray-500',
+   102→  },
+   103→};
+   104→
+   105→const CATEGORIES: GalleryCategory[] = ['EVENT', 'WORKSHOP', 'CTF', 'SEMINAR', 'MEETUP', 'GENERAL'];
+   106→
+   107→const UPLOAD_ROLES = ['MEDIA', 'PRESIDENT', 'PLATFORM_ADMIN', 'GS'];
+   108→
+   109→// ── Animation variants ───────────────────────────────────────────
+   110→
+   111→const containerVariants = {
+   112→  hidden: { opacity: 0 },
+   113→  visible: {
+   114→    opacity: 1,
+   115→    transition: { staggerChildren: 0.06 },
+   116→  },
+   117→};
+   118→
+   119→const itemVariants = {
+   120→  hidden: { opacity: 0, y: 20, scale: 0.95 },
+   121→  visible: { opacity: 1, y: 0, scale: 1, transition: { duration: 0.4, ease: 'easeOut' } },
+   122→};
+   123→
+   124→// ── Main Component ───────────────────────────────────────────────
+   125→
+   126→export function GalleryPage() {
+   127→  const { currentUser } = useAppStore();
+   128→
+   129→  // Data state
+   130→  const [images, setImages] = useState<GalleryImage[]>([]);
+   131→  const [events, setEvents] = useState<Event[]>([]);
+   132→  const [loading, setLoading] = useState(true);
+   133→
+   134→  // Filter state
+   135→  const [activeFilter, setActiveFilter] = useState<GalleryCategory | 'ALL'>('ALL');
+   136→
+   137→  // Upload modal state
+   138→  const [uploadOpen, setUploadOpen] = useState(false);
+   139→  const [uploading, setUploading] = useState(false);
+   140→  const [uploadForm, setUploadForm] = useState({
+   141→    title: '',
+   142→    description: '',
+   143→    category: 'EVENT' as GalleryCategory,
+   144→    eventId: '',
+   145→  });
+   146→  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+   147→  const [previewUrl, setPreviewUrl] = useState<string | null>(null);
+   148→  const fileInputRef = useRef<HTMLInputElement>(null);
+   149→
+   150→  // Lightbox state
+   151→  const [lightboxOpen, setLightboxOpen] = useState(false);
+   152→  const [lightboxIndex, setLightboxIndex] = useState(0);
+   153→
+   154→  // Delete state
+   155→  const [deleteTarget, setDeleteTarget] = useState<GalleryImage | null>(null);
+   156→  const [deleting, setDeleting] = useState(false);
+   157→
+   158→  // Drag state
+   159→  const [isDragOver, setIsDragOver] = useState(false);
+   160→
+   161→  // Derived
+   162→  const canUpload = currentUser ? UPLOAD_ROLES.includes(currentUser.role) : false;
+   163→
+   164→  const filteredImages =
+   165→    activeFilter === 'ALL' ? images : images.filter((img) => img.category === activeFilter);
+   166→
+   167→  const categoryCounts = useCallback(() => {
+   168→    const counts: Record<string, number> = { ALL: images.length };
+   169→    CATEGORIES.forEach((cat) => {
+   170→      counts[cat] = images.filter((img) => img.category === cat).length;
+   171→    });
+   172→    return counts;
+   173→  }, [images]);
+   174→
+   175→  // ── Fetch gallery images ─────────────────────────────────────────
+   176→
+   177→  const fetchImages = useCallback(async () => {
+   178→    try {
+   179→      const res = await fetch('/api/gallery');
+   180→      const data = await res.json();
+   181→      if (data.success) {
+   182→        setImages(data.data.galleryImages || []);
+   183→      }
+   184→    } catch (err) {
+   185→      console.error('Failed to fetch gallery images:', err);
+   186→    } finally {
+   187→      setLoading(false);
+   188→    }
+   189→  }, []);
+   190→
+   191→  // ── Fetch events for dropdown ─────────────────────────────────────
+   192→
+   193→  const fetchEvents = useCallback(async () => {
+   194→    try {
+   195→      const res = await fetch('/api/events');
+   196→      const data = await res.json();
+   197→      if (data.success) {
+   198→        setEvents(data.data.events || []);
+   199→      }
+   200→    } catch (err) {
+   201→      console.error('Failed to fetch events:', err);
+   202→    }
+   203→  }, []);
+   204→
+   205→  useEffect(() => {
+   206→    fetchImages();
+   207→    fetchEvents();
+   208→  }, [fetchImages, fetchEvents]);
+   209→
+   210→  // ── File handling ─────────────────────────────────────────────────
+   211→
+   212→  const handleFileSelect = (file: File) => {
+   213→    if (!file.type.startsWith('image/')) {
+   214→      toast({ title: 'Invalid file type', description: 'Please select an image file.', variant: 'destructive' });
+   215→      return;
+   216→    }
+   217→    if (file.size > 5 * 1024 * 1024) {
+   218→      toast({ title: 'File too large', description: 'Maximum file size is 5MB.', variant: 'destructive' });
+   219→      return;
+   220→    }
+   221→    setSelectedFile(file);
+   222→    const url = URL.createObjectURL(file);
+   223→    setPreviewUrl(url);
+   224→  };
+   225→
+   226→  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+   227→    const file = e.target.files?.[0];
+   228→    if (file) handleFileSelect(file);
+   229→  };
+   230→
+   231→  const handleDragOver = (e: React.DragEvent) => {
+   232→    e.preventDefault();
+   233→    setIsDragOver(true);
+   234→  };
+   235→
+   236→  const handleDragLeave = (e: React.DragEvent) => {
+   237→    e.preventDefault();
+   238→    setIsDragOver(false);
+   239→  };
+   240→
+   241→  const handleDrop = (e: React.DragEvent) => {
+   242→    e.preventDefault();
+   243→    setIsDragOver(false);
+   244→    const file = e.dataTransfer.files[0];
+   245→    if (file) handleFileSelect(file);
+   246→  };
+   247→
+   248→  const clearFile = () => {
+   249→    setSelectedFile(null);
+   250→    if (previewUrl) URL.revokeObjectURL(previewUrl);
+   251→    setPreviewUrl(null);
+   252→    if (fileInputRef.current) fileInputRef.current.value = '';
+   253→  };
+   254→
+   255→  // ── Upload handler ────────────────────────────────────────────────
+   256→
+   257→  const handleUpload = async () => {
+   258→    if (!selectedFile || !uploadForm.title.trim() || !currentUser) return;
+   259→
+   260→    setUploading(true);
+   261→    try {
+   262→      // Step 1: Upload file directly to Supabase Storage
+   263→      const imageUrl = await uploadToSupabase(selectedFile, 'gallery');
+   264→
+   265→      // Step 2: Create gallery entry
+   266→      const galleryRes = await fetch('/api/gallery', {
+   267→        method: 'POST',
+   268→        headers: { 'Content-Type': 'application/json' },
+   269→        body: JSON.stringify({
+   270→          title: uploadForm.title.trim(),
+   271→          description: uploadForm.description.trim() || undefined,
+   272→          imageUrl,
+   273→          category: uploadForm.category,
+   274→          uploadedBy: currentUser.id,
+   275→          eventId: uploadForm.eventId && uploadForm.eventId !== 'none' ? uploadForm.eventId : undefined,
+   276→        }),
+   277→      });
+   278→
+   279→      const galleryData = await galleryRes.json();
+   280→
+   281→      if (!galleryData.success) {
+   282→        throw new Error(galleryData.error || 'Failed to create gallery entry');
+   283→      }
+   284→
+   285→      // Reset form
+   286→      setUploadForm({ title: '', description: '', category: 'EVENT', eventId: '' });
+   287→      clearFile();
+   288→      setUploadOpen(false);
+   289→
+   290→      // Refresh gallery
+   291→      await fetchImages();
+   292→
+   293→      toast({ title: 'Photo uploaded!', description: 'Your photo has been added to the gallery.' });
+   294→    } catch (err) {
+   295→      const message = err instanceof Error ? err.message : 'Upload failed';
+   296→      toast({ title: 'Upload failed', description: message, variant: 'destructive' });
+   297→    } finally {
+   298→      setUploading(false);
+   299→    }
+   300→  };
+   301→
+   302→  // ── Delete handler ────────────────────────────────────────────────
+   303→
+   304→  const handleDelete = async () => {
+   305→    if (!deleteTarget) return;
+   306→
+   307→    setDeleting(true);
+   308→    try {
+   309→      const res = await fetch(`/api/gallery/${deleteTarget.id}`, {
+   310→        method: 'DELETE',
+   311→        headers: { 'Content-Type': 'application/json' },
+   312→        body: JSON.stringify({ role: currentUser?.role }),
+   313→      });
+   314→
+   315→      const data = await res.json();
+   316→
+   317→      if (!data.success) {
+   318→        throw new Error(data.error || 'Delete failed');
+   319→      }
+   320→
+   321→      setDeleteTarget(null);
+   322→      await fetchImages();
+   323→
+   324→      toast({ title: 'Photo deleted', description: 'The photo has been removed from the gallery.' });
+   325→    } catch (err) {
+   326→      const message = err instanceof Error ? err.message : 'Delete failed';
+   327→      toast({ title: 'Delete failed', description: message, variant: 'destructive' });
+   328→    } finally {
+   329→      setDeleting(false);
+   330→    }
+   331→  };
+   332→
+   333→  // ── Lightbox navigation ───────────────────────────────────────────
+   334→
+   335→  const openLightbox = (index: number) => {
+   336→    setLightboxIndex(index);
+   337→    setLightboxOpen(true);
+   338→  };
+   339→
+   340→  const navigateLightbox = (direction: 'prev' | 'next') => {
+   341→    const total = filteredImages.length;
+   342→    if (direction === 'prev') {
+   343→      setLightboxIndex((prev) => (prev - 1 + total) % total);
+   344→    } else {
+   345→      setLightboxIndex((prev) => (prev + 1) % total);
+   346→    }
+   347→  };
+   348→
+   349→  // ── Format date ───────────────────────────────────────────────────
+   350→
+   351→  const formatDate = (dateStr: string) => {
+   352→    return new Date(dateStr).toLocaleDateString('en-US', {
+   353→      year: 'numeric',
+   354→      month: 'long',
+   355→      day: 'numeric',
+   356→    });
+   357→  };
+   358→
+   359→  const formatFileSize = (bytes: number) => {
+   360→    if (bytes < 1024) return `${bytes} B`;
+   361→    if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+   362→    return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+   363→  };
+   364→
+   365→  // ── Counts ────────────────────────────────────────────────────────
+   366→
+   367→  const counts = categoryCounts();
+   368→
+   369→  // ══════════════════════════════════════════════════════════════════
+   370→  // RENDER
+   371→  // ══════════════════════════════════════════════════════════════════
+   372→
+   373→  return (
+   374→    <div className="text-white">
+   375→      {/* ── Header Section ─────────────────────────────────────────── */}
+   376→      <section className="relative overflow-hidden px-4 pt-8 pb-6 sm:px-6 lg:px-8">
+   377→        {/* Background glow */}
+   378→        <div className="pointer-events-none absolute -top-24 left-1/2 h-72 w-72 -translate-x-1/2 rounded-full bg-emerald-500/10 blur-[100px]" />
+   379→        <div className="pointer-events-none absolute -top-16 right-1/4 h-56 w-56 rounded-full bg-cyan-500/8 blur-[80px]" />
+   380→
+   381→        <div className="relative mx-auto max-w-7xl">
+   382→          <motion.div
+   383→            initial={{ opacity: 0, y: 20 }}
+   384→            animate={{ opacity: 1, y: 0 }}
+   385→            transition={{ duration: 0.5 }}
+   386→            className="flex items-start gap-4 sm:items-center"
+   387→          >
+   388→            <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10">
+   389→              <Camera className="h-7 w-7 text-emerald-400" />
+   390→            </div>
+   391→            <div>
+   392→              <h1 className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-3xl font-bold tracking-tight text-transparent sm:text-4xl">
+   393→                Event Gallery
+   394→              </h1>
+   395→              <p className="mt-1 text-gray-400">
+   396→                Capturing moments from our cybersecurity journey
+   397→              </p>
+   398→            </div>
+   399→          </motion.div>
+   400→        </div>
+   401→      </section>
+   402→
+   403→      {/* ── Filter Bar + Upload Button ─────────────────────────────── */}
+   404→      <section className="border-b border-white/5 bg-[#0a0a0a]/80 px-4 py-3 backdrop-blur-xl sm:px-6 lg:px-8 mb-2">
+   405→        <div className="mx-auto flex max-w-7xl flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+   406→          {/* Filter pills */}
+   407→          <div className="custom-scrollbar flex gap-2 overflow-x-auto pb-1 sm:pb-0">
+   408→            <FilterPill
+   409→              label="All"
+   410→              count={counts['ALL'] ?? 0}
+   411→              active={activeFilter === 'ALL'}
+   412→              onClick={() => setActiveFilter('ALL')}
+   413→            />
+   414→            {CATEGORIES.map((cat) => (
+   415→              <FilterPill
+   416→                key={cat}
+   417→                label={CATEGORY_CONFIG[cat].label}
+   418→                count={counts[cat] ?? 0}
+   419→                active={activeFilter === cat}
+   420→                onClick={() => setActiveFilter(cat)}
+   421→                colorClass={CATEGORY_CONFIG[cat].textClass}
+   422→              />
+   423→            ))}
+   424→          </div>
+   425→
+   426→          {/* Upload button */}
+   427→          {canUpload && (
+   428→            <motion.div initial={{ opacity: 0, scale: 0.9 }} animate={{ opacity: 1, scale: 1 }}>
+   429→              <Button
+   430→                onClick={() => setUploadOpen(true)}
+   431→                className="gap-2 bg-gradient-to-r from-emerald-600 to-emerald-500 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-500 hover:to-emerald-400"
+   432→              >
+   433→                <Plus className="h-4 w-4" />
+   434→                Upload Photos
+   435→              </Button>
+   436→            </motion.div>
+   437→          )}
+   438→        </div>
+   439→      </section>
+   440→
+   441→      {/* ── Gallery Grid ───────────────────────────────────────────── */}
+   442→      <section className="px-4 py-6 sm:px-6 lg:px-8">
+   443→        <div className="mx-auto max-w-7xl">
+   444→          {loading ? (
+   445→            <SkeletonGrid />
+   446→          ) : filteredImages.length === 0 ? (
+   447→            <EmptyState />
+   448→          ) : (
+   449→            <motion.div
+   450→              variants={containerVariants}
+   451→              initial="hidden"
+   452→              animate="visible"
+   453→              className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4"
+   454→            >
+   455→              {filteredImages.map((image, index) => (
+   456→                <GalleryCard
+   457→                  key={image.id}
+   458→                  image={image}
+   459→                  index={index}
+   460→                  canDelete={canUpload}
+   461→                  onExpand={() => openLightbox(index)}
+   462→                  onDelete={() => setDeleteTarget(image)}
+   463→                />
+   464→              ))}
+   465→            </motion.div>
+   466→          )}
+   467→        </div>
+   468→      </section>
+   469→
+   470→      {/* ── Upload Dialog ──────────────────────────────────────────── */}
+   471→      <Dialog open={uploadOpen} onOpenChange={setUploadOpen}>
+   472→        <DialogContent className="max-h-[90vh] overflow-y-auto border-white/10 bg-[#111111] text-white sm:max-w-lg">
+   473→          <DialogHeader>
+   474→            <DialogTitle className="text-xl text-white">Upload Photo</DialogTitle>
+   475→            <DialogDescription className="text-gray-400">
+   476→              Add a new photo to the gallery
+   477→            </DialogDescription>
+   478→          </DialogHeader>
+   479→
+   480→          <div className="mt-2 space-y-4">
+   481→            {/* Title */}
+   482→            <div className="space-y-2">
+   483→              <Label className="text-gray-300">
+   484→                Title <span className="text-rose-400">*</span>
+   485→              </Label>
+   486→              <Input
+   487→                value={uploadForm.title}
+   488→                onChange={(e) => setUploadForm((f) => ({ ...f, title: e.target.value }))}
+   489→                placeholder="Enter photo title"
+   490→                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500"
+   491→              />
+   492→            </div>
+   493→
+   494→            {/* Description */}
+   495→            <div className="space-y-2">
+   496→              <Label className="text-gray-300">Description</Label>
+   497→              <Textarea
+   498→                value={uploadForm.description}
+   499→                onChange={(e) => setUploadForm((f) => ({ ...f, description: e.target.value }))}
+   500→                placeholder="Describe this photo (optional)"
+   501→                className="border-white/10 bg-white/5 text-white placeholder:text-gray-500"
+   502→                rows={3}
+   503→              />
+   504→            </div>
+   505→
+   506→            {/* Category */}
+   507→            <div className="space-y-2">
+   508→              <Label className="text-gray-300">Category</Label>
+   509→              <Select
+   510→                value={uploadForm.category}
+   511→                onValueChange={(val) =>
+   512→                  setUploadForm((f) => ({ ...f, category: val as GalleryCategory }))
+   513→                }
+   514→              >
+   515→                <SelectTrigger className="w-full border-white/10 bg-white/5 text-white">
+   516→                  <SelectValue />
+   517→                </SelectTrigger>
+   518→                <SelectContent className="border-white/10 bg-[#1a1a1a] text-white">
+   519→                  {CATEGORIES.map((cat) => (
+   520→                    <SelectItem key={cat} value={cat}>
+   521→                      {CATEGORY_CONFIG[cat].label}
+   522→                    </SelectItem>
+   523→                  ))}
+   524→                </SelectContent>
+   525→              </Select>
+   526→            </div>
+   527→
+   528→            {/* Event link */}
+   529→            {events.length > 0 && (
+   530→              <div className="space-y-2">
+   531→                <Label className="text-gray-300">Link to Event (optional)</Label>
+   532→                <Select
+   533→                  value={uploadForm.eventId}
+   534→                  onValueChange={(val) => setUploadForm((f) => ({ ...f, eventId: val }))}
+   535→                >
+   536→                  <SelectTrigger className="w-full border-white/10 bg-white/5 text-white">
+   537→                    <SelectValue placeholder="Select an event" />
+   538→                  </SelectTrigger>
+   539→                  <SelectContent className="border-white/10 bg-[#1a1a1a] text-white">
+   540→                    <SelectItem value="none">No event</SelectItem>
+   541→                    {events.map((event) => (
+   542→                      <SelectItem key={event.id} value={event.id}>
+   543→                        {event.title}
+   544→                      </SelectItem>
+   545→                    ))}
+   546→                  </SelectContent>
+   547→                </Select>
+   548→              </div>
+   549→            )}
+   550→
+   551→            {/* Image upload area */}
+   552→            <div className="space-y-2">
+   553→              <Label className="text-gray-300">
+   554→                Image <span className="text-rose-400">*</span>
+   555→              </Label>
+   556→              {!previewUrl ? (
+   557→                <div
+   558→                  onDragOver={handleDragOver}
+   559→                  onDragLeave={handleDragLeave}
+   560→                  onDrop={handleDrop}
+   561→                  onClick={() => fileInputRef.current?.click()}
+   562→                  className={`flex cursor-pointer flex-col items-center justify-center rounded-xl border-2 border-dashed p-8 transition-colors ${
+   563→                    isDragOver
+   564→                      ? 'border-emerald-400 bg-emerald-500/10'
+   565→                      : 'border-white/15 bg-white/[0.02] hover:border-emerald-500/40 hover:bg-emerald-500/5'
+   566→                  }`}
+   567→                >
+   568→                  <ImageIcon className="mb-3 h-10 w-10 text-gray-500" />
+   569→                  <p className="text-sm text-gray-400">
+   570→                    <span className="font-medium text-emerald-400">Click to browse</span> or drag &
+   571→                    drop
+   572→                  </p>
+   573→                  <p className="mt-1 text-xs text-gray-500">PNG, JPG, GIF up to 5MB</p>
+   574→                </div>
+   575→              ) : (
+   576→                <div className="relative overflow-hidden rounded-xl border border-white/10">
+   577→                  <img
+   578→                    src={previewUrl}
+   579→                    alt="Preview"
+   580→                    className="h-48 w-full object-cover"
+   581→                  />
+   582→                  <div className="flex items-center justify-between bg-white/5 px-4 py-2">
+   583→                    <div className="min-w-0 flex-1">
+   584→                      <p className="truncate text-sm text-gray-300">{selectedFile?.name}</p>
+   585→                      <p className="text-xs text-gray-500">
+   586→                        {selectedFile ? formatFileSize(selectedFile.size) : ''}
+   587→                      </p>
+   588→                    </div>
+   589→                    <Button
+   590→                      variant="ghost"
+   591→                      size="sm"
+   592→                      onClick={clearFile}
+   593→                      className="text-gray-400 hover:text-rose-400"
+   594→                    >
+   595→                      <X className="h-4 w-4" />
+   596→                    </Button>
+   597→                  </div>
+   598→                </div>
+   599→              )}
+   600→              <input
+   601→                ref={fileInputRef}
+   602→                type="file"
+   603→                accept="image/*"
+   604→                className="hidden"
+   605→                onChange={handleFileChange}
+   606→              />
+   607→            </div>
+   608→
+   609→            {/* Submit */}
+   610→            <Button
+   611→              onClick={handleUpload}
+   612→              disabled={uploading || !selectedFile || !uploadForm.title.trim()}
+   613→              className="w-full gap-2 bg-gradient-to-r from-emerald-600 to-cyan-600 text-white shadow-lg shadow-emerald-500/20 hover:from-emerald-500 hover:to-cyan-500 disabled:opacity-50"
+   614→            >
+   615→              {uploading ? (
+   616→                <>
+   617→                  <Loader2 className="h-4 w-4 animate-spin" />
+   618→                  Uploading...
+   619→                </>
+   620→              ) : (
+   621→                <>
+   622→                  <Upload className="h-4 w-4" />
+   623→                  Upload Photo
+   624→                </>
+   625→              )}
+   626→            </Button>
+   627→          </div>
+   628→        </DialogContent>
+   629→      </Dialog>
+   630→
+   631→      {/* ── Lightbox Dialog ────────────────────────────────────────── */}
+   632→      <Dialog open={lightboxOpen} onOpenChange={setLightboxOpen}>
+   633→        <DialogContent
+   634→          showCloseButton={false}
+   635→          className="max-h-[95vh] max-w-[95vw] overflow-hidden border-white/10 bg-[#0a0a0a] p-0 sm:max-w-4xl"
+   636→        >
+   637→          {filteredImages[lightboxIndex] && (
+   638→            <div className="flex flex-col">
+   639→              {/* Close button */}
+   640→              <div className="flex items-center justify-between border-b border-white/5 px-4 py-3">
+   641→                <div className="flex items-center gap-3">
+   642→                  <Badge
+   643→                    className={`${CATEGORY_CONFIG[filteredImages[lightboxIndex].category].bgClass} ${CATEGORY_CONFIG[filteredImages[lightboxIndex].category].textClass} border-0`}
+   644→                  >
+   645→                    {CATEGORY_CONFIG[filteredImages[lightboxIndex].category].label}
+   646→                  </Badge>
+   647→                  <span className="text-sm text-gray-500">
+   648→                    {lightboxIndex + 1} / {filteredImages.length}
+   649→                  </span>
+   650→                </div>
+   651→                <Button
+   652→                  variant="ghost"
+   653→                  size="icon"
+   654→                  onClick={() => setLightboxOpen(false)}
+   655→                  className="text-gray-400 hover:text-white"
+   656→                >
+   657→                  <X className="h-5 w-5" />
+   658→                </Button>
+   659→              </div>
+   660→
+   661→              {/* Image area */}
+   662→              <div className="relative flex min-h-0 items-center justify-center bg-black/50">
+   663→                <img
+   664→                  src={filteredImages[lightboxIndex].imageUrl}
+   665→                  alt={filteredImages[lightboxIndex].title}
+   666→                  className="max-h-[60vh] w-full object-contain"
+   667→                />
+   668→
+   669→                {/* Nav arrows */}
+   670→                {filteredImages.length > 1 && (
+   671→                  <>
+   672→                    <Button
+   673→                      variant="ghost"
+   674→                      size="icon"
+   675→                      onClick={() => navigateLightbox('prev')}
+   676→                      className="absolute left-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+   677→                    >
+   678→                      <ChevronLeft className="h-5 w-5" />
+   679→                    </Button>
+   680→                    <Button
+   681→                      variant="ghost"
+   682→                      size="icon"
+   683→                      onClick={() => navigateLightbox('next')}
+   684→                      className="absolute right-2 top-1/2 -translate-y-1/2 rounded-full bg-black/50 text-white backdrop-blur-sm hover:bg-black/70"
+   685→                    >
+   686→                      <ChevronRight className="h-5 w-5" />
+   687→                    </Button>
+   688→                  </>
+   689→                )}
+   690→              </div>
+   691→
+   692→              {/* Image details */}
+   693→              <div className="space-y-3 border-t border-white/5 px-6 py-4">
+   694→                <h3 className="text-lg font-semibold text-white">
+   695→                  {filteredImages[lightboxIndex].title}
+   696→                </h3>
+   697→                {filteredImages[lightboxIndex].description && (
+   698→                  <p className="text-sm text-gray-400">
+   699→                    {filteredImages[lightboxIndex].description}
+   700→                  </p>
+   701→                )}
+   702→                <div className="flex flex-wrap gap-4 text-sm text-gray-500">
+   703→                  {filteredImages[lightboxIndex].uploader && (
+   704→                    <div className="flex items-center gap-1.5">
+   705→                      <User className="h-3.5 w-3.5" />
+   706→                      <span>{filteredImages[lightboxIndex].uploader.name}</span>
+   707→                    </div>
+   708→                  )}
+   709→                  <div className="flex items-center gap-1.5">
+   710→                    <Calendar className="h-3.5 w-3.5" />
+   711→                    <span>{formatDate(filteredImages[lightboxIndex].createdAt)}</span>
+   712→                  </div>
+   713→                  {filteredImages[lightboxIndex].event && (
+   714→                    <div className="flex items-center gap-1.5">
+   715→                      <FolderOpen className="h-3.5 w-3.5" />
+   716→                      <span>{filteredImages[lightboxIndex].event.title}</span>
+   717→                    </div>
+   718→                  )}
+   719→                </div>
+   720→              </div>
+   721→            </div>
+   722→          )}
+   723→        </DialogContent>
+   724→      </Dialog>
+   725→
+   726→      {/* ── Delete Confirmation ────────────────────────────────────── */}
+   727→      <AlertDialog
+   728→        open={!!deleteTarget}
+   729→        onOpenChange={(open) => {
+   730→          if (!open) setDeleteTarget(null);
+   731→        }}
+   732→      >
+   733→        <AlertDialogContent className="border-white/10 bg-[#111111] text-white">
+   734→          <AlertDialogHeader>
+   735→            <AlertDialogTitle className="text-white">Delete Photo</AlertDialogTitle>
+   736→            <AlertDialogDescription className="text-gray-400">
+   737→              Are you sure you want to delete &ldquo;{deleteTarget?.title}&rdquo;? This action cannot
+   738→              be undone.
+   739→            </AlertDialogDescription>
+   740→          </AlertDialogHeader>
+   741→          <AlertDialogFooter>
+   742→            <AlertDialogCancel className="border-white/10 bg-transparent text-gray-300 hover:bg-white/5 hover:text-white">
+   743→              Cancel
+   744→            </AlertDialogCancel>
+   745→            <AlertDialogAction
+   746→              onClick={handleDelete}
+   747→              disabled={deleting}
+   748→              className="gap-2 bg-rose-600 text-white hover:bg-rose-500"
+   749→            >
+   750→              {deleting ? (
+   751→                <>
+   752→                  <Loader2 className="h-4 w-4 animate-spin" />
+   753→                  Deleting...
+   754→                </>
+   755→              ) : (
+   756→                <>
+   757→                  <Trash2 className="h-4 w-4" />
+   758→                  Delete
+   759→                </>
+   760→              )}
+   761→            </AlertDialogAction>
+   762→          </AlertDialogFooter>
+   763→        </AlertDialogContent>
+   764→      </AlertDialog>
+   765→    </div>
+   766→  );
+   767→}
+   768→
+   769→// ── Sub-components ───────────────────────────────────────────────
+   770→
+   771→function FilterPill({
+   772→  label,
+   773→  count,
+   774→  active,
+   775→  onClick,
+   776→  colorClass,
+   777→}: {
+   778→  label: string;
+   779→  count: number;
+   780→  active: boolean;
+   781→  onClick: () => void;
+   782→  colorClass?: string;
+   783→}) {
+   784→  return (
+   785→    <button
+   786→      onClick={onClick}
+   787→      className={`flex shrink-0 items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-all ${
+   788→        active
+   789→          ? 'bg-emerald-500/15 text-emerald-400 ring-1 ring-emerald-500/30'
+   790→          : 'bg-white/5 text-gray-400 hover:bg-white/10 hover:text-gray-300'
+   791→      }`}
+   792→    >
+   793→      <span className={active ? 'text-emerald-400' : colorClass}>{label}</span>
+   794→      <span
+   795→        className={`inline-flex h-5 min-w-[20px] items-center justify-center rounded-full px-1.5 text-xs ${
+   796→          active ? 'bg-emerald-500/20 text-emerald-400' : 'bg-white/10 text-gray-500'
+   797→        }`}
+   798→      >
+   799→        {count}
+   800→      </span>
+   801→    </button>
+   802→  );
+   803→}
+   804→
+   805→function GalleryCard({
+   806→  image,
+   807→  index,
+   808→  canDelete,
+   809→  onExpand,
+   810→  onDelete,
+   811→}: {
+   812→  image: GalleryImage;
+   813→  index: number;
+   814→  canDelete: boolean;
+   815→  onExpand: () => void;
+   816→  onDelete: () => void;
+   817→}) {
+   818→  const catConfig = CATEGORY_CONFIG[image.category];
+   819→
+   820→  return (
+   821→    <motion.div
+   822→      variants={itemVariants as any}
+   823→      className="group relative overflow-hidden rounded-xl border border-white/5 bg-[#111111] transition-shadow hover:shadow-lg hover:shadow-emerald-500/5"
+   824→    >
+   825→      {/* Image */}
+   826→      <div className="relative aspect-[4/3] overflow-hidden">
+   827→        <img
+   828→          src={image.imageUrl}
+   829→          alt={image.title}
+   830→          className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-110"
+   831→          loading="lazy"
+   832→        />
+   833→
+   834→        {/* Category badge */}
+   835→        <div className="absolute left-2 top-2 z-10">
+   836→          <Badge
+   837→            className={`${catConfig.bgClass} ${catConfig.textClass} border-0 text-[10px] shadow-sm`}
+   838→          >
+   839→            {catConfig.label}
+   840→          </Badge>
+   841→        </div>
+   842→
+   843→        {/* Hover overlay */}
+   844→        <div className="absolute inset-0 flex flex-col justify-between bg-gradient-to-t from-black/80 via-black/20 to-transparent p-3 opacity-0 transition-opacity duration-300 group-hover:opacity-100">
+   845→          {/* Top row: expand + delete */}
+   846→          <div className="flex justify-end gap-1.5">
+   847→            <Button
+   848→              variant="ghost"
+   849→              size="icon"
+   850→              onClick={(e) => {
+   851→                e.stopPropagation();
+   852→                onExpand();
+   853→              }}
+   854→              className="h-8 w-8 rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-black/60"
+   855→            >
+   856→              <Expand className="h-4 w-4" />
+   857→            </Button>
+   858→            {canDelete && (
+   859→              <Button
+   860→                variant="ghost"
+   861→                size="icon"
+   862→                onClick={(e) => {
+   863→                  e.stopPropagation();
+   864→                  onDelete();
+   865→                }}
+   866→                className="h-8 w-8 rounded-full bg-black/40 text-white backdrop-blur-sm hover:bg-rose-600/80"
+   867→              >
+   868→                <Trash2 className="h-4 w-4" />
+   869→              </Button>
+   870→            )}
+   871→          </div>
+   872→
+   873→          {/* Bottom row: title */}
+   874→          <div>
+   875→            <h3 className="truncate text-sm font-semibold text-white">{image.title}</h3>
+   876→            {image.description && (
+   877→              <p className="mt-0.5 line-clamp-2 text-xs text-gray-300">{image.description}</p>
+   878→            )}
+   879→          </div>
+   880→        </div>
+   881→      </div>
+   882→    </motion.div>
+   883→  );
+   884→}
+   885→
+   886→function SkeletonGrid() {
+   887→  return (
+   888→    <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4">
+   889→      {Array.from({ length: 8 }).map((_, i) => (
+   890→        <div key={i} className="overflow-hidden rounded-xl border border-white/5 bg-[#111111]">
+   891→          <Skeleton className="aspect-[4/3] w-full bg-white/5" />
+   892→          <div className="space-y-2 p-3">
+   893→            <Skeleton className="h-4 w-3/4 bg-white/5" />
+   894→            <Skeleton className="h-3 w-1/2 bg-white/5" />
+   895→          </div>
+   896→        </div>
+   897→      ))}
+   898→    </div>
+   899→  );
+   900→}
+   901→
+   902→function EmptyState() {
+   903→  return (
+   904→    <motion.div
+   905→      initial={{ opacity: 0, y: 20 }}
+   906→      animate={{ opacity: 1, y: 0 }}
+   907→      className="flex flex-col items-center justify-center py-20 text-center"
+   908→    >
+   909→      <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
+   910→        <Camera className="h-10 w-10 text-gray-600" />
+   911→      </div>
+   912→      <h3 className="text-lg font-semibold text-gray-300">No photos yet</h3>
+   913→      <p className="mt-1 max-w-sm text-sm text-gray-500">
+   914→        Photos from events, workshops, and CTF competitions will appear here. Check back soon!
+   915→      </p>
+   916→    </motion.div>
+   917→  );
+   918→}
+   919→
