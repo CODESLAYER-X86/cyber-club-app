@@ -1,7 +1,9 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/toaster";
+import { QueryProvider } from "@/lib/query-client";
+import Script from "next/script";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -13,25 +15,36 @@ const geistMono = Geist_Mono({
   subsets: ["latin"],
 });
 
+// Mobile-optimized viewport configuration
+export const viewport: Viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  minimumScale: 1,
+  maximumScale: 5,
+  userScalable: true,
+  themeColor: '#0a0a0a',
+  viewportFit: 'cover',
+  colorScheme: 'dark',
+};
+
 export const metadata: Metadata = {
-  title: "Z.ai Code Scaffold - AI-Powered Development",
-  description: "Modern Next.js scaffold optimized for AI-powered development with Z.ai. Built with TypeScript, Tailwind CSS, and shadcn/ui.",
-  keywords: ["Z.ai", "Next.js", "TypeScript", "Tailwind CSS", "shadcn/ui", "AI development", "React"],
-  authors: [{ name: "Z.ai Team" }],
+  title: "Cyber Security Club - Cybersecurity Community Platform",
+  description: "Defend. Learn. Lead. Join our cybersecurity community at Dhaka International University and master the art of digital defense.",
+  keywords: ["Cyber Security Club", "Cybersecurity", "CTF", "Ethical Hacking", "Club", "Security Training", "Dhaka International University", "DIU"],
+  authors: [{ name: "Cyber Security Club" }],
   icons: {
-    icon: "https://z-cdn.chatglm.cn/z-ai/static/logo.svg",
+    icon: "/logo.png",
   },
   openGraph: {
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
-    url: "https://chat.z.ai",
-    siteName: "Z.ai",
+    title: "Cyber Security Club - Verified Certificate",
+    description: "View and verify a certificate issued by Cyber Security Club",
     type: "website",
+    siteName: "Cyber Security Club",
   },
   twitter: {
     card: "summary_large_image",
-    title: "Z.ai Code Scaffold",
-    description: "AI-powered development with modern React stack",
+    title: "Cyber Security Club - Verified Certificate",
+    description: "View and verify a certificate issued by Cyber Security Club",
   },
 };
 
@@ -42,10 +55,20 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <Script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3216427245362717"
+          crossOrigin="anonymous"
+          strategy="afterInteractive"
+        />
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        {children}
+        <QueryProvider>
+          {children}
+        </QueryProvider>
         <Toaster />
       </body>
     </html>

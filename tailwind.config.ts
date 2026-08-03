@@ -56,7 +56,24 @@ const config: Config = {
   			lg: 'var(--radius)',
   			md: 'calc(var(--radius) - 2px)',
   			sm: 'calc(var(--radius) - 4px)'
-  		}
+  		},
+  		// Mobile-first transitions for smooth interactions
+  		transitionProperty: {
+  			'DEFAULT': 'color, background-color, border-color, text-decoration-color, fill, stroke',
+  			'none': 'none',
+  			'all': 'all',
+  			'colors': 'color, background-color, border-color, text-decoration-color, fill, stroke',
+  			'opacity': 'opacity',
+  			'shadow': 'box-shadow',
+  			'transform': 'transform',
+  		},
+  		transitionDuration: {
+  			'DEFAULT': '150ms',
+  			'fast': '100ms',
+  		},
+  		transitionTimingFunction: {
+  			'DEFAULT': 'cubic-bezier(0.4, 0, 0.2, 1)',
+  		},
   	}
   },
   plugins: [tailwindcssAnimate],

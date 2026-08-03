@@ -1,32 +1,398 @@
 // This is your Prisma schema file,
 // learn more about it in the docs: https://pris.ly/d/prisma-schema
 
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
 
 datasource db {
-  provider = "sqlite"
-  url      = env("DATABASE_URL")
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
 }
 
 model User {
-  id        String   @id @default(cuid())
-  email     String   @unique
-  name      String?
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id               String   @id @default(cuid())
+  email            String   @unique
+  name             String
+  password         String?
+  role             String   @default("GUEST") // PLATFORM_ADMIN, PRESIDENT, VP, GS, TREASURER, MEDIA, VERIFIER, MEMBER, GUEST
+  membershipStatus String   @default("NON_MEMBER") // NON_MEMBER, PENDING, ACTIVE, REJECTED
+  avatar           String?
+  studentId        String?  // Registration ID
+  rollNumber       String?
+  batch            String?
+  department       String?
+  phone            String?
+  bio              String?
+  transactionId    String?
+  paymentProof     String?
+  paymentMethod    String?
+  paymentDate      String?
+  rejectionReason  String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  eventRegistrations  EventRegistration[]
+  certificates        Certificate[]
+  payments            Payment[]
+  auditLogs           AuditLog[]
+  notifications       Notification[]
+  createdEvents       Event[]              @relation("EventCreator")
+  verifiedPayments    Payment[]            @relation("PaymentVerifier")
+
+  createdExpenses     Expense[]            @relation("ExpenseCreator")
+  presidentApprovedExpenses Expense[]      @relation("ExpensePresidentApprover")
+  gsApprovedExpenses  Expense[]            @relation("ExpenseGsApprover")
+
+  treasuryDepositsSubmitted TreasuryDeposit[] @relation("TreasuryDepositSubmitter")
+  treasuryDepositsPresidentApproved TreasuryDeposit[] @relation("TreasuryDepositPresidentApprover")
+  treasuryDepositsGsApproved TreasuryDeposit[] @relation("TreasuryDepositGsApprover")
+
+  assessments         AssessmentSubmission[]
+  attendance          Attendance[]
+  assignedEvents      Event[]              @relation("EventVerifier")
+  issuedCertificates  Certificate[]        @relation("CertificateIssuer")
+  approvedCertificates Certificate[]       @relation("CertificateApprover")
+  revokedCertificates Certificate[]       @relation("CertificateRevoker")
+  certificateAuditLogs CertificateAuditLog[]
+  galleryImages     GalleryImage[]
+  submittedAchievements Achievement[] @relation("AchievementSubmitter")
+  approvedAchievements  Achievement[] @relation("AchievementApprover")
 }
 
-model Post {
+model Event {
+  id                 String   @id @default(cuid())
+  title              String
+  description        String
+  type               String   @default("PUBLIC") // PUBLIC, MEMBER_ONLY, PAID, LIMITED
+  category           String   @default("WORKSHOP") // WORKSHOP, SEMINAR, TRAINING, CTF, MEETUP
+  startDate          DateTime
+  endDate            DateTime
+  venue              String
+  fee                Float    @default(0)
+  maxSeats           Int?
+  currentSeats       Int      @default(0)
+  poster             String?
+  status             String   @default("UPCOMING") // UPCOMING, ONGOING, COMPLETED, CANCELLED
+  requiresAssessment Boolean  @default(false)
+  passingScore       Float?
+  verifierId         String?
+  createdBy          String
+  certificateLayout  String?  // JSON string: bg image, colors, logos, signatures, placements
+  paymentConfig      String?  @db.Text // JSON string: paymentRequired, feeAmount, bkashNumber, nagadNumber, rocketNumber, bankAccount, paymentInstructions, contactPersonName, contactPersonPhone, paymentDeadline
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+
+  creator        User                 @relation("EventCreator", fields: [createdBy], references: [id])
+  verifier       User?                @relation("EventVerifier", fields: [verifierId], references: [id])
+  registrations  EventRegistration[]
+  attendance     Attendance[]
+  certificates   Certificate[]
+  assessments    Assessment[]
+  payments       Payment[]
+  galleryImages  GalleryImage[]
+}
+
+model EventRegistration {
+  id            String   @id @default(cuid())
+  userId        String
+  eventId       String
+  status        String   @default("PENDING") // PENDING, APPROVED, REJECTED, CANCELLED
+  preferredName String?
+  studentId     String?
+  department    String?
+  institution   String?
+  registeredAt  DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Payment {
+  id            String   @id @default(cuid())
+  userId        String
+  amount        Float
+  type          String   @default("MEMBERSHIP") // MEMBERSHIP, EVENT, OTHER
+  status        String   @default("PENDING") // PENDING, VERIFIED, REJECTED
+  transactionId String
+  paymentMethod String   @default("BKASH") // BKASH, NAGAD, BANK, CASH
+  proofUrl      String?
+  eventId       String?
+  verifiedBy    String?
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  user       User    @relation(fields: [userId], references: [id])
+  event      Event?  @relation(fields: [eventId], references: [id])
+  verifier   User?   @relation("PaymentVerifier", fields: [verifiedBy], references: [id])
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+}
+
+model Expense {
+  id                  String   @id @default(cuid())
+  note                String   // Note / description
+  amount              Float    @default(0) // Auto-calculated from items
+  date                DateTime @default(now())
+  purchasedBy         String?  // Who went to purchase
+  attachmentUrl       String?  // Optional receipt attachment
+  status              String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  presidentStatus     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  gsStatus            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  presidentApprovedBy String?
+  gsApprovedBy        String?
+  createdBy           String
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  items             ExpenseItem[]
+  creator           User     @relation("ExpenseCreator", fields: [createdBy], references: [id])
+  presidentApprover User?    @relation("ExpensePresidentApprover", fields: [presidentApprovedBy], references: [id])
+  gsApprover        User?    @relation("ExpenseGsApprover", fields: [gsApprovedBy], references: [id])
+
+  @@index([status])
+  @@index([createdBy])
+}
+
+model ExpenseItem {
+  id        String  @id @default(cuid())
+  expenseId String
+  itemName  String
+  quantity  Int     @default(1)
+  unit      String  @default("pcs")
+  price     Float
+
+  expense   Expense @relation(fields: [expenseId], references: [id], onDelete: Cascade)
+
+  @@index([expenseId])
+}
+
+model TreasuryDeposit {
+  id                  String   @id @default(cuid())
+  date                DateTime
+  amount              Float
+  source              String   // UNIVERSITY_FUND, SPONSOR, EVENT_REGISTRATION, MEMBERSHIP_REGISTRATION, DONATION, OTHER
+  note                String?
+  attachmentUrl       String?
+  status              String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  presidentStatus     String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  gsStatus            String   @default("PENDING") // PENDING, APPROVED, REJECTED
+  submittedBy         String
+  presidentApprovedBy String?
+  gsApprovedBy        String?
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  submitter          User  @relation("TreasuryDepositSubmitter", fields: [submittedBy], references: [id])
+  presidentApprover  User? @relation("TreasuryDepositPresidentApprover", fields: [presidentApprovedBy], references: [id])
+  gsApprover         User? @relation("TreasuryDepositGsApprover", fields: [gsApprovedBy], references: [id])
+
+  @@index([status])
+  @@index([submittedBy])
+}
+
+model Attendance {
+  id       String   @id @default(cuid())
+  userId   String
+  eventId  String
+  status   String   @default("PRESENT") // PRESENT, ABSENT, LATE
+  markedAt DateTime @default(now())
+
+  user  User  @relation(fields: [userId], references: [id])
+  event Event @relation(fields: [eventId], references: [id])
+
+  @@unique([userId, eventId])
+  @@index([eventId])
+  @@index([userId])
+  @@index([status])
+}
+
+model Certificate {
+  id                  String    @id @default(cuid())
+  certificateCode     String    @unique
+  userId              String
+  eventId             String
+  type                String    @default("PARTICIPATION") // PARTICIPATION, ACHIEVEMENT, EXCELLENCE
+  score               Float?
+  status              String    @default("REGISTERED") // REGISTERED, PRESENT, ELIGIBLE, AUTHORIZED, GENERATED, DOWNLOADED, REVOKED
+  issuedAt            DateTime  @default(now())
+
+  // Certificate Authority Fields
+  issuedBy            String?   // GS who issued the certificate
+  approvedBy          String?   // President who approved (for excellence/achievement types)
+  revokedBy           String?   // President who revoked
+  revokedAt           DateTime? // When revoked
+  revocationReason    String?   // Why revoked
+  eligibilityVerified Boolean   @default(false) // Whether eligibility was checked before issuance
+  eligibilityDetails  String?   // JSON: attendance verified, assessment passed, event completed
+
+  user      User                @relation(fields: [userId], references: [id])
+  event     Event               @relation(fields: [eventId], references: [id])
+  issuer    User?               @relation("CertificateIssuer", fields: [issuedBy], references: [id])
+  approver  User?               @relation("CertificateApprover", fields: [approvedBy], references: [id])
+  revoker   User?               @relation("CertificateRevoker", fields: [revokedBy], references: [id])
+  auditLogs CertificateAuditLog[]
+
+  @@index([userId])
+  @@index([eventId])
+  @@index([status])
+}
+
+model Assessment {
+  id           String   @id @default(cuid())
+  eventId      String
+  title        String
+  questions    String   // JSON string
+  maxScore     Float
+  passingScore Float
+  createdAt    DateTime @default(now())
+
+  event       Event                 @relation(fields: [eventId], references: [id])
+  submissions AssessmentSubmission[]
+
+  @@index([eventId])
+}
+
+model AssessmentSubmission {
+  id            String   @id @default(cuid())
+  userId        String
+  assessmentId  String
+  answers       String   // JSON string
+  score         Float?
+  status        String   @default("SUBMITTED") // SUBMITTED, GRADED
+  submittedAt   DateTime @default(now())
+
+  user        User        @relation(fields: [userId], references: [id])
+  assessment  Assessment  @relation(fields: [assessmentId], references: [id])
+
+  @@index([userId])
+  @@index([assessmentId])
+  @@index([status])
+}
+
+model AuditLog {
+  id        String   @id @default(cuid())
+  userId    String
+  action    String
+  details   String
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([createdAt])
+}
+
+model CertificateAuditLog {
+  id            String   @id @default(cuid())
+  certificateId String
+  action        String   // ISSUED, APPROVED, REVOKED, ELIGIBILITY_CHECKED, VIEWED, SHARED
+  performedBy   String
+  details       String   // JSON with contextual info
+  createdAt     DateTime @default(now())
+
+  certificate Certificate @relation(fields: [certificateId], references: [id])
+  performer   User        @relation(fields: [performedBy], references: [id])
+
+  @@index([certificateId])
+  @@index([performedBy])
+}
+
+model Notification {
+  id        String   @id @default(cuid())
+  userId    String
+  title     String
+  message   String
+  type      String   @default("INFO") // INFO, WARNING, SUCCESS, ERROR
+  read      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id])
+
+  @@index([userId])
+  @@index([read])
+}
+
+model Announcement {
   id        String   @id @default(cuid())
   title     String
-  content   String?
-  published Boolean  @default(false)
-  authorId  String
+  content   String
+  type      String   @default("GENERAL") // GENERAL, EVENT, URGENT
+  createdBy String
   createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+}
+
+model GalleryImage {
+  id          String   @id @default(cuid())
+  title       String
+  description String?
+  imageUrl    String
+  category    String   @default("EVENT") // EVENT, WORKSHOP, CTF, SEMINAR, MEETUP, GENERAL
+  eventId     String?
+  uploadedBy  String
+  createdAt   DateTime @default(now())
+
+  event    Event? @relation(fields: [eventId], references: [id])
+  uploader User   @relation(fields: [uploadedBy], references: [id])
+
+  @@index([eventId])
+  @@index([category])
+}
+
+model Achievement {
+  id           String    @id @default(cuid())
+  title        String
+  description  String
+  imageUrl     String?
+  category     String    @default("COMPETITION") // COMPETITION, ACADEMIC, COMMUNITY, INDUSTRY, CERTIFICATION
+  achievedBy   String?   // Name or group description
+  achievedDate DateTime
+  status       String    @default("PENDING") // PENDING, APPROVED, REJECTED
+  submittedBy  String
+  approvedBy   String?
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+
+  submitter User?  @relation("AchievementSubmitter", fields: [submittedBy], references: [id])
+  approver  User?  @relation("AchievementApprover", fields: [approvedBy], references: [id])
+}
+
+model CommitteeMember {
+  id          String   @id @default(cuid())
+  name        String
+  role        String   // President, Vice President, General Secretary, Treasurer, Media Lead, etc.
+  description String
+  imageUrl    String?
+  department  String?
+  email       String?
+  socialLinks String?  // JSON: { linkedin, github, twitter }
+  order       Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model SystemConfig {
+  key   String @id
+  value String
+}
+
+model ClubSponsor {
+  id          String   @id @default(cuid())
+  name        String
+  logoUrl     String
+  websiteUrl  String?
+  description String?
+  priority    Int      @default(0)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
 }
