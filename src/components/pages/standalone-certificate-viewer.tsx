@@ -54,7 +54,7 @@ const CERT_TYPE_LABELS: Record<string, string> = {
 /* ─── Helper: resolve a text element from saved layout with fallbacks ─── */
 interface ResolvedEl {
   x: number; y: number; fontSize: number; color: string;
-  fontWeight?: number | string; textAnchor?: string; letterSpacing?: number;
+  fontWeight?: number | string; textAnchor?: 'start' | 'middle' | 'end' | 'inherit'; letterSpacing?: number;
   fontFamily?: string; visible: boolean; text: string;
 }
 
@@ -63,7 +63,7 @@ function resolveEl(
   layout: any,
   isLandscape: boolean,
   width: number,
-  defaults: { x: number; y: number; fontSize: number; color: string; text: string; fontWeight?: number | string; textAnchor?: string; letterSpacing?: number }
+  defaults: { x: number; y: number; fontSize: number; color: string; text: string; fontWeight?: number | string; textAnchor?: 'start' | 'middle' | 'end' | 'inherit'; letterSpacing?: number }
 ): ResolvedEl {
   const el = layout.textElements?.[key];
   const tc = layout.textColors?.[key];
@@ -73,7 +73,7 @@ function resolveEl(
     fontSize: el?.fontSize ?? defaults.fontSize,
     color: el?.color || tc || defaults.color,
     fontWeight: el?.fontWeight ?? defaults.fontWeight,
-    textAnchor: el?.textAnchor ?? defaults.textAnchor ?? 'middle',
+    textAnchor: (el?.textAnchor ?? defaults.textAnchor ?? 'middle') as 'start' | 'middle' | 'end' | 'inherit',
     letterSpacing: el?.letterSpacing ?? defaults.letterSpacing,
     fontFamily: el?.fontFamily || 'sans-serif',
     visible: el?.visible !== false,
@@ -140,7 +140,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
 
   // Resolve all text elements from saved layout with fallback defaults
   const el = useMemo(() => {
-    const d = (x: number, y: number, fs: number, c: string, t: string, fw?: any, ta?: string, ls?: number) =>
+    const d = (x: number, y: number, fs: number, c: string, t: string, fw?: any, ta?: 'start' | 'middle' | 'end' | 'inherit', ls?: number) =>
       ({ x, y, fontSize: fs, color: c, text: t, fontWeight: fw, textAnchor: ta, letterSpacing: ls });
 
     return {
@@ -471,7 +471,7 @@ function signaturesHtml(
 ) {
   // Map visible signatures back to their original indices
   const visibleIndices: number[] = [];
-  if (activeSigs.length > 0 && activeSigs._srcArr) {
+  if (activeSigs.length > 0) {
     // fallback: just use sequential
   }
 
