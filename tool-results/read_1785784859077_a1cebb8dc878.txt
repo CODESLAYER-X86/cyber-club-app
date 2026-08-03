@@ -1,0 +1,822 @@
+     1→import prisma from "@/lib/db";
+     2→import { hash } from "crypto";
+     3→
+     4→async function main() {
+     5→  console.log("🌱 Seeding database...");
+     6→
+     7→  // Create demo users for each role
+     8→  const users = [
+     9→    {
+    10→      email: "admin@cybersecclub.com",
+    11→      name: "System Admin",
+    12→      password: "admin123",
+    13→      role: "PLATFORM_ADMIN",
+    14→      membershipStatus: "ACTIVE",
+    15→      department: "IT",
+    16→    },
+    17→    {
+    18→      email: "president@cybersecclub.com",
+    19→      name: "Sarah Chen",
+    20→      password: "president123",
+    21→      role: "PRESIDENT",
+    22→      membershipStatus: "ACTIVE",
+    23→      department: "Computer Science",
+    24→      studentId: "CS2024001",
+    25→    },
+    26→    {
+    27→      email: "vp@cybersecclub.com",
+    28→      name: "Marcus Johnson",
+    29→      password: "vp123",
+    30→      role: "VP",
+    31→      membershipStatus: "ACTIVE",
+    32→      department: "Information Security",
+    33→      studentId: "IS2024015",
+    34→    },
+    35→    {
+    36→      email: "gs@cybersecclub.com",
+    37→      name: "Emily Rodriguez",
+    38→      password: "gs123",
+    39→      role: "GS",
+    40→      membershipStatus: "ACTIVE",
+    41→      department: "Cybersecurity",
+    42→      studentId: "CY2024022",
+    43→    },
+    44→    {
+    45→      email: "treasurer@cybersecclub.com",
+    46→      name: "David Kim",
+    47→      password: "treasurer123",
+    48→      role: "TREASURER",
+    49→      membershipStatus: "ACTIVE",
+    50→      department: "Finance & IT",
+    51→      studentId: "FI2024008",
+    52→    },
+    53→    {
+    54→      email: "media@cybersecclub.com",
+    55→      name: "Aisha Patel",
+    56→      password: "media123",
+    57→      role: "MEDIA",
+    58→      membershipStatus: "ACTIVE",
+    59→      department: "Digital Media",
+    60→      studentId: "DM2024031",
+    61→    },
+    62→    {
+    63→      email: "verifier@cybersecclub.com",
+    64→      name: "James Wilson",
+    65→      password: "verifier123",
+    66→      role: "VERIFIER",
+    67→      membershipStatus: "ACTIVE",
+    68→      department: "Network Security",
+    69→      studentId: "NS2024012",
+    70→    },
+    71→    {
+    72→      email: "member1@university.edu",
+    73→      name: "Alex Thompson",
+    74→      password: "member123",
+    75→      role: "MEMBER",
+    76→      membershipStatus: "ACTIVE",
+    77→      department: "Computer Science",
+    78→      studentId: "CS2024045",
+    79→    },
+    80→    {
+    81→      email: "member2@university.edu",
+    82→      name: "Priya Sharma",
+    83→      password: "member123",
+    84→      role: "MEMBER",
+    85→      membershipStatus: "ACTIVE",
+    86→      department: "Information Technology",
+    87→      studentId: "IT2024067",
+    88→    },
+    89→    {
+    90→      email: "pending@university.edu",
+    91→      name: "New Applicant",
+    92→      password: "pending123",
+    93→      role: "GUEST",
+    94→      membershipStatus: "PENDING",
+    95→      department: "Software Engineering",
+    96→      studentId: "SE2024089",
+    97→      transactionId: "TXN-2025-001",
+    98→    },
+    99→    {
+   100→      email: "guest@university.edu",
+   101→      name: "Guest User",
+   102→      password: "guest123",
+   103→      role: "GUEST",
+   104→      membershipStatus: "NON_MEMBER",
+   105→      department: "Electrical Engineering",
+   106→    },
+   107→  ];
+   108→
+   109→  for (const u of users) {
+   110→    await prisma.user.upsert({
+   111→      where: { email: u.email },
+   112→      update: {},
+   113→      create: {
+   114→        email: u.email,
+   115→        name: u.name,
+   116→        password: u.password, // In production, this would be hashed
+   117→        role: u.role,
+   118→        membershipStatus: u.membershipStatus,
+   119→        department: u.department,
+   120→        studentId: u.studentId || null,
+   121→        transactionId: u.transactionId || null,
+   122→      },
+   123→    });
+   124→  }
+   125→
+   126→  console.log("✅ Users seeded");
+   127→
+   128→  // Create demo events
+   129→  const mediaUser = await prisma.user.findUnique({ where: { email: "media@cybersecclub.com" } });
+   130→  const verifierUser = await prisma.user.findUnique({ where: { email: "verifier@cybersecclub.com" } });
+   131→  const presidentUser = await prisma.user.findUnique({ where: { email: "president@cybersecclub.com" } });
+   132→
+   133→  if (mediaUser && verifierUser) {
+   134→    const events = [
+   135→      {
+   136→        title: "Intro to Ethical Hacking",
+   137→        description: "Learn the fundamentals of ethical hacking and penetration testing. This hands-on workshop covers reconnaissance, vulnerability scanning, and basic exploitation techniques using industry-standard tools.",
+   138→        type: "PUBLIC",
+   139→        category: "WORKSHOP",
+   140→        startDate: new Date("2025-08-15T10:00:00Z"),
+   141→        endDate: new Date("2025-08-15T16:00:00Z"),
+   142→        venue: "Lab 301, CS Building",
+   143→        fee: 0,
+   144→        maxSeats: 50,
+   145→        currentSeats: 32,
+   146→        status: "UPCOMING",
+   147→        requiresAssessment: true,
+   148→        passingScore: 60,
+   149→        verifierId: verifierUser.id,
+   150→        createdBy: mediaUser.id,
+   151→      },
+   152→      {
+   153→        title: "CTF Challenge: Capture the Flag",
+   154→        description: "Test your cybersecurity skills in our Capture The Flag competition! Solve challenges across web exploitation, cryptography, reverse engineering, and forensics to earn points and climb the leaderboard.",
+   155→        type: "MEMBER_ONLY",
+   156→        category: "CTF",
+   157→        startDate: new Date("2025-09-01T09:00:00Z"),
+   158→        endDate: new Date("2025-09-01T18:00:00Z"),
+   159→        venue: "Virtual (Discord)",
+   160→        fee: 0,
+   161→        maxSeats: 100,
+   162→        currentSeats: 45,
+   163→        status: "UPCOMING",
+   164→        requiresAssessment: false,
+   165→        verifierId: verifierUser.id,
+   166→        createdBy: mediaUser.id,
+   167→      },
+   168→      {
+   169→        title: "Network Security Masterclass",
+   170→        description: "An advanced training session on network security fundamentals including firewall configuration, IDS/IPS setup, VPN tunneling, and network monitoring with SIEM tools.",
+   171→        type: "PAID",
+   172→        category: "TRAINING",
+   173→        startDate: new Date("2025-09-20T10:00:00Z"),
+   174→        endDate: new Date("2025-09-22T17:00:00Z"),
+   175→        venue: "Auditorium A, IT Building",
+   176→        fee: 500,
+   177→        maxSeats: 30,
+   178→        currentSeats: 18,
+   179→        status: "UPCOMING",
+   180→        requiresAssessment: true,
+   181→        passingScore: 70,
+   182→        verifierId: verifierUser.id,
+   183→        createdBy: mediaUser.id,
+   184→      },
+   185→      {
+   186→        title: "Cybersecurity Career Panel",
+   187→        description: "Join industry professionals as they share insights about careers in cybersecurity. Learn about different career paths, required certifications, and how to break into the field.",
+   188→        type: "PUBLIC",
+   189→        category: "SEMINAR",
+   190→        startDate: new Date("2025-07-20T14:00:00Z"),
+   191→        endDate: new Date("2025-07-20T17:00:00Z"),
+   192→        venue: "Main Hall",
+   193→        fee: 0,
+   194→        maxSeats: 200,
+   195→        currentSeats: 156,
+   196→        status: "COMPLETED",
+   197→        requiresAssessment: false,
+   198→        verifierId: verifierUser.id,
+   199→        createdBy: mediaUser.id,
+   200→      },
+   201→      {
+   202→        title: "Monthly Meetup: Threat Intelligence",
+   203→        description: "Our monthly meetup focusing on threat intelligence sharing, recent CVEs, and community discussions on emerging cyber threats. Open to all members.",
+   204→        type: "MEMBER_ONLY",
+   205→        category: "MEETUP",
+   206→        startDate: new Date("2025-08-05T18:00:00Z"),
+   207→        endDate: new Date("2025-08-05T20:00:00Z"),
+   208→        venue: "Student Lounge",
+   209→        fee: 0,
+   210→        maxSeats: 40,
+   211→        currentSeats: 22,
+   212→        status: "UPCOMING",
+   213→        requiresAssessment: false,
+   214→        verifierId: verifierUser.id,
+   215→        createdBy: mediaUser.id,
+   216→      },
+   217→    ];
+   218→
+   219→    for (const e of events) {
+   220→      const existing = await prisma.event.findFirst({ where: { title: e.title } });
+   221→      if (!existing) {
+   222→        await prisma.event.create({ data: e });
+   223→      }
+   224→    }
+   225→    console.log("✅ Events seeded");
+   226→  }
+   227→
+   228→  // Create demo payments
+   229→  const member1 = await prisma.user.findUnique({ where: { email: "member1@university.edu" } });
+   230→  const member2 = await prisma.user.findUnique({ where: { email: "member2@university.edu" } });
+   231→  const pendingUser = await prisma.user.findUnique({ where: { email: "pending@university.edu" } });
+   232→  const treasurerUser = await prisma.user.findUnique({ where: { email: "treasurer@cybersecclub.com" } });
+   233→
+   234→  if (member1 && member2 && pendingUser && treasurerUser) {
+   235→    // Membership payments
+   236→    const payments = [
+   237→      {
+   238→        userId: member1.id,
+   239→        amount: 500,
+   240→        type: "MEMBERSHIP",
+   241→        status: "VERIFIED",
+   242→        transactionId: "TXN-MEM-001",
+   243→        verifiedBy: treasurerUser.id,
+   244→      },
+   245→      {
+   246→        userId: member2.id,
+   247→        amount: 500,
+   248→        type: "MEMBERSHIP",
+   249→        status: "VERIFIED",
+   250→        transactionId: "TXN-MEM-002",
+   251→        verifiedBy: treasurerUser.id,
+   252→      },
+   253→      {
+   254→        userId: pendingUser.id,
+   255→        amount: 500,
+   256→        type: "MEMBERSHIP",
+   257→        status: "PENDING",
+   258→        transactionId: "TXN-2025-001",
+   259→      },
+   260→    ];
+   261→
+   262→    for (const p of payments) {
+   263→      const existing = await prisma.payment.findFirst({ where: { transactionId: p.transactionId } });
+   264→      if (!existing) {
+   265→        await prisma.payment.create({ data: p });
+   266→      }
+   267→    }
+   268→
+   269→    // Event payments
+   270→    const networkEvent = await prisma.event.findFirst({ where: { title: "Network Security Masterclass" } });
+   271→    if (networkEvent) {
+   272→      const eventPayments = [
+   273→        {
+   274→          userId: member1.id,
+   275→          amount: 500,
+   276→          type: "EVENT",
+   277→          status: "VERIFIED",
+   278→          transactionId: "TXN-EVT-001",
+   279→          eventId: networkEvent.id,
+   280→          verifiedBy: treasurerUser.id,
+   281→        },
+   282→        {
+   283→          userId: member2.id,
+   284→          amount: 500,
+   285→          type: "EVENT",
+   286→          status: "PENDING",
+   287→          transactionId: "TXN-EVT-002",
+   288→          eventId: networkEvent.id,
+   289→        },
+   290→      ];
+   291→
+   292→      for (const p of eventPayments) {
+   293→        const existing = await prisma.payment.findFirst({ where: { transactionId: p.transactionId } });
+   294→        if (!existing) {
+   295→          await prisma.payment.create({ data: p });
+   296→        }
+   297→      }
+   298→    }
+   299→    console.log("✅ Payments seeded");
+   300→  }
+   301→
+   302→  // Create demo deposits and expenses
+   303→  if (treasurerUser && presidentUser) {
+   304→    const gsUser = await prisma.user.findFirst({ where: { role: "GS" } });
+   305→
+   306→    // Demo deposits
+   307→    const deposits = [
+   308→      {
+   309→        date: new Date("2025-07-01"),
+   310→        amount: 30000,
+   311→        source: "UNIVERSITY_FUND",
+   312→        note: "Q3 2025 university fund allocation",
+   313→        status: "APPROVED",
+   314→        presidentStatus: "APPROVED",
+   315→        gsStatus: "APPROVED",
+   316→        submittedBy: treasurerUser.id,
+   317→        presidentApprovedBy: presidentUser.id,
+   318→        gsApprovedBy: gsUser?.id,
+   319→      },
+   320→      {
+   321→        date: new Date("2025-07-15"),
+   322→        amount: 15000,
+   323→        source: "SPONSOR",
+   324→        note: "Sponsorship from TechCorp",
+   325→        status: "APPROVED",
+   326→        presidentStatus: "APPROVED",
+   327→        gsStatus: "APPROVED",
+   328→        submittedBy: treasurerUser.id,
+   329→        presidentApprovedBy: presidentUser.id,
+   330→        gsApprovedBy: gsUser?.id,
+   331→      },
+   332→      {
+   333→        date: new Date("2025-08-01"),
+   334→        amount: 5000,
+   335→        source: "EVENT_REGISTRATION",
+   336→        note: "CTF event registration fees",
+   337→        status: "PENDING",
+   338→        presidentStatus: "PENDING",
+   339→        gsStatus: "PENDING",
+   340→        submittedBy: treasurerUser.id,
+   341→      },
+   342→      {
+   343→        date: new Date("2025-08-05"),
+   344→        amount: 2000,
+   345→        source: "DONATION",
+   346→        note: "Donation from alumni",
+   347→        status: "PENDING",
+   348→        presidentStatus: "APPROVED",
+   349→        gsStatus: "PENDING",
+   350→        submittedBy: treasurerUser.id,
+   351→        presidentApprovedBy: presidentUser.id,
+   352→      },
+   353→    ];
+   354→
+   355→    for (const d of deposits) {
+   356→      const existing = await prisma.treasuryDeposit.findFirst({ where: { note: d.note, amount: d.amount } });
+   357→      if (!existing) {
+   358→        await prisma.treasuryDeposit.create({ data: d });
+   359→      }
+   360→    }
+   361→
+   362→    // Demo expenses with items
+   363→    const expenses = [
+   364→      {
+   365→        note: "Workshop Materials",
+   366→        amount: 3500,
+   367→        date: new Date("2025-07-10"),
+   368→        purchasedBy: "Treasurer",
+   369→        status: "APPROVED",
+   370→        presidentStatus: "APPROVED",
+   371→        gsStatus: "APPROVED",
+   372→        createdBy: treasurerUser.id,
+   373→        presidentApprovedBy: presidentUser.id,
+   374→        gsApprovedBy: gsUser?.id,
+   375→        items: {
+   376→          create: [
+   377→            { itemName: "Printed Handouts", quantity: 50, unit: "pcs", price: 20 },
+   378→            { itemName: "USB Drives", quantity: 20, unit: "pcs", price: 100 },
+   379→            { itemName: "Lab Setup Kit", quantity: 1, unit: "set", price: 500 },
+   380→          ],
+   381→        },
+   382→      },
+   383→      {
+   384→        note: "CTF Platform License",
+   385→        amount: 8000,
+   386→        date: new Date("2025-07-15"),
+   387→        purchasedBy: "Treasurer",
+   388→        status: "APPROVED",
+   389→        presidentStatus: "APPROVED",
+   390→        gsStatus: "APPROVED",
+   391→        createdBy: treasurerUser.id,
+   392→        presidentApprovedBy: presidentUser.id,
+   393→        gsApprovedBy: gsUser?.id,
+   394→        items: {
+   395→          create: [
+   396→            { itemName: "CTF Platform Annual License", quantity: 1, unit: "pcs", price: 8000 },
+   397→          ],
+   398→        },
+   399→      },
+   400→      {
+   401→        note: "Network Equipment",
+   402→        amount: 12000,
+   403→        date: new Date("2025-07-25"),
+   404→        purchasedBy: "VP",
+   405→        status: "PENDING",
+   406→        presidentStatus: "PENDING",
+   407→        gsStatus: "PENDING",
+   408→        createdBy: treasurerUser.id,
+   409→        items: {
+   410→          create: [
+   411→            { itemName: "Router", quantity: 2, unit: "pcs", price: 4000 },
+   412→            { itemName: "Switch", quantity: 1, unit: "pcs", price: 3000 },
+   413→            { itemName: "Ethernet Cables", quantity: 10, unit: "pcs", price: 100 },
+   414→          ],
+   415→        },
+   416→      },
+   417→      {
+   418→        note: "Guest Speaker Honorarium",
+   419→        amount: 5000,
+   420→        date: new Date("2025-08-01"),
+   421→        purchasedBy: "Treasurer",
+   422→        status: "PENDING",
+   423→        presidentStatus: "APPROVED",
+   424→        gsStatus: "PENDING",
+   425→        createdBy: treasurerUser.id,
+   426→        presidentApprovedBy: presidentUser.id,
+   427→        items: {
+   428→          create: [
+   429→            { itemName: "Speaker Honorarium", quantity: 1, unit: "pcs", price: 5000 },
+   430→          ],
+   431→        },
+   432→      },
+   433→    ];
+   434→
+   435→    for (const e of expenses) {
+   436→      const existing = await prisma.expense.findFirst({ where: { note: e.note, amount: e.amount } });
+   437→      if (!existing) {
+   438→        await prisma.expense.create({ data: e });
+   439→      }
+   440→    }
+   441→    console.log("✅ Deposits & Expenses seeded");
+   442→  }
+   443→
+   444→  // Create demo certificates
+   445→  if (member1 && member2) {
+   446→    const careerPanel = await prisma.event.findFirst({ where: { title: "Cybersecurity Career Panel" } });
+   447→    if (careerPanel) {
+   448→      const certificates = [
+   449→        {
+   450→          certificateCode: "CSC-2025-00001",
+   451→          userId: member1.id,
+   452→          eventId: careerPanel.id,
+   453→          type: "PARTICIPATION",
+   454→          status: "VALID",
+   455→          issuedAt: new Date("2025-07-21T10:00:00Z"),
+   456→        },
+   457→        {
+   458→          certificateCode: "CSC-2025-00002",
+   459→          userId: member2.id,
+   460→          eventId: careerPanel.id,
+   461→          type: "PARTICIPATION",
+   462→          status: "VALID",
+   463→          issuedAt: new Date("2025-07-21T10:00:00Z"),
+   464→        },
+   465→      ];
+   466→
+   467→      for (const c of certificates) {
+   468→        const existing = await prisma.certificate.findFirst({ where: { certificateCode: c.certificateCode } });
+   469→        if (!existing) {
+   470→          await prisma.certificate.create({ data: c });
+   471→        }
+   472→      }
+   473→    }
+   474→    console.log("✅ Certificates seeded");
+   475→  }
+   476→
+   477→  // Create demo notifications
+   478→  if (member1) {
+   479→    const notifs = [
+   480→      {
+   481→        userId: member1.id,
+   482→        title: "Event Registration Confirmed",
+   483→        message: "Your registration for 'Intro to Ethical Hacking' has been confirmed!",
+   484→        type: "SUCCESS",
+   485→        read: false,
+   486→      },
+   487→      {
+   488→        userId: member1.id,
+   489→        title: "New Event Available",
+   490→        message: "A new CTF Challenge event has been posted. Register now!",
+   491→        type: "INFO",
+   492→        read: false,
+   493→      },
+   494→      {
+   495→        userId: member1.id,
+   496→        title: "Certificate Ready",
+   497→        message: "Your participation certificate for 'Cybersecurity Career Panel' is now available.",
+   498→        type: "SUCCESS",
+   499→        read: true,
+   500→      },
+   501→    ];
+   502→
+   503→    for (const n of notifs) {
+   504→      await prisma.notification.create({ data: n });
+   505→    }
+   506→    console.log("✅ Notifications seeded");
+   507→  }
+   508→
+   509→  // Create demo announcements
+   510→  if (presidentUser) {
+   511→    const announcements = [
+   512→      {
+   513→        title: "Welcome to Fall 2025 Semester!",
+   514→        content: "We're excited to kick off another semester of cybersecurity learning. Check out our upcoming events and workshops!",
+   515→        type: "GENERAL",
+   516→        createdBy: presidentUser.id,
+   517→      },
+   518→      {
+   519→        title: "CTF Competition Registration Open",
+   520→        content: "Registration for our annual CTF competition is now open. Limited spots available - register today!",
+   521→        type: "EVENT",
+   522→        createdBy: presidentUser.id,
+   523→      },
+   524→    ];
+   525→
+   526→    for (const a of announcements) {
+   527→      const existing = await prisma.announcement.findFirst({ where: { title: a.title } });
+   528→      if (!existing) {
+   529→        await prisma.announcement.create({ data: a });
+   530→      }
+   531→    }
+   532→    console.log("✅ Announcements seeded");
+   533→  }
+   534→
+   535→  // Create demo audit logs
+   536→  const adminUser = await prisma.user.findUnique({ where: { email: "admin@cybersecclub.com" } });
+   537→  if (adminUser && treasurerUser && presidentUser) {
+   538→    const logs = [
+   539→      {
+   540→        userId: treasurerUser.id,
+   541→        action: "PAYMENT_VERIFIED",
+   542→        details: "Verified membership payment for Alex Thompson (TXN-MEM-001)",
+   543→      },
+   544→      {
+   545→        userId: presidentUser.id,
+   546→        action: "EXPENSE_APPROVED",
+   547→        details: "Approved expense: Workshop Materials (₹3,500)",
+   548→      },
+   549→      {
+   550→        userId: adminUser.id,
+   551→        action: "ROLE_ASSIGNED",
+   552→        details: "Assigned TREASURER role to David Kim",
+   553→      },
+   554→      {
+   555→        userId: treasurerUser.id,
+   556→        action: "BUDGET_CREATED",
+   557→        details: "Created Q3 2025 Operations Budget (₹50,000)",
+   558→      },
+   559→    ];
+   560→
+   561→    for (const l of logs) {
+   562→      await prisma.auditLog.create({ data: l });
+   563→    }
+   564→    console.log("✅ Audit Logs seeded");
+   565→  }
+   566→
+   567→  // Create demo event registrations
+   568→  if (member1 && member2) {
+   569→    const ethicalHacking = await prisma.event.findFirst({ where: { title: "Intro to Ethical Hacking" } });
+   570→    const ctf = await prisma.event.findFirst({ where: { title: "CTF Challenge: Capture the Flag" } });
+   571→    const meetup = await prisma.event.findFirst({ where: { title: "Monthly Meetup: Threat Intelligence" } });
+   572→
+   573→    if (ethicalHacking && ctf && meetup) {
+   574→      const registrations = [
+   575→        { userId: member1.id, eventId: ethicalHacking.id, status: "APPROVED" },
+   576→        { userId: member2.id, eventId: ethicalHacking.id, status: "PENDING" },
+   577→        { userId: member1.id, eventId: ctf.id, status: "APPROVED" },
+   578→        { userId: member2.id, eventId: ctf.id, status: "APPROVED" },
+   579→        { userId: member1.id, eventId: meetup.id, status: "APPROVED" },
+   580→      ];
+   581→
+   582→      for (const r of registrations) {
+   583→        const existing = await prisma.eventRegistration.findFirst({
+   584→          where: { userId: r.userId, eventId: r.eventId },
+   585→        });
+   586→        if (!existing) {
+   587→          await prisma.eventRegistration.create({ data: r });
+   588→        }
+   589→      }
+   590→      console.log("✅ Event Registrations seeded");
+   591→    }
+   592→  }
+   593→
+   594→  // Create demo attendance
+   595→  if (member1 && member2) {
+   596→    const careerPanel = await prisma.event.findFirst({ where: { title: "Cybersecurity Career Panel" } });
+   597→    if (careerPanel) {
+   598→      const attendanceRecords = [
+   599→        { userId: member1.id, eventId: careerPanel.id, status: "PRESENT" },
+   600→        { userId: member2.id, eventId: careerPanel.id, status: "PRESENT" },
+   601→      ];
+   602→
+   603→      for (const a of attendanceRecords) {
+   604→        const existing = await prisma.attendance.findFirst({
+   605→          where: { userId: a.userId, eventId: a.eventId },
+   606→        });
+   607→        if (!existing) {
+   608→          await prisma.attendance.create({ data: a });
+   609→        }
+   610→      }
+   611→      console.log("✅ Attendance seeded");
+   612→    }
+   613→  }
+   614→
+   615→  // Create demo committee members
+   616→  const presidentUser2 = await prisma.user.findUnique({ where: { email: "president@cybersecclub.com" } });
+   617→  const vpUser2 = await prisma.user.findUnique({ where: { email: "vp@cybersecclub.com" } });
+   618→  const gsUser2 = await prisma.user.findUnique({ where: { email: "gs@cybersecclub.com" } });
+   619→  const treasurerUser2 = await prisma.user.findUnique({ where: { email: "treasurer@cybersecclub.com" } });
+   620→  const mediaUser2 = await prisma.user.findUnique({ where: { email: "media@cybersecclub.com" } });
+   621→
+   622→  const committeeMembers = [
+   623→    {
+   624→      name: "Sarah Chen",
+   625→      role: "President",
+   626→      description: "Leading the club's strategic vision and partnerships. Passionate about making cybersecurity accessible to all students.",
+   627→      department: "Computer Science",
+   628→      email: "president@cybersecclub.com",
+   629→      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/sarahchen", github: "https://github.com/sarahchen" }),
+   630→      order: 1,
+   631→      isActive: true,
+   632→    },
+   633→    {
+   634→      name: "Marcus Johnson",
+   635→      role: "Vice President",
+   636→      description: "Driving innovation and cross-team collaboration. Expert in penetration testing and security research.",
+   637→      department: "Information Security",
+   638→      email: "vp@cybersecclub.com",
+   639→      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/marcusjohnson", github: "https://github.com/marcusjohnson" }),
+   640→      order: 2,
+   641→      isActive: true,
+   642→    },
+   643→    {
+   644→      name: "Emily Rodriguez",
+   645→      role: "General Secretary",
+   646→      description: "Managing operations and member engagement. Keeping the club organized and running smoothly.",
+   647→      department: "Cybersecurity",
+   648→      email: "gs@cybersecclub.com",
+   649→      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/emilyrodriguez", twitter: "https://twitter.com/emilyrsec" }),
+   650→      order: 3,
+   651→      isActive: true,
+   652→    },
+   653→    {
+   654→      name: "David Kim",
+   655→      role: "Treasurer",
+   656→      description: "Overseeing financial governance and budgets. Ensuring transparent and responsible use of club resources.",
+   657→      department: "Finance & IT",
+   658→      email: "treasurer@cybersecclub.com",
+   659→      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/davidkim" }),
+   660→      order: 4,
+   661→      isActive: true,
+   662→    },
+   663→    {
+   664→      name: "Aisha Patel",
+   665→      role: "Media Lead",
+   666→      description: "Creating compelling content and social presence. Bringing the club's stories to life through visual media.",
+   667→      department: "Digital Media",
+   668→      email: "media@cybersecclub.com",
+   669→      socialLinks: JSON.stringify({ linkedin: "https://linkedin.com/in/aishapatel", twitter: "https://twitter.com/aishamedia", github: "https://github.com/aishapatel" }),
+   670→      order: 5,
+   671→      isActive: true,
+   672→    },
+   673→  ];
+   674→
+   675→  for (const m of committeeMembers) {
+   676→    const existing = await prisma.committeeMember.findFirst({ where: { name: m.name, role: m.role } });
+   677→    if (!existing) {
+   678→      await prisma.committeeMember.create({ data: m });
+   679→    }
+   680→  }
+   681→  console.log("✅ Committee Members seeded");
+   682→
+   683→  // Create demo gallery images
+   684→  if (mediaUser2) {
+   685→    const galleryImages = [
+   686→      {
+   687→        title: "Ethical Hacking Workshop 2024",
+   688→        description: "Students learning reconnaissance and vulnerability scanning techniques in our popular hands-on workshop.",
+   689→        imageUrl: "/uploads/gallery/placeholder-workshop-1.jpg",
+   690→        category: "WORKSHOP",
+   691→        uploadedBy: mediaUser2.id,
+   692→      },
+   693→      {
+   694→        title: "CTF Competition Finals",
+   695→        description: "Teams competing in the final round of our annual Capture The Flag competition.",
+   696→        imageUrl: "/uploads/gallery/placeholder-ctf-1.jpg",
+   697→        category: "CTF",
+   698→        uploadedBy: mediaUser2.id,
+   699→      },
+   700→      {
+   701→        title: "Career Panel Discussion",
+   702→        description: "Industry professionals sharing insights about cybersecurity careers and certifications.",
+   703→        imageUrl: "/uploads/gallery/placeholder-seminar-1.jpg",
+   704→        category: "SEMINAR",
+   705→        uploadedBy: mediaUser2.id,
+   706→      },
+   707→      {
+   708→        title: "Monthly Meetup - Threat Intel",
+   709→        description: "Community discussion on emerging threats and recent CVEs at our monthly meetup.",
+   710→        imageUrl: "/uploads/gallery/placeholder-meetup-1.jpg",
+   711→        category: "MEETUP",
+   712→        uploadedBy: mediaUser2.id,
+   713→      },
+   714→      {
+   715→        title: "Network Security Lab Setup",
+   716→        description: "Our new network security lab with enterprise-grade equipment for hands-on training.",
+   717→        imageUrl: "/uploads/gallery/placeholder-training-1.jpg",
+   718→        category: "EVENT",
+   719→        uploadedBy: mediaUser2.id,
+   720→      },
+   721→      {
+   722→        title: "Club Annual Gathering 2024",
+   723→        description: "The whole CyberSec Club community coming together for our annual celebration.",
+   724→        imageUrl: "/uploads/gallery/placeholder-general-1.jpg",
+   725→        category: "GENERAL",
+   726→        uploadedBy: mediaUser2.id,
+   727→      },
+   728→    ];
+   729→
+   730→    for (const g of galleryImages) {
+   731→      const existing = await prisma.galleryImage.findFirst({ where: { title: g.title } });
+   732→      if (!existing) {
+   733→        await prisma.galleryImage.create({ data: g });
+   734→      }
+   735→    }
+   736→    console.log("✅ Gallery Images seeded");
+   737→  }
+   738→
+   739→  // Create demo achievements
+   740→  if (presidentUser2 && mediaUser2) {
+   741→    const achievements = [
+   742→      {
+   743→        title: "National CTF Championship 2024",
+   744→        description: "Our team won first place in the National Capture The Flag competition, defeating 50+ teams from across the country.",
+   745→        category: "COMPETITION",
+   746→        achievedBy: "CyberSec CTF Team",
+   747→        achievedDate: new Date("2024-11-15"),
+   748→        status: "APPROVED",
+   749→        submittedBy: mediaUser2.id,
+   750→        approvedBy: presidentUser2.id,
+   751→      },
+   752→      {
+   753→        title: "Best Cybersecurity Club Award",
+   754→        description: "Recognized as the Best Cybersecurity Club at the National Student Organizations Conference 2024.",
+   755→        category: "ACADEMIC",
+   756→        achievedBy: "CyberSec Club",
+   757→        achievedDate: new Date("2024-09-20"),
+   758→        status: "APPROVED",
+   759→        submittedBy: mediaUser2.id,
+   760→        approvedBy: presidentUser2.id,
+   761→      },
+   762→      {
+   763→        title: "500+ Active Members Milestone",
+   764→        description: "Reached the milestone of 500+ active members, making us the largest cybersecurity student community in the region.",
+   765→        category: "COMMUNITY",
+   766→        achievedBy: "CyberSec Club",
+   767→        achievedDate: new Date("2024-06-01"),
+   768→        status: "APPROVED",
+   769→        submittedBy: mediaUser2.id,
+   770→        approvedBy: presidentUser2.id,
+   771→      },
+   772→      {
+   773→        title: "Industry Partnership with SecureTech",
+   774→        description: "Established a partnership with SecureTech Inc. for providing internship opportunities and workshop resources.",
+   775→        category: "INDUSTRY",
+   776→        achievedBy: "Partnership Team",
+   777→        achievedDate: new Date("2025-01-10"),
+   778→        status: "PENDING",
+   779→        submittedBy: mediaUser2.id,
+   780→      },
+   781→      {
+   782→        title: "100+ CompTIA Security+ Certified",
+   783→        description: "Over 100 club members have earned CompTIA Security+ certification through our study groups and training programs.",
+   784→        category: "CERTIFICATION",
+   785→        achievedBy: "Training Committee",
+   786→        achievedDate: new Date("2025-02-28"),
+   787→        status: "PENDING",
+   788→        submittedBy: mediaUser2.id,
+   789→      },
+   790→      {
+   791→        title: "Regional Hackathon Winners",
+   792→        description: "Our team secured first place in the Regional Cybersecurity Hackathon, solving real-world security challenges in record time.",
+   793→        category: "COMPETITION",
+   794→        achievedBy: "Hackathon Squad",
+   795→        achievedDate: new Date("2025-03-15"),
+   796→        status: "PENDING",
+   797→        submittedBy: mediaUser2.id,
+   798→      },
+   799→    ];
+   800→
+   801→    for (const a of achievements) {
+   802→      const existing = await prisma.achievement.findFirst({ where: { title: a.title } });
+   803→      if (!existing) {
+   804→        await prisma.achievement.create({ data: a });
+   805→      }
+   806→    }
+   807→    console.log("✅ Achievements seeded");
+   808→  }
+   809→
+   810→  console.log("🎉 Seeding complete!");
+   811→}
+   812→
+   813→main()
+   814→  .then(async () => {
+   815→    await prisma.$disconnect();
+   816→  })
+   817→  .catch(async (e) => {
+   818→    console.error(e);
+   819→    await prisma.$disconnect();
+   820→    process.exit(1);
+   821→  });
+   822→
