@@ -10,6 +10,7 @@ interface AppState {
   currentView: AppView;
   selectedEventId: string | null;
   selectedMemberId: string | null;
+  editingEventId: string | null; // When set, CreateEventPage pre-populates for editing
 
   // UI State
   sidebarOpen: boolean;
@@ -27,6 +28,7 @@ interface AppState {
   setCurrentView: (view: AppView) => void;
   setSelectedEventId: (id: string | null) => void;
   setSelectedMemberId: (id: string | null) => void;
+  setEditingEventId: (id: string | null) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setTheme: (theme: "light" | "dark") => void;
@@ -43,6 +45,7 @@ export const useAppStore = create<AppState>((set) => ({
   currentView: "landing",
   selectedEventId: null,
   selectedMemberId: null,
+  editingEventId: null,
   sidebarOpen: true,
   theme: "dark",
   certificateShareCode: null,
@@ -70,6 +73,7 @@ export const useAppStore = create<AppState>((set) => ({
       currentView: "landing",
       selectedEventId: null,
       selectedMemberId: null,
+      editingEventId: null,
     });
   },
 
@@ -78,6 +82,8 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedEventId: (id) => set({ selectedEventId: id }),
 
   setSelectedMemberId: (id) => set({ selectedMemberId: id }),
+
+  setEditingEventId: (id) => set({ editingEventId: id }),
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 

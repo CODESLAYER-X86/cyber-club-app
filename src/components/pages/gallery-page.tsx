@@ -104,7 +104,7 @@ const CATEGORY_CONFIG: Record<
 
 const CATEGORIES: GalleryCategory[] = ['EVENT', 'WORKSHOP', 'CTF', 'SEMINAR', 'MEETUP', 'GENERAL'];
 
-const UPLOAD_ROLES = ['MEDIA', 'PRESIDENT', 'PLATFORM_ADMIN'];
+const UPLOAD_ROLES = ['MEDIA', 'PRESIDENT', 'PLATFORM_ADMIN', 'GS'];
 
 // ── Animation variants ───────────────────────────────────────────
 

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Loader2, Calendar, MapPin, Users, FileText, ClipboardCheck, Info, Check } from 'lucide-react';
+import { ArrowLeft, Plus, Loader2, Calendar, MapPin, Users, FileText, ClipboardCheck, Info, Check, Pencil } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventType, EventCategory } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS } from '@/types';
@@ -36,9 +36,21 @@ function SectionHeader({ icon: Icon, title, description }: { icon: React.Compone
   );
 }
 
+function parsePaymentConfig(paymentConfig?: string | null) {
+  if (!paymentConfig) return null;
+  try {
+    return JSON.parse(paymentConfig);
+  } catch {
+    return null;
+  }
+}
+
 export function CreateEventPage() {
-  const { currentUser, setCurrentView } = useAppStore();
+  const { currentUser, setCurrentView, editingEventId, setEditingEventId } = useAppStore();
+  const isEditing = !!editingEventId;
+
   const [loading, setLoading] = useState(false);
+  const [fetchingEvent, setFetchingEvent] = useState(isEditing);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
@@ -56,20 +68,77 @@ export function CreateEventPage() {
     paymentDeadline: '',
   });
 
+  // When editing, fetch the existing event and pre-populate the form
+  useEffect(() => {
+    if (!editingEventId) return;
+    const fetchEvent = async () => {
+      setFetchingEvent(true);
+      try {
+        const res = await fetch(`/api/events/${editingEventId}`);
+        const data = await res.json();
+        if (data.success && data.data.event) {
+          const e = data.data.event;
+          const pc = parsePaymentConfig(e.paymentConfig);
+          // Format dates for datetime-local input
+          const toLocalDatetime = (iso: string) => {
+            const d = new Date(iso);
+            const offset = d.getTimezoneOffset();
+            const local = new Date(d.getTime() - offset * 60000);
+            return local.toISOString().slice(0, 16);
+          };
+          setForm({
+            title: e.title || '',
+            description: e.description || '',
+            type: (e.type || 'PUBLIC') as EventType,
+            category: (e.category || 'WORKSHOP') as EventCategory,
+            startDate: toLocalDatetime(e.startDate),
+            endDate: toLocalDatetime(e.endDate),
+            venue: e.venue || '',
+            fee: String(e.fee ?? 0),
+            maxSeats: e.maxSeats ? String(e.maxSeats) : '',
+            requiresAssessment: e.requiresAssessment ?? false,
+            passingScore: e.passingScore ? String(e.passingScore) : '60',
+            paymentRequired: pc?.paymentRequired ?? true,
+            bkashNumber: pc?.bkashNumber || '',
+            nagadNumber: pc?.nagadNumber || '',
+            rocketNumber: pc?.rocketNumber || '',
+            bankAccount: pc?.bankAccount || '',
+            paymentInstructions: pc?.paymentInstructions || '',
+            contactPersonName: pc?.contactPersonName || '',
+            contactPersonPhone: pc?.contactPersonPhone || '',
+            paymentDeadline: pc?.paymentDeadline ? toLocalDatetime(pc.paymentDeadline) : '',
+          });
+        } else {
+          setError('Failed to load event for editing');
+        }
+      } catch {
+        setError('Network error loading event');
+      } finally {
+        setFetchingEvent(false);
+      }
+    };
+    fetchEvent();
+  }, [editingEventId]);
+
+  // Clear editingEventId when leaving the page
+  useEffect(() => {
+    return () => {
+      setEditingEventId(null);
+    };
+  }, [setEditingEventId]);
+
   const update = (field: string, value: string | boolean) => {
     setForm(prev => ({ ...prev, [field]: value }));
-    // Auto-advance step based on field
     if (['title', 'description', 'type', 'category'].includes(field)) setActiveStep(1);
     if (['startDate', 'endDate', 'venue'].includes(field)) setActiveStep(2);
     if (['fee', 'maxSeats'].includes(field)) setActiveStep(3);
     if (['requiresAssessment', 'passingScore'].includes(field)) setActiveStep(4);
   };
 
-  // Check step completion
   const stepCompletion = [
     !!(form.title && form.description),
     !!(form.startDate && form.endDate && form.venue),
-    true, // fee/maxSeats are optional
+    true,
     !form.requiresAssessment || !!form.passingScore,
   ];
 
@@ -93,25 +162,51 @@ export function CreateEventPage() {
         paymentDeadline: form.paymentDeadline,
       };
 
-      const res = await fetch('/api/events', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          ...form,
-          fee: feeAmount,
-          maxSeats: form.maxSeats ? parseInt(form.maxSeats) : null,
-          passingScore: form.requiresAssessment ? parseFloat(form.passingScore) : null,
-          startDate: new Date(form.startDate).toISOString(),
-          endDate: new Date(form.endDate).toISOString(),
-          createdBy: currentUser.id,
-          status: 'UPCOMING',
-          paymentConfig,
-        }),
-      });
+      const payload = {
+        ...form,
+        fee: feeAmount,
+        maxSeats: form.maxSeats ? parseInt(form.maxSeats) : null,
+        passingScore: form.requiresAssessment ? parseFloat(form.passingScore) : null,
+        startDate: new Date(form.startDate).toISOString(),
+        endDate: new Date(form.endDate).toISOString(),
+        createdBy: currentUser.id,
+        status: 'UPCOMING' as const,
+        paymentConfig,
+      };
+
+      let res: Response;
+      if (isEditing && editingEventId) {
+        // PATCH for editing
+        res = await fetch(`/api/events/${editingEventId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      } else {
+        // POST for creating
+        res = await fetch('/api/events', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload),
+        });
+      }
       const data = await res.json();
-      if (data.success) { setSuccess(true); } else { setError(data.error || 'Failed to create event'); }
+      if (data.success) {
+        setSuccess(true);
+        if (isEditing) setEditingEventId(null);
+      } else {
+        setError(data.error || `Failed to ${isEditing ? 'update' : 'create'} event`);
+      }
     } catch { setError('Network error'); } finally { setLoading(false); }
   };
+
+  if (fetchingEvent) {
+    return (
+      <div className="flex h-[60vh] items-center justify-center">
+        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -120,8 +215,8 @@ export function CreateEventPage() {
           <div className="flex h-20 w-20 mx-auto items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/20 to-cyan-500/20 border border-emerald-500/20 mb-6">
             <Check className="h-10 w-10 text-emerald-400" />
           </div>
-          <p className="text-2xl font-bold text-emerald-400">Event Created!</p>
-          <p className="mt-2 text-gray-500">Your event has been successfully created.</p>
+          <p className="text-2xl font-bold text-emerald-400">Event {isEditing ? 'Updated' : 'Created'}!</p>
+          <p className="mt-2 text-gray-500">Your event has been successfully {isEditing ? 'updated' : 'created'}.</p>
           <Button onClick={() => setCurrentView('events')} className="mt-6 bg-emerald-600 text-white hover:bg-emerald-500">View Events</Button>
         </motion.div>
       </div>
@@ -143,15 +238,15 @@ export function CreateEventPage() {
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute -left-8 -bottom-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl" />
         <div className="relative flex items-center gap-4">
-          <Button variant="ghost" onClick={() => setCurrentView('events')} className="text-gray-400 hover:text-white mr-2 p-2">
+          <Button variant="ghost" onClick={() => { setEditingEventId(null); setCurrentView('events'); }} className="text-gray-400 hover:text-white mr-2 p-2">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
-            <Plus className="h-6 w-6 text-emerald-400" />
+            {isEditing ? <Pencil className="h-6 w-6 text-emerald-400" /> : <Plus className="h-6 w-6 text-emerald-400" />}
           </div>
           <div>
-            <h1 className="text-2xl font-bold text-white">Create New Event</h1>
-            <p className="text-sm text-gray-400">Set up a new club event or workshop</p>
+            <h1 className="text-2xl font-bold text-white">{isEditing ? 'Edit Event' : 'Create New Event'}</h1>
+            <p className="text-sm text-gray-400">{isEditing ? 'Update event details and settings' : 'Set up a new club event or workshop'}</p>
           </div>
         </div>
       </motion.div>
@@ -341,10 +436,10 @@ export function CreateEventPage() {
                 {/* Submit */}
                 <div className="flex gap-3 pt-2">
                   <Button type="submit" disabled={loading} className="bg-emerald-600 text-white hover:bg-emerald-500">
-                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Plus className="mr-2 h-4 w-4" />}
-                    Create Event
+                    {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isEditing ? <Pencil className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
+                    {isEditing ? 'Update Event' : 'Create Event'}
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => setCurrentView('events')} className="text-gray-400">Cancel</Button>
+                  <Button type="button" variant="ghost" onClick={() => { setEditingEventId(null); setCurrentView('events'); }} className="text-gray-400">Cancel</Button>
                 </div>
               </form>
             </CardContent>

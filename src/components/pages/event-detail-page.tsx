@@ -33,7 +33,7 @@ const parsePaymentConfig = (paymentConfig?: string | null) => {
   }
 };
 export function EventDetailPage() {
-  const { currentUser, selectedEventId, setCurrentView } = useAppStore();
+  const { currentUser, selectedEventId, setCurrentView, setSelectedEventId, setEditingEventId } = useAppStore();
   const [event, setEvent] = useState<EventDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -240,6 +240,10 @@ export function EventDetailPage() {
   };
 
   const handleEdit = () => {
+    if (event) {
+      setSelectedEventId(event.id);
+      setEditingEventId(event.id);
+    }
     setCurrentView('create-event');
   };
 

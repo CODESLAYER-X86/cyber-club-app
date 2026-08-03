@@ -166,6 +166,7 @@ export function FinancePage() {
       </div>
 
       {/* Quick Navigation Cards */}
+      {currentUser && ['PRESIDENT', 'GS', 'TREASURER', 'PLATFORM_ADMIN', 'VP'].includes(currentUser.role) && (
       <div className="grid gap-4 sm:grid-cols-2">
         <motion.div
           initial={{ opacity: 0, y: 20 }}
@@ -218,6 +219,7 @@ export function FinancePage() {
           </Card>
         </motion.div>
       </div>
+      )}
 
       {/* Recent Activity */}
       <motion.div
