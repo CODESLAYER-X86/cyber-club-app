@@ -64,10 +64,17 @@ export function DepositsPage() {
     setLoading(true);
     try {
       const r = await fetch('/api/treasury/deposits');
+      if (!r.ok) {
+        console.error('[Deposits] Load failed:', r.status, r.statusText);
+        toast({ title: 'Error', description: `Failed to load deposits (${r.status})`, variant: 'destructive' });
+        return;
+      }
       const d = await r.json();
       if (d.success) setDeposits(d.data.deposits || []);
+      else toast({ title: 'Error', description: d.error || 'Failed to load deposits', variant: 'destructive' });
     } catch (e) {
-      console.error(e);
+      console.error('[Deposits] Load error:', e);
+      toast({ title: 'Error', description: 'Network error loading deposits', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -80,14 +87,31 @@ export function DepositsPage() {
     if (!currentUser) return;
     setSubmitting(true);
     try {
+      // Validate amount before sending
+      const parsedAmount = parseFloat(form.amount);
+      if (isNaN(parsedAmount) || parsedAmount <= 0) {
+        toast({ title: 'Error', description: 'Please enter a valid amount greater than 0', variant: 'destructive' });
+        setSubmitting(false);
+        return;
+      }
+
       const r = await fetch('/api/treasury/deposits', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...form,
-          amount: parseFloat(form.amount),
+          amount: parsedAmount,
         }),
       });
+
+      if (!r.ok) {
+        // Server returned non-200 — try to parse error, fall back to status text
+        let errorMsg = `Server error (${r.status})`;
+        try { const d = await r.json(); errorMsg = d.error || errorMsg; } catch {}
+        toast({ title: 'Error', description: errorMsg, variant: 'destructive' });
+        return;
+      }
+
       const d = await r.json();
       if (d.success) {
         toast({ title: 'Deposit submitted', description: 'Awaiting approval from President and GS.', variant: 'default' });

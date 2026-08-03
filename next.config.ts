@@ -3,6 +3,12 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   output: "standalone",
 
+  // Fix Turbopack workspace root detection — ensure module resolution
+  // starts from the cyber-club-app directory, not the parent workspace root
+  turbopack: {
+    root: ".",
+  },
+
   // Mobile and performance optimizations
   compress: true,
   poweredByHeader: false,

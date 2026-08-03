@@ -10,15 +10,17 @@ function createClient(): PrismaClient {
   const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
 
   if (!connectionString) {
-    throw new Error("Database connection is not configured");
+    // Log clearly instead of throwing silently — this is a deployment config issue
+    console.error('[db] FATAL: Neither DIRECT_URL nor DATABASE_URL is set. All DB queries will fail.');
+    throw new Error("Database connection is not configured. Set DIRECT_URL or DATABASE_URL environment variable.");
   }
 
   const pool = new Pool({
     connectionString,
     ssl: { rejectUnauthorized: false }, // Supabase requires SSL
-    max: 2, // Restrict pool size in serverless/edge to prevent connection exhaustion
+    max: 5, // Allow enough connections for concurrent API requests
     idleTimeoutMillis: 30000,
-    connectionTimeoutMillis: 2000,
+    connectionTimeoutMillis: 5000, // 5s timeout — Supabase cold starts can be slow
   });
 
   const adapter = new PrismaPg(pool);

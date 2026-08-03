@@ -45,12 +45,13 @@ export async function POST(request: NextRequest) {
     const { date, amount, source, note, attachmentUrl } = body;
 
     // Validate required fields
-    if (!date || !amount || !source) {
-      return errorResponse('Date, amount, and source are required', 400);
+    if (!date || !source) {
+      return errorResponse('Date and source are required', 400);
     }
 
-    if (amount <= 0) {
-      return errorResponse('Amount must be greater than 0', 400);
+    const parsedAmount = typeof amount === 'number' ? amount : parseFloat(String(amount));
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      return errorResponse('Amount must be a valid number greater than 0', 400);
     }
 
     const validSources = [
@@ -64,7 +65,7 @@ export async function POST(request: NextRequest) {
     const deposit = await prisma.treasuryDeposit.create({
       data: {
         date: new Date(date),
-        amount: parseFloat(amount),
+        amount: parsedAmount,
         source,
         note: note || null,
         attachmentUrl: attachmentUrl || null,

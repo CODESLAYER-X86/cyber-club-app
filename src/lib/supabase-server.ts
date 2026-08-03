@@ -51,7 +51,10 @@ export async function getSupabaseUser(allowedRoles?: string[]): Promise<{
     if (allowedRoles && !allowedRoles.includes(dbUser.role)) return null;
 
     return { userId: dbUser.id, email: user.email, role: dbUser.role };
-  } catch {
+  } catch (e) {
+    // Log the real error so 403s aren't mistaken for auth issues when the
+    // actual cause is a DB connection failure, missing env var, etc.
+    console.error('[getSupabaseUser] Error:', e);
     return null;
   }
 }
