@@ -1929,11 +1929,26 @@ export function CertificateDesigner() {
               ))}
 
               {/* Certificate Type Banner — synced with textElements.certificateTitle */}
-              <g transform={`translate(${textElements.certificateTitle?.x ? textElements.certificateTitle.x - 130 : width / 2 - 130}, ${textElements.certificateTitle?.y ? textElements.certificateTitle.y - 20 : isLandscape ? 465 : 520})`}>
-                <rect width="260" height="32" rx="16" fill="url(#typeGradPreview)" opacity="0.2" />
-                <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
-                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize={textElements.certificateTitle?.fontSize || 12} fontWeight="bold" fill={textElements.certificateTitle?.color || textColors.certificateTitle || '#ffffff'}>{textElements.certificateTitle?.text || previewTitle}</text>
-              </g>
+              {(() => {
+                const certTitleText = textElements.certificateTitle?.text || previewTitle;
+                const certTitleFontSize = textElements.certificateTitle?.fontSize || 12;
+                // Estimate text width: avg char width ≈ 0.55 * fontSize for sans-serif bold
+                const estimatedTextWidth = certTitleText.length * certTitleFontSize * 0.55;
+                const boxPaddingX = 30; // horizontal padding inside box
+                const boxPaddingY = 10; // vertical padding inside box
+                const boxWidth = Math.max(120, estimatedTextWidth + boxPaddingX * 2);
+                const boxHeight = Math.max(28, certTitleFontSize + boxPaddingY * 2);
+                const boxRx = boxHeight / 2; // pill shape
+                const boxX = textElements.certificateTitle?.x ?? (width / 2);
+                const boxY = textElements.certificateTitle?.y ?? (isLandscape ? 485 : 540);
+                return (
+                  <g transform={`translate(${boxX - boxWidth / 2}, ${boxY - boxHeight / 2})`}>
+                    <rect width={boxWidth} height={boxHeight} rx={boxRx} fill="url(#typeGradPreview)" opacity="0.2" />
+                    <rect width={boxWidth} height={boxHeight} rx={boxRx} fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
+                    <text x={boxWidth / 2} y={boxHeight / 2 + certTitleFontSize * 0.35} textAnchor="middle" fontFamily="sans-serif" fontSize={certTitleFontSize} fontWeight="bold" fill={textElements.certificateTitle?.color || textColors.certificateTitle || '#ffffff'}>{certTitleText}</text>
+                  </g>
+                );
+              })()}
 
               {/* Certificate ID rendered via textElements — no duplicate */}
 
