@@ -31,13 +31,13 @@ const defaultTemplates: CertificateTemplate[] = [
 ]
 
 const defaultElements: CertificateElement[] = [
-  { id: 'title', type: 'title', label: 'Certificate Title', text: 'CERTIFICATE OF PARTICIPATION', fontSize: 28, color: '#8B0000', fontWeight: 'bold', visible: true, x: 50, y: 15 },
-  { id: 'headerTitle', type: 'headerTitle', label: 'Header Title', text: 'CYBER SECURITY CLUB', fontSize: 16, color: '#333333', fontWeight: 'bold', visible: true, x: 50, y: 5 },
-  { id: 'headerSubtitle', type: 'headerSubtitle', label: 'Header Subtitle', text: 'DHAKA INTERNATIONAL UNIVERSITY', fontSize: 11, color: '#666666', fontWeight: 'normal', visible: true, x: 50, y: 8 },
-  { id: 'introText', type: 'introText', label: 'Intro Text', text: 'This is to certify that', fontSize: 14, color: '#444444', fontWeight: 'normal', visible: true, x: 50, y: 30 },
-  { id: 'recipientName', type: 'recipientName', label: 'Recipient Name', text: 'Md. Rahim Uddin Shuvo', fontSize: 26, color: '#0D7377', fontWeight: 'bold', visible: true, x: 50, y: 40 },
-  { id: 'eventLabel', type: 'eventLabel', label: 'Event Label', text: 'has successfully participated in', fontSize: 13, color: '#555555', fontWeight: 'normal', visible: true, x: 50, y: 50 },
-  { id: 'eventName', type: 'eventName', label: 'Event Name', text: 'CyberSec Workshop 2026', fontSize: 18, color: '#8B0000', fontWeight: 'bold', visible: true, x: 50, y: 58 },
+  { id: 'title', type: 'title', label: 'Certificate Title', text: 'CERTIFICATE OF PARTICIPATION', fontSize: 28, color: '#8B0000', fontWeight: 'bold', visible: true, x: 50, y: 24 },
+  { id: 'headerTitle', type: 'headerTitle', label: 'Header Title', text: 'CYBER SECURITY CLUB', fontSize: 16, color: '#333333', fontWeight: 'bold', visible: true, x: 50, y: 14 },
+  { id: 'headerSubtitle', type: 'headerSubtitle', label: 'Header Subtitle', text: 'DHAKA INTERNATIONAL UNIVERSITY', fontSize: 11, color: '#666666', fontWeight: 'normal', visible: true, x: 50, y: 17 },
+  { id: 'introText', type: 'introText', label: 'Intro Text', text: 'This is to certify that', fontSize: 14, color: '#444444', fontWeight: 'normal', visible: true, x: 50, y: 35 },
+  { id: 'recipientName', type: 'recipientName', label: 'Recipient Name', text: 'Md. Rahim Uddin Shuvo', fontSize: 26, color: '#0D7377', fontWeight: 'bold', visible: true, x: 50, y: 44 },
+  { id: 'eventLabel', type: 'eventLabel', label: 'Event Label', text: 'has successfully participated in', fontSize: 13, color: '#555555', fontWeight: 'normal', visible: true, x: 50, y: 53 },
+  { id: 'eventName', type: 'eventName', label: 'Event Name', text: 'CyberSec Workshop 2026', fontSize: 18, color: '#8B0000', fontWeight: 'bold', visible: true, x: 50, y: 60 },
   { id: 'descriptionText', type: 'descriptionText', label: 'Description Text', text: 'Demonstrated exceptional skills in cybersecurity practices and ethical hacking methodologies.', fontSize: 11, color: '#777777', fontWeight: 'normal', visible: true, x: 50, y: 67 },
   { id: 'certificateId', type: 'certificateId', label: 'Certificate ID', text: 'CSC-2026-CYBERSEC-00125', fontSize: 10, color: '#0D7377', fontWeight: 'bold', visible: true, x: 50, y: 88 },
   { id: 'footerText', type: 'footerText', label: 'Footer Text', text: 'This certificate can be verified at', fontSize: 9, color: '#999999', fontWeight: 'normal', visible: true, x: 50, y: 92 },

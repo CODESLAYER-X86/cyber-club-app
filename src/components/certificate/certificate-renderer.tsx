@@ -108,13 +108,14 @@ export function CertificateRenderer({
         alt="Club Logo"
         style={{
           position: 'absolute',
-          top: '2%',
+          top: '1%',
           left: '50%',
           transform: 'translate(-50%, 0)',
-          width: '50px',
-          height: '50px',
+          width: '65px',
+          height: '65px',
           objectFit: 'contain',
-          opacity: 0.85,
+          opacity: 0.9,
+          zIndex: 2,
         }}
       />
 

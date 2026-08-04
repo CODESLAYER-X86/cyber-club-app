@@ -50,7 +50,7 @@ export function CreateEventPage() {
   const isEditing = !!editingEventId;
 
   const [loading, setLoading] = useState(false);
-  const [fetchingEvent, setFetchingEvent] = useState(isEditing);
+  const [fetchingEvent, setFetchingEvent] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
@@ -71,8 +71,8 @@ export function CreateEventPage() {
   // When editing, fetch the existing event and pre-populate the form
   useEffect(() => {
     if (!editingEventId) return;
+    setFetchingEvent(true);
     const fetchEvent = async () => {
-      setFetchingEvent(true);
       try {
         const res = await fetch(`/api/events/${editingEventId}`);
         const data = await res.json();
@@ -119,13 +119,6 @@ export function CreateEventPage() {
     };
     fetchEvent();
   }, [editingEventId]);
-
-  // Clear editingEventId when leaving the page
-  useEffect(() => {
-    return () => {
-      setEditingEventId(null);
-    };
-  }, [setEditingEventId]);
 
   const update = (field: string, value: string | boolean) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -217,7 +210,7 @@ export function CreateEventPage() {
           </div>
           <p className="text-2xl font-bold text-emerald-400">Event {isEditing ? 'Updated' : 'Created'}!</p>
           <p className="mt-2 text-gray-500">Your event has been successfully {isEditing ? 'updated' : 'created'}.</p>
-          <Button onClick={() => setCurrentView('events')} className="mt-6 bg-emerald-600 text-white hover:bg-emerald-500">View Events</Button>
+          <Button onClick={() => { setEditingEventId(null); setCurrentView('events'); }} className="mt-6 bg-emerald-600 text-white hover:bg-emerald-500">View Events</Button>
         </motion.div>
       </div>
     );

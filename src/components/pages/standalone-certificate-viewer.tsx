@@ -381,7 +381,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
               {layout.clubLogo ? (
                 logos.clubLogo.visible && <image x={logos.clubLogo.x} y={logos.clubLogo.y} width={logos.clubLogo.w} height={logos.clubLogo.h} opacity={logos.clubLogo.opacity} href={base64Images[layout.clubLogo] || layout.clubLogo} />
               ) : (
-                logos.clubLogo.visible && <image x={logos.clubLogo.x} y={logos.clubLogo.y} width={logos.clubLogo.w} height={logos.clubLogo.h} href={base64Images['/logo.svg'] || '/logo.svg'} />
+                logos.clubLogo.visible && <image x={logos.clubLogo.x} y={logos.clubLogo.y} width={logos.clubLogo.w} height={logos.clubLogo.h} href={base64Images['/certificate/logo.png'] || '/certificate/logo.png'} />
               )}
 
               {/* Text Elements — ALL read from saved layout textElements */}
@@ -391,7 +391,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
               {renderEl(el.recipientName, 'url(#textGrad)')}
               {renderEl(el.eventLabel)}
               {renderEl(el.eventName)}
-              {renderEl(el.certificateTitle)}
+
               {renderEl(el.description)}
 
               {/* Certificate Type Banner — synced with textElements.certificateTitle */}
