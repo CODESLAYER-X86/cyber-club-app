@@ -4,7 +4,7 @@ import { create } from 'zustand'
 
 export interface CertificateElement {
   id: string
-  type: 'title' | 'headerTitle' | 'headerSubtitle' | 'introText' | 'recipientName' | 'eventLabel' | 'eventName' | 'descriptionText' | 'certificateId' | 'footerText' | 'signatureName' | 'signatureTitle'
+  type: 'title' | 'headerTitle' | 'headerSubtitle' | 'introText' | 'recipientName' | 'eventLabel' | 'eventName' | 'descriptionText' | 'certificateId' | 'footerText' | 'signatureName' | 'signatureTitle' | 'certificateType'
   label: string
   text: string
   fontSize: number
@@ -43,6 +43,7 @@ const defaultElements: CertificateElement[] = [
   { id: 'footerText', type: 'footerText', label: 'Footer Text', text: 'This certificate can be verified at', fontSize: 9, color: '#999999', fontWeight: 'normal', visible: true, x: 50, y: 92 },
   { id: 'signatureName', type: 'signatureName', label: 'Signature Name', text: 'Dr. Ahmad Hassan', fontSize: 12, color: '#333333', fontWeight: 'bold', visible: true, x: 30, y: 80 },
   { id: 'signatureTitle', type: 'signatureTitle', label: 'Signature Title', text: 'Club Advisor', fontSize: 10, color: '#666666', fontWeight: 'normal', visible: true, x: 30, y: 83 },
+  { id: 'certificateType', type: 'certificateType', label: 'Certificate Type', text: 'PARTICIPATION', fontSize: 12, color: '#D4AF37', fontWeight: 'bold', visible: true, x: 50, y: 72 },
 ]
 
 interface CertificateStore {

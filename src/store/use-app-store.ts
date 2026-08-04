@@ -1,6 +1,23 @@
 import { create } from "zustand";
 import type { User, AppView, Event, Notification as AppNotification } from "@/types";
 
+// Partial event data for editing — only the fields the form needs
+export interface EditingEventData {
+  id: string;
+  title: string;
+  description: string;
+  type: string;
+  category: string;
+  startDate: string;
+  endDate: string;
+  venue: string;
+  fee: number;
+  maxSeats: number | null;
+  requiresAssessment: boolean;
+  passingScore: number | null;
+  paymentConfig: string | null;
+}
+
 interface AppState {
   // Auth
   currentUser: User | null;
@@ -11,6 +28,7 @@ interface AppState {
   selectedEventId: string | null;
   selectedMemberId: string | null;
   editingEventId: string | null; // When set, CreateEventPage pre-populates for editing
+  editingEventData: EditingEventData | null; // Event data snapshot for editing
 
   // UI State
   sidebarOpen: boolean;
@@ -29,6 +47,7 @@ interface AppState {
   setSelectedEventId: (id: string | null) => void;
   setSelectedMemberId: (id: string | null) => void;
   setEditingEventId: (id: string | null) => void;
+  setEditingEventData: (data: EditingEventData | null) => void;
   toggleSidebar: () => void;
   setSidebarOpen: (open: boolean) => void;
   setTheme: (theme: "light" | "dark") => void;
@@ -46,6 +65,7 @@ export const useAppStore = create<AppState>((set) => ({
   selectedEventId: null,
   selectedMemberId: null,
   editingEventId: null,
+  editingEventData: null,
   sidebarOpen: true,
   theme: "dark",
   certificateShareCode: null,
@@ -74,6 +94,7 @@ export const useAppStore = create<AppState>((set) => ({
       selectedEventId: null,
       selectedMemberId: null,
       editingEventId: null,
+      editingEventData: null,
     });
   },
 
@@ -84,6 +105,8 @@ export const useAppStore = create<AppState>((set) => ({
   setSelectedMemberId: (id) => set({ selectedMemberId: id }),
 
   setEditingEventId: (id) => set({ editingEventId: id }),
+
+  setEditingEventData: (data) => set({ editingEventData: data }),
 
   toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 

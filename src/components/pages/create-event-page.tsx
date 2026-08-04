@@ -46,14 +46,14 @@ function parsePaymentConfig(paymentConfig?: string | null) {
 }
 
 export function CreateEventPage() {
-  const { currentUser, setCurrentView, editingEventId, setEditingEventId } = useAppStore();
+  const { currentUser, setCurrentView, editingEventId, setEditingEventId, editingEventData, setEditingEventData } = useAppStore();
   const isEditing = !!editingEventId;
 
   const [loading, setLoading] = useState(false);
-  const [fetchingEvent, setFetchingEvent] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
   const [activeStep, setActiveStep] = useState(1);
+  const [formPopulated, setFormPopulated] = useState(false);
   const [form, setForm] = useState({
     title: '', description: '', type: 'PUBLIC' as EventType, category: 'WORKSHOP' as EventCategory,
     startDate: '', endDate: '', venue: '', fee: '0', maxSeats: '', requiresAssessment: false, passingScore: '60',
@@ -68,57 +68,43 @@ export function CreateEventPage() {
     paymentDeadline: '',
   });
 
-  // When editing, fetch the existing event and pre-populate the form
+  // When editing, pre-populate the form from the event data snapshot in the store
   useEffect(() => {
-    if (!editingEventId) return;
-    setFetchingEvent(true);
-    const fetchEvent = async () => {
-      try {
-        const res = await fetch(`/api/events/${editingEventId}`);
-        const data = await res.json();
-        if (data.success && data.data.event) {
-          const e = data.data.event;
-          const pc = parsePaymentConfig(e.paymentConfig);
-          // Format dates for datetime-local input
-          const toLocalDatetime = (iso: string) => {
-            const d = new Date(iso);
-            const offset = d.getTimezoneOffset();
-            const local = new Date(d.getTime() - offset * 60000);
-            return local.toISOString().slice(0, 16);
-          };
-          setForm({
-            title: e.title || '',
-            description: e.description || '',
-            type: (e.type || 'PUBLIC') as EventType,
-            category: (e.category || 'WORKSHOP') as EventCategory,
-            startDate: toLocalDatetime(e.startDate),
-            endDate: toLocalDatetime(e.endDate),
-            venue: e.venue || '',
-            fee: String(e.fee ?? 0),
-            maxSeats: e.maxSeats ? String(e.maxSeats) : '',
-            requiresAssessment: e.requiresAssessment ?? false,
-            passingScore: e.passingScore ? String(e.passingScore) : '60',
-            paymentRequired: pc?.paymentRequired ?? true,
-            bkashNumber: pc?.bkashNumber || '',
-            nagadNumber: pc?.nagadNumber || '',
-            rocketNumber: pc?.rocketNumber || '',
-            bankAccount: pc?.bankAccount || '',
-            paymentInstructions: pc?.paymentInstructions || '',
-            contactPersonName: pc?.contactPersonName || '',
-            contactPersonPhone: pc?.contactPersonPhone || '',
-            paymentDeadline: pc?.paymentDeadline ? toLocalDatetime(pc.paymentDeadline) : '',
-          });
-        } else {
-          setError('Failed to load event for editing');
-        }
-      } catch {
-        setError('Network error loading event');
-      } finally {
-        setFetchingEvent(false);
-      }
+    if (!editingEventData || formPopulated) return;
+
+    const e = editingEventData;
+    const pc = parsePaymentConfig(e.paymentConfig);
+    // Format dates for datetime-local input
+    const toLocalDatetime = (iso: string) => {
+      const d = new Date(iso);
+      const offset = d.getTimezoneOffset();
+      const local = new Date(d.getTime() - offset * 60000);
+      return local.toISOString().slice(0, 16);
     };
-    fetchEvent();
-  }, [editingEventId]);
+    setForm({
+      title: e.title || '',
+      description: e.description || '',
+      type: (e.type || 'PUBLIC') as EventType,
+      category: (e.category || 'WORKSHOP') as EventCategory,
+      startDate: toLocalDatetime(e.startDate),
+      endDate: toLocalDatetime(e.endDate),
+      venue: e.venue || '',
+      fee: String(e.fee ?? 0),
+      maxSeats: e.maxSeats ? String(e.maxSeats) : '',
+      requiresAssessment: e.requiresAssessment ?? false,
+      passingScore: e.passingScore ? String(e.passingScore) : '60',
+      paymentRequired: pc?.paymentRequired ?? true,
+      bkashNumber: pc?.bkashNumber || '',
+      nagadNumber: pc?.nagadNumber || '',
+      rocketNumber: pc?.rocketNumber || '',
+      bankAccount: pc?.bankAccount || '',
+      paymentInstructions: pc?.paymentInstructions || '',
+      contactPersonName: pc?.contactPersonName || '',
+      contactPersonPhone: pc?.contactPersonPhone || '',
+      paymentDeadline: pc?.paymentDeadline ? toLocalDatetime(pc.paymentDeadline) : '',
+    });
+    setFormPopulated(true);
+  }, [editingEventData, formPopulated]);
 
   const update = (field: string, value: string | boolean) => {
     setForm(prev => ({ ...prev, [field]: value }));
@@ -186,20 +172,12 @@ export function CreateEventPage() {
       const data = await res.json();
       if (data.success) {
         setSuccess(true);
-        if (isEditing) setEditingEventId(null);
+        if (isEditing) { setEditingEventId(null); setEditingEventData(null); }
       } else {
         setError(data.error || `Failed to ${isEditing ? 'update' : 'create'} event`);
       }
     } catch { setError('Network error'); } finally { setLoading(false); }
   };
-
-  if (fetchingEvent) {
-    return (
-      <div className="flex h-[60vh] items-center justify-center">
-        <Loader2 className="h-8 w-8 animate-spin text-emerald-400" />
-      </div>
-    );
-  }
 
   if (success) {
     return (
@@ -210,7 +188,7 @@ export function CreateEventPage() {
           </div>
           <p className="text-2xl font-bold text-emerald-400">Event {isEditing ? 'Updated' : 'Created'}!</p>
           <p className="mt-2 text-gray-500">Your event has been successfully {isEditing ? 'updated' : 'created'}.</p>
-          <Button onClick={() => { setEditingEventId(null); setCurrentView('events'); }} className="mt-6 bg-emerald-600 text-white hover:bg-emerald-500">View Events</Button>
+          <Button onClick={() => { setEditingEventId(null); setEditingEventData(null); setCurrentView('events'); }} className="mt-6 bg-emerald-600 text-white hover:bg-emerald-500">View Events</Button>
         </motion.div>
       </div>
     );
@@ -231,7 +209,7 @@ export function CreateEventPage() {
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute -left-8 -bottom-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl" />
         <div className="relative flex items-center gap-4">
-          <Button variant="ghost" onClick={() => { setEditingEventId(null); setCurrentView('events'); }} className="text-gray-400 hover:text-white mr-2 p-2">
+          <Button variant="ghost" onClick={() => { setEditingEventId(null); setEditingEventData(null); setCurrentView('events'); }} className="text-gray-400 hover:text-white mr-2 p-2">
             <ArrowLeft className="h-4 w-4" />
           </Button>
           <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
@@ -432,7 +410,7 @@ export function CreateEventPage() {
                     {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : isEditing ? <Pencil className="mr-2 h-4 w-4" /> : <Plus className="mr-2 h-4 w-4" />}
                     {isEditing ? 'Update Event' : 'Create Event'}
                   </Button>
-                  <Button type="button" variant="ghost" onClick={() => { setEditingEventId(null); setCurrentView('events'); }} className="text-gray-400">Cancel</Button>
+                  <Button type="button" variant="ghost" onClick={() => { setEditingEventId(null); setEditingEventData(null); setCurrentView('events'); }} className="text-gray-400">Cancel</Button>
                 </div>
               </form>
             </CardContent>

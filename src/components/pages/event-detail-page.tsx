@@ -33,7 +33,7 @@ const parsePaymentConfig = (paymentConfig?: string | null) => {
   }
 };
 export function EventDetailPage() {
-  const { currentUser, selectedEventId, setCurrentView, setSelectedEventId, setEditingEventId } = useAppStore();
+  const { currentUser, selectedEventId, setCurrentView, setSelectedEventId, setEditingEventId, setEditingEventData } = useAppStore();
   const [event, setEvent] = useState<EventDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -243,6 +243,22 @@ export function EventDetailPage() {
     if (event) {
       setSelectedEventId(event.id);
       setEditingEventId(event.id);
+      // Store event data snapshot so the create form can pre-populate without fetching
+      setEditingEventData({
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        type: event.type,
+        category: event.category,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        venue: event.venue,
+        fee: event.fee,
+        maxSeats: event.maxSeats ?? null,
+        requiresAssessment: event.requiresAssessment,
+        passingScore: event.passingScore ?? null,
+        paymentConfig: event.paymentConfig ?? null,
+      });
     }
     setCurrentView('create-event');
   };
