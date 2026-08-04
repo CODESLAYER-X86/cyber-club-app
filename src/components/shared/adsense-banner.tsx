@@ -2,23 +2,24 @@
 
 import { useEffect } from 'react';
 
+const AD_CLIENT = process.env.NEXT_PUBLIC_ADSENSE_CLIENT_ID || 'ca-pub-3216427245362717';
+const AD_SLOT = process.env.NEXT_PUBLIC_ADSENSE_SLOT_ID || '';
+
 interface AdSenseBannerProps {
   className?: string;
-  adClient?: string;
-  adSlot?: string;
 }
 
 export function AdSenseBanner({
   className = '',
-  adClient = 'ca-pub-XXXXXXXXXXXXXXXX', // Placeholder for user to update
-  adSlot = 'XXXXXXXXXX', // Placeholder for user to update
 }: AdSenseBannerProps) {
+  // Don't render anything if no client ID
+  if (!AD_CLIENT || AD_CLIENT.startsWith('XXXX')) return null;
+
   useEffect(() => {
     try {
+      // Push ad request after component mounts
       const adsbygoogle = (window as any).adsbygoogle || [];
-      if (adsbygoogle.length === 0) {
-        adsbygoogle.push({});
-      }
+      adsbygoogle.push({});
     } catch (e) {
       console.error('AdSense error:', e);
     }
@@ -31,15 +32,12 @@ export function AdSenseBanner({
         <ins
           className="adsbygoogle"
           style={{ display: 'inline-block', width: '728px', height: '90px' }}
-          data-ad-client={adClient}
-          data-ad-slot={adSlot}
+          data-ad-client={AD_CLIENT}
+          data-ad-slot={AD_SLOT}
+          data-ad-format="auto"
+          data-full-width-responsive="true"
         />
       </div>
-      <script
-        async
-        src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-XXXXXXXXXXXXXXXX"
-        crossOrigin="anonymous"
-      />
     </div>
   );
 }

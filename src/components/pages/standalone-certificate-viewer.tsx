@@ -483,12 +483,18 @@ function signaturesHtml(
       const titleColor = savedLayout?.titleColor || textColors?.signatureTitle || '#6b7280';
       const sigImgW = savedLayout?.imageWidth ?? 100;
       const sigImgH = savedLayout?.imageHeight ?? 50;
+      const sigImgX = savedLayout?.imageX ?? (xPos - sigImgW / 2);
+      const sigImgY = savedLayout?.imageY ?? (yPos - sigImgH - 10);
       return (
-        <g key={idx} transform={`translate(${xPos}, ${yPos})`}>
-          <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-          {sig.image && <image x={-sigImgW / 2} y={-sigImgH - 10} width={sigImgW} height={sigImgH} href={base64Images[sig.image] || sig.image} preserveAspectRatio="xMidYMid meet" />}
-          <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize={nameFontSize} fontWeight="bold" fill={nameColor}>{sig.name}</text>
-          <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize={titleFontSize} fill={titleColor}>{sig.title}</text>
+        <g key={idx}>
+          {/* Signature image at independent position */}
+          {sig.image && <image x={sigImgX} y={sigImgY} width={sigImgW} height={sigImgH} href={base64Images[sig.image] || sig.image} preserveAspectRatio="xMidYMid meet" />}
+          {/* Signature line + name + title */}
+          <g transform={`translate(${xPos}, ${yPos})`}>
+            <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+            <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize={nameFontSize} fontWeight="bold" fill={nameColor}>{sig.name}</text>
+            <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize={titleFontSize} fill={titleColor}>{sig.title}</text>
+          </g>
         </g>
       );
     });

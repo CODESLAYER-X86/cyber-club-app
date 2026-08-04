@@ -37,6 +37,7 @@ type SelectedElement =
   | { kind: 'text'; key: TextElementKey }
   | { kind: 'logo'; key: LogoKey }
   | { kind: 'signature'; index: number }
+  | { kind: 'signatureImage'; index: number }
   | null;
 
 interface PositionedTextElement {
@@ -71,6 +72,8 @@ interface SignatureLayout {
   titleColor: string;
   imageWidth?: number;
   imageHeight?: number;
+  imageX?: number;
+  imageY?: number;
 }
 
 interface SignatureConfig {
@@ -261,7 +264,7 @@ export function CertificateDesigner() {
   const [signatureLayouts, setSignatureLayouts] = useState<SignatureLayout[]>(() => createDefaultSignatureLayouts(true));
   const [selectedElement, setSelectedElement] = useState<SelectedElement>(null);
   const [dragState, setDragState] = useState<{
-    kind: 'text' | 'logo' | 'signature';
+    kind: 'text' | 'logo' | 'signature' | 'signatureImage';
     key: TextElementKey | LogoKey | number;
     mode: 'move' | 'resize';
     startPointerX: number;
@@ -507,7 +510,7 @@ export function CertificateDesigner() {
   /* ─── Drag & Resize ─── */
 
   const beginDrag = (
-    kind: 'text' | 'logo' | 'signature',
+    kind: 'text' | 'logo' | 'signature' | 'signatureImage',
     key: TextElementKey | LogoKey | number,
     mode: 'move' | 'resize',
     event: React.PointerEvent,
@@ -517,7 +520,7 @@ export function CertificateDesigner() {
     event.preventDefault();
     event.stopPropagation();
     const point = svgPointFromEvent(event);
-    setSelectedElement(kind === 'signature' ? { kind, index: key as number } : { kind, key: key as any });
+    setSelectedElement(kind === 'signature' || kind === 'signatureImage' ? { kind, index: key as number } : { kind, key: key as any });
     setDragState({
       kind,
       key,
@@ -629,6 +632,15 @@ export function CertificateDesigner() {
           const snapped = snapToGuides(nextX, nextY);
           updateSignatureLayout(index, { x: snapped.x, y: snapped.y });
           setAlignmentGuides(snapped.guides);
+        }
+      }
+
+      if (dragState.kind === 'signatureImage') {
+        const index = dragState.key as number;
+        if (dragState.mode === 'move') {
+          const nextX = dragState.startX + (point.x - dragState.startPointerX);
+          const nextY = dragState.startY + (point.y - dragState.startPointerY);
+          updateSignatureLayout(index, { imageX: nextX, imageY: nextY });
         } else if (dragState.mode === 'resize') {
           const dx = point.x - dragState.startPointerX;
           const dy = point.y - dragState.startPointerY;
@@ -639,6 +651,14 @@ export function CertificateDesigner() {
           } else if (dragState.resizeCorner === 'bl') {
             const nextWidth = Math.max(30, (dragState.startWidth || 100) - dx);
             const nextHeight = Math.max(20, (dragState.startHeight || 50) + dy);
+            updateSignatureLayout(index, { imageWidth: nextWidth, imageHeight: nextHeight });
+          } else if (dragState.resizeCorner === 'tr') {
+            const nextWidth = Math.max(30, (dragState.startWidth || 100) + dx);
+            const nextHeight = Math.max(20, (dragState.startHeight || 50) - dy);
+            updateSignatureLayout(index, { imageWidth: nextWidth, imageHeight: nextHeight });
+          } else if (dragState.resizeCorner === 'tl') {
+            const nextWidth = Math.max(30, (dragState.startWidth || 100) - dx);
+            const nextHeight = Math.max(20, (dragState.startHeight || 50) - dy);
             updateSignatureLayout(index, { imageWidth: nextWidth, imageHeight: nextHeight });
           }
         }
@@ -766,7 +786,7 @@ export function CertificateDesigner() {
 
   const selectedTextKey = selectedElement?.kind === 'text' ? selectedElement.key : null;
   const selectedLogoKey = selectedElement?.kind === 'logo' ? selectedElement.key : null;
-  const selectedSigIndex = selectedElement?.kind === 'signature' ? selectedElement.index : null;
+  const selectedSigIndex = (selectedElement?.kind === 'signature' || selectedElement?.kind === 'signatureImage') ? selectedElement.index : null;
 
   /* ─── Render Logo with Resize Handles ─── */
 
@@ -1938,39 +1958,43 @@ export function CertificateDesigner() {
                   const yPos = layout?.y ?? (isLandscape ? 700 : 960);
                   const sigImgW = layout?.imageWidth ?? 100;
                   const sigImgH = layout?.imageHeight ?? 50;
+                  // Image has its own independent position, defaulting to above the name line
+                  const sigImgX = layout?.imageX ?? (xPos - sigImgW / 2);
+                  const sigImgY = layout?.imageY ?? (yPos - sigImgH - 10);
                   const isSigSelected = selectedSigIndex === origIdx;
                   return (
-                    <g
-                      key={origIdx}
-                      onPointerDown={(e) => beginDrag('signature', origIdx, 'move', e, { x: xPos, y: yPos, width: sigImgW, height: sigImgH })}
-                      style={{ cursor: 'move' }}
-                    >
-                      <line x1={xPos - 90} y1={yPos} x2={xPos + 90} y2={yPos} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                      {sig.image && <image x={xPos - sigImgW / 2} y={yPos - sigImgH - 10} width={sigImgW} height={sigImgH} href={sig.image} preserveAspectRatio="xMidYMid meet" />}
-                      <text x={xPos} y={yPos + 20} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.nameFontSize || 14} fontWeight="bold" fill={layout?.nameColor || textColors.signatureName}>{sig.name}</text>
-                      <text x={xPos} y={yPos + 38} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.titleFontSize || 11} fill={layout?.titleColor || textColors.signatureTitle}>{sig.title}</text>
-                      {isSigSelected && (
-                        <>
-                          <rect
-                            x={xPos - (sig.image ? sigImgW / 2 + 5 : 100)}
-                            y={yPos - (sig.image ? sigImgH + 15 : 70)}
-                            width={sig.image ? sigImgW + 10 : 200}
-                            height={sig.image ? sigImgH + 80 : 120}
-                            fill="none"
-                            stroke={primaryColor}
-                            strokeWidth="1.5"
-                            strokeDasharray="5 4"
-                            rx="2"
-                          />
-                          {/* Resize handles for signature image */}
-                          {sig.image && (
+                    <g key={origIdx}>
+                      {/* Signature image — independently draggable & resizable */}
+                      {sig.image && (
+                        <g
+                          onPointerDown={(e) => { e.stopPropagation(); beginDrag('signatureImage', origIdx, 'move', e, { x: sigImgX, y: sigImgY, width: sigImgW, height: sigImgH }); }}
+                          style={{ cursor: 'move' }}
+                        >
+                          <image x={sigImgX} y={sigImgY} width={sigImgW} height={sigImgH} href={sig.image} preserveAspectRatio="xMidYMid meet" />
+                          {isSigSelected && (
                             <>
-                              <rect x={xPos + sigImgW / 2 - 6} y={yPos - sigImgH - 10 + sigImgH - 6} width={12} height={12} fill={primaryColor} stroke="#000" strokeWidth="1" rx="2" style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => beginDrag('signature', origIdx, 'resize', e, { x: xPos, y: yPos, width: sigImgW, height: sigImgH }, 'br')} />
-                              <rect x={xPos - sigImgW / 2 - 6} y={yPos - sigImgH - 10 + sigImgH - 6} width={12} height={12} fill={primaryColor} stroke="#000" strokeWidth="1" rx="2" style={{ cursor: 'nesw-resize' }} onPointerDown={(e) => beginDrag('signature', origIdx, 'resize', e, { x: xPos, y: yPos, width: sigImgW, height: sigImgH }, 'bl')} />
+                              <rect x={sigImgX - 2} y={sigImgY - 2} width={sigImgW + 4} height={sigImgH + 4} fill="none" stroke={primaryColor} strokeWidth="1.5" strokeDasharray="5 4" rx="2" />
+                              <rect x={sigImgX + sigImgW - 6} y={sigImgY + sigImgH - 6} width={12} height={12} fill={primaryColor} stroke="#000" strokeWidth="1" rx="2" style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => { e.stopPropagation(); beginDrag('signatureImage', origIdx, 'resize', e, { x: sigImgX, y: sigImgY, width: sigImgW, height: sigImgH }, 'br'); }} />
+                              <rect x={sigImgX - 6} y={sigImgY + sigImgH - 6} width={12} height={12} fill={primaryColor} stroke="#000" strokeWidth="1" rx="2" style={{ cursor: 'nesw-resize' }} onPointerDown={(e) => { e.stopPropagation(); beginDrag('signatureImage', origIdx, 'resize', e, { x: sigImgX, y: sigImgY, width: sigImgW, height: sigImgH }, 'bl'); }} />
+                              <rect x={sigImgX + sigImgW - 6} y={sigImgY - 6} width={12} height={12} fill={primaryColor} stroke="#000" strokeWidth="1" rx="2" style={{ cursor: 'nesw-resize' }} onPointerDown={(e) => { e.stopPropagation(); beginDrag('signatureImage', origIdx, 'resize', e, { x: sigImgX, y: sigImgY, width: sigImgW, height: sigImgH }, 'tr'); }} />
+                              <rect x={sigImgX - 6} y={sigImgY - 6} width={12} height={12} fill={primaryColor} stroke="#000" strokeWidth="1" rx="2" style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => { e.stopPropagation(); beginDrag('signatureImage', origIdx, 'resize', e, { x: sigImgX, y: sigImgY, width: sigImgW, height: sigImgH }, 'tl'); }} />
                             </>
                           )}
-                        </>
+                        </g>
                       )}
+
+                      {/* Signature line + name + title — draggable as a unit */}
+                      <g
+                        onPointerDown={(e) => beginDrag('signature', origIdx, 'move', e, { x: xPos, y: yPos })}
+                        style={{ cursor: 'move' }}
+                      >
+                        <line x1={xPos - 90} y1={yPos} x2={xPos + 90} y2={yPos} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
+                        <text x={xPos} y={yPos + 20} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.nameFontSize || 14} fontWeight="bold" fill={layout?.nameColor || textColors.signatureName}>{sig.name}</text>
+                        <text x={xPos} y={yPos + 38} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.titleFontSize || 11} fill={layout?.titleColor || textColors.signatureTitle}>{sig.title}</text>
+                        {isSigSelected && !sig.image && (
+                          <rect x={xPos - 100} y={yPos - 10} width={200} height={60} fill="none" stroke={primaryColor} strokeWidth="1.5" strokeDasharray="5 4" rx="2" />
+                        )}
+                      </g>
                     </g>
                   );
                 })
