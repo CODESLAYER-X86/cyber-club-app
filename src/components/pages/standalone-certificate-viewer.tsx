@@ -355,7 +355,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
 
               {/* Background */}
               {layout.bgImage ? (
-                <image x="0" y="0" width={width} height={height} href={base64Images[layout.bgImage] || layout.bgImage} preserveAspectRatio="xMidYMid slice" />
+                <image x="0" y="0" width={width} height={height} href={base64Images[layout.bgImage] || layout.bgImage} preserveAspectRatio="xMidYMid slice" opacity={(layout as any).bgImageOpacity ?? 1} />
               ) : (
                 <>
                   <rect width={width} height={height} fill={layout.bgColor || "#000000"} />
@@ -394,12 +394,8 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
 
               {renderEl(el.description)}
 
-              {/* Certificate Type Banner — synced with textElements.certificateTitle */}
-              <g transform={`translate(${(el.certificateTitle.x) - 130}, ${el.certificateTitle.y - 20})`}>
-                <rect width="260" height="32" rx="16" fill="url(#typeGrad)" opacity="0.2"/>
-                <rect width="260" height="32" rx="16" fill="none" stroke="url(#typeGrad)" strokeWidth="1"/>
-                <text x="130" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize={el.certificateTitle.fontSize} fontWeight="bold" fill={el.certificateTitle.color}>{el.certificateTitle.text}</text>
-              </g>
+              {/* Certificate Title rendered via textElements — no box */}
+              {renderEl(el.certificateTitle)}
 
               {/* Certificate ID — rendered from textElements, no duplicate */}
               {renderEl(el.certificateId)}
@@ -485,10 +481,12 @@ function signaturesHtml(
       const titleFontSize = savedLayout?.titleFontSize ?? 11;
       const nameColor = savedLayout?.nameColor || textColors?.signatureName || '#ffffff';
       const titleColor = savedLayout?.titleColor || textColors?.signatureTitle || '#6b7280';
+      const sigImgW = savedLayout?.imageWidth ?? 100;
+      const sigImgH = savedLayout?.imageHeight ?? 50;
       return (
         <g key={idx} transform={`translate(${xPos}, ${yPos})`}>
           <line x1="-90" y1="0" x2="90" y2="0" stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-          {sig.image && <image x="-50" y="-60" width="100" height="50" href={base64Images[sig.image] || sig.image} preserveAspectRatio="xMidYMid meet" />}
+          {sig.image && <image x={-sigImgW / 2} y={-sigImgH - 10} width={sigImgW} height={sigImgH} href={base64Images[sig.image] || sig.image} preserveAspectRatio="xMidYMid meet" />}
           <text x="0" y="20" textAnchor="middle" fontFamily="sans-serif" fontSize={nameFontSize} fontWeight="bold" fill={nameColor}>{sig.name}</text>
           <text x="0" y="38" textAnchor="middle" fontFamily="sans-serif" fontSize={titleFontSize} fill={titleColor}>{sig.title}</text>
         </g>

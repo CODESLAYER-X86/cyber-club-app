@@ -69,6 +69,8 @@ interface SignatureLayout {
   titleFontSize: number;
   nameColor: string;
   titleColor: string;
+  imageWidth?: number;
+  imageHeight?: number;
 }
 
 interface SignatureConfig {
@@ -93,6 +95,7 @@ interface LayoutConfig {
   orientation: "LANDSCAPE" | "PORTRAIT";
   paperSize: "A4" | "LETTER";
   bgImage: string;
+  bgImageOpacity?: number;
   bgColor?: string;
   primaryColor: string;
   secondaryColor: string;
@@ -229,6 +232,7 @@ export function CertificateDesigner() {
   const [orientation, setOrientation] = useState<"LANDSCAPE" | "PORTRAIT">("LANDSCAPE");
   const [paperSize, setPaperSize] = useState<"A4" | "LETTER">("A4");
   const [bgImage, setBgImage] = useState('');
+  const [bgImageOpacity, setBgImageOpacity] = useState(1);
   const [bgColor, setBgColor] = useState('#000000');
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#06b6d4');
@@ -309,6 +313,7 @@ export function CertificateDesigner() {
               setOrientation(layout.orientation || "LANDSCAPE");
               setPaperSize(layout.paperSize || "A4");
               setBgImage(layout.bgImage || '');
+              setBgImageOpacity((layout as any).bgImageOpacity ?? 1);
               setBgColor((layout as any).bgColor || '#000000');
               setPrimaryColor(layout.primaryColor || defaultPrimary);
               setSecondaryColor(layout.secondaryColor || defaultSecondary);
@@ -618,11 +623,25 @@ export function CertificateDesigner() {
 
       if (dragState.kind === 'signature') {
         const index = dragState.key as number;
-        const nextX = dragState.startX + (point.x - dragState.startPointerX);
-        const nextY = dragState.startY + (point.y - dragState.startPointerY);
-        const snapped = snapToGuides(nextX, nextY);
-        updateSignatureLayout(index, { x: snapped.x, y: snapped.y });
-        setAlignmentGuides(snapped.guides);
+        if (dragState.mode === 'move') {
+          const nextX = dragState.startX + (point.x - dragState.startPointerX);
+          const nextY = dragState.startY + (point.y - dragState.startPointerY);
+          const snapped = snapToGuides(nextX, nextY);
+          updateSignatureLayout(index, { x: snapped.x, y: snapped.y });
+          setAlignmentGuides(snapped.guides);
+        } else if (dragState.mode === 'resize') {
+          const dx = point.x - dragState.startPointerX;
+          const dy = point.y - dragState.startPointerY;
+          if (dragState.resizeCorner === 'br') {
+            const nextWidth = Math.max(30, (dragState.startWidth || 100) + dx);
+            const nextHeight = Math.max(20, (dragState.startHeight || 50) + dy);
+            updateSignatureLayout(index, { imageWidth: nextWidth, imageHeight: nextHeight });
+          } else if (dragState.resizeCorner === 'bl') {
+            const nextWidth = Math.max(30, (dragState.startWidth || 100) - dx);
+            const nextHeight = Math.max(20, (dragState.startHeight || 50) + dy);
+            updateSignatureLayout(index, { imageWidth: nextWidth, imageHeight: nextHeight });
+          }
+        }
       }
     };
 
@@ -665,6 +684,7 @@ export function CertificateDesigner() {
       orientation,
       paperSize,
       bgImage,
+      bgImageOpacity,
       bgColor,
       primaryColor,
       secondaryColor,
@@ -1635,6 +1655,12 @@ export function CertificateDesigner() {
                         placeholder="https://example.com/certificate-bg.png"
                         className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
                       />
+                      {bgImage && (
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-500 uppercase font-semibold">Background Opacity: {Math.round(bgImageOpacity * 100)}%</label>
+                          <input type="range" min="0" max="1" step="0.05" value={bgImageOpacity} onChange={e => setBgImageOpacity(parseFloat(e.target.value))} className="w-full h-1 accent-emerald-500 cursor-pointer" />
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -1757,53 +1783,13 @@ export function CertificateDesigner() {
                             </div>
                           </div>
                           <div className="space-y-1">
-                            <label className="text-[10px] text-gray-500 uppercase font-semibold block">Signature Image (transparent PNG)</label>
-                            <div className="flex gap-2 items-center">
-                              {sig.image ? (
-                                <div className="relative border border-white/10 bg-black/40 rounded p-1 flex items-center justify-center shrink-0">
-                                  <img src={sig.image} alt="Signature Preview" className="h-10 w-10 object-contain" />
-                                  <button
-                                    onClick={() => updateSignature(i, 'image', '')}
-                                    className="absolute -top-1 -right-1 bg-red-600 text-white rounded-full p-0.5 text-[8px] leading-none hover:bg-red-500"
-                                    type="button"
-                                  >
-                                    ✕
-                                  </button>
-                                </div>
-                              ) : (
-                                <Input
-                                  type="file"
-                                  accept="image/png"
-                                  onChange={(e) => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    const img = new Image();
-                                    const objectUrl = URL.createObjectURL(file);
-                                    img.onload = () => {
-                                      if (img.width > 200 || img.height > 200) {
-                                        toast({
-                                          title: "Invalid Signature Resolution",
-                                          description: `Signature image resolution must not exceed 200x200 pixels (uploaded: ${img.width}x${img.height}).`,
-                                          variant: "destructive"
-                                        });
-                                        URL.revokeObjectURL(objectUrl);
-                                        return;
-                                      }
-                                      const reader = new FileReader();
-                                      reader.onload = (event) => {
-                                        if (event.target?.result) {
-                                          updateSignature(i, 'image', event.target.result as string);
-                                        }
-                                      };
-                                      reader.readAsDataURL(file);
-                                      URL.revokeObjectURL(objectUrl);
-                                    };
-                                    img.src = objectUrl;
-                                  }}
-                                  className="h-8 text-xs border-white/10 bg-white/5 text-white cursor-pointer file:mr-2 file:py-0.5 file:px-2 file:rounded file:border-0 file:text-[10px] file:font-semibold file:bg-white/10 file:text-white hover:file:bg-white/20"
-                                />
-                              )}
-                            </div>
+                            <label className="text-[10px] text-gray-500 uppercase font-semibold block">Signature Image URL</label>
+                            <Input
+                              value={sig.image}
+                              onChange={e => updateSignature(i, 'image', e.target.value)}
+                              placeholder="https://example.com/signature.png"
+                              className="border-white/10 bg-white/5 text-white placeholder:text-gray-700"
+                            />
                           </div>
                         </div>
                       )}
@@ -1871,7 +1857,7 @@ export function CertificateDesigner() {
 
               {/* Background */}
               {bgImage ? (
-                <image x="0" y="0" width={width} height={height} href={bgImage} preserveAspectRatio="xMidYMid slice" />
+                <image x="0" y="0" width={width} height={height} href={bgImage} preserveAspectRatio="xMidYMid slice" opacity={bgImageOpacity} />
               ) : (
                 <>
                   <rect width={width} height={height} fill={bgColor} />
@@ -1950,28 +1936,40 @@ export function CertificateDesigner() {
                   const layout = sig.layout || signatureLayouts[origIdx];
                   const xPos = layout?.x ?? (width / 2);
                   const yPos = layout?.y ?? (isLandscape ? 700 : 960);
+                  const sigImgW = layout?.imageWidth ?? 100;
+                  const sigImgH = layout?.imageHeight ?? 50;
+                  const isSigSelected = selectedSigIndex === origIdx;
                   return (
                     <g
                       key={origIdx}
-                      onPointerDown={(e) => beginDrag('signature', origIdx, 'move', e, { x: xPos, y: yPos })}
+                      onPointerDown={(e) => beginDrag('signature', origIdx, 'move', e, { x: xPos, y: yPos, width: sigImgW, height: sigImgH })}
                       style={{ cursor: 'move' }}
                     >
                       <line x1={xPos - 90} y1={yPos} x2={xPos + 90} y2={yPos} stroke="rgba(255,255,255,0.15)" strokeWidth="1" />
-                      {sig.image && <image x={xPos - 50} y={yPos - 60} width="100" height="50" href={sig.image} preserveAspectRatio="xMidYMid meet" />}
+                      {sig.image && <image x={xPos - sigImgW / 2} y={yPos - sigImgH - 10} width={sigImgW} height={sigImgH} href={sig.image} preserveAspectRatio="xMidYMid meet" />}
                       <text x={xPos} y={yPos + 20} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.nameFontSize || 14} fontWeight="bold" fill={layout?.nameColor || textColors.signatureName}>{sig.name}</text>
                       <text x={xPos} y={yPos + 38} textAnchor="middle" fontFamily="sans-serif" fontSize={layout?.titleFontSize || 11} fill={layout?.titleColor || textColors.signatureTitle}>{sig.title}</text>
-                      {selectedSigIndex === origIdx && (
-                        <rect
-                          x={xPos - 100}
-                          y={yPos - 70}
-                          width="200"
-                          height="120"
-                          fill="none"
-                          stroke={primaryColor}
-                          strokeWidth="1.5"
-                          strokeDasharray="5 4"
-                          rx="2"
-                        />
+                      {isSigSelected && (
+                        <>
+                          <rect
+                            x={xPos - (sig.image ? sigImgW / 2 + 5 : 100)}
+                            y={yPos - (sig.image ? sigImgH + 15 : 70)}
+                            width={sig.image ? sigImgW + 10 : 200}
+                            height={sig.image ? sigImgH + 80 : 120}
+                            fill="none"
+                            stroke={primaryColor}
+                            strokeWidth="1.5"
+                            strokeDasharray="5 4"
+                            rx="2"
+                          />
+                          {/* Resize handles for signature image */}
+                          {sig.image && (
+                            <>
+                              <rect x={xPos + sigImgW / 2 - 6} y={yPos - sigImgH - 10 + sigImgH - 6} width={12} height={12} fill={primaryColor} stroke="#000" strokeWidth="1" rx="2" style={{ cursor: 'nwse-resize' }} onPointerDown={(e) => beginDrag('signature', origIdx, 'resize', e, { x: xPos, y: yPos, width: sigImgW, height: sigImgH }, 'br')} />
+                              <rect x={xPos - sigImgW / 2 - 6} y={yPos - sigImgH - 10 + sigImgH - 6} width={12} height={12} fill={primaryColor} stroke="#000" strokeWidth="1" rx="2" style={{ cursor: 'nesw-resize' }} onPointerDown={(e) => beginDrag('signature', origIdx, 'resize', e, { x: xPos, y: yPos, width: sigImgW, height: sigImgH }, 'bl')} />
+                            </>
+                          )}
+                        </>
                       )}
                     </g>
                   );
