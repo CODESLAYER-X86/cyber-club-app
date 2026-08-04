@@ -40,7 +40,7 @@ const CertificateAuthorityPage = lazy(() => import('@/components/pages/certifica
 const GalleryPage = lazy(() => import('@/components/pages/gallery-page').then(m => ({ default: m.GalleryPage })));
 const AchievementsPage = lazy(() => import('@/components/pages/achievements-page').then(m => ({ default: m.AchievementsPage })));
 const ApplyMembershipPage = lazy(() => import('@/components/pages/apply-membership-page').then(m => ({ default: m.ApplyMembershipPage })));
-const CertificateDesigner = lazy(() => import('@/components/certificate/certificate-designer').then(m => ({ default: m.CertificateDesigner })));
+const CertificateDesigner = lazy(() => import('@/components/pages/certificate-designer').then(m => ({ default: m.CertificateDesigner })));
 const CommitteePage = lazy(() => import('@/components/pages/committee-page').then(m => ({ default: m.CommitteePage })));
 const SponsorsPage = lazy(() => import('@/components/pages/sponsors-page').then(m => ({ default: m.SponsorsPage })));
 

@@ -185,7 +185,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
     async function loadBase64() {
       const urlsToLoad: string[] = [];
       if (layout.bgImage) urlsToLoad.push(layout.bgImage);
-      urlsToLoad.push(layout.clubLogo || '/logo.svg');
+      urlsToLoad.push(layout.clubLogo || '/certificate/logo.png');
       if (layout.collabMode && layout.orgLogo) urlsToLoad.push(layout.orgLogo);
       if (layout.collabMode && layout.eventLogo) urlsToLoad.push(layout.eventLogo);
       if (qrVisible) urlsToLoad.push(qrCodeUrl);
