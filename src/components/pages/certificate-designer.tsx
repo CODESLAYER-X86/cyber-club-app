@@ -1928,27 +1928,7 @@ export function CertificateDesigner() {
                 renderTextElement(key)
               ))}
 
-              {/* Certificate Type Banner — synced with textElements.certificateTitle */}
-              {(() => {
-                const certTitleText = textElements.certificateTitle?.text || previewTitle;
-                const certTitleFontSize = textElements.certificateTitle?.fontSize || 12;
-                // Estimate text width: avg char width ≈ 0.55 * fontSize for sans-serif bold
-                const estimatedTextWidth = certTitleText.length * certTitleFontSize * 0.55;
-                const boxPaddingX = 30; // horizontal padding inside box
-                const boxPaddingY = 10; // vertical padding inside box
-                const boxWidth = Math.max(120, estimatedTextWidth + boxPaddingX * 2);
-                const boxHeight = Math.max(28, certTitleFontSize + boxPaddingY * 2);
-                const boxRx = boxHeight / 2; // pill shape
-                const boxX = textElements.certificateTitle?.x ?? (width / 2);
-                const boxY = textElements.certificateTitle?.y ?? (isLandscape ? 485 : 540);
-                return (
-                  <g transform={`translate(${boxX - boxWidth / 2}, ${boxY - boxHeight / 2})`}>
-                    <rect width={boxWidth} height={boxHeight} rx={boxRx} fill="url(#typeGradPreview)" opacity="0.2" />
-                    <rect width={boxWidth} height={boxHeight} rx={boxRx} fill="none" stroke="url(#typeGradPreview)" strokeWidth="1" />
-                    <text x={boxWidth / 2} y={boxHeight / 2 + certTitleFontSize * 0.35} textAnchor="middle" fontFamily="sans-serif" fontSize={certTitleFontSize} fontWeight="bold" fill={textElements.certificateTitle?.color || textColors.certificateTitle || '#ffffff'}>{certTitleText}</text>
-                  </g>
-                );
-              })()}
+              {/* Certificate Title rendered via textElements loop above — no duplicate, no box */}
 
               {/* Certificate ID rendered via textElements — no duplicate */}
 
