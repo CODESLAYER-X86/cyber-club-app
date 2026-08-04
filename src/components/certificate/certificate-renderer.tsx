@@ -32,7 +32,6 @@ export function CertificateRenderer({
   const footerText = getElement('footerText')
   const signatureName = getElement('signatureName')
   const signatureTitle = getElement('signatureTitle')
-  const certificateType = getElement('certificateType')
 
   const renderElement = (el: typeof title, style?: React.CSSProperties) => {
     if (!el || !el.visible) return null
@@ -112,8 +111,8 @@ export function CertificateRenderer({
           top: '1%',
           left: '50%',
           transform: 'translate(-50%, 0)',
-          width: '65px',
-          height: '65px',
+          width: '60px',
+          height: '60px',
           objectFit: 'contain',
           opacity: 0.9,
           zIndex: 2,
@@ -129,37 +128,6 @@ export function CertificateRenderer({
       {renderElement(eventLabel)}
       {renderElement(eventName)}
       {renderElement(descriptionText)}
-
-      {/* Certificate Type Banner — adjustable box via designer */}
-      {certificateType && certificateType.visible && (
-        <div
-          style={{
-            position: 'absolute',
-            left: `${certificateType.x}%`,
-            top: `${certificateType.y}%`,
-            transform: 'translate(-50%, -50%)',
-          }}
-        >
-          <div
-            style={{
-              display: 'inline-flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              padding: '4px 16px',
-              borderRadius: '16px',
-              border: `1px solid ${template.borderAccent}`,
-              background: `${template.borderAccent}15`,
-              fontSize: `${certificateType.fontSize}px`,
-              fontWeight: certificateType.fontWeight,
-              color: certificateType.color,
-              whiteSpace: 'nowrap',
-            }}
-          >
-            {certificateType.text}
-          </div>
-        </div>
-      )}
-
       {renderElement(signatureName, { textAlign: 'left', width: 'auto' })}
       {renderElement(signatureTitle, { textAlign: 'left', width: 'auto' })}
       {renderElement(certificateId)}
