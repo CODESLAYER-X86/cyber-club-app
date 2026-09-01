@@ -66,6 +66,7 @@ export function VerifyPaymentsPage() {
   const [payments, setPayments] = useState<Payment[]>([]);
   const [loading, setLoading] = useState(true);
   const [typeFilter, setTypeFilter] = useState<string>('all');
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
   const [reconcilingPayment, setReconcilingPayment] = useState<Payment | null>(null);
@@ -88,10 +89,9 @@ export function VerifyPaymentsPage() {
       if (data.success) {
         toast({ title: 'Posted to Ledger', description: 'Transaction has been successfully reconciled.' });
         setReconcilingPayment(null);
-        setReconcileDesc('');
-        loadPayments();
+        loadPayments(false);
       } else {
-        toast({ title: 'Reconciliation failed', description: data.error || 'Check inputs', variant: 'destructive' });
+        toast({ title: 'Reconciliation failed', description: data.error || 'Failed to reconcile payment', variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Reconciliation failed', description: 'Network error', variant: 'destructive' });
@@ -100,16 +100,16 @@ export function VerifyPaymentsPage() {
     }
   };
 
-  const loadPayments = async () => {
+  const loadPayments = async (showSkeleton = true) => {
     if (!isAuthorized) return;
-    setLoading(true);
+    if (showSkeleton) setLoading(true);
     try {
       const params = new URLSearchParams();
       if (currentUser?.role === 'VERIFIER') {
-        params.set('status', 'PENDING');
+        params.set('status', statusFilter === 'ALL' ? 'PENDING,APPROVED,VERIFIED,REJECTED' : statusFilter);
         params.set('type', 'EVENT');
       } else {
-        params.set('status', 'PENDING,APPROVED,VERIFIED');
+        params.set('status', statusFilter === 'ALL' ? 'PENDING,APPROVED,VERIFIED,REJECTED' : statusFilter);
         if (typeFilter !== 'all') params.set('type', typeFilter);
       }
       const r = await fetch(`/api/payments?${params}`);
@@ -118,10 +118,10 @@ export function VerifyPaymentsPage() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (showSkeleton) setLoading(false);
     }
   };
-  useEffect(() => { loadPayments(); }, [typeFilter]);
+  useEffect(() => { loadPayments(); }, [typeFilter, statusFilter]);
 
   if (!isAuthorized) {
     return (
@@ -137,6 +137,10 @@ export function VerifyPaymentsPage() {
 
   const handleVerify = async (id: string, action: 'VERIFIED' | 'REJECTED') => {
     if (!currentUser) return;
+
+    // Optimistic in-place update
+    setPayments(prev => prev.map(p => p.id === id ? { ...p, status: action } : p));
+
     try {
       // API expects 'action' field with 'VERIFY' or 'REJECT' (not 'VERIFIED'/'REJECTED')
       const apiAction = action === 'VERIFIED' ? 'VERIFY' : 'REJECT';
@@ -147,76 +151,106 @@ export function VerifyPaymentsPage() {
       });
       const d = await r.json();
       if (d.success) {
-        loadPayments();
+        loadPayments(false);
         toast({ title: 'Payment updated', description: `Payment has been ${action.toLowerCase()} successfully.` });
       } else {
+        loadPayments(false);
         toast({ title: 'Update failed', description: d.error || 'Could not update payment', variant: 'destructive' });
       }
     } catch (e) {
       console.error(e);
+      loadPayments(false);
       toast({ title: 'Update failed', description: 'Network error', variant: 'destructive' });
     }
   };
 
-  const filtered = payments.filter(p =>
-    !search || p.transactionId.toLowerCase().includes(search.toLowerCase()) || p.user?.name?.toLowerCase().includes(search.toLowerCase())
-  );
+  const filtered = payments.filter(p => {
+    const matchesSearch = !search || p.transactionId.toLowerCase().includes(search.toLowerCase()) || p.user?.name?.toLowerCase().includes(search.toLowerCase());
+    const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
+    return matchesSearch && matchesStatus;
+  });
 
   // Computed stats
-  const pendingCount = payments.length;
-  const totalAmountPending = payments.reduce((s, p) => s + p.amount, 0);
+  const pendingCount = payments.filter(p => p.status === 'PENDING').length;
+  const totalAmountPending = payments.filter(p => p.status === 'PENDING').reduce((s, p) => s + p.amount, 0);
   const verifiedToday = payments.filter(p => {
     const d = new Date(p.createdAt);
     const now = new Date();
-    return d.toDateString() === now.toDateString();
+    return p.status === 'VERIFIED' && d.toDateString() === now.toDateString();
   }).length;
 
   return (
     <div className="space-y-6">
-      {/* Gradient Header Banner */}
+      {/* Header Banner */}
       <motion.div
         initial={{ opacity: 0, y: -10 }}
         animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600/20 via-cyan-600/15 to-emerald-600/10 border border-emerald-500/10 p-6"
+        className="relative overflow-hidden rounded-2xl border border-emerald-500/20 bg-gradient-to-r from-[#0a1a12] via-[#0d1f17] to-[#0a1410] p-6 shadow-xl"
+        style={{ backgroundImage: `url("${SVG_PATTERN}")` }}
       >
-        <div className="absolute inset-0 opacity-50" style={{ backgroundImage: `url("${SVG_PATTERN}")` }} />
-        <div className="absolute -left-20 -top-20 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl" />
-        <div className="absolute -right-20 -bottom-20 h-40 w-40 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
-            <CreditCard className="h-6 w-6 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Verify Payments</h1>
-            <p className="text-sm text-gray-400">Review and verify payment submissions</p>
+        <div className="relative z-10 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+          <div className="space-y-1">
+            <div className="flex items-center gap-2">
+              <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-emerald-500/10 border border-emerald-500/30 text-emerald-400">
+                <ShieldCheck className="h-5 w-5" />
+              </div>
+              <h1 className="text-xl font-bold tracking-tight text-white sm:text-2xl">Payment Verification Desk</h1>
+            </div>
+            <p className="text-xs text-gray-400 max-w-lg">
+              Review, verify, or re-evaluate membership and workshop dues. Correct mistakes in real time.
+            </p>
           </div>
         </div>
       </motion.div>
 
       {/* Payment Stats Bar */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-3">
-        <StatCard icon={Clock} label="Pending Count" value={pendingCount.toString()} trend={pendingCount > 5 ? 'down' : 'up'} delay={0} />
-        <StatCard icon={DollarSign} label="Total Amount Pending" value={`৳${totalAmountPending.toLocaleString()}`} delay={0.05} />
+        <StatCard icon={Clock} label="Pending Review" value={pendingCount.toString()} trend={pendingCount > 5 ? 'down' : 'up'} delay={0} />
+        <StatCard icon={DollarSign} label="Pending Amount" value={`৳${totalAmountPending.toLocaleString()}`} delay={0.05} />
         <StatCard icon={UserCheck} label="Verified Today" value={verifiedToday.toString()} trend="up" delay={0.1} />
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-wrap gap-3">
-        <div className="relative flex-1 min-w-[200px]">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search by name or transaction ID..." className="border-white/10 bg-white/5 pl-10 text-white" />
+      {/* Status Filter Tabs & Search */}
+      <div className="flex flex-col sm:flex-row gap-3 items-stretch sm:items-center justify-between">
+        {/* Status Filter Tabs */}
+        <div className="flex items-center gap-1.5 p-1 bg-white/5 border border-white/10 rounded-xl overflow-x-auto">
+          {[
+            { key: 'ALL', label: 'All' },
+            { key: 'PENDING', label: 'Pending' },
+            { key: 'VERIFIED', label: 'Verified' },
+            { key: 'REJECTED', label: 'Rejected' },
+          ].map((tab) => (
+            <button
+              key={tab.key}
+              onClick={() => setStatusFilter(tab.key)}
+              className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                statusFilter === tab.key
+                  ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 shadow-sm'
+                  : 'text-gray-400 hover:text-white hover:bg-white/5'
+              }`}
+            >
+              {tab.label}
+            </button>
+          ))}
         </div>
-        {currentUser?.role !== 'VERIFIER' && (
-          <Select value={typeFilter} onValueChange={setTypeFilter}>
-            <SelectTrigger className="w-[150px] border-white/10 bg-white/5 text-white"><SelectValue placeholder="Type" /></SelectTrigger>
-            <SelectContent className="border-white/10 bg-[#1a1a2e]">
-              <SelectItem value="all">All Types</SelectItem>
-              <SelectItem value="MEMBERSHIP">Membership</SelectItem>
-              <SelectItem value="EVENT">Event</SelectItem>
-            </SelectContent>
-          </Select>
-        )}
+
+        {/* Search & Type Filters */}
+        <div className="flex flex-wrap gap-2 items-center">
+          <div className="relative min-w-[200px] flex-1 sm:flex-initial">
+            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+            <Input value={search} onChange={e => setSearch(e.target.value)} placeholder="Search Txn ID or Name..." className="border-white/10 bg-white/5 pl-9 text-white h-9 text-xs" />
+          </div>
+          {currentUser?.role !== 'VERIFIER' && (
+            <Select value={typeFilter} onValueChange={setTypeFilter}>
+              <SelectTrigger className="w-[130px] border-white/10 bg-white/5 text-white h-9 text-xs"><SelectValue placeholder="Type" /></SelectTrigger>
+              <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                <SelectItem value="all">All Types</SelectItem>
+                <SelectItem value="MEMBERSHIP">Membership</SelectItem>
+                <SelectItem value="EVENT">Event</SelectItem>
+              </SelectContent>
+            </Select>
+          )}
+        </div>
       </div>
 
       {/* Payment Cards */}
@@ -225,7 +259,6 @@ export function VerifyPaymentsPage() {
           {[1, 2, 3].map(i => <div key={i} className="h-20 animate-pulse rounded-lg bg-white/5" />)}
         </div>
       ) : filtered.length === 0 ? (
-        /* Empty State with illustration */
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
@@ -234,9 +267,9 @@ export function VerifyPaymentsPage() {
           <div className="flex h-20 w-20 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-500/10 to-cyan-500/10 border border-white/5 mb-4">
             <ShieldCheck className="h-10 w-10 text-gray-600" />
           </div>
-          <h3 className="text-lg font-medium text-gray-400 mb-1">No pending payments</h3>
+          <h3 className="text-lg font-medium text-gray-400 mb-1">No payments match criteria</h3>
           <p className="text-sm text-gray-600 max-w-xs">
-            All payments have been reviewed. New submissions will appear here automatically.
+            Try adjusting your search or status filter tabs to inspect records.
           </p>
         </motion.div>
       ) : (
@@ -262,45 +295,77 @@ export function VerifyPaymentsPage() {
                           {typeConfig.label}
                         </Badge>
                       </div>
-                      <p className="text-xs text-gray-500">৳{payment.amount.toLocaleString()} • TXN: {payment.transactionId}{payment.event ? ` • Event: ${payment.event.title}` : ''}</p>
+                      <p className="text-xs text-gray-500">৳{payment.amount.toLocaleString()} • TXN: <span className="text-white font-mono">{payment.transactionId}</span> • Method: {payment.paymentMethod || 'bKash'}{payment.event ? ` • Event: ${payment.event.title}` : ''}</p>
                       <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
                         <Clock className="h-3 w-3" /> {timeAgo(payment.createdAt)}
                       </p>
                     </div>
-                    <div className="flex gap-2 shrink-0">
-                      {payment.status === 'VERIFIED' ? (
-                        payment.reconciled ? (
-                          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-1 flex items-center gap-1 select-none">
-                            <CheckCircle className="h-3 w-3" /> Reconciled
-                          </Badge>
-                        ) : (
-                          currentUser && ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role) && (
-                            <Button
-                              size="sm"
-                              onClick={() => {
-                                setReconcilingPayment(payment);
-                                setTargetWallet(
-                                  payment.paymentMethod === 'NAGAD' ? 'NAGAD_PERSONAL' :
-                                  payment.paymentMethod === 'BANK' ? 'CLUB_BANK_ACCOUNT' :
-                                  payment.paymentMethod === 'CASH' ? 'CASH_IN_HAND' : 'BKASH_PERSONAL'
-                                );
-                                setReconcileDesc(`Reconciled membership/event fee from ${payment.user?.name || 'user'}`);
-                              }}
-                              className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8"
-                            >
-                              Post to Ledger
-                            </Button>
-                          )
-                        )
-                      ) : (
+                    <div className="flex gap-2 shrink-0 items-center">
+                      {payment.status === 'PENDING' ? (
                         <>
-                          <Button size="sm" onClick={() => handleVerify(payment.id, 'VERIFIED')} className="bg-emerald-600 text-white h-8 text-xs">
-                            <CheckCircle className="mr-1 h-3 w-3" />{currentUser?.role === 'VERIFIER' ? 'Approve' : 'Verify'}
+                          <Button size="sm" onClick={() => handleVerify(payment.id, 'VERIFIED')} className="bg-emerald-600 hover:bg-emerald-500 text-white h-8 text-xs font-medium">
+                            <CheckCircle className="mr-1 h-3.5 w-3.5" />{currentUser?.role === 'VERIFIER' ? 'Approve' : 'Verify'}
                           </Button>
-                          <Button size="sm" onClick={() => handleVerify(payment.id, 'REJECTED')} variant="destructive" className="h-8 text-xs">
-                            <XCircle className="mr-1 h-3 w-3" />Reject
+                          <Button size="sm" onClick={() => handleVerify(payment.id, 'REJECTED')} variant="destructive" className="h-8 text-xs font-medium">
+                            <XCircle className="mr-1 h-3.5 w-3.5" />Reject
                           </Button>
                         </>
+                      ) : payment.status === 'VERIFIED' ? (
+                        <div className="flex items-center gap-2">
+                          {payment.reconciled ? (
+                            <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-1 flex items-center gap-1 select-none font-mono">
+                              <CheckCircle className="h-3 w-3" /> Reconciled
+                            </Badge>
+                          ) : (
+                            currentUser && ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role) && (
+                              <Button
+                                size="sm"
+                                onClick={() => {
+                                  setReconcilingPayment(payment);
+                                  setTargetWallet(
+                                    payment.paymentMethod === 'NAGAD' ? 'NAGAD_PERSONAL' :
+                                    payment.paymentMethod === 'BANK' ? 'CLUB_BANK_ACCOUNT' :
+                                    payment.paymentMethod === 'CASH' ? 'CASH_IN_HAND' : 'BKASH_PERSONAL'
+                                  );
+                                  setReconcileDesc(`Reconciled membership/event fee from ${payment.user?.name || 'user'}`);
+                                }}
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 font-medium"
+                              >
+                                Post to Ledger
+                              </Button>
+                            )
+                          )}
+                          {/* Mistake correction button for Verified payments */}
+                          {currentUser && ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleVerify(payment.id, 'REJECTED')}
+                              className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs h-8"
+                              title="Revoke and reject if verified by mistake"
+                            >
+                              <XCircle className="mr-1 h-3 w-3" /> Revoke
+                            </Button>
+                          )}
+                        </div>
+                      ) : (
+                        /* REJECTED Payment with Re-evaluation action */
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-red-500/10 text-red-400 border border-red-500/20 text-xs px-2.5 py-1 flex items-center gap-1 select-none font-mono">
+                            <XCircle className="h-3 w-3" /> Rejected
+                          </Badge>
+                          {currentUser && ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN', 'GS', 'VERIFIER'].includes(currentUser.role) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleVerify(payment.id, 'VERIFIED')}
+                              className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs h-8 font-medium"
+                              title="Re-verify if rejected by mistake"
+                            >
+                              <CheckCircle className="mr-1 h-3.5 w-3.5" /> Re-Verify
+                            </Button>
+                          )}
+                        </div>
                       )}
                     </div>
                   </CardContent>

@@ -66,9 +66,9 @@ const ACTION_CONFIG: Record<string, {
   },
   EVENT_CREATED: {
     icon: Plus,
-    color: 'text-violet-400 bg-violet-500/10',
-    borderColor: 'border-l-violet-400',
-    badgeClass: 'border-violet-500/30 text-violet-400',
+    color: 'text-sky-400 bg-sky-500/10',
+    borderColor: 'border-l-sky-400',
+    badgeClass: 'border-sky-500/30 text-sky-400',
   },
   USER_REGISTERED: {
     icon: Users,
@@ -293,7 +293,7 @@ export function AuditLogsPage() {
                         config.borderColor === 'border-l-amber-400' ? 'bg-amber-400' :
                         config.borderColor === 'border-l-cyan-400' ? 'bg-cyan-400' :
                         config.borderColor === 'border-l-red-400' ? 'bg-red-400' :
-                        config.borderColor === 'border-l-violet-400' ? 'bg-violet-400' :
+                        config.borderColor === 'border-l-sky-400' ? 'bg-sky-400' :
                         'bg-gray-400'
                       }`} />
                     </div>

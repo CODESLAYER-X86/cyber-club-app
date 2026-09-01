@@ -67,12 +67,12 @@ const CATEGORY_COLORS: Record<AchievementCategory, { badge: string; bg: string; 
     glow: 'hover:shadow-[0_0_20px_rgba(245,158,11,0.08)]',
   },
   INDUSTRY: {
-    badge: 'border-violet-500/30 text-violet-400 bg-violet-500/10',
-    bg: 'bg-violet-500/10',
-    text: 'text-violet-400',
-    icon: 'text-violet-400 bg-violet-500/15',
-    border: 'border-violet-500/20',
-    glow: 'hover:shadow-[0_0_20px_rgba(139,92,246,0.08)]',
+    badge: 'border-sky-500/30 text-sky-400 bg-sky-500/10',
+    bg: 'bg-sky-500/10',
+    text: 'text-sky-400',
+    icon: 'text-sky-400 bg-sky-500/15',
+    border: 'border-sky-500/20',
+    glow: 'hover:shadow-[0_0_20px_rgba(14,165,233,0.08)]',
   },
   CERTIFICATION: {
     badge: 'border-rose-500/30 text-rose-400 bg-rose-500/10',

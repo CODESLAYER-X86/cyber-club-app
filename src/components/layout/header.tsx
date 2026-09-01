@@ -152,8 +152,23 @@ export function Header() {
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Determine if we're in full-page mode (public pages without sidebar)
-  const isFullPageMode = !isAuthenticated && ['landing', 'login', 'register', 'certificate-public', 'about', 'resources', 'gallery', 'achievements', 'events', 'certificate-verify', 'apply-membership'].includes(currentView);
+  // Determine if we're in full-page mode (public portal pages)
+  const isFullPageMode = [
+    'landing',
+    'login',
+    'register',
+    'certificate-public',
+    'about',
+    'resources',
+    'gallery',
+    'achievements',
+    'events',
+    'event-detail',
+    'certificate-verify',
+    'apply-membership',
+    'committee',
+    'sponsors',
+  ].includes(currentView);
 
   useEffect(() => {
     const timer = setInterval(() => {

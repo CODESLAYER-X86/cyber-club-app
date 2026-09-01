@@ -31,7 +31,7 @@ import {
 
 const ROLE_AVATAR_COLORS: Record<UserRole, string> = {
   PRESIDENT: 'from-amber-500/40 to-amber-600/20 text-amber-400 border-amber-500/30',
-  VP: 'from-purple-500/40 to-purple-600/20 text-purple-400 border-purple-500/30',
+  VP: 'from-indigo-500/40 to-indigo-600/20 text-indigo-400 border-indigo-500/30',
   GS: 'from-cyan-500/40 to-cyan-600/20 text-cyan-400 border-cyan-500/30',
   TREASURER: 'from-emerald-500/40 to-emerald-600/20 text-emerald-400 border-emerald-500/30',
   MEDIA: 'from-pink-500/40 to-pink-600/20 text-pink-400 border-pink-500/30',
@@ -45,7 +45,7 @@ const DEPARTMENT_COLORS: Record<string, string> = {
   'Computer Science': 'bg-emerald-500/10 text-emerald-400 border-emerald-500/20',
   'IT': 'bg-cyan-500/10 text-cyan-400 border-cyan-500/20',
   'Electrical Engineering': 'bg-amber-500/10 text-amber-400 border-amber-500/20',
-  'Software Engineering': 'bg-violet-500/10 text-violet-400 border-violet-500/20',
+  'Software Engineering': 'bg-sky-500/10 text-sky-400 border-sky-500/20',
   'Cybersecurity': 'bg-rose-500/10 text-rose-400 border-rose-500/20',
   'Other': 'bg-gray-500/10 text-gray-400 border-gray-500/20',
 };
@@ -330,7 +330,7 @@ export function MembersPage() {
           <div><p className="text-lg font-bold text-white">{stats.pending}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider">Pending</p></div>
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }} className="flex items-center gap-3 rounded-lg border border-white/5 bg-[#111]/60 px-4 py-3">
-          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-violet-500/10"><GraduationCap className="h-4 w-4 text-violet-400" /></div>
+          <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-indigo-500/10"><GraduationCap className="h-4 w-4 text-indigo-400" /></div>
           <div><p className="text-lg font-bold text-white">{stats.alumni}</p><p className="text-[10px] text-gray-500 uppercase tracking-wider">Alumni</p></div>
         </motion.div>
       </div>

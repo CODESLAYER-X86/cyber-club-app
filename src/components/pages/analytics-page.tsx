@@ -14,7 +14,7 @@ import {
   ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell,
 } from 'recharts';
 
-const COLORS = ['#10b981', '#06b6d4', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899'];
+const COLORS = ['#10b981', '#06b6d4', '#f59e0b', '#0ea5e9', '#ef4444', '#ec4899'];
 
 const CATEGORY_LABELS: Record<string, string> = {
   WORKSHOP: 'Workshop',
@@ -25,7 +25,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 const DEPT_COLORS = [
-  '#10b981', '#06b6d4', '#f59e0b', '#8b5cf6', '#ef4444', '#ec4899', '#14b8a6', '#f97316',
+  '#10b981', '#06b6d4', '#f59e0b', '#0ea5e9', '#ef4444', '#ec4899', '#14b8a6', '#f97316',
 ];
 
 const tooltipStyle = {
@@ -430,7 +430,7 @@ export function AnalyticsPage() {
           <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
             <CardHeader>
               <CardTitle className="text-lg text-white flex items-center gap-2">
-                <Award className="h-5 w-5 text-violet-400" />
+                <Award className="h-5 w-5 text-sky-400" />
                 Registration Trends
               </CardTitle>
             </CardHeader>
@@ -442,8 +442,8 @@ export function AnalyticsPage() {
                   <AreaChart data={registrationTrends}>
                     <defs>
                       <linearGradient id="regGradient" x1="0" y1="0" x2="0" y2="1">
-                        <stop offset="5%" stopColor="#8b5cf6" stopOpacity={0.3} />
-                        <stop offset="95%" stopColor="#8b5cf6" stopOpacity={0} />
+                        <stop offset="5%" stopColor="#0ea5e9" stopOpacity={0.3} />
+                        <stop offset="95%" stopColor="#0ea5e9" stopOpacity={0} />
                       </linearGradient>
                     </defs>
                     <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
@@ -453,11 +453,11 @@ export function AnalyticsPage() {
                     <Area
                       type="monotone"
                       dataKey="registrations"
-                      stroke="#8b5cf6"
+                      stroke="#0ea5e9"
                       strokeWidth={2}
                       fill="url(#regGradient)"
-                      dot={{ fill: '#8b5cf6', r: 4 }}
-                      activeDot={{ r: 6, fill: '#8b5cf6' }}
+                      dot={{ fill: '#0ea5e9', r: 4 }}
+                      activeDot={{ r: 6, fill: '#0ea5e9' }}
                     />
                   </AreaChart>
                 </ResponsiveContainer>
@@ -517,7 +517,7 @@ export function AnalyticsPage() {
                               ev.category === 'WORKSHOP' ? 'bg-emerald-500/10 text-emerald-400' :
                               ev.category === 'SEMINAR' ? 'bg-amber-500/10 text-amber-400' :
                               ev.category === 'TRAINING' ? 'bg-red-500/10 text-red-400' :
-                              'bg-violet-500/10 text-violet-400'
+                              'bg-sky-500/10 text-sky-400'
                             }`}>
                               {CATEGORY_LABELS[ev.category] || ev.category}
                             </span>

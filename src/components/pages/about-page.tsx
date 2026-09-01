@@ -201,9 +201,9 @@ const coreValues = [
     icon: Lightbulb,
     title: 'Applied Innovation',
     desc: 'Moving beyond classroom slides into hands-on attack simulations, packet inspection, and real vulnerability audits.',
-    bgClass: 'bg-purple-500/10',
-    borderClass: 'border-purple-500/20',
-    iconClass: 'text-purple-400',
+    bgClass: 'bg-sky-500/10',
+    borderClass: 'border-sky-500/20',
+    iconClass: 'text-sky-400',
   },
 ];
 
@@ -251,7 +251,7 @@ const operationalWings = [
     stack: 'Wireshark • Splunk • ELK • Volatility',
   },
   {
-    name: 'Purple Wing (Applied Crypto & Cloud)',
+    name: 'Cloud & Crypto Wing',
     badge: 'CRYPTO & CLOUD',
     badgeClass: 'border-amber-500/30 text-amber-300 bg-amber-500/10',
     desc: 'Public-key cryptography, symmetric ciphers, TLS/SSL auditing, Zero Trust network segmentation, and cloud security posture management.',
@@ -267,7 +267,7 @@ const operationalWings = [
   {
     name: 'Operations & Governance Wing',
     badge: 'GOVERNANCE',
-    badgeClass: 'border-purple-500/30 text-purple-300 bg-purple-500/10',
+    badgeClass: 'border-indigo-500/30 text-indigo-300 bg-indigo-500/10',
     desc: 'Event planning, workshop logistics, public media relations, treasury management, certificate validation, and university coordination.',
     stack: 'Event Ops • Financial Audit • Media Relations',
   },

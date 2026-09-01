@@ -107,7 +107,7 @@ const AUDIT_ACTION_COLORS: Record<CertificateAuditAction, string> = {
   REVOKED: 'bg-red-500/15 text-red-400 border-red-500/20',
   ELIGIBILITY_CHECKED: 'bg-amber-500/15 text-amber-400 border-amber-500/20',
   VIEWED: 'bg-gray-500/15 text-gray-400 border-gray-500/20',
-  SHARED: 'bg-purple-500/15 text-purple-400 border-purple-500/20',
+  SHARED: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20',
 };
 
 interface StatCardProps {

@@ -20,7 +20,7 @@ const CATEGORY_COLORS: Record<EventCategory, { border: string; glow: string; glo
   WORKSHOP: { border: 'border-l-emerald-400', glow: 'hover:border-emerald-500/30', glowShadow: 'hover:shadow-emerald-500/10', bg: 'bg-emerald-500/10', text: 'text-emerald-400', badge: 'border-emerald-500/30 text-emerald-400' },
   CTF: { border: 'border-l-cyan-400', glow: 'hover:border-cyan-500/30', glowShadow: 'hover:shadow-cyan-500/10', bg: 'bg-cyan-500/10', text: 'text-cyan-400', badge: 'border-cyan-500/30 text-cyan-400' },
   SEMINAR: { border: 'border-l-amber-400', glow: 'hover:border-amber-500/30', glowShadow: 'hover:shadow-amber-500/10', bg: 'bg-amber-500/10', text: 'text-amber-400', badge: 'border-amber-500/30 text-amber-400' },
-  MEETUP: { border: 'border-l-violet-400', glow: 'hover:border-violet-500/30', glowShadow: 'hover:shadow-violet-500/10', bg: 'bg-violet-500/10', text: 'text-violet-400', badge: 'border-violet-500/30 text-violet-400' },
+  MEETUP: { border: 'border-l-sky-400', glow: 'hover:border-sky-500/30', glowShadow: 'hover:shadow-sky-500/10', bg: 'bg-sky-500/10', text: 'text-sky-400', badge: 'border-sky-500/30 text-sky-400' },
   TRAINING: { border: 'border-l-rose-400', glow: 'hover:border-rose-500/30', glowShadow: 'hover:shadow-rose-500/10', bg: 'bg-rose-500/10', text: 'text-rose-400', badge: 'border-rose-500/30 text-rose-400' },
 };
 
@@ -255,7 +255,7 @@ export function EventsPage() {
                       event.category === 'WORKSHOP' ? 'bg-emerald-500/10' :
                       event.category === 'CTF' ? 'bg-cyan-500/10' :
                       event.category === 'SEMINAR' ? 'bg-amber-500/10' :
-                      event.category === 'MEETUP' ? 'bg-violet-500/10' :
+                      event.category === 'MEETUP' ? 'bg-sky-500/10' :
                       'bg-rose-500/10'
                     }`} />
                   </div>

@@ -60,12 +60,6 @@ export default function RootLayout({
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased bg-background text-foreground`}
       >
-        <Script
-          async
-          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-3216427245362717"
-          crossOrigin="anonymous"
-          strategy="lazyOnload"
-        />
         <QueryProvider>
           {children}
         </QueryProvider>

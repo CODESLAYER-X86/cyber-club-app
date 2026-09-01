@@ -27,60 +27,78 @@ export async function PATCH(
       return errorResponse('Deposit not found', 404);
     }
 
-    if (deposit.status === 'APPROVED' || deposit.status === 'REJECTED') {
-      return errorResponse('Deposit is already finalized', 400);
+    if (deposit.status === 'VOIDED') {
+      return errorResponse('Deposit is already voided', 400);
     }
 
     let updateData: any = {};
     let auditAction = '';
 
-    if (action === 'PRESIDENT_APPROVE') {
+    if (action === 'VOID') {
       if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only President can give president approval', 403);
+        return errorResponse('Only President or Platform Admin can void a deposit', 403);
+      }
+      if (!body.reason || !body.reason.trim()) {
+        return errorResponse('A mandatory reason is required to void a deposit', 400);
       }
       updateData = {
-        presidentStatus: 'APPROVED',
-        presidentApprovedBy: approvedBy,
+        status: 'VOIDED',
+        note: deposit.note ? `${deposit.note} [VOIDED: ${body.reason.trim()}]` : `[VOIDED: ${body.reason.trim()}]`,
       };
-      auditAction = 'DEPOSIT_PRESIDENT_APPROVED';
-    } else if (action === 'PRESIDENT_REJECT') {
-      if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only President can reject', 403);
-      }
-      updateData = {
-        presidentStatus: 'REJECTED',
-        presidentApprovedBy: approvedBy,
-        status: 'REJECTED',
-      };
-      auditAction = 'DEPOSIT_PRESIDENT_REJECTED';
-    } else if (action === 'GS_APPROVE') {
-      if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only GS can give GS approval', 403);
-      }
-      updateData = {
-        gsStatus: 'APPROVED',
-        gsApprovedBy: approvedBy,
-      };
-      auditAction = 'DEPOSIT_GS_APPROVED';
-    } else if (action === 'GS_REJECT') {
-      if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only GS can reject', 403);
-      }
-      updateData = {
-        gsStatus: 'REJECTED',
-        gsApprovedBy: approvedBy,
-        status: 'REJECTED',
-      };
-      auditAction = 'DEPOSIT_GS_REJECTED';
+      auditAction = 'DEPOSIT_VOIDED';
     } else {
-      return errorResponse('Invalid action. Use PRESIDENT_APPROVE, GS_APPROVE, PRESIDENT_REJECT, or GS_REJECT', 400);
-    }
+      if (deposit.status === 'APPROVED' || deposit.status === 'REJECTED') {
+        return errorResponse('Deposit is already finalized', 400);
+      }
 
-    // If both approved, set overall status to APPROVED
-    const newPresidentStatus = updateData.presidentStatus || deposit.presidentStatus;
-    const newGsStatus = updateData.gsStatus || deposit.gsStatus;
-    if (newPresidentStatus === 'APPROVED' && newGsStatus === 'APPROVED') {
-      updateData.status = 'APPROVED';
+      if (action === 'PRESIDENT_APPROVE') {
+        if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
+          return errorResponse('Only President can give president approval', 403);
+        }
+        updateData = {
+          presidentStatus: 'APPROVED',
+          presidentApprovedBy: approvedBy,
+        };
+        auditAction = 'DEPOSIT_PRESIDENT_APPROVED';
+      } else if (action === 'PRESIDENT_REJECT') {
+        if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
+          return errorResponse('Only President can reject', 403);
+        }
+        updateData = {
+          presidentStatus: 'REJECTED',
+          presidentApprovedBy: approvedBy,
+          status: 'REJECTED',
+        };
+        auditAction = 'DEPOSIT_PRESIDENT_REJECTED';
+      } else if (action === 'GS_APPROVE') {
+        if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
+          return errorResponse('Only GS can give GS approval', 403);
+        }
+        updateData = {
+          gsStatus: 'APPROVED',
+          gsApprovedBy: approvedBy,
+        };
+        auditAction = 'DEPOSIT_GS_APPROVED';
+      } else if (action === 'GS_REJECT') {
+        if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
+          return errorResponse('Only GS can reject', 403);
+        }
+        updateData = {
+          gsStatus: 'REJECTED',
+          gsApprovedBy: approvedBy,
+          status: 'REJECTED',
+        };
+        auditAction = 'DEPOSIT_GS_REJECTED';
+      } else {
+        return errorResponse('Invalid action. Use PRESIDENT_APPROVE, GS_APPROVE, PRESIDENT_REJECT, GS_REJECT, or VOID', 400);
+      }
+
+      // If both approved, set overall status to APPROVED
+      const newPresidentStatus = updateData.presidentStatus || deposit.presidentStatus;
+      const newGsStatus = updateData.gsStatus || deposit.gsStatus;
+      if (newPresidentStatus === 'APPROVED' && newGsStatus === 'APPROVED') {
+        updateData.status = 'APPROVED';
+      }
     }
 
     const updated = await prisma.treasuryDeposit.update({

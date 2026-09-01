@@ -557,7 +557,7 @@ export function LandingPage() {
 
               {/* Category 4 */}
               <div className="rounded-xl border border-white/5 bg-slate-950/60 p-4 space-y-2">
-                <div className="flex items-center gap-2 text-purple-400 font-mono font-bold text-sm">
+                <div className="flex items-center gap-2 text-indigo-400 font-mono font-bold text-sm">
                   <Lock className="h-4 w-4" /> Cryptography
                 </div>
                 <p className="text-xs text-gray-400 leading-relaxed font-sans">

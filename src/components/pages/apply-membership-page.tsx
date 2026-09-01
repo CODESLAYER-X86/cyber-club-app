@@ -384,9 +384,9 @@ export function ApplyMembershipPage() {
 
             {/* Rocket */}
             {paymentSettings.rocketNumber ? (
-              <div className="rounded-xl border border-purple-500/30 bg-purple-950/10 p-3 flex flex-col justify-between space-y-2">
+              <div className="rounded-xl border border-indigo-500/30 bg-indigo-950/10 p-3 flex flex-col justify-between space-y-2">
                 <div className="flex items-center justify-between">
-                  <span className="font-mono text-xs font-bold text-purple-400 flex items-center gap-1.5">
+                  <span className="font-mono text-xs font-bold text-indigo-400 flex items-center gap-1.5">
                     <Smartphone className="h-3.5 w-3.5" /> Rocket
                   </span>
                   <button

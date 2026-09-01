@@ -88,7 +88,7 @@ const EVENT_CATEGORY_COLORS: Record<string, string> = {
   SEMINAR: 'text-cyan-400',
   TRAINING: 'text-amber-400',
   CTF: 'text-rose-400',
-  MEETUP: 'text-violet-400',
+  MEETUP: 'text-sky-400',
 };
 
 export function SearchCommand({ open, onOpenChange }: SearchCommandProps) {

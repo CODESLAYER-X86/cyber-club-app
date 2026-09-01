@@ -51,9 +51,9 @@ const CERTIFICATE_TYPE_COLORS: Record<CertificateType, string> = {
   FIRST_PLACE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
   SECOND_PLACE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
   THIRD_PLACE: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
-  ORGANIZER: 'bg-purple-500/15 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
-  VOLUNTEER: 'bg-purple-500/15 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
-  JUDGE: 'bg-purple-500/15 text-purple-400 border-purple-500/20 hover:bg-purple-500/20',
+  ORGANIZER: 'bg-indigo-500/15 text-indigo-400 border-indigo-500/20 hover:bg-indigo-500/20',
+  VOLUNTEER: 'bg-teal-500/15 text-teal-400 border-teal-500/20 hover:bg-teal-500/20',
+  JUDGE: 'bg-cyan-500/15 text-cyan-400 border-cyan-500/20 hover:bg-cyan-500/20',
   APPRECIATION: 'bg-sky-500/15 text-sky-400 border-sky-500/20 hover:bg-sky-500/20',
   CUSTOM: 'bg-gray-500/15 text-gray-400 border-gray-500/20 hover:bg-gray-500/20',
 };

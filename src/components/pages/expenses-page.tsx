@@ -26,6 +26,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; dotColor: strin
   PENDING: { color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/20', dotColor: 'bg-amber-400', label: 'Pending', emoji: '🟡' },
   APPROVED: { color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/20', dotColor: 'bg-emerald-400', label: 'Approved', emoji: '🟢' },
   REJECTED: { color: 'text-red-400', bg: 'bg-red-500/15 border-red-500/20', dotColor: 'bg-red-400', label: 'Rejected', emoji: '🔴' },
+  VOIDED: { color: 'text-rose-400', bg: 'bg-rose-500/15 border-rose-500/20', dotColor: 'bg-rose-400', label: 'Voided', emoji: '⛔' },
 };
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
@@ -43,6 +44,10 @@ export function ExpensesPage() {
   const [expenses, setExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [selectedVoidId, setSelectedVoidId] = useState<string | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voiding, setVoiding] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<string>('ALL');
   const [expandedId, setExpandedId] = useState<string | null>(null);
@@ -63,8 +68,8 @@ export function ExpensesPage() {
   const canPresidentApprove = currentUser?.role === 'PRESIDENT' || currentUser?.role === 'PLATFORM_ADMIN';
   const canGsApprove = currentUser?.role === 'GS' || currentUser?.role === 'PLATFORM_ADMIN';
 
-  const loadExpenses = async () => {
-    setLoading(true);
+  const loadExpenses = async (showSkeleton = true) => {
+    if (showSkeleton) setLoading(true);
     try {
       const r = await fetch('/api/expenses');
       const d = await r.json();
@@ -72,7 +77,7 @@ export function ExpensesPage() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (showSkeleton) setLoading(false);
     }
   };
 
@@ -115,35 +120,54 @@ export function ExpensesPage() {
         setDialogOpen(false);
         setForm({ date: new Date().toISOString().split('T')[0], note: '', purchasedBy: '', attachmentUrl: '' });
         setFormItems([{ itemName: '', quantity: '1', unit: 'pcs', price: '' }]);
-        loadExpenses();
+        loadExpenses(false);
       } else {
         toast({ title: 'Error', description: d.error || 'Failed to submit expense', variant: 'destructive' });
       }
-    } catch (e) {
+    } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleApproval = async (expenseId: string, action: string) => {
+  const handleApproval = async (expenseId: string, action: string, reason?: string) => {
     if (!currentUser) return;
     try {
       const r = await fetch(`/api/expenses/${expenseId}/approve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, approvedBy: currentUser.id, role: currentUser.role }),
+        body: JSON.stringify({ action, approvedBy: currentUser.id, role: currentUser.role, reason }),
       });
       const d = await r.json();
       if (d.success) {
-        toast({ title: 'Success', description: `Expense ${action.includes('REJECT') ? 'rejected' : 'approved'}`, variant: 'default' });
-        loadExpenses();
+        toast({
+          title: 'Success',
+          description: action === 'VOID'
+            ? 'Expense has been voided and restored to balance.'
+            : `Expense ${action.includes('REJECT') ? 'rejected' : 'approved'}`,
+          variant: 'default',
+        });
+        loadExpenses(false);
       } else {
         toast({ title: 'Error', description: d.error || 'Action failed', variant: 'destructive' });
       }
-    } catch (e) {
+    } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     }
+  };
+
+  const handleConfirmVoid = async () => {
+    if (!selectedVoidId || !voidReason.trim()) {
+      toast({ title: 'Error', description: 'Please provide a reason for voiding', variant: 'destructive' });
+      return;
+    }
+    setVoiding(true);
+    await handleApproval(selectedVoidId, 'VOID', voidReason.trim());
+    setVoiding(false);
+    setVoidDialogOpen(false);
+    setSelectedVoidId(null);
+    setVoidReason('');
   };
 
   // Filtered
@@ -276,8 +300,8 @@ export function ExpensesPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2">
-        {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((f) => {
+      <div className="flex gap-2 flex-wrap">
+        {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'VOIDED'].map((f) => {
           const count = f === 'ALL' ? expenses.length : expenses.filter((e) => e.status === f).length;
           return (
             <Button
@@ -293,6 +317,40 @@ export function ExpensesPage() {
         })}
       </div>
 
+      {/* Void Confirmation Dialog */}
+      <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
+        <DialogContent className="border-white/10 bg-[#14141e] text-white w-[92vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-rose-400 flex items-center gap-2">
+              <XCircle className="h-5 w-5" /> Void Approved Expense
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-gray-400">
+              Voiding will reverse this expense and restore the funds to the live treasury balance. An audit entry will be recorded.
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-300 font-semibold">Mandatory Reason / Note *</Label>
+              <Textarea
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                placeholder="e.g. Inadvertent duplicate voucher entered"
+                className="border-white/10 bg-white/5 min-h-[70px] text-xs text-white"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setVoidDialogOpen(false)} className="border-white/10 text-gray-400">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleConfirmVoid} disabled={voiding || !voidReason.trim()} className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold">
+              {voiding ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Confirm Void
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Expense History */}
       <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
         {loading ? (
@@ -303,6 +361,7 @@ export function ExpensesPage() {
           filtered.map((expense) => {
             const sc = STATUS_CONFIG[expense.status] || STATUS_CONFIG.PENDING;
             const isPending = expense.status === 'PENDING';
+            const isApproved = expense.status === 'APPROVED';
             const isExpanded = expandedId === expense.id;
             const mayPresApprove = isPending && expense.presidentStatus === 'PENDING' && canPresidentApprove;
             const mayGsApprove = isPending && expense.gsStatus === 'PENDING' && expense.presidentStatus === 'APPROVED' && canGsApprove;
@@ -311,7 +370,7 @@ export function ExpensesPage() {
 
             return (
               <motion.div key={expense.id} variants={item}>
-                <Card className={`border-white/5 border-l-2 ${expense.status === 'APPROVED' ? 'border-l-emerald-400' : expense.status === 'REJECTED' ? 'border-l-red-400' : 'border-l-amber-400'} bg-[#111]/60 backdrop-blur`}>
+                <Card className={`border-white/5 border-l-2 ${expense.status === 'APPROVED' ? 'border-l-emerald-400' : expense.status === 'VOIDED' ? 'border-l-rose-400' : expense.status === 'REJECTED' ? 'border-l-red-400' : 'border-l-amber-400'} bg-[#111]/60 backdrop-blur`}>
                   <CardContent className="p-4">
                     <div
                       className="flex items-center justify-between cursor-pointer"
@@ -330,7 +389,9 @@ export function ExpensesPage() {
                         </div>
                       </div>
                       <div className="flex items-center gap-3">
-                        <span className="text-sm font-semibold text-amber-400">৳{expense.amount.toLocaleString()}</span>
+                        <span className={`text-sm font-semibold ${expense.status === 'VOIDED' ? 'text-gray-500 line-through' : 'text-amber-400'}`}>
+                          ৳{expense.amount.toLocaleString()}
+                        </span>
                         <div className="flex items-center gap-1.5">
                           <div className={`h-2 w-2 rounded-full ${sc.dotColor}`} />
                           <span className={`text-xs ${sc.color}`}>{sc.label}</span>
@@ -388,26 +449,44 @@ export function ExpensesPage() {
                         </div>
 
                         {/* Approval Actions */}
-                        {canApprove && isPending && (mayPresApprove || mayGsApprove || mayPresReject || mayGsReject) && (
+                        {canApprove && (
                           <div className="flex items-center gap-2 pt-2 border-t border-white/5">
-                            {mayPresApprove && (
-                              <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-500" onClick={() => handleApproval(expense.id, 'PRESIDENT_APPROVE')}>
-                                <Shield className="h-3 w-3 mr-1" />President Approve
-                              </Button>
+                            {isPending && (
+                              <>
+                                {mayPresApprove && (
+                                  <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-500" onClick={() => handleApproval(expense.id, 'PRESIDENT_APPROVE')}>
+                                    <Shield className="h-3 w-3 mr-1" />President Approve
+                                  </Button>
+                                )}
+                                {mayGsApprove && (
+                                  <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-500" onClick={() => handleApproval(expense.id, 'GS_APPROVE')}>
+                                    <ShieldCheck className="h-3 w-3 mr-1" />GS Approve
+                                  </Button>
+                                )}
+                                {mayPresReject && (
+                                  <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={() => handleApproval(expense.id, 'PRESIDENT_REJECT')}>
+                                    <XCircle className="h-3 w-3 mr-1" />Reject
+                                  </Button>
+                                )}
+                                {mayGsReject && (
+                                  <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={() => handleApproval(expense.id, 'GS_REJECT')}>
+                                    <XCircle className="h-3 w-3 mr-1" />Reject
+                                  </Button>
+                                )}
+                              </>
                             )}
-                            {mayGsApprove && (
-                              <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-500" onClick={() => handleApproval(expense.id, 'GS_APPROVE')}>
-                                <ShieldCheck className="h-3 w-3 mr-1" />GS Approve
-                              </Button>
-                            )}
-                            {mayPresReject && (
-                              <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={() => handleApproval(expense.id, 'PRESIDENT_REJECT')}>
-                                <XCircle className="h-3 w-3 mr-1" />Reject
-                              </Button>
-                            )}
-                            {mayGsReject && (
-                              <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10" onClick={() => handleApproval(expense.id, 'GS_REJECT')}>
-                                <XCircle className="h-3 w-3 mr-1" />Reject
+                            {isApproved && canPresidentApprove && (
+                              <Button
+                                size="sm"
+                                variant="outline"
+                                className="h-8 border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-mono"
+                                onClick={() => {
+                                  setSelectedVoidId(expense.id);
+                                  setVoidReason('');
+                                  setVoidDialogOpen(true);
+                                }}
+                              >
+                                <XCircle className="h-3.5 w-3.5 mr-1" /> Void Expense
                               </Button>
                             )}
                           </div>

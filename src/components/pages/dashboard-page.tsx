@@ -67,7 +67,7 @@ const ACTION_CONFIG: Record<string, { icon: typeof Activity; color: string; labe
   EXPENSE_REJECTED: { icon: Ban, color: '#ef4444', label: 'Expense Rejected' },
   USER_APPROVED: { icon: UserCheck, color: '#10b981', label: 'User Approved' },
   USER_REJECTED: { icon: Ban, color: '#ef4444', label: 'User Rejected' },
-  ANNOUNCEMENT_CREATED: { icon: Megaphone, color: '#8b5cf6', label: 'Announcement Created' },
+  ANNOUNCEMENT_CREATED: { icon: Megaphone, color: '#0ea5e9', label: 'Announcement Created' },
   EVENT_CREATED: { icon: Calendar, color: '#06b6d4', label: 'Event Created' },
 };
 
@@ -96,7 +96,7 @@ const EVENT_CATEGORY_COLORS: Record<string, string> = {
   WORKSHOP: '#10b981',
   CTF: '#06b6d4',
   SEMINAR: '#f59e0b',
-  MEETUP: '#8b5cf6',
+  MEETUP: '#0ea5e9',
   TRAINING: '#ef4444',
 };
 

@@ -8,13 +8,8 @@ import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Footer } from './footer';
 import type { AppView } from '@/types';
-import { ROLE_LABELS } from '@/types';
 import { isViewAllowed } from '@/lib/utils';
-import { AdSenseBanner } from '@/components/shared/adsense-banner';
-import { MobileNav } from './mobile-nav';
 import { MobileBottomNav } from './mobile-bottom-nav';
-import { Button } from '@/components/ui/button';
-import { LayoutDashboard, ArrowRight } from 'lucide-react';
 
 import { LandingPage } from '@/components/pages/landing-page';
 
@@ -99,9 +94,9 @@ function PageLoader() {
 function AmbientEnvironmentalGlow() {
   return (
     <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
-      {/* Top subtle radial spotlight */}
+      {/* Top ambient radial spotlight */}
       <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-emerald-500/10 blur-[130px] rounded-full" />
-      {/* Subtle grid mesh */}
+      {/* Subtle matrix grid */}
       <div
         className="absolute inset-0 opacity-[0.025]"
         style={{
@@ -116,16 +111,26 @@ function AmbientEnvironmentalGlow() {
   );
 }
 
-// Full page views that render full width
-const STANDALONE_FULL_VIEWS: Set<AppView> = new Set([
+// Public Portal Views: Always render full-width layout with public header
+const PUBLIC_PORTAL_VIEWS: Set<AppView> = new Set([
   'landing',
   'login',
   'register',
+  'about',
+  'resources',
+  'gallery',
+  'achievements',
+  'events',
+  'event-detail',
+  'certificate-verify',
   'certificate-public',
+  'apply-membership',
+  'committee',
+  'sponsors',
 ]);
 
 export function AppShell() {
-  const { currentView, setCurrentView, isAuthenticated, currentUser, setSidebarOpen } = useAppStore();
+  const { currentView, isAuthenticated, currentUser, setSidebarOpen, sidebarOpen } = useAppStore();
   const { isMobile, transitionConfig } = useMobileOptimized();
 
   useEffect(() => {
@@ -139,56 +144,46 @@ export function AppShell() {
   const allowed = isViewAllowed(currentView, isAuthenticated, currentUser?.role);
   const PageComponent = allowed ? (PAGE_MAP[currentView] || LandingPage) : (isAuthenticated ? DashboardPage : LandingPage);
 
-  // Full-page layout for landing / auth pages OR when unauthenticated on public views
-  const isFullPageLayout = STANDALONE_FULL_VIEWS.has(currentView) || (!isAuthenticated && ['about', 'resources', 'gallery', 'achievements', 'events', 'certificate-verify', 'apply-membership'].includes(currentView));
+  // Full-page layout for public portal views
+  const isFullPageLayout = PUBLIC_PORTAL_VIEWS.has(currentView);
 
   if (isFullPageLayout) {
     return (
       <div className="relative flex min-h-screen flex-col bg-[#060b08] text-gray-100 pb-20 md:pb-0 font-sans">
         <AmbientEnvironmentalGlow />
-        
-        {/* Floating Executive Return Pill if logged in on Public Views */}
-        {isAuthenticated && currentUser && currentView === 'landing' && (
-          <div className="fixed top-3 right-4 z-50 pointer-events-auto">
-            <Button
-              size="sm"
-              onClick={() => setCurrentView('dashboard')}
-              className="gap-2 bg-emerald-500/90 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs shadow-2xl shadow-emerald-500/30 rounded-full px-4 h-8 backdrop-blur-md border border-emerald-400/40"
-            >
-              <LayoutDashboard className="h-3.5 w-3.5" />
-              <span>Return to Dashboard</span>
-              <ArrowRight className="h-3 w-3" />
-            </Button>
-          </div>
-        )}
 
         <div className="relative z-10 flex flex-1 flex-col">
           <Header />
           <main className="flex flex-1 flex-col">
             <AnimatePresence mode="popLayout">
-              <motion.div key={currentView} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} transition={{ duration: 0.15 }} className="flex flex-1 flex-col">
+              <motion.div
+                key={currentView}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.15 }}
+                className="flex flex-1 flex-col"
+              >
                 <Suspense fallback={<PageLoader />}>
                   <PageComponent />
                 </Suspense>
               </motion.div>
             </AnimatePresence>
           </main>
-          <AdSenseBanner />
           <Footer />
         </div>
-        <MobileNav />
         <MobileBottomNav />
       </div>
     );
   }
 
-  // Authenticated Sidebar Layout
+  // Authenticated Executive Sidebar Layout
   return (
     <div className="relative flex min-h-screen flex-col bg-[#060b08] text-gray-100 pb-20 md:pb-0 font-sans">
       <AmbientEnvironmentalGlow />
       <div className="relative z-10 flex flex-1 min-h-0">
-        {/* Mobile Backdrop */}
-        {isMobile && (
+        {/* Mobile Backdrop - Strictly rendered ONLY when mobile AND sidebarOpen is true */}
+        {isMobile && sidebarOpen && (
           <AnimatePresence>
             <motion.div
               key="sidebar-backdrop"
@@ -221,11 +216,9 @@ export function AppShell() {
               </motion.div>
             </AnimatePresence>
           </main>
-          <AdSenseBanner className="mt-8 border-t border-white/5 bg-black/20" />
           <Footer />
         </div>
       </div>
-      <MobileNav />
       <MobileBottomNav />
     </div>
   );

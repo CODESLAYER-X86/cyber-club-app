@@ -33,6 +33,7 @@ const STATUS_CONFIG: Record<string, { color: string; bg: string; dotColor: strin
   PENDING: { color: 'text-amber-400', bg: 'bg-amber-500/15 border-amber-500/20', dotColor: 'bg-amber-400', label: 'Pending', emoji: '🟡' },
   APPROVED: { color: 'text-emerald-400', bg: 'bg-emerald-500/15 border-emerald-500/20', dotColor: 'bg-emerald-400', label: 'Approved', emoji: '🟢' },
   REJECTED: { color: 'text-red-400', bg: 'bg-red-500/15 border-red-500/20', dotColor: 'bg-red-400', label: 'Rejected', emoji: '🔴' },
+  VOIDED: { color: 'text-rose-400', bg: 'bg-rose-500/15 border-rose-500/20', dotColor: 'bg-rose-400', label: 'Voided', emoji: '⛔' },
 };
 
 const container = { hidden: { opacity: 0 }, show: { opacity: 1, transition: { staggerChildren: 0.06 } } };
@@ -43,6 +44,10 @@ export function DepositsPage() {
   const [deposits, setDeposits] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);
+  const [voidDialogOpen, setVoidDialogOpen] = useState(false);
+  const [selectedVoidId, setSelectedVoidId] = useState<string | null>(null);
+  const [voidReason, setVoidReason] = useState('');
+  const [voiding, setVoiding] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<string>('ALL');
 
@@ -60,8 +65,8 @@ export function DepositsPage() {
   const canPresidentApprove = currentUser?.role === 'PRESIDENT' || currentUser?.role === 'PLATFORM_ADMIN';
   const canGsApprove = currentUser?.role === 'GS' || currentUser?.role === 'PLATFORM_ADMIN';
 
-  const loadDeposits = async () => {
-    setLoading(true);
+  const loadDeposits = async (showSkeleton = true) => {
+    if (showSkeleton) setLoading(true);
     try {
       const r = await fetch('/api/treasury/deposits');
       const d = await r.json();
@@ -69,7 +74,7 @@ export function DepositsPage() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (showSkeleton) setLoading(false);
     }
   };
 
@@ -94,35 +99,54 @@ export function DepositsPage() {
         toast({ title: 'Deposit submitted', description: 'Awaiting approval from President and GS.', variant: 'default' });
         setDialogOpen(false);
         setForm({ date: new Date().toISOString().split('T')[0], amount: '', source: 'UNIVERSITY_FUND', note: '', attachmentUrl: '' });
-        loadDeposits();
+        loadDeposits(false);
       } else {
         toast({ title: 'Error', description: d.error || 'Failed to submit deposit', variant: 'destructive' });
       }
-    } catch (e) {
+    } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     } finally {
       setSubmitting(false);
     }
   };
 
-  const handleApproval = async (depositId: string, action: string) => {
+  const handleApproval = async (depositId: string, action: string, reason?: string) => {
     if (!currentUser) return;
     try {
       const r = await fetch(`/api/treasury/deposits/${depositId}/approve`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ action, approvedBy: currentUser.id, role: currentUser.role }),
+        body: JSON.stringify({ action, approvedBy: currentUser.id, role: currentUser.role, reason }),
       });
       const d = await r.json();
       if (d.success) {
-        toast({ title: 'Success', description: `Deposit ${action.includes('REJECT') ? 'rejected' : 'approved'}`, variant: 'default' });
-        loadDeposits();
+        toast({
+          title: 'Success',
+          description: action === 'VOID'
+            ? 'Deposit has been voided and deducted from balance.'
+            : `Deposit ${action.includes('REJECT') ? 'rejected' : 'approved'}`,
+          variant: 'default',
+        });
+        loadDeposits(false);
       } else {
         toast({ title: 'Error', description: d.error || 'Action failed', variant: 'destructive' });
       }
-    } catch (e) {
+    } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
     }
+  };
+
+  const handleConfirmVoid = async () => {
+    if (!selectedVoidId || !voidReason.trim()) {
+      toast({ title: 'Error', description: 'Please provide a reason for voiding', variant: 'destructive' });
+      return;
+    }
+    setVoiding(true);
+    await handleApproval(selectedVoidId, 'VOID', voidReason.trim());
+    setVoiding(false);
+    setVoidDialogOpen(false);
+    setSelectedVoidId(null);
+    setVoidReason('');
   };
 
   // Filtered deposits
@@ -205,8 +229,8 @@ export function DepositsPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2">
-        {['ALL', 'PENDING', 'APPROVED', 'REJECTED'].map((f) => {
+      <div className="flex gap-2 flex-wrap">
+        {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'VOIDED'].map((f) => {
           const count = f === 'ALL' ? deposits.length : deposits.filter((d) => d.status === f).length;
           return (
             <Button
@@ -221,6 +245,40 @@ export function DepositsPage() {
           );
         })}
       </div>
+
+      {/* Void Confirmation Dialog */}
+      <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
+        <DialogContent className="border-white/10 bg-[#14141e] text-white w-[92vw] max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-rose-400 flex items-center gap-2">
+              <XCircle className="h-5 w-5" /> Void Approved Deposit
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <p className="text-xs text-gray-400">
+              Voiding will reverse this deposit and subtract the amount from the live treasury balance. An audit entry will be recorded.
+            </p>
+            <div className="space-y-1.5">
+              <Label className="text-xs text-gray-300 font-semibold">Mandatory Reason / Note *</Label>
+              <Textarea
+                value={voidReason}
+                onChange={(e) => setVoidReason(e.target.value)}
+                placeholder="e.g. Treasurer typo in amount (entered 50000 instead of 5000)"
+                className="border-white/10 bg-white/5 min-h-[70px] text-xs text-white"
+              />
+            </div>
+          </div>
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="outline" size="sm" onClick={() => setVoidDialogOpen(false)} className="border-white/10 text-gray-400">
+              Cancel
+            </Button>
+            <Button size="sm" onClick={handleConfirmVoid} disabled={voiding || !voidReason.trim()} className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold">
+              {voiding ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
+              Confirm Void
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
 
       {/* Deposit History Table */}
       <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
@@ -249,6 +307,7 @@ export function DepositsPage() {
                   {filtered.map((deposit) => {
                     const sc = STATUS_CONFIG[deposit.status] || STATUS_CONFIG.PENDING;
                     const isPending = deposit.status === 'PENDING';
+                    const isApproved = deposit.status === 'APPROVED';
                     const mayPresApprove = isPending && deposit.presidentStatus === 'PENDING' && canPresidentApprove;
                     const mayGsApprove = isPending && deposit.gsStatus === 'PENDING' && deposit.presidentStatus === 'APPROVED' && canGsApprove;
                     const mayPresReject = isPending && deposit.presidentStatus === 'PENDING' && canPresidentApprove;
@@ -263,8 +322,13 @@ export function DepositsPage() {
                           <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
                             {DEPOSIT_SOURCE_LABELS[deposit.source] || deposit.source}
                           </Badge>
+                          {deposit.note && (
+                            <p className="text-[10px] text-gray-500 max-w-xs truncate mt-0.5">{deposit.note}</p>
+                          )}
                         </td>
-                        <td className="py-3 text-right font-semibold text-emerald-400">৳{deposit.amount.toLocaleString()}</td>
+                        <td className={`py-3 text-right font-semibold ${deposit.status === 'VOIDED' ? 'text-gray-500 line-through' : 'text-emerald-400'}`}>
+                          ৳{deposit.amount.toLocaleString()}
+                        </td>
                         <td className="py-3 text-gray-300">{deposit.submitter?.name || '—'}</td>
                         <td className="py-3 text-center">
                           <div className="flex items-center justify-center gap-1.5">
@@ -308,6 +372,20 @@ export function DepositsPage() {
                                   </Button>
                                 )}
                               </div>
+                            )}
+                            {isApproved && canPresidentApprove && (
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="h-7 px-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-xs font-mono"
+                                onClick={() => {
+                                  setSelectedVoidId(deposit.id);
+                                  setVoidReason('');
+                                  setVoidDialogOpen(true);
+                                }}
+                              >
+                                <XCircle className="h-3.5 w-3.5 mr-1" /> Void
+                              </Button>
                             )}
                           </td>
                         )}

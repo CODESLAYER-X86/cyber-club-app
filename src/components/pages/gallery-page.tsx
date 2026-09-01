@@ -88,10 +88,10 @@ const CATEGORY_CONFIG: Record<
   },
   MEETUP: {
     label: 'Meetup',
-    bgClass: 'bg-violet-500/15',
-    textClass: 'text-violet-400',
-    borderClass: 'border-violet-500/30',
-    dotClass: 'bg-violet-500',
+    bgClass: 'bg-sky-500/15',
+    textClass: 'text-sky-400',
+    borderClass: 'border-sky-500/30',
+    dotClass: 'bg-sky-500',
   },
   GENERAL: {
     label: 'General',

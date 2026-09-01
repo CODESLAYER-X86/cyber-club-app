@@ -64,12 +64,12 @@ const ROLE_CONFIG: Record<string, {
   },
   VP: {
     icon: UserCog,
-    color: 'text-purple-400',
-    borderColor: 'border-l-purple-400',
-    iconBg: 'bg-purple-500/10',
-    iconColor: 'text-purple-400',
+    color: 'text-indigo-400',
+    borderColor: 'border-l-indigo-400',
+    iconBg: 'bg-indigo-500/10',
+    iconColor: 'text-indigo-400',
     description: 'Supports the president and assists with club operations',
-    dotColor: 'fill-purple-400',
+    dotColor: 'fill-indigo-400',
   },
   GS: {
     icon: PenTool,
@@ -159,8 +159,8 @@ function getInitials(name?: string): string {
 const AVATAR_GRADIENTS = [
   'from-emerald-500/30 to-cyan-500/30',
   'from-amber-500/30 to-orange-500/30',
-  'from-purple-500/30 to-pink-500/30',
-  'from-blue-500/30 to-indigo-500/30',
+  'from-indigo-500/30 to-sky-500/30',
+  'from-blue-500/30 to-teal-500/30',
   'from-red-500/30 to-rose-500/30',
 ];
 

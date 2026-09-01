@@ -48,10 +48,10 @@ function getRoleColors(role: string): RoleColors {
     case 'vice':
     case 'vp':
       return {
-        avatarBg: 'from-purple-500 to-violet-500',
-        accentClass: 'text-purple-400',
-        borderAccent: 'border-purple-500/30',
-        glowClass: 'shadow-purple-500/10 hover:shadow-purple-500/20',
+        avatarBg: 'from-sky-500 to-indigo-500',
+        accentClass: 'text-sky-400',
+        borderAccent: 'border-sky-500/30',
+        glowClass: 'shadow-sky-500/10 hover:shadow-sky-500/20',
       };
     case 'general':
     case 'gs':

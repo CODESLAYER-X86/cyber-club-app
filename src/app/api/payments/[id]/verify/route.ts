@@ -47,9 +47,9 @@ export async function PATCH(
         return errorResponse("Payment is not in PENDING status");
       }
     } else {
-      // Treasurer/Admin can verify PENDING or APPROVED payments
-      if (payment.status !== "PENDING" && payment.status !== "APPROVED") {
-        return errorResponse("Payment is not in PENDING or APPROVED status");
+      // Treasurer/Admin can verify, re-evaluate, or reject payments in any status to correct mistakes
+      if (!["PENDING", "APPROVED", "REJECTED", "VERIFIED"].includes(payment.status)) {
+        return errorResponse("Invalid payment status");
       }
     }
 

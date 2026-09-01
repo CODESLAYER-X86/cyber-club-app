@@ -58,9 +58,9 @@ export function EventDetailPage() {
   const [certificateStatus, setCertificateStatus] = useState<string>('REGISTERED');
   const [updatingAttendanceId, setUpdatingAttendanceId] = useState<string | null>(null);
 
-  const loadEvent = useCallback(async () => {
+  const loadEvent = useCallback(async (showSkeleton = true) => {
     if (!selectedEventId) return;
-    setLoading(true);
+    if (showSkeleton) setLoading(true);
     try {
       // Parallel fetch: event data + certificate status (if logged in)
       const eventPromise = fetch(`/api/events/${selectedEventId}`).then(r => r.json());
@@ -91,7 +91,7 @@ export function EventDetailPage() {
     } catch (e) {
       console.error(e);
     } finally {
-      setLoading(false);
+      if (showSkeleton) setLoading(false);
     }
   }, [selectedEventId, currentUser]);
 
@@ -110,27 +110,26 @@ export function EventDetailPage() {
   }, [userRegistration, currentUser]);
 
   const handleSaveName = async () => {
-    if (!userRegistration || !currentUser || !event) return;
+    if (!event || !currentUser) return;
     setSavingName(true);
     try {
-      const res = await fetch(`/api/events/${event.id}/registrations/${userRegistration.id}/name`, {
+      const res = await fetch(`/api/events/${event.id}/preferred-name`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          preferredName: prefName,
-          studentId: studId,
-          department: dept,
-          institution: inst,
-          requestingUserId: currentUser.id,
-          requestingUserRole: currentUser.role,
+          userId: currentUser.id,
+          preferredName: prefName.trim(),
+          studentId: studId.trim(),
+          department: dept.trim(),
+          institution: inst.trim(),
         }),
       });
-      const data = await res.json();
-      if (data.success) {
-        toast({ title: 'Information Saved', description: 'Your certificate details have been updated.' });
-        loadEvent();
+      const d = await res.json();
+      if (d.success) {
+        toast({ title: 'Updated', description: 'Your certificate information has been saved.' });
+        loadEvent(false);
       } else {
-        toast({ title: 'Failed to Save', description: data.error || 'Could not update information', variant: 'destructive' });
+        toast({ title: 'Error', description: d.error || 'Failed to update', variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
@@ -142,6 +141,20 @@ export function EventDetailPage() {
   const handleMarkAttendance = async (userId: string, status: 'PRESENT' | 'ABSENT' | 'LATE') => {
     if (!event || !currentUser) return;
     setUpdatingAttendanceId(userId);
+
+    // Optimistic in-place update in local state for 0ms instant UI response
+    setEvent((prev: any) => {
+      if (!prev) return prev;
+      const currentAttendance = Array.isArray(prev.attendance) ? [...prev.attendance] : [];
+      const idx = currentAttendance.findIndex((a: any) => a.userId === userId);
+      if (idx >= 0) {
+        currentAttendance[idx] = { ...currentAttendance[idx], status };
+      } else {
+        currentAttendance.push({ userId, status, eventId: prev.id, id: 'temp-' + Date.now() });
+      }
+      return { ...prev, attendance: currentAttendance };
+    });
+
     try {
       const r = await fetch(`/api/events/${event.id}/attendance`, {
         method: 'POST',
@@ -156,12 +169,14 @@ export function EventDetailPage() {
       const d = await r.json();
       if (d.success) {
         toast({ title: 'Attendance Marked', description: `Attendance marked as ${status.toLowerCase()}.` });
-        loadEvent();
+        loadEvent(false);
       } else {
         toast({ title: 'Error', description: d.error || 'Failed to update attendance', variant: 'destructive' });
+        loadEvent(false);
       }
     } catch {
       toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+      loadEvent(false);
     } finally {
       setUpdatingAttendanceId(null);
     }
@@ -183,12 +198,12 @@ export function EventDetailPage() {
       const d = await res.json();
       if (d.success) {
         toast({ title: 'Certificate Updated', description: `Assigned as ${CERTIFICATE_TYPE_LABELS[type as CertificateType]}.` });
-        loadEvent();
+        loadEvent(false);
       } else {
         toast({ title: 'Failed to update', description: d.error || 'Please try again', variant: 'destructive' });
       }
     } catch {
-      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+      toast({ title: 'Update failed', description: 'Network error', variant: 'destructive' });
     } finally {
       setUpdatingCertUserId(null);
     }

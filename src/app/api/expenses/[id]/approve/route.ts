@@ -29,60 +29,78 @@ export async function PATCH(
       return errorResponse('Expense not found', 404);
     }
 
-    if (expense.status === 'APPROVED' || expense.status === 'REJECTED') {
-      return errorResponse('Expense is already finalized', 400);
+    if (expense.status === 'VOIDED') {
+      return errorResponse('Expense is already voided', 400);
     }
 
     let updateData: any = {};
     let auditAction = '';
 
-    if (action === 'PRESIDENT_APPROVE') {
+    if (action === 'VOID') {
       if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only President can give president approval', 403);
+        return errorResponse('Only President or Platform Admin can void an expense', 403);
+      }
+      if (!body.reason || !body.reason.trim()) {
+        return errorResponse('A mandatory reason is required to void an expense', 400);
       }
       updateData = {
-        presidentStatus: 'APPROVED',
-        presidentApprovedBy: approvedBy,
+        status: 'VOIDED',
+        note: expense.note ? `${expense.note} [VOIDED: ${body.reason.trim()}]` : `[VOIDED: ${body.reason.trim()}]`,
       };
-      auditAction = 'EXPENSE_PRESIDENT_APPROVED';
-    } else if (action === 'PRESIDENT_REJECT') {
-      if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only President can reject', 403);
-      }
-      updateData = {
-        presidentStatus: 'REJECTED',
-        presidentApprovedBy: approvedBy,
-        status: 'REJECTED',
-      };
-      auditAction = 'EXPENSE_PRESIDENT_REJECTED';
-    } else if (action === 'GS_APPROVE') {
-      if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only GS can give GS approval', 403);
-      }
-      updateData = {
-        gsStatus: 'APPROVED',
-        gsApprovedBy: approvedBy,
-      };
-      auditAction = 'EXPENSE_GS_APPROVED';
-    } else if (action === 'GS_REJECT') {
-      if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only GS can reject', 403);
-      }
-      updateData = {
-        gsStatus: 'REJECTED',
-        gsApprovedBy: approvedBy,
-        status: 'REJECTED',
-      };
-      auditAction = 'EXPENSE_GS_REJECTED';
+      auditAction = 'EXPENSE_VOIDED';
     } else {
-      return errorResponse('Invalid action. Use PRESIDENT_APPROVE, GS_APPROVE, PRESIDENT_REJECT, or GS_REJECT', 400);
-    }
+      if (expense.status === 'APPROVED' || expense.status === 'REJECTED') {
+        return errorResponse('Expense is already finalized', 400);
+      }
 
-    // If both approved, set overall status to APPROVED
-    const newPresidentStatus = updateData.presidentStatus || expense.presidentStatus;
-    const newGsStatus = updateData.gsStatus || expense.gsStatus;
-    if (newPresidentStatus === 'APPROVED' && newGsStatus === 'APPROVED') {
-      updateData.status = 'APPROVED';
+      if (action === 'PRESIDENT_APPROVE') {
+        if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
+          return errorResponse('Only President can give president approval', 403);
+        }
+        updateData = {
+          presidentStatus: 'APPROVED',
+          presidentApprovedBy: approvedBy,
+        };
+        auditAction = 'EXPENSE_PRESIDENT_APPROVED';
+      } else if (action === 'PRESIDENT_REJECT') {
+        if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
+          return errorResponse('Only President can reject', 403);
+        }
+        updateData = {
+          presidentStatus: 'REJECTED',
+          presidentApprovedBy: approvedBy,
+          status: 'REJECTED',
+        };
+        auditAction = 'EXPENSE_PRESIDENT_REJECTED';
+      } else if (action === 'GS_APPROVE') {
+        if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
+          return errorResponse('Only GS can give GS approval', 403);
+        }
+        updateData = {
+          gsStatus: 'APPROVED',
+          gsApprovedBy: approvedBy,
+        };
+        auditAction = 'EXPENSE_GS_APPROVED';
+      } else if (action === 'GS_REJECT') {
+        if (!['GS', 'PLATFORM_ADMIN'].includes(role)) {
+          return errorResponse('Only GS can reject', 403);
+        }
+        updateData = {
+          gsStatus: 'REJECTED',
+          gsApprovedBy: approvedBy,
+          status: 'REJECTED',
+        };
+        auditAction = 'EXPENSE_GS_REJECTED';
+      } else {
+        return errorResponse('Invalid action. Use PRESIDENT_APPROVE, GS_APPROVE, PRESIDENT_REJECT, GS_REJECT, or VOID', 400);
+      }
+
+      // If both approved, set overall status to APPROVED
+      const newPresidentStatus = updateData.presidentStatus || expense.presidentStatus;
+      const newGsStatus = updateData.gsStatus || expense.gsStatus;
+      if (newPresidentStatus === 'APPROVED' && newGsStatus === 'APPROVED') {
+        updateData.status = 'APPROVED';
+      }
     }
 
     const updated = await prisma.expense.update({
