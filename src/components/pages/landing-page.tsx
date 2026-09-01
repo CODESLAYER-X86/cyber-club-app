@@ -226,14 +226,28 @@ export function LandingPage() {
         <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
           {/* Left Column: Clear Mission & Call-to-Actions */}
           <div className="space-y-6 lg:col-span-7">
-            <div>
-              <Badge
-                variant="outline"
-                className="border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-xs tracking-wider text-emerald-300"
-              >
-                <Radio className="mr-1.5 h-3.5 w-3.5 animate-pulse text-emerald-400" />
-                DHAKA INTERNATIONAL UNIVERSITY • CYBER SECURITY CLUB
-              </Badge>
+            <div className="flex items-center gap-4">
+              <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-slate-950/90 p-2 shadow-xl shadow-emerald-500/10 backdrop-blur-md">
+                <img
+                  src="/logo.png"
+                  alt="DIU Cyber Security Club Logo"
+                  className="h-full w-full object-contain rounded-xl"
+                  width={80}
+                  height={80}
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Badge
+                  variant="outline"
+                  className="border-emerald-500/40 bg-emerald-500/10 px-3 py-0.5 font-mono text-xs tracking-wider text-emerald-300"
+                >
+                  <Radio className="mr-1.5 h-3.5 w-3.5 animate-pulse text-emerald-400" />
+                  DHAKA INTERNATIONAL UNIVERSITY
+                </Badge>
+                <div className="font-mono text-xs text-gray-400">
+                  Department of CSE • Cyber Security Club
+                </div>
+              </div>
             </div>
 
             <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl font-mono leading-tight">

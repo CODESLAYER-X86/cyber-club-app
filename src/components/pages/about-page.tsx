@@ -73,17 +73,17 @@ import { CommitteeMemberCard } from '@/components/shared/committee-member-card';
 /* ──────────── Animation helpers ──────────── */
 
 const fadeUp = {
-  initial: { opacity: 0, y: 30 },
-  whileInView: { opacity: 1, y: 0 },
+  initial: { opacity: 0 },
+  whileInView: { opacity: 1 },
   viewport: { once: true },
-  transition: { duration: 0.5 },
+  transition: { duration: 0.35 },
 };
 
 const stagger = {
-  initial: { opacity: 0, y: 20 },
-  whileInView: { opacity: 1, y: 0 },
+  initial: { opacity: 0 },
+  whileInView: { opacity: 1 },
   viewport: { once: true },
-  transition: { duration: 0.5 },
+  transition: { duration: 0.35 },
 };
 
 /* ──────────── Particles Background ──────────── */
