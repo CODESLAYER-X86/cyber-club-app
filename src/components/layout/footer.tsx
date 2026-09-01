@@ -1,7 +1,7 @@
 'use client';
 
 import { motion } from 'framer-motion';
-import { Github, Twitter, MessageCircle, Heart } from 'lucide-react';
+import { Github, Facebook, Mail, Heart } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { AppView } from '@/types';
 
@@ -9,6 +9,7 @@ const quickLinks: { label: string; view: AppView }[] = [
   { label: 'Home', view: 'landing' },
   { label: 'About', view: 'about' },
   { label: 'Events', view: 'events' },
+  { label: 'Resources', view: 'resources' },
   { label: 'Gallery', view: 'gallery' },
   { label: 'Achievements', view: 'achievements' },
   { label: 'Join Club', view: 'register' },
@@ -18,9 +19,9 @@ const resources = ['Documentation', 'API Status', 'Support', 'FAQ'];
 const legal = ['Privacy Policy', 'Terms of Service', 'Cookie Policy'];
 
 const socialLinks = [
-  { icon: Github, label: 'GitHub', href: '#' },
-  { icon: Twitter, label: 'X (Twitter)', href: '#' },
-  { icon: MessageCircle, label: 'Discord', href: '#' },
+  { icon: Facebook, label: 'Facebook', href: 'https://www.facebook.com/cscdiucse' },
+  { icon: Mail, label: 'Email', href: 'mailto:cscdiucse@gmail.com' },
+  { icon: Github, label: 'GitHub', href: 'https://github.com' },
 ];
 
 const containerVariants = {

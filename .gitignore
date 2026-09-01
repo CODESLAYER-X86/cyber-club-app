@@ -36,7 +36,6 @@ yarn-error.log*
 # vercel
 .vercel
 
-
 # typescript
 *.tsbuildinfo
 next-env.d.ts
@@ -52,3 +51,13 @@ prompt
 server.log
 # Skills directory
 /skills/
+
+# Agent/Workspace directories
+.agent
+.superpowers
+.x86-kit
+*.tar
+.tmp/
+.npm_cache/
+*.pdf
+.github/

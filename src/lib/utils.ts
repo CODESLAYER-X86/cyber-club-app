@@ -13,6 +13,7 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     'login',
     'register',
     'about',
+    'resources',
     'gallery',
     'achievements',
     'events',
@@ -20,6 +21,7 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     'certificate-verify',
     'certificate-public',
     'committee',
+    'apply-membership',
   ];
   if (PUBLIC_VIEWS.includes(view)) {
     return true;

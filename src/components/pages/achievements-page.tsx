@@ -192,16 +192,19 @@ export function AchievementsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Role checks
-  const canSubmit = currentUser && ['MEDIA', 'PRESIDENT', 'VP', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
-  const canApprove = currentUser && ['PRESIDENT', 'VP', 'PLATFORM_ADMIN'].includes(currentUser.role);
-  const canDelete = currentUser && ['PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const canSubmit = Boolean(currentUser && ['MEDIA', 'PRESIDENT', 'VP', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role));
+  const canApprove = Boolean(currentUser && ['PRESIDENT', 'VP', 'PLATFORM_ADMIN'].includes(currentUser.role));
+  const canDelete = Boolean(currentUser && ['PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role));
+  const canModerate = canApprove || canSubmit;
 
   // ── Fetch achievements ──
   const fetchAchievements = useCallback(async () => {
     setLoading(true);
     try {
       const params = new URLSearchParams();
-      if (statusFilter !== 'ALL') params.set('status', statusFilter);
+      // If not a club moderator, always query approved achievements only
+      const effectiveStatus = canModerate ? statusFilter : 'APPROVED';
+      if (effectiveStatus !== 'ALL') params.set('status', effectiveStatus);
       if (categoryFilter !== 'ALL') params.set('category', categoryFilter);
       const qs = params.toString();
       const url = `/api/achievements${qs ? `?${qs}` : ''}`;
@@ -215,7 +218,7 @@ export function AchievementsPage() {
     } finally {
       setLoading(false);
     }
-  }, [statusFilter, categoryFilter]);
+  }, [statusFilter, categoryFilter, canModerate]);
 
   useEffect(() => {
     fetchAchievements();
@@ -548,14 +551,16 @@ export function AchievementsPage() {
             )}
           </div>
 
-          {/* Stats Bar */}
-          <div className="flex items-center justify-center gap-2 rounded-lg bg-black/30 border border-white/5 p-3">
-            <StatItem label="Total" value={stats.total} color="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent" />
-            <div className="h-8 w-px bg-white/10" />
-            <StatItem label="Approved" value={stats.approved} color="text-emerald-400" />
-            <div className="h-8 w-px bg-white/10" />
-            <StatItem label="Pending" value={stats.pending} color="text-amber-400" />
-          </div>
+          {/* Stats Bar — only visible to club moderators */}
+          {canModerate && (
+            <div className="flex items-center justify-center gap-2 rounded-lg bg-black/30 border border-white/5 p-3">
+              <StatItem label="Total" value={stats.total} color="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent" />
+              <div className="h-8 w-px bg-white/10" />
+              <StatItem label="Approved" value={stats.approved} color="text-emerald-400" />
+              <div className="h-8 w-px bg-white/10" />
+              <StatItem label="Pending" value={stats.pending} color="text-amber-400" />
+            </div>
+          )}
         </div>
       </motion.div>
 
@@ -563,46 +568,48 @@ export function AchievementsPage() {
           FILTER BAR
          ════════════════════════════════════════ */}
       <motion.div variants={item} className="flex flex-col sm:flex-row items-start sm:items-center gap-3">
-        {/* Status filter pills */}
-        <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
-          {STATUS_FILTERS.map((tab) => {
-            const count = statusCounts[tab.key] || 0;
-            return (
-              <button
-                key={tab.key}
-                onClick={() => setStatusFilter(tab.key)}
-                className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
-                  statusFilter === tab.key
-                    ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
-                    : 'bg-white/[0.02] text-gray-500 border border-white/5 hover:bg-white/5 hover:text-gray-400'
-                }`}
-              >
-                {tab.label}
-                {count > 0 && (
-                  <Badge
-                    variant="secondary"
-                    className={`h-4 min-w-[18px] px-1 text-[10px] rounded-full ${
-                      statusFilter === tab.key
-                        ? 'bg-emerald-500/20 text-emerald-400'
-                        : 'bg-white/5 text-gray-600'
-                    }`}
-                  >
-                    {count}
-                  </Badge>
-                )}
-              </button>
-            );
-          })}
-        </div>
+        {/* Status filter pills — only visible to club moderators */}
+        {canModerate && (
+          <div className="flex gap-1.5 overflow-x-auto pb-1 scrollbar-none">
+            {STATUS_FILTERS.map((tab) => {
+              const count = statusCounts[tab.key] || 0;
+              return (
+                <button
+                  key={tab.key}
+                  onClick={() => setStatusFilter(tab.key)}
+                  className={`shrink-0 flex items-center gap-1.5 rounded-lg px-3 py-1.5 text-xs font-medium transition-all ${
+                    statusFilter === tab.key
+                      ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                      : 'bg-white/[0.02] text-gray-500 border border-white/5 hover:bg-white/5 hover:text-gray-400'
+                  }`}
+                >
+                  {tab.label}
+                  {count > 0 && (
+                    <Badge
+                      variant="secondary"
+                      className={`h-4 min-w-[18px] px-1 text-[10px] rounded-full ${
+                        statusFilter === tab.key
+                          ? 'bg-emerald-500/20 text-emerald-400'
+                          : 'bg-white/5 text-gray-600'
+                      }`}
+                    >
+                      {count}
+                    </Badge>
+                  )}
+                </button>
+              );
+            })}
+          </div>
+        )}
 
         {/* Category dropdown */}
         <div className="flex items-center gap-2 ml-auto">
           <Filter className="h-3.5 w-3.5 text-gray-500" />
           <Select value={categoryFilter} onValueChange={setCategoryFilter}>
-            <SelectTrigger className="w-[160px] border-white/10 bg-white/[0.03] text-gray-400 text-xs h-8">
+            <SelectTrigger className="w-[160px] border-white/10 bg-white/[0.03] text-gray-400 text-xs h-8 font-mono">
               <SelectValue placeholder="Category" />
             </SelectTrigger>
-            <SelectContent className="border-white/10 bg-[#1a1a2e]">
+            <SelectContent className="border-white/10 bg-[#1a1a2e] text-white">
               <SelectItem value="ALL">All Categories</SelectItem>
               {CATEGORY_OPTIONS.map(opt => (
                 <SelectItem key={opt.value} value={opt.value}>{opt.label}</SelectItem>
@@ -677,31 +684,45 @@ export function AchievementsPage() {
                     {/* Category top border accent */}
                     <div className={`h-0.5 w-full ${catStyle.bg}`} />
 
-                    {/* Image */}
-                    {achievement.imageUrl && (
-                      <div className="relative h-44 w-full overflow-hidden">
+                    {/* Image / Banner */}
+                    {achievement.imageUrl ? (
+                      <div className="relative h-48 w-full overflow-hidden bg-black/40">
                         <img
                           src={achievement.imageUrl}
                           alt={achievement.title}
                           className="h-full w-full object-cover transition-transform duration-500 group-hover:scale-105"
                         />
-                        <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-transparent to-transparent" />
-                        {/* Status dot overlay */}
-                        <div className="absolute top-3 right-3 flex items-center gap-1.5">
-                          <span className={`h-2 w-2 rounded-full ${statusStyle.dot}`} />
-                        </div>
+                        <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-black/20 to-transparent" />
+                        {canModerate && (
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 px-2 py-0.5 rounded backdrop-blur">
+                            <span className={`h-2 w-2 rounded-full ${statusStyle.dot}`} />
+                            <span className="text-[10px] font-mono text-gray-300">{achievement.status}</span>
+                          </div>
+                        )}
+                      </div>
+                    ) : (
+                      <div className="relative h-32 w-full overflow-hidden bg-gradient-to-br from-emerald-950/30 via-slate-900 to-slate-950 flex items-center justify-center border-b border-white/5">
+                        <Trophy className="h-10 w-10 text-emerald-500/30 group-hover:text-emerald-400/60 transition-colors" />
+                        {canModerate && (
+                          <div className="absolute top-3 right-3 flex items-center gap-1.5 bg-black/60 px-2 py-0.5 rounded backdrop-blur">
+                            <span className={`h-2 w-2 rounded-full ${statusStyle.dot}`} />
+                            <span className="text-[10px] font-mono text-gray-300">{achievement.status}</span>
+                          </div>
+                        )}
                       </div>
                     )}
 
-                    <CardContent className="p-4 space-y-3">
-                      {/* Category + Status Badges */}
+                    <CardContent className="p-5 space-y-3">
+                      {/* Category Badge */}
                       <div className="flex items-center gap-2 flex-wrap">
-                        <Badge variant="outline" className={`text-[10px] font-medium ${catStyle.badge}`}>
+                        <Badge variant="outline" className={`text-[10px] font-medium font-mono ${catStyle.badge}`}>
                           {achievement.category}
                         </Badge>
-                        <Badge variant="outline" className={`text-[10px] font-medium ${statusStyle.badge}`}>
-                          {achievement.status}
-                        </Badge>
+                        {canModerate && (
+                          <Badge variant="outline" className={`text-[10px] font-medium font-mono ${statusStyle.badge}`}>
+                            {achievement.status}
+                          </Badge>
+                        )}
                       </div>
 
                       {/* Title */}

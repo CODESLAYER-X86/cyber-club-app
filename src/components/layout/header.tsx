@@ -20,6 +20,7 @@ import {
   Home,
   X,
   Shield,
+  BookOpen,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
@@ -77,6 +78,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   settings: 'Settings',
   gallery: 'Gallery',
   achievements: 'Achievements',
+  resources: 'Resources',
   'certificate-designer': 'Certificate Designer',
   committee: 'Committee',
   sponsors: 'Official Sponsors',
@@ -109,6 +111,7 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
   announcements: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Announcements' }],
   analytics: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Analytics' }],
   about: [{ label: 'About' }],
+  resources: [{ label: 'Resources' }],
   settings: [{ label: 'Settings' }],
   gallery: [{ label: 'Gallery' }],
   achievements: [{ label: 'Achievements' }],
@@ -122,6 +125,7 @@ const PUBLIC_NAV_LINKS: { label: string; view: AppView; icon: React.ElementType 
   { label: 'Home', view: 'landing', icon: Home },
   { label: 'About', view: 'about', icon: Info },
   { label: 'Events', view: 'events', icon: Calendar },
+  { label: 'Resources', view: 'resources', icon: BookOpen },
   { label: 'Gallery', view: 'gallery', icon: Image },
   { label: 'Achievements', view: 'achievements', icon: Trophy },
   { label: 'Verify', view: 'certificate-verify', icon: Shield },
@@ -142,14 +146,16 @@ export function Header() {
   } = useAppStore();
   const { isMobile, transitionConfig } = useMobileOptimized();
 
+  const [mounted, setMounted] = useState(false);
   const [currentTime, setCurrentTime] = useState(new Date());
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Determine if we're in full-page mode (public pages without sidebar)
-  const isFullPageMode = !isAuthenticated && ['landing', 'login', 'register', 'certificate-public', 'about', 'gallery', 'achievements', 'events', 'certificate-verify'].includes(currentView);
+  const isFullPageMode = !isAuthenticated && ['landing', 'login', 'register', 'certificate-public', 'about', 'resources', 'gallery', 'achievements', 'events', 'certificate-verify', 'apply-membership'].includes(currentView);
 
   useEffect(() => {
+    setMounted(true);
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
@@ -324,10 +330,12 @@ export function Header() {
       )}
 
       {/* Real-time Clock */}
-      <div className="hidden items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 lg:flex">
-        <Clock className="h-3.5 w-3.5 text-emerald-400" />
-        <span className="text-xs font-mono tabular-nums text-gray-400">{timeString}</span>
-      </div>
+      {mounted && (
+        <div className="hidden items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 lg:flex">
+          <Clock className="h-3.5 w-3.5 text-emerald-400" />
+          <span className="text-xs font-mono tabular-nums text-gray-400">{timeString}</span>
+        </div>
+      )}
 
 
 

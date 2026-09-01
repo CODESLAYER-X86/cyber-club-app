@@ -5,9 +5,9 @@ import { Pool } from "pg";
 const globalForPrisma = globalThis as unknown as { prisma: PrismaClient };
 
 function createClient(): PrismaClient {
-  // Prefer the direct Supabase connection when available so runtime queries
-  // do not fail if the pooler URL is missing or unhealthy.
-  const connectionString = process.env.DIRECT_URL || process.env.DATABASE_URL;
+  // Prefer the connection pooler URL (DATABASE_URL on port 6543) for serverless scalability,
+  // with fallback to DIRECT_URL.
+  const connectionString = process.env.DATABASE_URL || process.env.DIRECT_URL;
 
   if (!connectionString) {
     throw new Error("Database connection is not configured");

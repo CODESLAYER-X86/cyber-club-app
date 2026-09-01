@@ -41,6 +41,8 @@ export async function GET(
     if (isSelf || isAdmin) {
       selectFields.phone = true;
       selectFields.studentId = true;
+      selectFields.rollNumber = true;
+      selectFields.batch = true;
       selectFields.department = true;
       selectFields.transactionId = true;
       selectFields.paymentProof = true;
@@ -89,13 +91,17 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, phone, bio } = body;
+    const { name, phone, bio, studentId, rollNumber, batch, department } = body;
 
     // Only allow updating specific profile fields
     const updateData: Record<string, unknown> = {};
     if (name !== undefined) updateData.name = name;
     if (phone !== undefined) updateData.phone = phone;
     if (bio !== undefined) updateData.bio = bio;
+    if (studentId !== undefined) updateData.studentId = studentId;
+    if (rollNumber !== undefined) updateData.rollNumber = rollNumber;
+    if (batch !== undefined) updateData.batch = batch;
+    if (department !== undefined) updateData.department = department;
 
     if (Object.keys(updateData).length === 0) {
       return errorResponse("No valid fields to update");
@@ -112,6 +118,8 @@ export async function PATCH(
         membershipStatus: true,
         avatar: true,
         studentId: true,
+        rollNumber: true,
+        batch: true,
         department: true,
         phone: true,
         bio: true,

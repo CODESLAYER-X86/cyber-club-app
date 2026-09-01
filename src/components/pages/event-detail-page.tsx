@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag, FileDown } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventRegistration, User as UserType } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, ROLE_LABELS, CERTIFICATE_TYPE_LABELS, CertificateType } from '@/types';
@@ -15,12 +15,13 @@ import { Progress } from '@/components/ui/progress';
 import { Separator } from '@/components/ui/separator';
 import { AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle, AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction } from '@/components/ui/alert-dialog';
 import { toast } from '@/hooks/use-toast';
+import { exportEventAttendeesPdf } from '@/utils/export-attendees-pdf';
 
 type EventDetailData = Omit<Event, 'registrations'> & {
   creator?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role'>;
   verifier?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role'>;
   registrations?: (EventRegistration & {
-    user?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role' | 'membershipStatus'>;
+    user?: Pick<UserType, 'id' | 'name' | 'email' | 'avatar' | 'role' | 'membershipStatus' | 'studentId' | 'rollNumber' | 'batch' | 'department' | 'phone'>;
   })[];
   _count?: { registrations: number };
 };
@@ -728,7 +729,33 @@ export function EventDetailPage() {
                   <Users className="h-5 w-5 text-emerald-400" />
                   Registrants ({event.registrations.length})
                 </CardTitle>
-                {showRegistrants ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+                <div className="flex items-center gap-2">
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="h-8 border-emerald-500/30 bg-emerald-500/10 text-emerald-300 hover:bg-emerald-500/20 hover:text-emerald-200 text-xs font-mono"
+                    onClick={async (e) => {
+                      e.stopPropagation();
+                      try {
+                        await exportEventAttendeesPdf({ event: event as any });
+                        toast({
+                          title: 'Exporting PDF Roster',
+                          description: 'Attendee list formatted for check-in is downloading.',
+                        });
+                      } catch (err) {
+                        toast({
+                          title: 'Export Failed',
+                          description: 'Failed to generate attendee PDF.',
+                          variant: 'destructive',
+                        });
+                      }
+                    }}
+                  >
+                    <FileDown className="mr-1.5 h-3.5 w-3.5" />
+                    Export PDF
+                  </Button>
+                  {showRegistrants ? <ChevronUp className="h-5 w-5 text-gray-400" /> : <ChevronDown className="h-5 w-5 text-gray-400" />}
+                </div>
               </div>
             </CardHeader>
             <AnimatePresence>

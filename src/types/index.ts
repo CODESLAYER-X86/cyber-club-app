@@ -65,6 +65,8 @@ export interface User {
   membershipStatus: MembershipStatus;
   avatar?: string;
   studentId?: string;
+  rollNumber?: string;
+  batch?: string;
   department?: string;
   phone?: string;
   bio?: string;
@@ -396,6 +398,7 @@ export type AppView =
   | "certificate-designer"
   | "committee"
   | "achievements"
+  | "resources"
   | "sponsors";
 
 export interface NavItem {

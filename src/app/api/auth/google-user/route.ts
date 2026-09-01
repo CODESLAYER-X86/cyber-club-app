@@ -40,6 +40,8 @@ export async function GET() {
       membershipStatus: true,
       avatar: true,
       studentId: true,
+      rollNumber: true,
+      batch: true,
       department: true,
       phone: true,
       bio: true,

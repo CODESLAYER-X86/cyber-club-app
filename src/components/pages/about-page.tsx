@@ -27,6 +27,18 @@ import {
   X,
   Loader2,
   ImageIcon,
+  Compass,
+  CheckCircle2,
+  AlertTriangle,
+  Building2,
+  GraduationCap,
+  Calendar,
+  Layers,
+  FileCheck,
+  Terminal,
+  Cpu,
+  Lock,
+  Globe2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -34,6 +46,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -72,38 +85,6 @@ const stagger = {
   viewport: { once: true },
   transition: { duration: 0.5 },
 };
-
-/* ──────────── Animated Counter ──────────── */
-
-function AnimatedCounter({ target, suffix = '' }: { target: number; suffix?: string }) {
-  const ref = useRef<HTMLSpanElement>(null);
-  const inView = useInView(ref, { once: true });
-  const [count, setCount] = useState(0);
-
-  useEffect(() => {
-    if (!inView) return;
-    let start = 0;
-    const duration = 2000;
-    const startTime = performance.now();
-
-    function step(now: number) {
-      const elapsed = now - startTime;
-      const progress = Math.min(elapsed / duration, 1);
-      const eased = 1 - Math.pow(1 - progress, 3);
-      start = Math.round(eased * target);
-      setCount(start);
-      if (progress < 1) requestAnimationFrame(step);
-    }
-    requestAnimationFrame(step);
-  }, [inView, target]);
-
-  return (
-    <span ref={ref}>
-      {count}
-      {suffix}
-    </span>
-  );
-}
 
 /* ──────────── Particles Background ──────────── */
 
@@ -194,1042 +175,815 @@ function ParticlesGrid() {
 const coreValues = [
   {
     icon: Shield,
-    title: 'Security',
-    desc: 'We practice what we preach — security first in everything we do.',
+    title: 'Defensive Integrity',
+    desc: 'All security research and skills taught are dedicated to defensive hardening and digital asset protection.',
     bgClass: 'bg-emerald-500/10',
     borderClass: 'border-emerald-500/20',
     iconClass: 'text-emerald-400',
   },
   {
     icon: Scale,
-    title: 'Transparency',
-    desc: 'Open governance, clear processes, and accountable leadership.',
+    title: 'Open Governance',
+    desc: 'Transparent elections, clear financial accounting in treasury, and student-first leadership accountability.',
     bgClass: 'bg-cyan-500/10',
     borderClass: 'border-cyan-500/20',
     iconClass: 'text-cyan-400',
   },
   {
     icon: Users,
-    title: 'Community',
-    desc: 'Together we learn, together we grow. No one gets left behind.',
+    title: 'No-Gatekeeping Community',
+    desc: 'We mentor first-year novices alongside senior researchers. Everyone learns, builds, and grows together.',
     bgClass: 'bg-amber-500/10',
     borderClass: 'border-amber-500/20',
     iconClass: 'text-amber-400',
   },
   {
     icon: Lightbulb,
-    title: 'Innovation',
-    desc: 'Constantly exploring new threats, tools, and techniques.',
+    title: 'Applied Innovation',
+    desc: 'Moving beyond classroom slides into hands-on attack simulations, packet inspection, and real vulnerability audits.',
     bgClass: 'bg-purple-500/10',
     borderClass: 'border-purple-500/20',
     iconClass: 'text-purple-400',
   },
 ];
 
-const milestones = [
-  { year: '2020', title: 'Club Founded', desc: 'Started with just 5 passionate students', icon: Flag, dotClass: 'bg-emerald-400' },
-  { year: '2021', title: 'First CTF Win', desc: 'Won regional Capture The Flag competition', icon: Award, dotClass: 'bg-cyan-400' },
-  { year: '2022', title: '100 Members', desc: 'Reached our first major membership milestone', icon: Users, dotClass: 'bg-amber-400' },
-  { year: '2023', title: 'National Recognition', desc: 'Featured in cybersecurity education conference', icon: Sparkles, dotClass: 'bg-purple-400' },
-  { year: '2024', title: 'Industry Partnerships', desc: 'Collaborating with top security firms', icon: Handshake, dotClass: 'bg-pink-400' },
-  { year: '2025', title: '500+ Community', desc: 'Growing stronger every day', icon: Rocket, dotClass: 'bg-emerald-400' },
+const ethicsRules = [
+  {
+    id: 'ETH-01',
+    title: 'Strict Authorized Scope',
+    desc: 'Never probe, scan, or exploit any network, server, or application without explicit written authorization.',
+  },
+  {
+    id: 'ETH-02',
+    title: 'Responsible Disclosure',
+    desc: 'Report discovered vulnerabilities privately to system owners and vendors following standard coordinated disclosure guidelines.',
+  },
+  {
+    id: 'ETH-03',
+    title: 'Zero Malicious Weaponization',
+    desc: 'Never develop, distribute, or deploy ransomware, denial-of-service tools, or unauthorized backdoor implants.',
+  },
+  {
+    id: 'ETH-04',
+    title: 'Data Privacy Respect',
+    desc: 'Maintain absolute confidentiality of sensitive user credentials or personal information encountered during legitimate audits.',
+  },
+  {
+    id: 'ETH-05',
+    title: 'Community Upliftment',
+    desc: 'Commit to mentoring junior peers, sharing defensive tactics, and upholding the reputation of Dhaka International University.',
+  },
 ];
 
-const achievements = [
-  { target: 12, suffix: '', label: 'CTF Competition Wins' },
-  { target: 40, suffix: '+', label: 'Workshops & Seminars' },
-  { target: 500, suffix: '+', label: 'Active Members' },
-  { target: 25, suffix: '+', label: 'Industry Partners' },
-  { target: 8, suffix: '', label: 'National Awards' },
-  { target: 100, suffix: '+', label: 'Certified Members' },
+const operationalWings = [
+  {
+    name: 'Red Wing (Offensive Security)',
+    badge: 'OFFENSIVE',
+    badgeClass: 'border-emerald-500/30 text-emerald-300 bg-emerald-500/10',
+    desc: 'Web application penetration testing, OWASP Top 10 vulnerabilities, API security assessments, Bug Bounty methodology, and automated payload testing.',
+    stack: 'Burp Suite • Metasploit • Nmap • Linux CLI',
+  },
+  {
+    name: 'Blue Wing (Defensive Ops & SOC)',
+    badge: 'DEFENSIVE',
+    badgeClass: 'border-cyan-500/30 text-cyan-300 bg-cyan-500/10',
+    desc: 'Security Operations Center telemetry analysis, SIEM log correlation with Splunk and ELK, packet forensics, threat hunting, and incident response workflows.',
+    stack: 'Wireshark • Splunk • ELK • Volatility',
+  },
+  {
+    name: 'Purple Wing (Applied Crypto & Cloud)',
+    badge: 'CRYPTO & CLOUD',
+    badgeClass: 'border-amber-500/30 text-amber-300 bg-amber-500/10',
+    desc: 'Public-key cryptography, symmetric ciphers, TLS/SSL auditing, Zero Trust network segmentation, and cloud security posture management.',
+    stack: 'OpenSSL • AWS Security • Hashcat • Python',
+  },
+  {
+    name: 'CTF & Reverse Engineering Wing',
+    badge: 'COMPETITIVE',
+    badgeClass: 'border-red-500/30 text-red-300 bg-red-500/10',
+    desc: 'Binary disassembly with Ghidra, memory corruption analysis, buffer overflow exploitation, and competitive Capture The Flag tournament training.',
+    stack: 'Ghidra • GDB • x64dbg • CyberChef',
+  },
+  {
+    name: 'Operations & Governance Wing',
+    badge: 'GOVERNANCE',
+    badgeClass: 'border-purple-500/30 text-purple-300 bg-purple-500/10',
+    desc: 'Event planning, workshop logistics, public media relations, treasury management, certificate validation, and university coordination.',
+    stack: 'Event Ops • Financial Audit • Media Relations',
+  },
 ];
 
-/* ──────────── Role Color Helpers ──────────── */
+const careerPaths = [
+  {
+    role: 'SOC Analyst (Tier 1 & 2)',
+    focus: 'SIEM alert triage, network packet analysis, and intrusion investigation.',
+    skills: 'Splunk, Wireshark, Incident Triage, MITRE ATT&CK',
+  },
+  {
+    role: 'Junior Penetration Tester',
+    focus: 'Vulnerability assessment, web application testing, and executive report writing.',
+    skills: 'Burp Suite, OWASP Top 10, Nmap, Kali Linux',
+  },
+  {
+    role: 'Application Security (AppSec) Engineer',
+    focus: 'Source code security review, DevSecOps pipelines, and API security auditing.',
+    skills: 'Static Analysis (SAST), Dynamic Analysis (DAST), Secure Coding',
+  },
+  {
+    role: 'Digital Forensics & Incident Responder (DFIR)',
+    focus: 'Memory extraction, disk image examination, malware triage, and root-cause analysis.',
+    skills: 'Volatility, Autopsy, Timeline Analysis, Evidence Chain',
+  },
+];
 
-interface RoleColors {
-  avatarBg: string;
-  accentClass: string;
-  borderAccent: string;
-  glowClass: string;
-}
-
-function getRoleColors(role: string): RoleColors {
-  const firstWord = role.split(' ')[0].toLowerCase();
-  switch (firstWord) {
-    case 'president':
-      return {
-        avatarBg: 'from-amber-500 to-orange-500',
-        accentClass: 'text-amber-400',
-        borderAccent: 'border-amber-500/30',
-        glowClass: 'group-hover:shadow-amber-500/20',
-      };
-    case 'vice':
-      return {
-        avatarBg: 'from-purple-500 to-violet-500',
-        accentClass: 'text-purple-400',
-        borderAccent: 'border-purple-500/30',
-        glowClass: 'group-hover:shadow-purple-500/20',
-      };
-    case 'general':
-      return {
-        avatarBg: 'from-cyan-500 to-teal-500',
-        accentClass: 'text-cyan-400',
-        borderAccent: 'border-cyan-500/30',
-        glowClass: 'group-hover:shadow-cyan-500/20',
-      };
-    case 'treasurer':
-      return {
-        avatarBg: 'from-emerald-500 to-green-500',
-        accentClass: 'text-emerald-400',
-        borderAccent: 'border-emerald-500/30',
-        glowClass: 'group-hover:shadow-emerald-500/20',
-      };
-    case 'media':
-      return {
-        avatarBg: 'from-pink-500 to-rose-500',
-        accentClass: 'text-pink-400',
-        borderAccent: 'border-pink-500/30',
-        glowClass: 'group-hover:shadow-pink-500/20',
-      };
-    default:
-      return {
-        avatarBg: 'from-gray-500 to-slate-500',
-        accentClass: 'text-gray-400',
-        borderAccent: 'border-gray-500/30',
-        glowClass: 'group-hover:shadow-gray-500/20',
-      };
-  }
-}
-
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
-}
-
-interface SocialLinkData {
-  linkedin?: string;
-  github?: string;
-  facebook?: string;
-  twitter?: string;
-}
-
-function parseSocialLinks(raw: string | null | undefined): SocialLinkData | null {
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as SocialLinkData;
-  } catch {
-    return null;
-  }
-}
-
-/* ──────────── Committee Member Form State ──────────── */
-
-interface MemberFormData {
-  name: string;
-  role: string;
-  description: string;
-  department: string;
-  email: string;
-  order: number;
-  imageUrl: string;
-  socialLinkedIn: string;
-  socialGithub: string;
-  socialFacebook: string;
-}
-
-const emptyForm: MemberFormData = {
-  name: '',
-  role: '',
-  description: '',
-  department: '',
-  email: '',
-  order: 0,
-  imageUrl: '',
-  socialLinkedIn: '',
-  socialGithub: '',
-  socialFacebook: '',
-};
-
-/* ──────────── Page Component ──────────── */
+const semesterRhythm = [
+  {
+    title: 'Weekly Hands-on Security Labs',
+    timing: 'Every Saturday',
+    desc: 'Guided practical workshops dissecting vulnerable web targets, network packet captures, and Linux command line tooling.',
+  },
+  {
+    title: 'Monthly "Flag Friday" Mini-CTFs',
+    timing: 'Last Friday of Each Month',
+    desc: 'Internal Jeopardy-style problem-solving sprints where members compete in Web, Crypto, and Forensics challenges.',
+  },
+  {
+    title: 'Quarterly Industry Masterclasses',
+    timing: 'Every 3 Months',
+    desc: 'Interactive guest sessions featuring industry CISOs, seasoned penetration testers, and alumni working in top tech consultancies.',
+  },
+  {
+    title: 'Annual DIU Cyber Defense Bootcamp',
+    timing: 'Annual Flagship',
+    desc: 'Multi-day intensive certification bootcamp culminating in verified digital badges and recognized workshop certificates.',
+  },
+];
 
 export function AboutPage() {
-  const setCurrentView = useAppStore((s) => s.setCurrentView);
-  const currentUser = useAppStore((s) => s.currentUser);
+  const { currentUser } = useAppStore();
+  const canManage = currentUser?.role === 'PRESIDENT' || currentUser?.role === 'PLATFORM_ADMIN';
 
-  // Committee members state
+  // Committee Members State
   const [members, setMembers] = useState<CommitteeMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(true);
-  const [membersError, setMembersError] = useState<string | null>(null);
-
-  // Dialog state
-  const [addDialogOpen, setAddDialogOpen] = useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [editingMemberId, setEditingMemberId] = useState<string | null>(null);
-  const [formData, setFormData] = useState<MemberFormData>(emptyForm);
-  const [formSubmitting, setFormSubmitting] = useState(false);
-
-  // Sponsors state
+  // Sponsors State
   const [sponsors, setSponsors] = useState<any[]>([]);
 
-  // Permission check
-  const canManage = !!(currentUser && ['PRESIDENT', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(currentUser.role));
+  // Dialog State
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
+  const [deletingMemberName, setDeletingMemberName] = useState<string>('');
+  const [dialogSaving, setDialogSaving] = useState(false);
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  // Dialog Form State
+  const [formState, setFormState] = useState<{
+    id?: string;
+    name: string;
+    role: string;
+    description: string;
+    department: string;
+    email: string;
+    linkedin: string;
+    github: string;
+    facebook: string;
+    imageUrl: string;
+    order: number;
+  }>({
+    name: '',
+    role: '',
+    description: '',
+    department: '',
+    email: '',
+    linkedin: '',
+    github: '',
+    facebook: '',
+    imageUrl: '',
+    order: 0,
+  });
 
-  // Fetch committee members & sponsors
+  // Fetch committee members
   const fetchMembers = useCallback(async () => {
     try {
       setMembersLoading(true);
-      setMembersError(null);
       const res = await fetch('/api/committee');
       const data = await res.json();
-      if (data.success) {
-        setMembers(data.data.members || []);
-      } else {
-        setMembersError('Failed to load committee members');
+      if (data.success && Array.isArray(data.data?.members)) {
+        setMembers(data.data.members);
       }
-    } catch {
-      setMembersError('Failed to load committee members');
+    } catch (err) {
+      console.error('Failed to fetch committee members', err);
     } finally {
       setMembersLoading(false);
     }
   }, []);
 
-  const fetchSponsors = useCallback(async () => {
-    try {
-      const res = await fetch('/api/sponsors');
-      const data = await res.json();
-      if (data.success) {
-        setSponsors(data.data || []);
-      }
-    } catch {
-      // Fail silently for sponsors
-    }
-  }, []);
-
+  // Fetch sponsors
   useEffect(() => {
+    async function fetchSponsors() {
+      try {
+        const res = await fetch('/api/sponsors');
+        const data = await res.json();
+        if (data.success && Array.isArray(data.data?.sponsors)) {
+          setSponsors(data.data.sponsors);
+        }
+      } catch (err) {
+        console.error('Failed to fetch sponsors', err);
+      }
+    }
     fetchMembers();
     fetchSponsors();
-  }, [fetchMembers, fetchSponsors]);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [uploadingImage, setUploadingImage] = useState(false);
-  const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  }, [fetchMembers]);
 
-  // Delete confirmation state
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
-  const [deletingMemberName, setDeletingMemberName] = useState('');
-
-  // Upload image
-  const uploadImage = async (file: File): Promise<string | null> => {
-    try {
-      setUploadingImage(true);
-      return await uploadToSupabase(file, 'committee');
-    } catch {
-      return null;
-    } finally {
-      setUploadingImage(false);
-    }
-  };
-
-  // Handle file selection
-  const handleFileSelect = (file: File) => {
-    if (!file.type.startsWith('image/')) return;
-    if (file.size > 5 * 1024 * 1024) return; // 5MB limit
-    setSelectedFile(file);
-    const reader = new FileReader();
-    reader.onload = (e) => {
-      setImagePreview(e.target?.result as string);
-    };
-    reader.readAsDataURL(file);
-  };
-
-  // Drag and drop handlers
-  const handleDragOver = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(true);
-  };
-
-  const handleDragLeave = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-  };
-
-  const handleDrop = (e: React.DragEvent) => {
-    e.preventDefault();
-    setDragOver(false);
-    const file = e.dataTransfer.files[0];
-    if (file) handleFileSelect(file);
-  };
-
-  // Reset form state
-  const resetForm = () => {
-    setFormData(emptyForm);
-    setSelectedFile(null);
-    setImagePreview(null);
-    setDragOver(false);
-    setEditingMemberId(null);
-  };
-
-  // Open add dialog
   const openAddDialog = () => {
-    resetForm();
-    setAddDialogOpen(true);
-  };
-
-  // Open edit dialog
-  const openEditDialog = (member: CommitteeMember) => {
-    const socials = parseSocialLinks(member.socialLinks);
-    setFormData({
-      name: member.name,
-      role: member.role,
-      description: member.description,
-      department: member.department || '',
-      email: member.email || '',
-      order: member.order,
-      imageUrl: member.imageUrl || '',
-      socialLinkedIn: socials?.linkedin || '',
-      socialGithub: socials?.github || '',
-      socialFacebook: socials?.facebook || '',
+    setFormState({
+      name: '',
+      role: '',
+      description: '',
+      department: '',
+      email: '',
+      linkedin: '',
+      github: '',
+      facebook: '',
+      imageUrl: '',
+      order: members.length + 1,
     });
-    setImagePreview(member.imageUrl || null);
-    setEditingMemberId(member.id);
+    setImageFile(null);
+    setImagePreview(null);
     setEditDialogOpen(true);
   };
 
-  // Submit add
-  const handleAddSubmit = async () => {
-    if (!formData.name || !formData.role || !formData.description) return;
-    setFormSubmitting(true);
-
+  const openEditDialog = (member: CommitteeMember) => {
+    let links: any = {};
     try {
-      let imageUrl = formData.imageUrl;
-      if (selectedFile) {
-        const uploadedUrl = await uploadImage(selectedFile);
-        if (uploadedUrl) imageUrl = uploadedUrl;
+      if (member.socialLinks) {
+        links = typeof member.socialLinks === 'string' ? JSON.parse(member.socialLinks) : member.socialLinks;
       }
+    } catch (e) {
+      links = {};
+    }
 
-      const socialLinks: SocialLinkData = {};
-      if (formData.socialLinkedIn) socialLinks.linkedin = formData.socialLinkedIn;
-      if (formData.socialGithub) socialLinks.github = formData.socialGithub;
-      if (formData.socialFacebook) socialLinks.facebook = formData.socialFacebook;
+    setFormState({
+      id: member.id,
+      name: member.name,
+      role: member.role,
+      description: member.description || '',
+      department: member.department || '',
+      email: member.email || '',
+      linkedin: links.linkedin || '',
+      github: links.github || '',
+      facebook: links.facebook || '',
+      imageUrl: member.imageUrl || '',
+      order: member.order,
+    });
+    setImageFile(null);
+    setImagePreview(member.imageUrl || null);
+    setEditDialogOpen(true);
+  };
 
-      const res = await fetch('/api/committee', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          role: formData.role,
-          description: formData.description,
-          department: formData.department || undefined,
-          email: formData.email || undefined,
-          imageUrl: imageUrl || undefined,
-          socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : undefined,
-          order: formData.order,
-          requesterRole: currentUser?.role,
-        }),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setAddDialogOpen(false);
-        resetForm();
-        fetchMembers();
-      }
-    } catch {
-      // Error handled silently
-    } finally {
-      setFormSubmitting(false);
+  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setImageFile(file);
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
     }
   };
 
-  // Submit edit
-  const handleEditSubmit = async () => {
-    if (!editingMemberId || !formData.name || !formData.role || !formData.description) return;
-    setFormSubmitting(true);
+  const saveMember = async () => {
+    if (!formState.name || !formState.role) return;
 
     try {
-      let imageUrl = formData.imageUrl;
-      if (selectedFile) {
-        const uploadedUrl = await uploadImage(selectedFile);
-        if (uploadedUrl) imageUrl = uploadedUrl;
+      setDialogSaving(true);
+      let imageUrl = formState.imageUrl || '';
+
+      if (imageFile) {
+        imageUrl = await uploadToSupabase(imageFile, 'committee');
       }
 
-      const socialLinks: SocialLinkData = {};
-      if (formData.socialLinkedIn) socialLinks.linkedin = formData.socialLinkedIn;
-      if (formData.socialGithub) socialLinks.github = formData.socialGithub;
-      if (formData.socialFacebook) socialLinks.facebook = formData.socialFacebook;
+      const socialLinksObj = {
+        linkedin: formState.linkedin,
+        github: formState.github,
+        facebook: formState.facebook,
+      };
 
-      const res = await fetch(`/api/committee/${editingMemberId}`, {
-        method: 'PATCH',
+      const payload = {
+        name: formState.name,
+        role: formState.role,
+        description: formState.description || `${formState.role} of Cyber Security Club`,
+        department: formState.department,
+        email: formState.email,
+        socialLinks: socialLinksObj,
+        imageUrl,
+        order: formState.order,
+      };
+
+      const isEdit = !!formState.id;
+      const url = isEdit ? `/api/committee/${formState.id}` : '/api/committee';
+      const method = isEdit ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          name: formData.name,
-          role: formData.role,
-          description: formData.description,
-          department: formData.department || undefined,
-          email: formData.email || undefined,
-          imageUrl: imageUrl || undefined,
-          socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : undefined,
-          order: formData.order,
-          requesterRole: currentUser?.role,
-        }),
+        body: JSON.stringify(payload),
       });
 
       const data = await res.json();
       if (data.success) {
         setEditDialogOpen(false);
-        resetForm();
         fetchMembers();
       }
-    } catch {
-      // Error handled silently
+    } catch (err) {
+      console.error('Failed to save committee member', err);
     } finally {
-      setFormSubmitting(false);
+      setDialogSaving(false);
     }
   };
 
-  // Delete member
-  const handleDelete = async () => {
+  const deleteMember = async () => {
     if (!deletingMemberId) return;
     try {
-      const res = await fetch(`/api/committee/${deletingMemberId}?role=${currentUser?.role}`, {
+      setDialogSaving(true);
+      const res = await fetch(`/api/committee/${deletingMemberId}`, {
         method: 'DELETE',
       });
       const data = await res.json();
       if (data.success) {
         setDeleteDialogOpen(false);
-        setDeletingMemberId(null);
-        setDeletingMemberName('');
         fetchMembers();
       }
-    } catch {
-      // Error handled silently
+    } catch (err) {
+      console.error('Failed to delete committee member', err);
+    } finally {
+      setDialogSaving(false);
     }
   };
 
-  // Form field updater
-  const updateField = <K extends keyof MemberFormData>(field: K, value: MemberFormData[K]) => {
-    setFormData((prev) => ({ ...prev, [field]: value }));
-  };
-
-  /* ──────────── Member Form Dialog ──────────── */
-
-  const renderMemberForm = (isEdit: boolean) => (
-    <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
-      {/* Avatar Upload */}
-      <div className="space-y-2">
-        <Label className="text-gray-300">Avatar Image</Label>
-        <div
-          className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer ${
-            dragOver
-              ? 'border-emerald-500 bg-emerald-500/10'
-              : 'border-white/10 bg-white/5 hover:border-white/20'
-          }`}
-          onDragOver={handleDragOver}
-          onDragLeave={handleDragLeave}
-          onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
-        >
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            className="hidden"
-            onChange={(e) => {
-              const file = e.target.files?.[0];
-              if (file) handleFileSelect(file);
-            }}
-          />
-          {imagePreview ? (
-            <div className="relative">
-              <img
-                src={imagePreview}
-                alt="Preview"
-                className="h-24 w-24 rounded-full object-cover border-2 border-emerald-500/30"
-              />
-              <button
-                type="button"
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setSelectedFile(null);
-                  setImagePreview(isEdit && formData.imageUrl ? formData.imageUrl : null);
-                  if (!isEdit || !formData.imageUrl) setImagePreview(null);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
-                }}
-                className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
-              >
-                <X className="h-3 w-3" />
-              </button>
-            </div>
-          ) : (
-            <>
-              <Upload className="h-8 w-8 text-gray-500 mb-2" />
-              <p className="text-sm text-gray-400">
-                Drag & drop or <span className="text-emerald-400">click to browse</span>
-              </p>
-              <p className="text-xs text-gray-600 mt-1">PNG, JPG up to 5MB</p>
-            </>
-          )}
-        </div>
-      </div>
-
-      {/* Name */}
-      <div className="space-y-2">
-        <Label className="text-gray-300">
-          Name <span className="text-red-400">*</span>
-        </Label>
-        <Input
-          value={formData.name}
-          onChange={(e) => updateField('name', e.target.value)}
-          placeholder="Full name"
-          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-        />
-      </div>
-
-      {/* Role */}
-      <div className="space-y-2">
-        <Label className="text-gray-300">
-          Role <span className="text-red-400">*</span>
-        </Label>
-        <Input
-          value={formData.role}
-          onChange={(e) => updateField('role', e.target.value)}
-          placeholder="e.g., President, Vice President, Treasurer"
-          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-        />
-      </div>
-
-      {/* Description */}
-      <div className="space-y-2">
-        <Label className="text-gray-300">
-          Description <span className="text-red-400">*</span>
-        </Label>
-        <Textarea
-          value={formData.description}
-          onChange={(e) => updateField('description', e.target.value)}
-          placeholder="Brief description of their role and contributions"
-          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 min-h-[80px]"
-        />
-      </div>
-
-      {/* Department & Email */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label className="text-gray-300">Department</Label>
-          <Input
-            value={formData.department}
-            onChange={(e) => updateField('department', e.target.value)}
-            placeholder="e.g., Computer Science"
-            className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-          />
-        </div>
-        <div className="space-y-2">
-          <Label className="text-gray-300">Email</Label>
-          <Input
-            type="email"
-            value={formData.email}
-            onChange={(e) => updateField('email', e.target.value)}
-            placeholder="email@example.com"
-            className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-          />
-        </div>
-      </div>
-
-      {/* Order */}
-      <div className="space-y-2">
-        <Label className="text-gray-300">Display Order</Label>
-        <Input
-          type="number"
-          value={formData.order}
-          onChange={(e) => updateField('order', parseInt(e.target.value) || 0)}
-          placeholder="0"
-          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-        />
-      </div>
-
-      {/* Social Links */}
-      <div className="space-y-3">
-        <Label className="text-gray-300">Social Links</Label>
-        <div className="space-y-2">
-          <div className="flex items-center gap-2">
-            <Linkedin className="h-4 w-4 text-blue-400 shrink-0" />
-            <Input
-              value={formData.socialLinkedIn}
-              onChange={(e) => updateField('socialLinkedIn', e.target.value)}
-              placeholder="LinkedIn URL"
-              className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Github className="h-4 w-4 text-gray-400 shrink-0" />
-            <Input
-              value={formData.socialGithub}
-              onChange={(e) => updateField('socialGithub', e.target.value)}
-              placeholder="GitHub URL"
-              className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-            />
-          </div>
-          <div className="flex items-center gap-2">
-            <Facebook className="h-4 w-4 text-blue-500 shrink-0" />
-            <Input
-              value={formData.socialFacebook}
-              onChange={(e) => updateField('socialFacebook', e.target.value)}
-              placeholder="Facebook Profile URL"
-              className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-            />
-          </div>
-        </div>
-      </div>
-    </div>
-  );
-
   return (
-    <div className="flex flex-1 flex-col">
+    <div className="relative min-h-screen bg-[#040810] text-gray-100 selection:bg-emerald-500 selection:text-black">
       {/* ── Hero Section ── */}
-      <section className="relative overflow-hidden px-4 py-28">
-        {/* Particles background */}
-        <div className="pointer-events-none absolute inset-0">
-          <ParticlesGrid />
-        </div>
+      <section className="relative overflow-hidden border-b border-emerald-500/20 bg-slate-950/60 px-4 pt-16 pb-20">
+        <ParticlesGrid />
+        <div className="relative mx-auto max-w-5xl text-center space-y-4">
+          <motion.div {...fadeUp} className="space-y-4">
+            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-xs text-emerald-300">
+              <Building2 className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+              DEPARTMENT OF COMPUTER SCIENCE & ENGINEERING • DHAKA INTERNATIONAL UNIVERSITY
+            </Badge>
 
-        {/* Glow orbs */}
-        <div className="pointer-events-none absolute inset-0 overflow-hidden">
-          <div className="absolute left-1/4 top-1/3 h-[500px] w-[500px] rounded-full bg-emerald-500/5 blur-[160px]" />
-          <div className="absolute right-1/4 top-1/4 h-[400px] w-[400px] rounded-full bg-cyan-500/5 blur-[140px]" />
-        </div>
-
-        <div className="relative mx-auto max-w-4xl text-center">
-          <motion.div {...fadeUp}>
-            <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
-              <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
-            </div>
-            <h1 className="text-4xl font-extrabold text-white md:text-5xl lg:text-6xl">
-              About{' '}
-              <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                Cyber Security Club
+            <h1 className="text-4xl font-black text-white sm:text-5xl lg:text-6xl font-mono">
+              ABOUT{' '}
+              <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-teal-300 bg-clip-text text-transparent">
+                CYBER SECURITY CLUB
               </span>
             </h1>
-            <p className="mx-auto mt-3 text-lg font-medium tracking-wide text-emerald-400/80 md:text-xl">
-              Defending the Digital Frontier Since 2020
-            </p>
-            <p className="mx-auto mt-4 max-w-2xl text-lg text-gray-400">
-              We are a community of cybersecurity enthusiasts dedicated to learning, practicing, and
-              advancing the art of digital defense.
+
+            <p className="mx-auto max-w-3xl text-sm sm:text-base text-gray-300 leading-relaxed font-sans">
+              The official cybersecurity research and ethical hacking society at Dhaka International University (DIU).
+              We empower students with practical defense engineering, vulnerability analysis, and industry-grade competencies.
             </p>
           </motion.div>
         </div>
       </section>
 
-      {/* ── Mission & Vision ── */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <motion.div {...fadeUp} className="grid gap-8 md:grid-cols-2">
-            {/* Mission */}
-            <Card className="group relative overflow-hidden border-white/5 bg-[#111]/60 backdrop-blur transition-shadow duration-500 hover:shadow-[0_0_40px_rgba(16,185,129,0.08)]">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-emerald-400 to-emerald-600" />
-              <CardContent className="pt-6 pl-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-500/20 bg-emerald-500/10 transition-transform duration-300 group-hover:scale-110">
-                  <Target className="h-6 w-6 text-emerald-400" />
-                </div>
-                <h2 className="mb-3 text-2xl font-bold text-white">Our Mission</h2>
-                <p className="text-gray-400 leading-relaxed">
-                  To cultivate the next generation of cybersecurity professionals through hands-on
-                  training, competitive challenges, and a supportive community. We bridge the gap
-                  between academic learning and real-world security skills.
-                </p>
-              </CardContent>
-            </Card>
+      {/* ── 1. MISSION & VISION CHARTER ── */}
+      <section className="relative z-10 mx-auto max-w-6xl px-4 py-16 sm:px-6 lg:px-8">
+        <div className="grid gap-8 md:grid-cols-2">
+          {/* Mission */}
+          <Card className="border-emerald-500/20 bg-slate-950/80 backdrop-blur p-6 space-y-4 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-emerald-500/30 bg-emerald-500/10 text-emerald-400">
+                <Target className="h-6 w-6" />
+              </div>
+              <div>
+                <span className="font-mono text-xs text-emerald-400 font-bold">OUR MISSION</span>
+                <h3 className="font-mono font-bold text-xl text-white">Cultivating Ethical Defenders</h3>
+              </div>
+            </div>
+            <p className="text-xs text-gray-300 leading-relaxed font-sans">
+              To transform classroom theoretical computer science knowledge into actionable cybersecurity mastery through continuous hands-on labs, guided red/blue team simulations, competitive CTFs, and real-world ethical vulnerability discovery.
+            </p>
+          </Card>
 
-            {/* Vision */}
-            <Card className="group relative overflow-hidden border-white/5 bg-[#111]/60 backdrop-blur transition-shadow duration-500 hover:shadow-[0_0_40px_rgba(6,182,212,0.08)]">
-              <div className="absolute left-0 top-0 h-full w-1 bg-gradient-to-b from-cyan-400 to-cyan-600" />
-              <CardContent className="pt-6 pl-6">
-                <div className="mb-4 flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-500/20 bg-cyan-500/10 transition-transform duration-300 group-hover:scale-110">
-                  <Eye className="h-6 w-6 text-cyan-400" />
-                </div>
-                <h2 className="mb-3 text-2xl font-bold text-white">Our Vision</h2>
-                <p className="text-gray-400 leading-relaxed">
-                  To become the leading student-run cybersecurity community, recognized for
-                  producing skilled professionals who protect organizations and individuals from
-                  digital threats worldwide.
-                </p>
-              </CardContent>
-            </Card>
-          </motion.div>
+          {/* Vision */}
+          <Card className="border-cyan-500/20 bg-slate-950/80 backdrop-blur p-6 space-y-4 shadow-xl">
+            <div className="flex items-center gap-3">
+              <div className="flex h-12 w-12 items-center justify-center rounded-xl border border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+                <Eye className="h-6 w-6" />
+              </div>
+              <div>
+                <span className="font-mono text-xs text-cyan-400 font-bold">OUR VISION</span>
+                <h3 className="font-mono font-bold text-xl text-white">National & Global Impact</h3>
+              </div>
+            </div>
+            <p className="text-xs text-gray-300 leading-relaxed font-sans">
+              To establish Dhaka International University as a premier cybersecurity talent hub in Bangladesh, producing principled ethical hackers, SOC analysts, and security engineers who safeguard critical digital infrastructure.
+            </p>
+          </Card>
         </div>
       </section>
 
-      {/* ── Core Values ── */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <motion.div {...fadeUp} className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-white">Core Values</h2>
-            <p className="mt-2 text-gray-500">The principles that guide everything we do</p>
-          </motion.div>
-          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
-            {coreValues.map((v, i) => (
-              <motion.div key={v.title} {...stagger} transition={{ duration: 0.5, delay: i * 0.1 }}>
-                <Card className="group h-full border-white/5 bg-[#111]/60 backdrop-blur transition-all duration-300 hover:border-white/10 hover:-translate-y-1">
-                  <CardContent className="pt-6 text-center">
-                    <div
-                      className={`mx-auto mb-4 flex h-14 w-14 items-center justify-center rounded-xl border ${v.borderClass} ${v.bgClass} transition-transform duration-300 group-hover:scale-110`}
-                    >
-                      <v.icon className={`h-7 w-7 ${v.iconClass}`} />
-                    </div>
-                    <h3 className="text-lg font-semibold text-white">{v.title}</h3>
-                    <p className="mt-2 text-sm text-gray-500">{v.desc}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
+      {/* ── 2. OPERATIVE CODE OF ETHICS (5 NON-NEGOTIABLES) ── */}
+      <section className="relative z-10 border-t border-emerald-500/10 bg-[#060c16]/80 py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center space-y-3">
+            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-mono text-xs">
+              <Shield className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+              MANDATORY CONDUCT
+            </Badge>
+            <h2 className="text-3xl font-black tracking-tight text-white font-mono sm:text-4xl">
+              OPERATIVE CODE OF ETHICS
+            </h2>
+            <p className="text-xs text-gray-400 max-w-2xl mx-auto">
+              Every member of the Dhaka International University Cyber Security Club binds themselves to these 5 non-negotiable standards.
+            </p>
+          </div>
+
+          <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
+            {ethicsRules.map((rule) => (
+              <div key={rule.id} className="rounded-xl border border-white/5 bg-slate-950/70 p-5 space-y-2 hover:border-emerald-500/30 transition-colors">
+                <div className="flex items-center justify-between font-mono text-xs">
+                  <span className="text-emerald-400 font-bold">{rule.id}</span>
+                  <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                </div>
+                <h3 className="font-mono font-bold text-sm text-white">{rule.title}</h3>
+                <p className="text-xs text-gray-400 font-sans leading-relaxed">{rule.desc}</p>
+              </div>
             ))}
           </div>
         </div>
       </section>
 
-      {/* ── Leadership Team ── */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <motion.div {...fadeUp} className="mb-12 text-center">
-            <div className="flex items-center justify-center gap-4">
-              <div>
-                <h2 className="text-3xl font-bold text-white">Committee Members</h2>
-                <p className="mt-2 text-gray-500">The people steering Cyber Security Club forward</p>
+      {/* ── 3. SPECIALIZED OPERATIONAL WINGS ── */}
+      <section className="relative z-10 py-20 border-t border-emerald-500/10">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center space-y-3">
+            <Badge variant="outline" className="border-cyan-500/40 bg-cyan-500/10 text-cyan-300 font-mono text-xs">
+              <Layers className="mr-1.5 h-3.5 w-3.5 text-cyan-400" />
+              DIVISIONS & WINGS
+            </Badge>
+            <h2 className="text-3xl font-black tracking-tight text-white font-mono sm:text-4xl">
+              SPECIALIZED RESEARCH WINGS
+            </h2>
+            <p className="text-xs text-gray-400 max-w-2xl mx-auto">
+              Members specialize in distinct operational divisions reflecting real enterprise security teams.
+            </p>
+          </div>
+
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+            {operationalWings.map((wing, idx) => (
+              <Card key={idx} className="border-white/5 bg-slate-950/80 backdrop-blur p-6 space-y-3">
+                <div className="flex items-center justify-between">
+                  <Badge variant="outline" className={`font-mono text-[10px] ${wing.badgeClass}`}>
+                    {wing.badge}
+                  </Badge>
+                </div>
+                <h3 className="font-mono font-bold text-base text-white">{wing.name}</h3>
+                <p className="text-xs text-gray-400 font-sans leading-relaxed">{wing.desc}</p>
+                <div className="pt-2 border-t border-white/5 font-mono text-[10px] text-gray-500">
+                  STACK: <span className="text-gray-300">{wing.stack}</span>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 4. CAREER PATHWAYS & PREPAREDNESS ── */}
+      <section className="relative z-10 border-t border-emerald-500/10 bg-[#060c16]/80 py-20">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center space-y-3">
+            <Badge variant="outline" className="border-amber-500/40 bg-amber-500/10 text-amber-300 font-mono text-xs">
+              <GraduationCap className="mr-1.5 h-3.5 w-3.5 text-amber-400" />
+              INDUSTRY ALIGNMENT
+            </Badge>
+            <h2 className="text-3xl font-black tracking-tight text-white font-mono sm:text-4xl">
+              CAREER PATHWAYS & ROLES
+            </h2>
+            <p className="text-xs text-gray-400 max-w-2xl mx-auto">
+              How club training prepares students for immediate impact in top cybersecurity consultancies, banks, and technology firms.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {careerPaths.map((career, idx) => (
+              <div key={idx} className="rounded-xl border border-white/5 bg-slate-950/80 p-5 space-y-2">
+                <h3 className="font-mono font-bold text-sm text-emerald-400">{career.role}</h3>
+                <p className="text-xs text-gray-300 font-sans leading-relaxed">{career.focus}</p>
+                <div className="border-t border-white/5 pt-2 font-mono text-[10px] text-gray-500">
+                  KEY SKILLS: <span className="text-gray-400">{career.skills}</span>
+                </div>
               </div>
-              {canManage && (
-                <Button
-                  onClick={openAddDialog}
-                  size="sm"
-                  className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-105"
-                >
-                  <UserPlus className="mr-1 h-4 w-4" />
-                  Add Member
-                </Button>
-              )}
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 5. SEMESTER RHYTHM & MEMBER LIFECYCLE ── */}
+      <section className="relative z-10 py-20 border-t border-emerald-500/10">
+        <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-12">
+          <div className="text-center space-y-3">
+            <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-mono text-xs">
+              <Calendar className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+              OPERATIONAL RHYTHM
+            </Badge>
+            <h2 className="text-3xl font-black tracking-tight text-white font-mono sm:text-4xl">
+              A SEMESTER IN THE CLUB
+            </h2>
+            <p className="text-xs text-gray-400 max-w-2xl mx-auto">
+              What active participation looks like from the start of the semester through annual certifications.
+            </p>
+          </div>
+
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
+            {semesterRhythm.map((rhythm, idx) => (
+              <div key={idx} className="rounded-xl border border-white/5 bg-slate-950/80 p-5 space-y-2">
+                <span className="rounded bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 px-2 py-0.5 font-mono text-[10px] font-bold inline-block">
+                  {rhythm.timing}
+                </span>
+                <h3 className="font-mono font-bold text-sm text-white">{rhythm.title}</h3>
+                <p className="text-xs text-gray-400 font-sans leading-relaxed">{rhythm.desc}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* ── 6. COMMITTEE & LEADERSHIP MANAGEMENT ── */}
+      <section className="relative z-10 border-t border-emerald-500/10 bg-[#060c16]/80 px-4 py-20 sm:px-6 lg:px-8">
+        <div className="mx-auto max-w-6xl space-y-12">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
+            <div>
+              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-mono text-xs">
+                <Users className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+                EXECUTIVE COMMITTEE
+              </Badge>
+              <h2 className="text-3xl font-black tracking-tight text-white font-mono sm:text-4xl mt-1">
+                LEADERSHIP & ADVISORY
+              </h2>
+              <p className="text-xs text-gray-400 mt-1">
+                The students and faculty mentors steering Dhaka International University Cyber Security Club.
+              </p>
             </div>
-          </motion.div>
+
+            {canManage && (
+              <Button
+                onClick={openAddDialog}
+                size="sm"
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs"
+              >
+                <UserPlus className="mr-1.5 h-3.5 w-3.5" />
+                Add Member
+              </Button>
+            )}
+          </div>
 
           {membersLoading ? (
-            /* Loading skeletons */
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
               {Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="border-white/5 bg-[#111]/60 backdrop-blur">
-                  <CardContent className="pt-6">
-                    <div className="mb-4 flex items-center gap-4">
-                      <Skeleton className="h-14 w-14 rounded-full" />
-                      <div className="space-y-2">
-                        <Skeleton className="h-5 w-28" />
-                        <Skeleton className="h-4 w-20" />
-                      </div>
+                <Card key={i} className="border-white/5 bg-slate-950/60 p-6 space-y-4">
+                  <div className="flex items-center gap-4">
+                    <Skeleton className="h-14 w-14 rounded-full" />
+                    <div className="space-y-2 flex-1">
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-3 w-1/2" />
                     </div>
-                    <Skeleton className="h-4 w-full" />
-                    <Skeleton className="mt-2 h-4 w-3/4" />
-                  </CardContent>
+                  </div>
                 </Card>
               ))}
             </div>
-          ) : membersError ? (
-            <div className="text-center py-12">
-              <ImageIcon className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-              <p className="text-gray-500">{membersError}</p>
-              <Button
-                variant="outline"
-                size="sm"
-                className="mt-4 border-white/10 text-gray-400 hover:text-white"
-                onClick={fetchMembers}
-              >
-                Retry
-              </Button>
-            </div>
           ) : members.length === 0 ? (
-            <div className="text-center py-12">
-              <Users className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-              <p className="text-gray-500">No committee members yet.</p>
-              {canManage && (
-                <Button
-                  onClick={openAddDialog}
-                  size="sm"
-                  className="mt-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold shadow-lg shadow-emerald-500/20"
-                >
-                  <UserPlus className="mr-1 h-4 w-4" />
-                  Add First Member
-                </Button>
-              )}
+            <div className="text-center py-12 border border-dashed border-white/10 rounded-xl">
+              <p className="text-xs font-mono text-gray-500">No committee members listed yet.</p>
             </div>
           ) : (
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {members.map((member, i) => (
-                <motion.div
+              {members.map((member) => (
+                <CommitteeMemberCard
                   key={member.id}
-                  {...stagger}
-                  transition={{ duration: 0.5, delay: i * 0.1 }}
-                >
-                  <CommitteeMemberCard
-                    member={member}
-                    canManage={canManage}
-                    onEdit={openEditDialog}
-                    onDelete={(m) => {
-                      setDeletingMemberId(m.id);
-                      setDeletingMemberName(m.name);
-                      setDeleteDialogOpen(true);
-                    }}
-                  />
-                </motion.div>
+                  member={member}
+                  canManage={canManage}
+                  onEdit={openEditDialog}
+                  onDelete={(m) => {
+                    setDeletingMemberId(m.id);
+                    setDeletingMemberName(m.name);
+                    setDeleteDialogOpen(true);
+                  }}
+                />
               ))}
             </div>
           )}
         </div>
       </section>
 
-      {/* ── Timeline / Journey ── */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-4xl">
-          <motion.div {...fadeUp} className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-white">Our Journey</h2>
-            <p className="mt-2 text-gray-500">Milestones that shaped who we are</p>
-          </motion.div>
-
-          <div className="relative">
-            {/* Vertical line */}
-            <div className="absolute left-4 top-0 h-full w-0.5 bg-gradient-to-b from-emerald-500/40 via-cyan-500/40 to-emerald-500/40 md:left-1/2 md:-translate-x-px" />
-
-            <div className="space-y-12">
-              {milestones.map((m, i) => {
-                const isLeft = i % 2 === 0;
-                return (
-                  <motion.div
-                    key={m.year}
-                    initial={{ opacity: 0, x: isLeft ? -30 : 30 }}
-                    whileInView={{ opacity: 1, x: 0 }}
-                    viewport={{ once: true }}
-                    transition={{ duration: 0.5, delay: i * 0.1 }}
-                    className="relative"
-                  >
-                    {/* Timeline dot */}
-                    <div
-                      className={`absolute left-4 top-5 z-10 h-3.5 w-3.5 -translate-x-1/2 rounded-full border-2 border-[#0a0a0a] ${m.dotClass} md:left-1/2`}
-                    />
-
-                    {/* Card — mobile: always right of dot, desktop: alternating */}
-                    <div
-                      className={`ml-12 md:ml-0 md:w-[45%] ${
-                        isLeft ? 'md:mr-auto md:pr-8' : 'md:ml-auto md:pl-8'
-                      }`}
-                    >
-                      <Card className="border-white/5 bg-[#111]/60 backdrop-blur transition-all duration-300 hover:border-white/10">
-                        <CardContent className="pt-5 pb-5">
-                          <div className="mb-2 flex items-center gap-2">
-                            <m.icon className={`h-4 w-4 ${m.dotClass.replace('bg-', 'text-')}`} />
-                            <span className="text-sm font-bold text-emerald-400">{m.year}</span>
-                          </div>
-                          <h3 className="text-lg font-semibold text-white">{m.title}</h3>
-                          <p className="mt-1 text-sm text-gray-500">{m.desc}</p>
-                        </CardContent>
-                      </Card>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ── Achievements ── */}
-      <section className="px-4 py-16">
-        <div className="mx-auto max-w-6xl">
-          <motion.div {...fadeUp} className="mb-12 text-center">
-            <h2 className="text-3xl font-bold text-white">Our Achievements</h2>
-            <p className="mt-2 text-gray-500">Numbers that speak for themselves</p>
-          </motion.div>
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {achievements.map((a) => (
-              <motion.div key={a.label} {...stagger}>
-                <Card className="border-white/5 bg-[#111]/60 backdrop-blur text-center transition-all duration-300 hover:border-white/10 hover:-translate-y-1">
-                  <CardContent className="pt-6">
-                    <p className="text-4xl font-extrabold bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">
-                      <AnimatedCounter target={a.target} suffix={a.suffix} />
-                    </p>
-                    <p className="mt-2 text-gray-500">{a.label}</p>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      {/* ── Official Sponsors ── */}
+      {/* ── 7. OFFICIAL SPONSORS ── */}
       {sponsors.length > 0 && (
-        <section className="px-4 py-16 bg-[#0a0a0a]/50">
-          <div className="mx-auto max-w-6xl">
-            <motion.div {...fadeUp} className="mb-12 text-center">
-              <h2 className="text-3xl font-bold text-white">Our Official Sponsors</h2>
-              <p className="mt-2 text-gray-500">Thank you to the organizations that make our mission possible.</p>
-            </motion.div>
+        <section className="relative z-10 border-t border-emerald-500/10 py-16">
+          <div className="mx-auto max-w-6xl px-4 sm:px-6 lg:px-8 space-y-8">
+            <div className="text-center space-y-2">
+              <h2 className="text-2xl font-bold font-mono text-white">OFFICIAL SPONSORS & PARTNERS</h2>
+              <p className="text-xs text-gray-400">Organizations accelerating our cybersecurity education mission.</p>
+            </div>
+
             <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-4">
-              {sponsors
-                .sort((a, b) => a.order - b.order)
-                .map((sponsor) => (
-                <motion.div key={sponsor.id} {...stagger}>
-                  <a
-                    href={sponsor.websiteUrl || '#'}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="block h-full transition-transform hover:-translate-y-1"
-                  >
-                    <Card className="flex h-full flex-col border-white/5 bg-[#111]/60 backdrop-blur transition-all duration-300 hover:border-white/20 hover:shadow-lg hover:shadow-emerald-500/10">
-                      <CardContent className="flex flex-1 flex-col items-center justify-center p-6 text-center">
-                        <div className="mb-4 flex h-24 w-full items-center justify-center rounded-lg bg-white/5 p-4">
-                          {sponsor.logoUrl ? (
-                            <img
-                              src={sponsor.logoUrl}
-                              alt={`${sponsor.name} logo`}
-                              className="max-h-full max-w-full object-contain"
-                            />
-                          ) : (
-                            <div className="text-2xl font-bold text-gray-400">{sponsor.name}</div>
-                          )}
-                        </div>
-                        <h3 className="mb-2 text-lg font-bold text-white">{sponsor.name}</h3>
-                        <p className="text-sm text-gray-400 line-clamp-3">{sponsor.description}</p>
-                      </CardContent>
-                    </Card>
-                  </a>
-                </motion.div>
+              {sponsors.map((sponsor) => (
+                <a
+                  key={sponsor.id}
+                  href={sponsor.websiteUrl || '#'}
+                  target="_blank"
+                  rel="noreferrer noopener"
+                  className="rounded-xl border border-white/5 bg-slate-950/70 p-6 text-center hover:border-emerald-500/30 transition-all flex flex-col items-center justify-center space-y-3 group"
+                >
+                  <div className="h-16 flex items-center justify-center">
+                    {sponsor.logoUrl ? (
+                      <img src={sponsor.logoUrl} alt={sponsor.name} className="max-h-12 object-contain filter grayscale group-hover:grayscale-0 transition-all" />
+                    ) : (
+                      <span className="font-mono font-bold text-gray-400">{sponsor.name}</span>
+                    )}
+                  </div>
+                  <h3 className="font-mono text-xs font-bold text-white">{sponsor.name}</h3>
+                </a>
               ))}
             </div>
           </div>
         </section>
       )}
 
-      {/* ── CTA Footer ── */}
-      <section className="relative overflow-hidden px-4 py-20">
-        <div className="pointer-events-none absolute inset-0">
-          <div className="absolute left-1/2 top-1/2 h-[400px] w-[600px] -translate-x-1/2 -translate-y-1/2 rounded-full bg-emerald-500/5 blur-[160px]" />
-          <div className="absolute right-1/4 bottom-0 h-[300px] w-[300px] rounded-full bg-cyan-500/5 blur-[120px]" />
-        </div>
-        <motion.div
-          {...fadeUp}
-          className="relative mx-auto max-w-2xl text-center"
-        >
-          <div className="mx-auto mb-6 flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/20 bg-emerald-500/10">
-            <Crown className="h-8 w-8 text-emerald-400" />
-          </div>
-          <h2 className="text-3xl font-bold text-white md:text-4xl">Join the Club</h2>
-          <p className="mx-auto mt-4 max-w-lg text-gray-400">
-            Ready to level up your cybersecurity skills? Become part of a community that learns,
-            competes, and grows together.
+      {/* ── 8. HEADQUARTERS & CAMPUS NODE ── */}
+      <section className="relative z-10 border-t border-emerald-500/20 bg-slate-950 px-4 py-16 text-center">
+        <div className="mx-auto max-w-4xl space-y-4">
+          <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono text-xs">
+            CAMPUS NODE
+          </Badge>
+          <h2 className="text-2xl font-bold font-mono text-white">DHAKA INTERNATIONAL UNIVERSITY</h2>
+          <p className="text-xs text-gray-400 font-sans max-w-lg mx-auto leading-relaxed">
+            Department of Computer Science & Engineering • Satarkul Campus, Badda, Dhaka-1212, Bangladesh.
           </p>
-          <Button
-            size="lg"
-            className="mt-8 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 transition-all duration-300 hover:scale-105"
-            onClick={() => setCurrentView('register')}
-          >
-            Get Started
-            <ChevronRight className="ml-1 h-5 w-5" />
-          </Button>
-        </motion.div>
+          <div className="pt-3 flex flex-wrap items-center justify-center gap-6 font-mono text-xs text-emerald-400">
+            <div>
+              <span className="text-gray-500">EMAIL: </span>
+              <a href="mailto:cscdiucse@gmail.com" className="underline hover:text-emerald-300 transition-colors">
+                cscdiucse@gmail.com
+              </a>
+            </div>
+            <span className="text-gray-700 hidden sm:inline">•</span>
+            <div>
+              <span className="text-gray-500">FACEBOOK: </span>
+              <a
+                href="https://www.facebook.com/cscdiucse"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="underline hover:text-emerald-300 transition-colors"
+              >
+                fb.com/cscdiucse
+              </a>
+            </div>
+          </div>
+        </div>
       </section>
 
-      {/* ── Footer ── */}
-      <footer className="mt-auto border-t border-white/5 px-4 py-8 text-center text-xs text-gray-600">
-        &copy; 2025 Cyber Security Club. All rights reserved.
-      </footer>
-
-      {/* ── Add Member Dialog ── */}
-      <Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setAddDialogOpen(open); }}>
-        <DialogContent className="bg-[#111] border-white/10 text-white sm:max-w-lg max-h-[90vh]">
+      {/* ── CRUD Dialogs for Committee Members ── */}
+      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
+        <DialogContent className="border-white/10 bg-slate-950 text-white max-w-lg">
           <DialogHeader>
-            <DialogTitle className="text-white">Add Committee Member</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Add a new member to the leadership team.
+            <DialogTitle className="font-mono">{formState.id ? 'Edit Committee Member' : 'Add Committee Member'}</DialogTitle>
+            <DialogDescription className="text-xs text-gray-400">
+              Provide member details, leadership designation, and professional links.
             </DialogDescription>
           </DialogHeader>
-          {renderMemberForm(false)}
+
+          <div className="space-y-4 py-4 text-xs font-mono">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Full Name *</Label>
+                <Input
+                  value={formState.name}
+                  onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
+                  placeholder="e.g. Omar Faruk"
+                  className="bg-slate-900 border-white/10 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Designation / Role *</Label>
+                <Input
+                  value={formState.role}
+                  onChange={(e) => setFormState((prev) => ({ ...prev, role: e.target.value }))}
+                  placeholder="e.g. President / Vice President"
+                  className="bg-slate-900 border-white/10 text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>Department</Label>
+                <Input
+                  value={formState.department}
+                  onChange={(e) => setFormState((prev) => ({ ...prev, department: e.target.value }))}
+                  placeholder="e.g. CSE / SWE"
+                  className="bg-slate-900 border-white/10 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Email</Label>
+                <Input
+                  value={formState.email}
+                  onChange={(e) => setFormState((prev) => ({ ...prev, email: e.target.value }))}
+                  placeholder="e.g. member@diu.edu.bd"
+                  className="bg-slate-900 border-white/10 text-xs font-mono"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Photo / Avatar</Label>
+              <div className="flex items-center gap-4">
+                {imagePreview ? (
+                  <img src={imagePreview} alt="Preview" className="h-12 w-12 rounded-full object-cover border border-emerald-500/30" />
+                ) : (
+                  <div className="h-12 w-12 rounded-full bg-slate-900 flex items-center justify-center border border-white/10 text-gray-500">
+                    <ImageIcon className="h-5 w-5" />
+                  </div>
+                )}
+                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => fileInputRef.current?.click()}
+                  className="border-white/10 text-xs font-mono text-gray-300"
+                >
+                  <Upload className="mr-1.5 h-3.5 w-3.5" />
+                  Upload Photo
+                </Button>
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <Label>Description / Bio</Label>
+              <Textarea
+                value={formState.description}
+                onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
+                placeholder="Brief profile or security specialization..."
+                className="bg-slate-900 border-white/10 text-xs font-mono h-18"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <Label>LinkedIn URL</Label>
+                <Input
+                  value={formState.linkedin}
+                  onChange={(e) => setFormState((prev) => ({ ...prev, linkedin: e.target.value }))}
+                  placeholder="https://linkedin.com/in/..."
+                  className="bg-slate-900 border-white/10 text-xs font-mono"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <Label>GitHub URL</Label>
+                <Input
+                  value={formState.github}
+                  onChange={(e) => setFormState((prev) => ({ ...prev, github: e.target.value }))}
+                  placeholder="https://github.com/..."
+                  className="bg-slate-900 border-white/10 text-xs font-mono"
+                />
+              </div>
+            </div>
+          </div>
+
           <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => { setAddDialogOpen(false); resetForm(); }}
-              className="border-white/10 text-gray-400 hover:text-white"
-            >
+            <Button variant="ghost" onClick={() => setEditDialogOpen(false)} className="text-xs font-mono">
               Cancel
             </Button>
             <Button
-              onClick={handleAddSubmit}
-              disabled={formSubmitting || uploadingImage || !formData.name || !formData.role || !formData.description}
-              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold"
+              onClick={saveMember}
+              disabled={dialogSaving || !formState.name || !formState.role}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs font-mono"
             >
-              {formSubmitting || uploadingImage ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {uploadingImage ? 'Uploading...' : 'Adding...'}
-                </>
-              ) : (
-                'Add Member'
-              )}
+              {dialogSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
+              Save Member
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
 
-      {/* ── Edit Member Dialog ── */}
-      <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setEditDialogOpen(open); }}>
-        <DialogContent className="bg-[#111] border-white/10 text-white sm:max-w-lg max-h-[90vh]">
-          <DialogHeader>
-            <DialogTitle className="text-white">Edit Committee Member</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Update member information.
-            </DialogDescription>
-          </DialogHeader>
-          {renderMemberForm(true)}
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => { setEditDialogOpen(false); resetForm(); }}
-              className="border-white/10 text-gray-400 hover:text-white"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleEditSubmit}
-              disabled={formSubmitting || uploadingImage || !formData.name || !formData.role || !formData.description}
-              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold"
-            >
-              {formSubmitting || uploadingImage ? (
-                <>
-                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                  {uploadingImage ? 'Uploading...' : 'Saving...'}
-                </>
-              ) : (
-                'Save Changes'
-              )}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* ── Delete Confirmation Dialog ── */}
+      {/* Delete Confirmation */}
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="bg-[#111] border-white/10 text-white">
+        <AlertDialogContent className="border-white/10 bg-slate-950 text-white font-mono text-xs">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Committee Member</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
-              Are you sure you want to remove <span className="text-white font-medium">{deletingMemberName}</span> from the leadership team? This action cannot be undone.
+            <AlertDialogTitle>Remove Committee Member?</AlertDialogTitle>
+            <AlertDialogDescription className="text-xs text-gray-400">
+              Are you sure you want to remove <strong className="text-white">{deletingMemberName}</strong> from the committee roster?
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-gray-400 hover:text-white">
-              Cancel
-            </AlertDialogCancel>
-            <AlertDialogAction
-              onClick={handleDelete}
-              className="bg-red-500 text-white hover:bg-red-600"
-            >
+            <AlertDialogCancel className="border-white/10 text-xs">Cancel</AlertDialogCancel>
+            <AlertDialogAction onClick={deleteMember} className="bg-red-600 hover:bg-red-500 text-white text-xs">
               Delete
             </AlertDialogAction>
           </AlertDialogFooter>

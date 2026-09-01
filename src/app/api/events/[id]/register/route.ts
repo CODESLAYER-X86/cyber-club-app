@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { Prisma } from "@prisma/client";
 
 export async function POST(
   request: NextRequest,
@@ -13,108 +14,67 @@ export async function POST(
     const { userId, transactionId, paymentMethod = "BKASH" } = body;
 
     if (!userId) {
-      return errorResponse("userId is required");
+      return errorResponse("userId is required", 400);
     }
 
+    // Step 1: Pre-validation checks
     const event = await prisma.event.findUnique({ where: { id } });
     if (!event) {
       return notFoundResponse("Event not found");
     }
 
-    // Check if event is cancelled
     if (event.status === "CANCELLED") {
-      return errorResponse("Cannot register for a cancelled event");
-    }
-
-    // Check if already registered
-    const existing = await prisma.eventRegistration.findUnique({
-      where: { userId_eventId: { userId, eventId: id } },
-    });
-
-    if (existing) {
-      return errorResponse("Already registered for this event");
-    }
-
-    // Check seat availability for LIMITED type
-    if (event.type === "LIMITED" && event.maxSeats && event.currentSeats >= event.maxSeats) {
-      return errorResponse("Event is fully booked");
+      return errorResponse("Cannot register for a cancelled event", 400);
     }
 
     // Check membership for MEMBER_ONLY type
     if (event.type === "MEMBER_ONLY") {
       const user = await prisma.user.findUnique({ where: { id: userId } });
       if (!user || user.membershipStatus !== "ACTIVE") {
-        return errorResponse("Only active members can register for this event");
+        return errorResponse("Only active members can register for this event", 403);
       }
     }
 
     // For PAID events, require transaction ID
     if (event.fee > 0 && !transactionId) {
-      return errorResponse("Transaction ID is required for paid events");
+      return errorResponse("Transaction ID is required for paid events", 400);
     }
 
-    // Determine registration status: free events auto-approve, paid events stay pending until payment verified
     const registrationStatus = event.fee > 0 ? "PENDING" : "APPROVED";
-
-    const registration = await prisma.eventRegistration.create({
-      data: {
-        userId,
-        eventId: id,
-        status: registrationStatus,
-      },
-      include: {
-        user: {
-          select: {
-            id: true,
-            name: true,
-            email: true,
-            avatar: true,
-            role: true,
-            membershipStatus: true,
-          },
-        },
-        event: {
-          select: {
-            id: true,
-            title: true,
-            type: true,
-          },
-        },
-      },
-    });
-
-    // Increment current seats
-    await prisma.event.update({
-      where: { id },
-      data: { currentSeats: { increment: 1 } },
-    });
-
-    // Create dynamic certificate code and a Certificate record in REGISTERED status
     const certificateCode = `CSC-2026-${event.category || "EVENT"}-${uuidv4().split("-")[0].toUpperCase()}`;
-    await prisma.certificate.create({
-      data: {
-        certificateCode,
-        userId,
-        eventId: id,
-        type: "PARTICIPATION",
-        status: "REGISTERED",
-      },
-    });
+    const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH"];
+    const validatedMethod = VALID_METHODS.includes(paymentMethod) ? paymentMethod : "BKASH";
 
-    // For PAID events, create a Payment record so it appears in Verify Payments
-    let payment: unknown = null;
-    if (event.fee > 0 && transactionId) {
-      const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH"];
-      const validatedMethod = VALID_METHODS.includes(paymentMethod) ? paymentMethod : "BKASH";
-      payment = await prisma.payment.create({
+    // Step 2: Atomic Transaction execution (prevents race condition & overselling)
+    const result = await prisma.$transaction(async (tx) => {
+      // 1. Atomic seat increment with conditional capacity check
+      if (event.type === "LIMITED" && event.maxSeats) {
+        const updateResult = await tx.event.updateMany({
+          where: {
+            id,
+            currentSeats: { lt: event.maxSeats },
+          },
+          data: {
+            currentSeats: { increment: 1 },
+          },
+        });
+
+        if (updateResult.count === 0) {
+          throw new Error("EVENT_FULLY_BOOKED");
+        }
+      } else {
+        await tx.event.update({
+          where: { id },
+          data: { currentSeats: { increment: 1 } },
+        });
+      }
+
+      // 2. Create registration record (unique constraint on userId + eventId prevents double clicks)
+      const registration = await tx.eventRegistration.create({
         data: {
           userId,
-          amount: event.fee,
-          type: "EVENT",
-          status: "PENDING",
-          transactionId,
-          paymentMethod: validatedMethod,
           eventId: id,
+          status: registrationStatus,
         },
         include: {
           user: {
@@ -123,34 +83,74 @@ export async function POST(
               name: true,
               email: true,
               avatar: true,
+              role: true,
+              membershipStatus: true,
             },
           },
           event: {
             select: {
               id: true,
               title: true,
+              type: true,
             },
           },
         },
       });
-    }
 
-    // Create notification
-    const notificationMessage = event.fee > 0
-      ? `You have registered for "${event.title}". Your payment (৳${event.fee}) is pending verification. You'll be approved once payment is confirmed.`
-      : `You have registered for "${event.title}". Your registration has been approved!`;
+      // 3. Create certificate record in REGISTERED status
+      await tx.certificate.create({
+        data: {
+          certificateCode,
+          userId,
+          eventId: id,
+          type: "PARTICIPATION",
+          status: "REGISTERED",
+        },
+      });
 
-    await prisma.notification.create({
-      data: {
-        userId,
-        title: "Event Registration",
-        message: notificationMessage,
-        type: event.fee > 0 ? "INFO" : "SUCCESS",
-      },
+      // 4. Create payment record if paid
+      let payment: unknown = null;
+      if (event.fee > 0 && transactionId) {
+        payment = await tx.payment.create({
+          data: {
+            userId,
+            amount: event.fee,
+            type: "EVENT",
+            status: "PENDING",
+            transactionId,
+            paymentMethod: validatedMethod,
+            eventId: id,
+          },
+        });
+      }
+
+      // 5. Create notification
+      const notificationMessage =
+        event.fee > 0
+          ? `You have registered for "${event.title}". Your payment (৳${event.fee}) is pending verification.`
+          : `You have registered for "${event.title}". Your registration has been approved!`;
+
+      await tx.notification.create({
+        data: {
+          userId,
+          title: "Event Registration",
+          message: notificationMessage,
+          type: event.fee > 0 ? "INFO" : "SUCCESS",
+        },
+      });
+
+      return { registration, payment };
     });
 
-    return successResponse({ registration, payment }, 201);
-  } catch {
+    return successResponse(result, 201);
+  } catch (error: unknown) {
+    if (error instanceof Error && error.message === "EVENT_FULLY_BOOKED") {
+      return errorResponse("Event is fully booked", 409);
+    }
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
+      return errorResponse("Already registered for this event", 409);
+    }
+    console.error("Event registration error:", error);
     return serverErrorResponse();
   }
 }

@@ -10,9 +10,11 @@ import { Footer } from './footer';
 import type { AppView } from '@/types';
 import { isViewAllowed } from '@/lib/utils';
 import { AdSenseBanner } from '@/components/shared/adsense-banner';
+import { MobileNav } from './mobile-nav';
 
-// Lazy-loaded page components for code splitting & faster initial load
-const LandingPage = lazy(() => import('@/components/pages/landing-page').then(m => ({ default: m.LandingPage })));
+import { LandingPage } from '@/components/pages/landing-page';
+
+// Lazy-loaded subpage components for code splitting
 const LoginPage = lazy(() => import('@/components/pages/login-page').then(m => ({ default: m.LoginPage })));
 const RegisterPage = lazy(() => import('@/components/pages/register-page').then(m => ({ default: m.RegisterPage })));
 const AboutPage = lazy(() => import('@/components/pages/about-page').then(m => ({ default: m.AboutPage })));
@@ -43,12 +45,14 @@ const ApplyMembershipPage = lazy(() => import('@/components/pages/apply-membersh
 const CertificateDesigner = lazy(() => import('@/components/pages/certificate-designer').then(m => ({ default: m.CertificateDesigner })));
 const CommitteePage = lazy(() => import('@/components/pages/committee-page').then(m => ({ default: m.CommitteePage })));
 const SponsorsPage = lazy(() => import('@/components/pages/sponsors-page').then(m => ({ default: m.SponsorsPage })));
+const ResourcesPage = lazy(() => import('@/components/pages/resources-page').then(m => ({ default: m.ResourcesPage })));
 
 const PAGE_MAP: Record<AppView, ComponentType> = {
   landing: LandingPage,
   login: LoginPage,
   register: RegisterPage,
   about: AboutPage,
+  resources: ResourcesPage,
   dashboard: DashboardPage,
   events: EventsPage,
   'event-detail': EventDetailPage,
@@ -111,7 +115,7 @@ function MatrixBackground() {
 // with header navigation instead of sidebar, providing a consistent public browsing experience
 const FULL_PAGE_VIEWS: Set<AppView> = new Set([
   'landing', 'login', 'register', 'certificate-public',
-  'about', 'gallery', 'achievements', 'events', 'certificate-verify'
+  'about', 'resources', 'gallery', 'achievements', 'events', 'certificate-verify', 'apply-membership'
 ]);
 
 export function AppShell() {
@@ -136,7 +140,7 @@ export function AppShell() {
 
   if (showFullPageLayout) {
     return (
-      <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100">
+      <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100 pb-16 md:pb-0">
         <MatrixBackground />
         <div className="relative z-10 flex flex-1 flex-col">
           <Header />
@@ -152,13 +156,14 @@ export function AppShell() {
           <AdSenseBanner />
           <Footer />
         </div>
+        <MobileNav />
       </div>
     );
   }
 
   // Sidebar layout - used for ALL authenticated views AND for guest views that need navigation
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100">
+    <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100 pb-16 md:pb-0">
       <MatrixBackground />
       <div className="relative z-10 flex flex-1 min-h-0">
         {/* Mobile Backdrop */}
@@ -197,6 +202,7 @@ export function AppShell() {
           <Footer />
         </div>
       </div>
+      <MobileNav />
     </div>
   );
 }
