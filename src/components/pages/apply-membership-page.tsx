@@ -26,6 +26,14 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import {
+  sanitizePhone,
+  isValidPhone,
+  sanitizeStudentId,
+  sanitizeRollNumber,
+  sanitizeBatch,
+  sanitizeTransactionId,
+} from '@/lib/input-hardening';
 
 const DEPARTMENTS = [
   // Science and Engineering
@@ -136,6 +144,9 @@ export function ApplyMembershipPage() {
     if (!form.batch.trim()) return 'Batch is required';
     if (!form.department.trim()) return 'Department is required';
     if (!form.phone.trim()) return 'Phone number is required';
+    if (!isValidPhone(form.phone)) {
+      return 'Please enter a valid phone number (digits only, e.g. 01XXXXXXXXX or +8801XXXXXXXXX)';
+    }
     if (form.paymentMethod === 'CASH') {
       if (!form.transactionId.trim()) return 'Please enter the name of the person who received your cash';
     } else {
@@ -458,7 +469,7 @@ export function ApplyMembershipPage() {
                   <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                   <Input
                     value={form.studentId}
-                    onChange={(e) => update('studentId', e.target.value)}
+                    onChange={(e) => update('studentId', sanitizeStudentId(e.target.value))}
                     placeholder="e.g. 211-15-XXXX"
                     className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm"
                   />
@@ -471,7 +482,7 @@ export function ApplyMembershipPage() {
                   <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                   <Input
                     value={form.rollNumber}
-                    onChange={(e) => update('rollNumber', e.target.value)}
+                    onChange={(e) => update('rollNumber', sanitizeRollNumber(e.target.value))}
                     placeholder="e.g. 42"
                     className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm"
                   />
@@ -487,7 +498,7 @@ export function ApplyMembershipPage() {
                   <Hash className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                   <Input
                     value={form.batch}
-                    onChange={(e) => update('batch', e.target.value)}
+                    onChange={(e) => update('batch', sanitizeBatch(e.target.value))}
                     placeholder="e.g. 62nd"
                     className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm"
                   />
@@ -519,7 +530,7 @@ export function ApplyMembershipPage() {
                 <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                 <Input
                   value={form.phone}
-                  onChange={(e) => update('phone', e.target.value)}
+                  onChange={(e) => update('phone', sanitizePhone(e.target.value))}
                   placeholder="01XXXXXXXXX"
                   className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm"
                 />
@@ -561,7 +572,7 @@ export function ApplyMembershipPage() {
                     <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                     <Input
                       value={form.transactionId}
-                      onChange={(e) => update('transactionId', e.target.value)}
+                      onChange={(e) => update('transactionId', form.paymentMethod === 'CASH' ? e.target.value.slice(0, 50) : sanitizeTransactionId(e.target.value))}
                       placeholder={form.paymentMethod === 'CASH' ? 'e.g. OMAR / Handed to Executive' : 'e.g. BKX92849102'}
                       className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm"
                     />

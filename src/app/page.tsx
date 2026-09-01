@@ -2,12 +2,16 @@
 
 import { useEffect, useState } from 'react';
 import { AppShell } from '@/components/layout/app-shell';
-import { useAppStore } from '@/store/use-app-store';
+import { useAppStore, isValidAppView } from '@/store/use-app-store';
 import { Loader2 } from 'lucide-react';
+import type { AppView } from '@/types';
 
 export default function Home() {
-  const { setCurrentView, setCertificateShareCode, login } = useAppStore();
-  const [isAuthenticating, setIsAuthenticating] = useState(false);
+  const { setCurrentView, setCertificateShareCode, login, isAuthenticated } = useAppStore();
+  const [isAuthenticating, setIsAuthenticating] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return new URLSearchParams(window.location.search).get('google_auth') === '1';
+  });
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -19,21 +23,27 @@ export default function Home() {
       setCurrentView('certificate-public');
       const url = new URL(window.location.href);
       url.searchParams.delete('cert');
-      window.history.replaceState({}, '', url.pathname);
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
       return;
     }
 
-    // Always check for an active session on mount to persist login state across page refreshes
+    // View parameter from URL (e.g. ?view=events)
+    const viewParam = params.get('view');
+    if (viewParam && isValidAppView(viewParam)) {
+      setCurrentView(viewParam as AppView);
+    }
+
+    // Clean google_auth param if present
     const isGoogleAuthRedirect = params.get('google_auth') === '1';
     if (isGoogleAuthRedirect) {
-      setIsAuthenticating(true);
-      // Clean URL immediately so refresh doesn't re-trigger
-      window.history.replaceState({}, '', '/');
+      const url = new URL(window.location.href);
+      url.searchParams.delete('google_auth');
+      window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
     }
 
     const wasLoggedIn = typeof window !== 'undefined' && localStorage.getItem('csc_logged_in') === 'true';
 
-    // Optimize initial load: skip verification fetch if user is a guest
+    // Skip verification fetch if user is not flagged as logged in
     if (!wasLoggedIn && !isGoogleAuthRedirect) {
       return;
     }
@@ -56,6 +66,22 @@ export default function Home() {
       });
   }, [setCurrentView, setCertificateShareCode, login]);
 
+  // Handle browser back/forward buttons
+  useEffect(() => {
+    const handlePopState = () => {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view');
+      if (viewParam && isValidAppView(viewParam)) {
+        setCurrentView(viewParam as AppView);
+      } else {
+        setCurrentView(isAuthenticated ? 'dashboard' : 'landing');
+      }
+    };
+
+    window.addEventListener('popstate', handlePopState);
+    return () => window.removeEventListener('popstate', handlePopState);
+  }, [isAuthenticated, setCurrentView]);
+
   if (isAuthenticating) {
     return (
       <div className="flex min-h-screen flex-col items-center justify-center bg-[#0a0a0a] text-white">
@@ -65,7 +91,7 @@ export default function Home() {
             <img src="/logo.png" alt="Logo" className="h-16 w-16 animate-pulse rounded-full border border-emerald-500/20" />
             <div className="flex items-center gap-2 text-emerald-400 font-medium">
               <Loader2 className="h-4 w-4 animate-spin" />
-              <span>Authenticating with Google...</span>
+              <span>Authenticating session...</span>
             </div>
           </div>
         </div>

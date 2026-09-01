@@ -19,6 +19,14 @@ import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { DigitalIdCard } from '@/components/shared/digital-id-card';
 import { formatDeptShort } from '@/utils/export-attendees-pdf';
+import {
+  sanitizePhone,
+  isValidPhone,
+  sanitizeStudentId,
+  sanitizeRollNumber,
+  sanitizeBatch,
+  sanitizeText,
+} from '@/lib/input-hardening';
 
 interface ProfileStats {
   eventsAttended: number;
@@ -375,7 +383,7 @@ export function ProfilePage() {
                     {editing ? (
                       <Input
                         value={form.phone}
-                        onChange={(e) => setForm((p) => ({ ...p, phone: e.target.value }))}
+                        onChange={(e) => setForm((p) => ({ ...p, phone: sanitizePhone(e.target.value) }))}
                         className="border-white/10 bg-white/5 text-white text-xs h-7 mt-0.5"
                         placeholder="01XXXXXXXXX"
                       />
@@ -411,7 +419,7 @@ export function ProfilePage() {
                         {editing ? (
                           <Input
                             value={form.studentId}
-                            onChange={(e) => setForm((p) => ({ ...p, studentId: e.target.value }))}
+                            onChange={(e) => setForm((p) => ({ ...p, studentId: sanitizeStudentId(e.target.value) }))}
                             className="border-white/10 bg-white/5 text-white text-xs h-7 mt-0.5"
                             placeholder="Student ID"
                           />
@@ -431,7 +439,7 @@ export function ProfilePage() {
                         {editing ? (
                           <Input
                             value={form.rollNumber}
-                            onChange={(e) => setForm((p) => ({ ...p, rollNumber: e.target.value }))}
+                            onChange={(e) => setForm((p) => ({ ...p, rollNumber: sanitizeRollNumber(e.target.value) }))}
                             className="border-white/10 bg-white/5 text-white text-xs h-7 mt-0.5"
                             placeholder="Roll No"
                           />
@@ -451,7 +459,7 @@ export function ProfilePage() {
                         {editing ? (
                           <Input
                             value={form.batch}
-                            onChange={(e) => setForm((p) => ({ ...p, batch: e.target.value }))}
+                            onChange={(e) => setForm((p) => ({ ...p, batch: sanitizeBatch(e.target.value) }))}
                             className="border-white/10 bg-white/5 text-white text-xs h-7 mt-0.5"
                             placeholder="e.g. 62nd"
                           />

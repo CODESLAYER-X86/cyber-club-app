@@ -1,6 +1,63 @@
 import { create } from "zustand";
 import type { User, AppView, Event, Notification as AppNotification } from "@/types";
 
+// All valid views
+const ALL_VIEWS: Set<string> = new Set([
+  "landing",
+  "login",
+  "register",
+  "apply-membership",
+  "dashboard",
+  "events",
+  "event-detail",
+  "create-event",
+  "members",
+  "member-approval",
+  "finance",
+  "deposits",
+  "expenses",
+  "verify-payments",
+  "certificates",
+  "certificate-verify",
+  "certificate-public",
+  "assessments",
+  "notifications",
+  "audit-logs",
+  "roles",
+  "profile",
+  "announcements",
+  "analytics",
+  "about",
+  "certificate-authority",
+  "settings",
+  "gallery",
+  "certificate-designer",
+  "committee",
+  "achievements",
+  "resources",
+  "sponsors",
+]);
+
+export function isValidAppView(v: string | null | undefined): v is AppView {
+  return typeof v === "string" && ALL_VIEWS.has(v);
+}
+
+function getInitialView(): AppView {
+  if (typeof window === "undefined") return "landing";
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const viewFromUrl = urlParams.get("view");
+    if (isValidAppView(viewFromUrl)) {
+      return viewFromUrl;
+    }
+    const viewFromStorage = localStorage.getItem("csc_current_view");
+    if (isValidAppView(viewFromStorage)) {
+      return viewFromStorage;
+    }
+  } catch {}
+  return "landing";
+}
+
 // Partial event data for editing — only the fields the form needs
 export interface EditingEventData {
   id: string;
@@ -57,11 +114,11 @@ interface AppState {
   setCertificateShareCode: (code: string | null) => void;
 }
 
-export const useAppStore = create<AppState>((set) => ({
+export const useAppStore = create<AppState>((set, get) => ({
   // Initial state
   currentUser: null,
   isAuthenticated: false,
-  currentView: "landing",
+  currentView: getInitialView(),
   selectedEventId: null,
   selectedMemberId: null,
   editingEventId: null,
@@ -73,19 +130,39 @@ export const useAppStore = create<AppState>((set) => ({
 
   // Actions
   login: (user) => {
+    let targetView: AppView = "dashboard";
     if (typeof window !== "undefined") {
-      localStorage.setItem("csc_logged_in", "true");
+      try {
+        localStorage.setItem("csc_logged_in", "true");
+        const urlParams = new URLSearchParams(window.location.search);
+        const viewFromUrl = urlParams.get("view");
+        const viewFromStorage = localStorage.getItem("csc_current_view");
+        const requested = viewFromUrl || viewFromStorage;
+        if (
+          isValidAppView(requested) &&
+          requested !== "login" &&
+          requested !== "register"
+        ) {
+          targetView = requested;
+        }
+      } catch {}
     }
     set({
       currentUser: user,
       isAuthenticated: true,
-      currentView: "dashboard",
+      currentView: targetView,
     });
   },
 
   logout: () => {
     if (typeof window !== "undefined") {
-      localStorage.removeItem("csc_logged_in");
+      try {
+        localStorage.removeItem("csc_logged_in");
+        localStorage.removeItem("csc_current_view");
+        const url = new URL(window.location.href);
+        url.searchParams.delete("view");
+        window.history.replaceState({}, "", url.pathname);
+      } catch {}
     }
     set({
       currentUser: null,
@@ -98,7 +175,21 @@ export const useAppStore = create<AppState>((set) => ({
     });
   },
 
-  setCurrentView: (view) => set({ currentView: view }),
+  setCurrentView: (view) => {
+    if (typeof window !== "undefined") {
+      try {
+        localStorage.setItem("csc_current_view", view);
+        const url = new URL(window.location.href);
+        if (view === "landing") {
+          url.searchParams.delete("view");
+        } else {
+          url.searchParams.set("view", view);
+        }
+        window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+      } catch {}
+    }
+    set({ currentView: view });
+  },
 
   setSelectedEventId: (id) => set({ selectedEventId: id }),
 

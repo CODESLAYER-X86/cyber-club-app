@@ -31,6 +31,7 @@ import {
   Image,
   Trophy,
   Globe,
+  Megaphone,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
@@ -70,6 +71,7 @@ const ICON_MAP: Record<string, React.ComponentType<{ className?: string }>> = {
   Image,
   Trophy,
   Globe,
+  Megaphone,
 };
 
 const NAV_DESCRIPTIONS: Record<string, string> = {
@@ -82,6 +84,7 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
   Certificates: 'View your earned certificates',
   Payments: 'Payment history and dues',
   Profile: 'Manage your profile settings',
+  Announcements: 'Club notices and official announcements',
   Content: 'Manage announcements and content',
   Analytics: 'View engagement analytics',
   Deposits: 'Record and approve treasury deposits',
@@ -109,6 +112,7 @@ const NAV_DESCRIPTIONS: Record<string, string> = {
 const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   GUEST: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
@@ -120,6 +124,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   MEMBER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
@@ -130,16 +135,17 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   MEDIA: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Events', view: 'events', icon: 'PenSquare' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
-    { label: 'Content', view: 'announcements', icon: 'FileText' },
     { label: 'Committee Member', view: 'committee', icon: 'Users' },
     { label: 'Analytics', view: 'analytics', icon: 'BarChart3' },
     { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
   TREASURER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Treasury', view: 'finance', icon: 'DollarSign' },
     { label: 'Deposits', view: 'deposits', icon: 'TrendingUp' },
     { label: 'Expenses', view: 'expenses', icon: 'Receipt' },
@@ -151,6 +157,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   GS: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Approve Members', view: 'member-approval', icon: 'UserCheck' },
     { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
     { label: 'Members', view: 'members', icon: 'Users' },
@@ -167,6 +174,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   VP: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Analytics', view: 'analytics', icon: 'TrendingUp' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
@@ -176,6 +184,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   PRESIDENT: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Approve Members', view: 'member-approval', icon: 'UserCheck' },
     { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
     { label: 'Members', view: 'members', icon: 'Users' },
@@ -193,6 +202,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   VERIFIER: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Verify Payments', view: 'verify-payments', icon: 'CheckCircle' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
@@ -204,6 +214,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
   ],
   PLATFORM_ADMIN: [
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
+    { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
     { label: 'Users', view: 'members', icon: 'Users' },
     { label: 'Finance', view: 'finance', icon: 'DollarSign' },

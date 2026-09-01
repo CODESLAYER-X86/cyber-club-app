@@ -5,33 +5,41 @@ import type { Transition } from 'framer-motion';
  * Mobile-optimized hook to detect viewport size and reduce animations on low-end devices
  */
 export function useMobileOptimized() {
-  const [isMobile, setIsMobile] = useState(false);
-  const [isTablet, setIsTablet] = useState(false);
-  const [reduceMotion, setReduceMotion] = useState(false);
-  const [isLowEndDevice, setIsLowEndDevice] = useState(false);
+  const [isMobile, setIsMobile] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth < 768;
+  });
+
+  const [isTablet, setIsTablet] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.innerWidth >= 768 && window.innerWidth < 1024;
+  });
+
+  const [reduceMotion, setReduceMotion] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    return window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  });
+
+  const [isLowEndDevice, setIsLowEndDevice] = useState(() => {
+    if (typeof window === 'undefined') return false;
+    const deviceMemory = (navigator as any).deviceMemory;
+    return Boolean(deviceMemory && deviceMemory < 4);
+  });
 
   useEffect(() => {
-    // Check if user prefers reduced motion
     const motionQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
-    setReduceMotion(motionQuery.matches);
 
-    // Detect low-end devices based on memory and processor
-    const deviceMemory = (navigator as any).deviceMemory;
-    const isLowEnd = deviceMemory && deviceMemory < 4;
-    setIsLowEndDevice(isLowEnd || false);
-
-    // Initial viewport check
     const checkViewport = () => {
       setIsMobile(window.innerWidth < 768);
       setIsTablet(window.innerWidth >= 768 && window.innerWidth < 1024);
     };
 
-    checkViewport();
+    const handleMotionChange = (e: MediaQueryListEvent) => {
+      setReduceMotion(e.matches);
+    };
 
-    // Listen for motion preference changes
-    motionQuery.addEventListener('change', (e) => setReduceMotion(e.matches));
+    motionQuery.addEventListener('change', handleMotionChange);
 
-    // Listen for viewport changes with debounce
     let timeoutId: NodeJS.Timeout;
     const handleResize = () => {
       clearTimeout(timeoutId);
@@ -42,7 +50,7 @@ export function useMobileOptimized() {
 
     return () => {
       window.removeEventListener('resize', handleResize);
-      motionQuery.removeEventListener('change', (e) => setReduceMotion(e.matches));
+      motionQuery.removeEventListener('change', handleMotionChange);
       clearTimeout(timeoutId);
     };
   }, []);

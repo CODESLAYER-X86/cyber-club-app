@@ -30,6 +30,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
+import { sanitizePhone, sanitizeText } from '@/lib/input-hardening';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -338,9 +339,9 @@ export function SettingsPage() {
                 <Label className="text-gray-300 text-sm">Phone Number</Label>
                 <Input
                   value={phone}
-                  onChange={(e) => setPhone(e.target.value)}
+                  onChange={(e) => setPhone(sanitizePhone(e.target.value))}
                   className="bg-white/5 border-white/10 text-gray-200 placeholder:text-gray-600 focus-visible:border-emerald-500/50 focus-visible:ring-emerald-500/20"
-                  placeholder="Enter phone number"
+                  placeholder="01XXXXXXXXX"
                 />
               </div>
             </div>

@@ -12,10 +12,10 @@ interface AdSenseBannerProps {
 export function AdSenseBanner({
   className = '',
 }: AdSenseBannerProps) {
-  // Don't render anything if no client ID
-  if (!AD_CLIENT || AD_CLIENT.startsWith('XXXX')) return null;
+  const isAdEnabled = Boolean(AD_CLIENT && !AD_CLIENT.startsWith('XXXX'));
 
   useEffect(() => {
+    if (!isAdEnabled) return;
     try {
       // Push ad request after component mounts
       const adsbygoogle = (window as any).adsbygoogle || [];
@@ -23,7 +23,10 @@ export function AdSenseBanner({
     } catch (e) {
       console.error('AdSense error:', e);
     }
-  }, []);
+  }, [isAdEnabled]);
+
+  // Don't render anything if no client ID
+  if (!isAdEnabled) return null;
 
   return (
     <div className={`w-full bg-[#111]/80 backdrop-blur border-y border-white/5 py-4 flex flex-col items-center justify-center min-h-[120px] ${className}`}>

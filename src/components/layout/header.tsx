@@ -146,8 +146,7 @@ export function Header() {
   } = useAppStore();
   const { isMobile, transitionConfig } = useMobileOptimized();
 
-  const [mounted, setMounted] = useState(false);
-  const [currentTime, setCurrentTime] = useState(new Date());
+  const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
   const [searchOpen, setSearchOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
@@ -155,7 +154,6 @@ export function Header() {
   const isFullPageMode = !isAuthenticated && ['landing', 'login', 'register', 'certificate-public', 'about', 'resources', 'gallery', 'achievements', 'events', 'certificate-verify', 'apply-membership'].includes(currentView);
 
   useEffect(() => {
-    setMounted(true);
     const timer = setInterval(() => {
       setCurrentTime(new Date());
     }, 1000);
@@ -194,7 +192,7 @@ export function Header() {
       .slice(0, 2);
   }, [userName]);
 
-  const timeString = currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+  const timeString = currentTime ? currentTime.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' }) : '';
 
   return (
     <>
@@ -330,7 +328,7 @@ export function Header() {
       )}
 
       {/* Real-time Clock */}
-      {mounted && (
+      {currentTime && (
         <div className="hidden items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 lg:flex">
           <Clock className="h-3.5 w-3.5 text-emerald-400" />
           <span className="text-xs font-mono tabular-nums text-gray-400">{timeString}</span>

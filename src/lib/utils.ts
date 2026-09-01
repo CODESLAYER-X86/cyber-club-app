@@ -8,7 +8,7 @@ export function cn(...inputs: ClassValue[]) {
 
 export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: string): boolean {
   // Public Views - always allowed
-  const PUBLIC_VIEWS = [
+  const PUBLIC_VIEWS: AppView[] = [
     'landing',
     'login',
     'register',
@@ -22,6 +22,8 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     'certificate-public',
     'committee',
     'apply-membership',
+    'announcements',
+    'sponsors',
   ];
   if (PUBLIC_VIEWS.includes(view)) {
     return true;
@@ -33,7 +35,7 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
   }
 
   // Views allowed for all authenticated users
-  if (['profile', 'settings', 'notifications', 'dashboard'].includes(view)) {
+  if (['profile', 'settings', 'notifications', 'dashboard', 'announcements'].includes(view)) {
     return true;
   }
 
@@ -57,10 +59,12 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'gallery',
         'achievements',
         'committee',
+        'deposits',
         'expenses',
         'analytics',
         'finance',
         'announcements',
+        'sponsors',
       ].includes(view);
 
     case 'VP':
@@ -73,6 +77,9 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'achievements',
         'members',
         'finance',
+        'announcements',
+        'committee',
+        'sponsors',
       ].includes(view);
 
     case 'TREASURER':
@@ -85,6 +92,8 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'finance',
         'gallery',
         'achievements',
+        'announcements',
+        'sponsors',
       ].includes(view);
 
     case 'MEDIA':
@@ -98,6 +107,7 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'announcements',
         'committee',
         'analytics',
+        'sponsors',
       ].includes(view);
 
     case 'VERIFIER':
@@ -111,6 +121,7 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'certificates',
         'finance',
         'committee',
+        'announcements',
       ].includes(view);
 
     case 'MEMBER':
@@ -123,10 +134,12 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'certificates',
         'finance',
         'committee',
+        'announcements',
+        'resources',
       ].includes(view);
 
     case 'GUEST':
-      return ['dashboard', 'apply-membership'].includes(view);
+      return ['dashboard', 'apply-membership', 'announcements'].includes(view);
 
     default:
       return false;
