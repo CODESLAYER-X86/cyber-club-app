@@ -21,6 +21,8 @@ import {
   X,
   Shield,
   BookOpen,
+  Globe,
+  LayoutDashboard,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
@@ -384,6 +386,27 @@ export function Header() {
           )}
         </Button>
       )}
+      {/* Quick Public Site / Dashboard Switcher */}
+      {isAuthenticated && (
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={() => setCurrentView(currentView === 'landing' ? 'dashboard' : 'landing')}
+          className="hidden lg:inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-mono border-emerald-500/25 bg-emerald-500/5 text-emerald-300 hover:bg-emerald-500/15"
+        >
+          {currentView === 'landing' ? (
+            <>
+              <LayoutDashboard className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Dashboard</span>
+            </>
+          ) : (
+            <>
+              <Globe className="h-3.5 w-3.5 text-emerald-400" />
+              <span>Public Site</span>
+            </>
+          )}
+        </Button>
+      )}
 
       {/* User menu with online status indicator */}
       {isAuthenticated && currentUser ? (
@@ -421,6 +444,13 @@ export function Header() {
               </div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator className="bg-white/5" />
+            <DropdownMenuItem
+              onClick={() => setCurrentView(currentView === 'landing' ? 'dashboard' : 'landing')}
+              className="cursor-pointer gap-2 text-emerald-400 focus:bg-emerald-500/10 focus:text-emerald-300"
+            >
+              <Globe className="h-4 w-4" />
+              {currentView === 'landing' ? 'Executive Dashboard' : 'View Public Website'}
+            </DropdownMenuItem>
             <DropdownMenuItem
               onClick={() => setCurrentView('profile')}
               className="cursor-pointer gap-2 text-gray-300 focus:bg-white/5 focus:text-emerald-400"

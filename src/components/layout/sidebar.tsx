@@ -477,6 +477,38 @@ export function Sidebar() {
 
         <Separator className="relative z-20 bg-white/5" />
 
+        {/* View Public Site Quick Switcher */}
+        <div className="relative z-20 px-3 pt-2">
+          {sidebarOpen ? (
+            <button
+              type="button"
+              onClick={() => setCurrentView('landing')}
+              className="w-full flex items-center justify-between px-3 py-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 text-emerald-400 hover:bg-emerald-500/10 font-mono text-xs transition-colors"
+            >
+              <div className="flex items-center gap-2">
+                <Globe className="h-3.5 w-3.5" />
+                <span>View Public Site</span>
+              </div>
+              <span className="text-[10px]">↗</span>
+            </button>
+          ) : (
+            <Tooltip delayDuration={300}>
+              <TooltipTrigger asChild>
+                <button
+                  type="button"
+                  onClick={() => setCurrentView('landing')}
+                  className="w-full flex items-center justify-center p-2 rounded-lg text-emerald-400 hover:bg-emerald-500/10 transition-colors"
+                >
+                  <Globe className="h-4 w-4" />
+                </button>
+              </TooltipTrigger>
+              <TooltipContent side="right" className="border-white/10 bg-[#111] text-emerald-400 font-mono text-xs">
+                View Public Site
+              </TooltipContent>
+            </Tooltip>
+          )}
+        </div>
+
         {/* Version and collapse toggle */}
         <div className="relative z-20 flex items-center justify-between p-3">
           {sidebarOpen && (

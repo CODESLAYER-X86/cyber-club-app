@@ -124,7 +124,7 @@ const itemVariants = {
 // ── Main Component ───────────────────────────────────────────────
 
 export function GalleryPage() {
-  const { currentUser } = useAppStore();
+  const { currentUser, setCurrentView } = useAppStore();
 
   // Data state
   const [images, setImages] = useState<GalleryImage[]>([]);
@@ -444,7 +444,11 @@ export function GalleryPage() {
           {loading ? (
             <SkeletonGrid />
           ) : filteredImages.length === 0 ? (
-            <EmptyState />
+            <EmptyState
+              canUpload={canUpload}
+              onUploadClick={() => setUploadOpen(true)}
+              onBrowseEvents={() => setCurrentView('events')}
+            />
           ) : (
             <motion.div
               variants={containerVariants}
@@ -762,6 +766,20 @@ export function GalleryPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* ── Mobile Sticky Floating Action Button (FAB) ─────────────── */}
+      {canUpload && (
+        <motion.button
+          type="button"
+          initial={{ scale: 0 }}
+          animate={{ scale: 1 }}
+          onClick={() => setUploadOpen(true)}
+          className="fixed bottom-20 right-4 z-40 flex md:hidden items-center gap-2 px-4 py-2.5 rounded-full bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs shadow-2xl shadow-emerald-500/50 active:scale-95 transition-all"
+        >
+          <Plus className="h-4 w-4 stroke-[3]" />
+          <span>Upload Photo</span>
+        </motion.button>
+      )}
     </div>
   );
 }
@@ -899,20 +917,62 @@ function SkeletonGrid() {
   );
 }
 
-function EmptyState() {
+function EmptyState({
+  canUpload,
+  onUploadClick,
+  onBrowseEvents,
+}: {
+  canUpload: boolean;
+  onUploadClick: () => void;
+  onBrowseEvents: () => void;
+}) {
   return (
     <motion.div
-      initial={{ opacity: 0, y: 20 }}
+      initial={{ opacity: 0, y: 15 }}
       animate={{ opacity: 1, y: 0 }}
-      className="flex flex-col items-center justify-center py-20 text-center"
+      className="mx-auto max-w-xl py-12 px-2"
     >
-      <div className="mb-4 flex h-20 w-20 items-center justify-center rounded-full bg-white/5">
-        <Camera className="h-10 w-10 text-gray-600" />
+      <div className="rounded-3xl border border-emerald-500/25 bg-gradient-to-b from-[#0e1813]/90 to-[#070e0a]/90 p-8 sm:p-10 text-center shadow-2xl backdrop-blur-xl relative overflow-hidden">
+        {/* Subtle radial ambient glow */}
+        <div className="absolute top-0 left-1/2 -translate-x-1/2 w-48 h-32 bg-emerald-500/15 blur-2xl rounded-full pointer-events-none" />
+
+        <div className="relative z-10 flex flex-col items-center space-y-4">
+          <div className="flex h-16 w-16 items-center justify-center rounded-2xl border border-emerald-500/30 bg-emerald-500/10 shadow-lg shadow-emerald-500/10">
+            <Camera className="h-8 w-8 text-emerald-400" />
+          </div>
+
+          <div className="space-y-1.5">
+            <h3 className="text-xl font-bold font-mono text-white tracking-tight">
+              No Photos in Media Vault
+            </h3>
+            <p className="text-xs sm:text-sm text-gray-300 max-w-md mx-auto leading-relaxed">
+              {canUpload
+                ? 'You have executive authorization to publish new event snapshots, workshop photos, and CTF victory moments.'
+                : 'Official photos from DIU Cyber Security Club workshops, hackathons, and CTF competitions will be featured here.'}
+            </p>
+          </div>
+
+          <div className="pt-2 flex flex-wrap items-center justify-center gap-3">
+            {canUpload ? (
+              <Button
+                onClick={onUploadClick}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs px-6 h-11 rounded-xl shadow-lg shadow-emerald-500/20 active:scale-95 transition-all"
+              >
+                <Plus className="mr-1.5 h-4 w-4 stroke-[3]" />
+                Upload First Photo
+              </Button>
+            ) : (
+              <Button
+                onClick={onBrowseEvents}
+                variant="outline"
+                className="border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 font-mono text-xs h-11 px-6 rounded-xl"
+              >
+                Browse Upcoming Events ➔
+              </Button>
+            )}
+          </div>
+        </div>
       </div>
-      <h3 className="text-lg font-semibold text-gray-300">No photos yet</h3>
-      <p className="mt-1 max-w-sm text-sm text-gray-500">
-        Photos from events, workshops, and CTF competitions will appear here. Check back soon!
-      </p>
     </motion.div>
   );
 }

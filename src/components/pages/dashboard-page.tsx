@@ -2,17 +2,50 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
-import { Users, Calendar, Award, CreditCard, DollarSign, CheckCircle, AlertTriangle, BarChart3, FileText, Shield, Settings, Activity, TrendingUp, Bell, Info, Clock, UserCheck, Wallet, ShieldCheck, Ban, Receipt, Megaphone } from 'lucide-react';
+import {
+  Users,
+  Calendar,
+  Award,
+  CreditCard,
+  DollarSign,
+  CheckCircle,
+  AlertTriangle,
+  BarChart3,
+  FileText,
+  Shield,
+  Settings,
+  Activity,
+  TrendingUp,
+  Bell,
+  Info,
+  Clock,
+  UserCheck,
+  Wallet,
+  ShieldCheck,
+  Ban,
+  Receipt,
+  Megaphone,
+  Plus,
+  ArrowUpRight,
+  Sparkles,
+  Camera,
+  Globe,
+} from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
-import type { UserRole, Event, Payment, Certificate, User } from '@/types';
+import type { UserRole, Event, Payment, Certificate, User as UserType } from '@/types';
+import { ROLE_LABELS } from '@/types';
 import { StatCard } from '@/components/shared/stat-card';
 import { EventBadge, MembershipBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
+import { Badge } from '@/components/ui/badge';
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, CartesianGrid, PieChart, Pie, Cell } from 'recharts';
 
 interface DashboardStats {
-  totalMembers: number; totalFunds: number; activeEvents: number; pendingApprovals: number;
+  totalMembers: number;
+  totalFunds: number;
+  activeEvents: number;
+  pendingApprovals: number;
   recentActivity: { action: string; details: string; createdAt: string }[];
   upcomingEvents: Event[];
 }
@@ -52,14 +85,6 @@ function timeAgo(date: string): string {
   return `${days}d ago`;
 }
 
-function getDaysUntil(dateStr: string): number {
-  const now = new Date();
-  now.setHours(0, 0, 0, 0);
-  const target = new Date(dateStr);
-  target.setHours(0, 0, 0, 0);
-  return Math.ceil((target.getTime() - now.getTime()) / (1000 * 60 * 60 * 24));
-}
-
 function getGreeting(): string {
   const hour = new Date().getHours();
   if (hour < 12) return 'Good Morning';
@@ -76,11 +101,11 @@ const EVENT_CATEGORY_COLORS: Record<string, string> = {
 };
 
 export function DashboardPage() {
-  const { currentUser, setCurrentView, setSelectedEventId, notifications } = useAppStore();
+  const { currentUser, setCurrentView, setSelectedEventId } = useAppStore();
   const [stats, setStats] = useState<DashboardStats | null>(null);
   const [certificates, setCertificates] = useState<Certificate[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
-  const [pendingUsers, setPendingUsers] = useState<User[]>([]);
+  const [pendingUsers, setPendingUsers] = useState<UserType[]>([]);
   const [auditLogs, setAuditLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -89,16 +114,20 @@ export function DashboardPage() {
       setLoading(true);
       try {
         const fetchPromises: Promise<any>[] = [
-          fetch('/api/stats').then(res => res.json()),
-          fetch('/api/audit-logs?limit=5').then(res => res.json())
+          fetch('/api/stats').then((res) => res.json()),
+          fetch('/api/audit-logs?limit=5').then((res) => res.json()),
         ];
 
         if (currentUser) {
-          fetchPromises.push(fetch(`/api/certificates?userId=${currentUser.id}`).then(res => res.json()));
-          fetchPromises.push(fetch(`/api/payments?userId=${currentUser.id}`).then(res => res.json()));
+          fetchPromises.push(
+            fetch(`/api/certificates?userId=${currentUser.id}`).then((res) => res.json())
+          );
+          fetchPromises.push(
+            fetch(`/api/payments?userId=${currentUser.id}`).then((res) => res.json())
+          );
 
           if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
-            fetchPromises.push(fetch('/api/users/approval').then(res => res.json()));
+            fetchPromises.push(fetch('/api/users/approval').then((res) => res.json()));
           }
         }
 
@@ -119,59 +148,49 @@ export function DashboardPage() {
         }
 
         const auditData = results[1];
-        if (auditData?.success) setAuditLogs(auditData.data.auditLogs || []);
+        if (auditData?.success && Array.isArray(auditData.data)) {
+          setAuditLogs(auditData.data);
+        }
 
         if (currentUser) {
           const certData = results[2];
-          if (certData?.success) setCertificates(certData.data.certificates || []);
+          if (certData?.success && Array.isArray(certData.data)) {
+            setCertificates(certData.data);
+          }
 
-          const payData = results[3];
-          if (payData?.success) setPayments(payData.data.payments || []);
+          const paymentData = results[3];
+          if (paymentData?.success && Array.isArray(paymentData.data)) {
+            setPayments(paymentData.data);
+          }
 
-          if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
-            const pendingData = results[4];
-            if (pendingData?.success) setPendingUsers(pendingData.data.users || []);
+          if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role) && results[4]) {
+            const approvalData = results[4];
+            if (approvalData?.success && Array.isArray(approvalData.data?.users)) {
+              setPendingUsers(approvalData.data.users);
+            }
           }
         }
-      } catch (e) { console.error(e); } finally { setLoading(false); }
+      } catch (err) {
+        console.error('Failed to load dashboard data', err);
+      } finally {
+        setLoading(false);
+      }
     };
+
     load();
   }, [currentUser]);
 
   const role = currentUser?.role || 'GUEST';
-
-  const recentNotifications = useMemo(() => {
-    return notifications.slice(0, 3);
-  }, [notifications]);
-
   const greeting = useMemo(() => getGreeting(), []);
 
   if (loading) {
     return (
-      <div className="space-y-6 animate-pulse">
-        {/* Skeleton Greeting */}
-        <div className="space-y-2">
-          <div className="h-7 w-48 rounded-lg bg-white/5" />
-          <div className="h-4 w-32 rounded-lg bg-white/5" />
-        </div>
-
-        {/* Skeleton Stat Cards */}
+      <div className="space-y-6">
+        <div className="h-36 rounded-2xl border border-white/10 bg-[#0e1712] animate-pulse" />
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {[1, 2, 3, 4].map((i) => (
-            <div key={i} className="h-32 rounded-xl border border-white/5 bg-white/[0.02]" />
+            <div key={i} className="h-28 rounded-2xl border border-white/10 bg-[#0e1712] animate-pulse" />
           ))}
-        </div>
-
-        {/* Skeleton Main Grid */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
-        </div>
-
-        {/* Skeleton Second Grid */}
-        <div className="grid gap-6 lg:grid-cols-2">
-          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
-          <div className="h-80 rounded-xl border border-white/5 bg-white/[0.02]" />
         </div>
       </div>
     );
@@ -182,10 +201,10 @@ export function DashboardPage() {
       case 'MEMBER':
         return (
           <>
-            <StatCard icon={Calendar} label="My Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
             <StatCard icon={Award} label="My Certificates" value={certificates.length} trend="up" delay={0.1} />
-            <StatCard icon={CreditCard} label="Payments" value={payments.length} trend="neutral" delay={0.2} />
-            <StatCard icon={Calendar} label="Upcoming Events" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} />
+            <StatCard icon={CreditCard} label="Payment Records" value={payments.length} trend="neutral" delay={0.2} />
+            <StatCard icon={Calendar} label="Upcoming Labs" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} />
           </>
         );
       case 'MEDIA':
@@ -193,8 +212,8 @@ export function DashboardPage() {
           <>
             <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
             <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0.1} />
-            <StatCard icon={FileText} label="Announcements" value={0} trend="neutral" delay={0.2} />
-            <StatCard icon={BarChart3} label="Registrations" value={0} trend="up" delay={0.3} />
+            <StatCard icon={Camera} label="Gallery Photos" value="Active" trend="up" delay={0.2} />
+            <StatCard icon={Megaphone} label="Announcements" value="Online" trend="neutral" delay={0.3} />
           </>
         );
       case 'TREASURER':
@@ -202,7 +221,7 @@ export function DashboardPage() {
           <>
             <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0} />
             <StatCard icon={CreditCard} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
-            <StatCard icon={CheckCircle} label="Verified Payments" value={payments.filter(p => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
+            <StatCard icon={CheckCircle} label="Verified Dues" value={payments.filter((p) => p.status === 'VERIFIED').length} trend="up" delay={0.2} />
             <StatCard icon={Activity} label="Treasury Balance" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="neutral" delay={0.3} />
           </>
         );
@@ -212,7 +231,7 @@ export function DashboardPage() {
             <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
             <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.1} />
             <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
-            <StatCard icon={FileText} label="Pending Expenses" value={0} trend="neutral" delay={0.3} />
+            <StatCard icon={DollarSign} label="Treasury Balance" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0.3} />
           </>
         );
       case 'VP':
@@ -229,15 +248,15 @@ export function DashboardPage() {
           <>
             <StatCard icon={Users} label="Total Members" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
             <StatCard icon={DollarSign} label="Total Funds" value={`৳${(stats?.totalFunds ?? 0).toLocaleString()}`} trend="up" delay={0.1} />
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.2} />
-            <StatCard icon={AlertTriangle} label="System Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
+            <StatCard icon={AlertTriangle} label="Pending Approvals" value={pendingUsers.length} trend="neutral" delay={0.2} />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0.3} />
           </>
         );
       case 'VERIFIER':
         return (
           <>
             <StatCard icon={Calendar} label="Assigned Events" value={stats?.activeEvents ?? 0} trend="neutral" delay={0} />
-            <StatCard icon={CheckCircle} label="Pending Verifications" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
+            <StatCard icon={CheckCircle} label="Pending Payments" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.1} />
             <StatCard icon={Shield} label="Verified Today" value={0} trend="up" delay={0.2} />
             <StatCard icon={Activity} label="Total Verified" value={0} trend="up" delay={0.3} />
           </>
@@ -247,8 +266,8 @@ export function DashboardPage() {
           <>
             <StatCard icon={Users} label="Total Users" value={stats?.totalMembers ?? 0} trend="up" delay={0} />
             <StatCard icon={Activity} label="System Health" value="99.9%" trend="up" delay={0.1} />
-            <StatCard icon={Settings} label="Recent Actions" value={stats?.recentActivity?.length ?? 0} trend="neutral" delay={0.2} />
-            <StatCard icon={AlertTriangle} label="Alerts" value={stats?.pendingApprovals ?? 0} trend="neutral" delay={0.3} />
+            <StatCard icon={Settings} label="Audit Logs" value={auditLogs.length} trend="neutral" delay={0.2} />
+            <StatCard icon={AlertTriangle} label="System Alerts" value={pendingUsers.length} trend="neutral" delay={0.3} />
           </>
         );
       default:
@@ -263,343 +282,218 @@ export function DashboardPage() {
 
   return (
     <div className="space-y-6">
-      {/* Greeting Section */}
-      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} className="flex items-center justify-between">
-        <div>
-          <h1 className="text-2xl font-bold text-white">
-            {greeting}, <span className="bg-gradient-to-r from-emerald-400 to-cyan-400 bg-clip-text text-transparent">{currentUser?.name?.split(' ')[0] || 'Guest'}</span>
-          </h1>
-          <p className="text-sm text-gray-500">
-            {new Date().toLocaleDateString('en-US', { weekday: 'long', year: 'numeric', month: 'long', day: 'numeric' })}
-          </p>
-        </div>
-      </motion.div>
+      
+      {/* 1. EXECUTIVE HERO GREETING CARD (HIGH CONTRAST & AMBIENT GLOW) */}
+      <div className="relative rounded-3xl border border-emerald-500/25 bg-gradient-to-b from-[#0e1a14]/90 via-[#0a130e]/90 to-[#070e0a]/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl overflow-hidden">
+        {/* Top-right ambient lighting */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/15 blur-3xl rounded-full pointer-events-none" />
 
-      {/* Stat Cards */}
+        <div className="relative z-10 flex flex-col md:flex-row md:items-center justify-between gap-6">
+          <div className="space-y-2">
+            <div className="flex items-center gap-2 font-mono text-xs text-emerald-400">
+              <span className="flex h-2 w-2 relative">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
+              </span>
+              <span>[ EXECUTIVE TELEMETRY ACTIVE ]</span>
+            </div>
+
+            <h1 className="text-2xl sm:text-3xl font-black font-mono text-white tracking-tight">
+              {greeting},{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
+                {currentUser?.name || 'Executive'}
+              </span>
+            </h1>
+
+            <div className="flex flex-wrap items-center gap-2 pt-1 font-mono text-xs text-gray-300">
+              <Badge className="bg-emerald-500/20 text-emerald-300 border border-emerald-500/40 text-xs px-2.5 py-0.5">
+                {ROLE_LABELS[role]}
+              </Badge>
+              {currentUser?.studentId && (
+                <span className="text-gray-400">ID: <strong className="text-white">{currentUser.studentId}</strong></span>
+              )}
+              {currentUser?.batch && (
+                <span className="text-gray-400">• Batch: <strong className="text-white">{currentUser.batch}</strong></span>
+              )}
+            </div>
+          </div>
+
+          {/* Action Chips */}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && (
+              <Button
+                size="sm"
+                onClick={() => setCurrentView('member-approval')}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs px-4 h-9 shadow-lg shadow-emerald-500/20"
+              >
+                <UserCheck className="mr-1.5 h-3.5 w-3.5" />
+                Review Applications ({pendingUsers.length})
+              </Button>
+            )}
+
+            {['PRESIDENT', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(role) && (
+              <Button
+                size="sm"
+                onClick={() => setCurrentView('announcements')}
+                variant="outline"
+                className="border-emerald-500/30 text-emerald-300 hover:bg-emerald-500/10 font-mono text-xs px-3.5 h-9"
+              >
+                <Megaphone className="mr-1.5 h-3.5 w-3.5" />
+                New Notice
+              </Button>
+            )}
+
+            {['TREASURER'].includes(role) && (
+              <Button
+                size="sm"
+                onClick={() => setCurrentView('verify-payments')}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs px-4 h-9 shadow-lg shadow-emerald-500/20"
+              >
+                <Wallet className="mr-1.5 h-3.5 w-3.5" />
+                Verify Payments
+              </Button>
+            )}
+
+            {['MEDIA'].includes(role) && (
+              <Button
+                size="sm"
+                onClick={() => setCurrentView('gallery')}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs px-4 h-9 shadow-lg shadow-emerald-500/20"
+              >
+                <Camera className="mr-1.5 h-3.5 w-3.5" />
+                Upload Photo
+              </Button>
+            )}
+
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={() => setCurrentView('landing')}
+              className="border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 font-mono text-xs px-3.5 h-9"
+            >
+              <Globe className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+              Public Site ↗
+            </Button>
+          </div>
+        </div>
+      </div>
+
+      {/* 2. STAT CARDS (SURFACE L2 ELEVATED TILES) */}
       <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         {renderStatCards()}
       </div>
 
-      {/* Main Content Grid */}
+      {/* 3. MAIN WORKSPACE GRID */}
       <div className="grid gap-6 lg:grid-cols-2">
         {/* Upcoming Events */}
-        <Card className={`border-white/5 bg-[#111]/60 backdrop-blur ${role === 'GUEST' ? 'lg:col-span-2' : ''}`}>
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="text-lg font-semibold text-white">Upcoming Events</CardTitle>
-            <Button variant="ghost" size="sm" onClick={() => setCurrentView('events')} className="text-xs text-emerald-400">View All</Button>
+        <Card className="border-white/10 bg-[#0c140f]/90 backdrop-blur-xl shadow-xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <Calendar className="h-4 w-4 text-emerald-400" />
+              <CardTitle className="text-base font-mono font-bold text-white">Upcoming Sessions</CardTitle>
+            </div>
+            <Button
+              variant="ghost"
+              size="sm"
+              onClick={() => setCurrentView('events')}
+              className="text-xs font-mono text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10"
+            >
+              View Calendar ➔
+            </Button>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-4">
             <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
-              {(stats?.upcomingEvents || []).slice(0, 5).map((event, index) => {
-                const borderColor = EVENT_CATEGORY_COLORS[event.category] || '#10b981';
-                return (
-                  <motion.div
-                    key={event.id}
-                    initial={{ opacity: 0, x: -10 }}
-                    animate={{ opacity: 1, x: 0 }}
-                    transition={{ delay: index * 0.05 }}
-                    className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 cursor-pointer hover:bg-white/[0.04] transition-all duration-200 group"
-                    style={{ borderLeftWidth: '3px', borderLeftColor: borderColor }}
-                    onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}
-                  >
-                    <div className="flex h-10 w-10 items-center justify-center rounded-lg" style={{ backgroundColor: `${borderColor}15` }}>
-                      <Calendar className="h-5 w-5" style={{ color: borderColor }} />
+              {(stats?.upcomingEvents || []).length === 0 ? (
+                <div className="text-center py-8 space-y-2">
+                  <Calendar className="h-8 w-8 text-gray-600 mx-auto" />
+                  <p className="text-xs text-gray-400">No upcoming workshops scheduled yet.</p>
+                </div>
+              ) : (
+                (stats?.upcomingEvents || []).slice(0, 5).map((event, index) => {
+                  const borderColor = EVENT_CATEGORY_COLORS[event.category] || '#10b981';
+                  return (
+                    <div
+                      key={event.id}
+                      onClick={() => setCurrentView('events')}
+                      className="cursor-pointer rounded-xl border border-white/5 bg-white/[0.02] p-4 transition-all hover:border-emerald-500/40 hover:bg-emerald-500/[0.04]"
+                    >
+                      <div className="flex items-center justify-between text-xs font-mono text-gray-400 mb-1">
+                        <span className="font-bold text-emerald-400">{event.category || 'WORKSHOP'}</span>
+                        <span>{new Date(event.startDate).toLocaleDateString()}</span>
+                      </div>
+                      <h4 className="font-mono font-bold text-sm text-white line-clamp-1">
+                        {event.title}
+                      </h4>
+                      <p className="text-xs text-gray-400 line-clamp-1 mt-1 font-sans">
+                        {event.description || 'Hands-on practical session.'}
+                      </p>
                     </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white truncate group-hover:text-emerald-300 transition-colors">{event.title}</p>
-                      <p className="text-xs text-gray-500 truncate">{new Date(event.startDate).toLocaleDateString()} • {event.venue}</p>
-                    </div>
-                    <EventBadge status={event.status} />
-                  </motion.div>
-                );
-              })}
-              {(!stats?.upcomingEvents || stats.upcomingEvents.length === 0) && (
-                <p className="py-8 text-center text-sm text-gray-500">No upcoming events</p>
+                  );
+                })
               )}
             </div>
           </CardContent>
         </Card>
 
-        {/* Recent Activity Feed */}
-        {role !== 'GUEST' && (
-          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
-                <Activity className="h-5 w-5 text-emerald-400" />
-                Recent Activity
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setCurrentView('audit-logs')} className="text-xs text-emerald-400">View All</Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-0 max-h-80 overflow-y-auto custom-scrollbar">
-                {auditLogs.length > 0 ? auditLogs.map((log, index) => {
-                  const config = ACTION_CONFIG[log.action] || { icon: Activity, color: '#6b7280', label: log.action };
-                  const IconComp = config.icon;
-                  const isLast = index === auditLogs.length - 1;
+        {/* Recent Audit / Club Activity Feed */}
+        <Card className="border-white/10 bg-[#0c140f]/90 backdrop-blur-xl shadow-xl">
+          <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-white/5">
+            <div className="flex items-center gap-2">
+              <Activity className="h-4 w-4 text-cyan-400" />
+              <CardTitle className="text-base font-mono font-bold text-white">Live Activity Feed</CardTitle>
+            </div>
+            {['PLATFORM_ADMIN', 'PRESIDENT'].includes(role) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentView('audit-logs')}
+                className="text-xs font-mono text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+              >
+                Audit Trail ➔
+              </Button>
+            )}
+          </CardHeader>
+          <CardContent className="pt-4">
+            <div className="space-y-3 max-h-80 overflow-y-auto custom-scrollbar">
+              {auditLogs.length === 0 ? (
+                <div className="text-center py-8 space-y-2">
+                  <Activity className="h-8 w-8 text-gray-600 mx-auto" />
+                  <p className="text-xs text-gray-400">No recent club activity logged.</p>
+                </div>
+              ) : (
+                auditLogs.map((log) => {
+                  const cfg = ACTION_CONFIG[log.action] || { icon: Activity, color: '#10b981', label: log.action };
+                  const ActionIcon = cfg.icon;
+
                   return (
-                    <motion.div
+                    <div
                       key={log.id}
-                      initial={{ opacity: 0, x: -10 }}
-                      animate={{ opacity: 1, x: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex gap-3 relative"
+                      className="flex items-center justify-between gap-3 rounded-xl border border-white/5 bg-white/[0.02] p-3 text-xs"
                     >
-                      {/* Timeline line */}
-                      {!isLast && (
-                        <div className="absolute left-[15px] top-8 bottom-0 w-px bg-gradient-to-b from-white/10 to-transparent" />
-                      )}
-                      {/* Icon */}
-                      <div className="flex h-[30px] w-[30px] shrink-0 items-center justify-center rounded-full z-10" style={{ backgroundColor: `${config.color}15` }}>
-                        <IconComp className="h-3.5 w-3.5" style={{ color: config.color }} />
-                      </div>
-                      {/* Content */}
-                      <div className={`flex-1 min-w-0 ${isLast ? 'pb-0' : 'pb-4'}`}>
-                        <p className="text-sm text-white">{config.label}</p>
-                        <p className="text-xs text-gray-500 truncate">{log.details}</p>
-                        <div className="flex items-center gap-2 mt-0.5">
-                          <span className="text-[10px] text-gray-600">{log.user?.name || 'System'}</span>
-                          <span className="text-[10px] text-gray-700">•</span>
-                          <span className="text-[10px] text-gray-600">{timeAgo(log.createdAt)}</span>
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div
+                          className="flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border border-white/10"
+                          style={{ backgroundColor: `${cfg.color}15`, color: cfg.color }}
+                        >
+                          <ActionIcon className="h-4 w-4" />
+                        </div>
+                        <div className="min-w-0">
+                          <p className="font-mono font-bold text-white truncate">{cfg.label}</p>
+                          <p className="text-[11px] text-gray-400 truncate">{log.details}</p>
                         </div>
                       </div>
-                    </motion.div>
-                  );
-                }) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-                    <Activity className="mb-2 h-8 w-8 text-gray-600" />
-                    <p className="text-sm">No recent activity</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
-      </div>
-
-      {/* Upcoming Deadlines & Pending Approvals Row */}
-      <div className="grid gap-6 lg:grid-cols-2">
-        {/* Upcoming Deadlines */}
-        <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-          <CardHeader className="flex flex-row items-center justify-between pb-2">
-            <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
-              <Clock className="h-5 w-5 text-amber-400" />
-              Upcoming Deadlines
-            </CardTitle>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
-              {(() => {
-                const now = new Date();
-                const nextWeek = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-                const upcomingDeadlines = (stats?.upcomingEvents || []).filter(e => {
-                  const eventDate = new Date(e.startDate);
-                  return eventDate >= now && eventDate <= nextWeek;
-                });
-                if (upcomingDeadlines.length === 0) {
-                  return (
-                    <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-                      <Clock className="mb-2 h-8 w-8 text-gray-600" />
-                      <p className="text-sm">No deadlines in the next 7 days</p>
+                      <span className="font-mono text-[10px] text-gray-500 shrink-0">
+                        {timeAgo(log.createdAt)}
+                      </span>
                     </div>
                   );
-                }
-                return upcomingDeadlines.map((event, index) => {
-                  const daysLeft = getDaysUntil(event.startDate);
-                  const urgencyColor = daysLeft <= 1 ? '#ef4444' : daysLeft <= 3 ? '#f59e0b' : '#6b7280';
-                  const urgencyLabel = daysLeft === 0 ? 'Today' : daysLeft === 1 ? 'Tomorrow' : `${daysLeft} days`;
-                  const urgencyBg = daysLeft <= 1 ? 'bg-red-500/10 border-red-500/20' : daysLeft <= 3 ? 'bg-amber-500/10 border-amber-500/20' : 'bg-gray-500/10 border-gray-500/20';
-                  return (
-                    <motion.div
-                      key={event.id}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      transition={{ delay: index * 0.05 }}
-                      className="flex items-center gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors cursor-pointer"
-                      onClick={() => { setSelectedEventId(event.id); setCurrentView('event-detail'); }}
-                    >
-                      <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-lg" style={{ backgroundColor: `${urgencyColor}15` }}>
-                        <Clock className="h-5 w-5" style={{ color: urgencyColor }} />
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <p className="text-sm font-medium text-white truncate">{event.title}</p>
-                        <p className="text-xs text-gray-500">{new Date(event.startDate).toLocaleDateString('en-US', { weekday: 'short', month: 'short', day: 'numeric' })}</p>
-                      </div>
-                      <span className={`shrink-0 rounded-full border px-2 py-0.5 text-[10px] font-medium ${urgencyBg}`} style={{ color: urgencyColor }}>
-                        {urgencyLabel}
-                      </span>
-                    </motion.div>
-                  );
-                });
-              })()}
+                })
+              )}
             </div>
           </CardContent>
         </Card>
-
-        {/* Pending Approvals (for admin roles) */}
-        {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && (
-          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-            <CardHeader className="flex flex-row items-center justify-between pb-2">
-              <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
-                <AlertTriangle className="h-5 w-5 text-amber-400" />
-                Pending Approvals
-              </CardTitle>
-              <Button variant="ghost" size="sm" onClick={() => setCurrentView('member-approval')} className="text-xs text-amber-400">View All</Button>
-            </CardHeader>
-            <CardContent>
-              <div className="space-y-2 max-h-80 overflow-y-auto custom-scrollbar">
-                {pendingUsers.length > 0 ? pendingUsers.map((u) => (
-                  <div key={u.id} className="flex items-center gap-3 rounded-lg border border-amber-500/10 bg-amber-500/5 p-3">
-                    <div className="flex h-10 w-10 items-center justify-center rounded-full bg-amber-500/10 text-amber-400 text-sm font-bold">{u.name?.charAt(0)}</div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{u.name}</p>
-                      <p className="text-xs text-gray-500">{u.email} • {u.department}</p>
-                    </div>
-                    <MembershipBadge status={u.membershipStatus} />
-                  </div>
-                )) : (
-                  <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-                    <CheckCircle className="mb-2 h-8 w-8 text-emerald-600" />
-                    <p className="text-sm">All caught up!</p>
-                    <p className="text-xs text-gray-600">No pending approvals</p>
-                  </div>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-        )}
       </div>
 
-      {/* Quick Actions */}
-      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-lg font-semibold text-white">Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-wrap gap-3">
-            {role === 'MEMBER' && (
-              <>
-                <Button onClick={() => setCurrentView('events')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20">
-                  <Calendar className="mr-2 h-4 w-4" />Register for Event
-                </Button>
-                <Button onClick={() => setCurrentView('certificates')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20">
-                  <Award className="mr-2 h-4 w-4" />View Certificates
-                </Button>
-              </>
-            )}
-            {role === 'MEDIA' && <Button onClick={() => setCurrentView('create-event')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Calendar className="mr-2 h-4 w-4" />Create Event</Button>}
-            {role === 'TREASURER' && (
-              <>
-                <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>
-                <Button onClick={() => setCurrentView('deposits')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><DollarSign className="mr-2 h-4 w-4" />Manage Deposits</Button>
-              </>
-            )}
-            {role === 'PRESIDENT' && (
-              <>
-                <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Manage Members</Button>
-                <Button onClick={() => setCurrentView('roles')} className="bg-gradient-to-r from-amber-600 to-amber-500 text-white hover:from-amber-500 hover:to-amber-400 border-0 shadow-lg shadow-amber-500/20"><Shield className="mr-2 h-4 w-4" />Assign Roles</Button>
-                <Button onClick={() => setCurrentView('audit-logs')} className="bg-gradient-to-r from-cyan-600 to-cyan-500 text-white hover:from-cyan-500 hover:to-cyan-400 border-0 shadow-lg shadow-cyan-500/20"><FileText className="mr-2 h-4 w-4" />Audit Logs</Button>
-              </>
-            )}
-            {role === 'GS' && <Button onClick={() => setCurrentView('members')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><Users className="mr-2 h-4 w-4" />Approve Members</Button>}
-            {role === 'VERIFIER' && <Button onClick={() => setCurrentView('verify-payments')} className="bg-gradient-to-r from-emerald-600 to-emerald-500 text-white hover:from-emerald-500 hover:to-emerald-400 border-0 shadow-lg shadow-emerald-500/20"><CheckCircle className="mr-2 h-4 w-4" />Verify Payments</Button>}
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Insights Chart - For leadership roles */}
-      {['PRESIDENT', 'VP', 'TREASURER', 'PLATFORM_ADMIN'].includes(role) && (
-        <div className="grid gap-6 lg:grid-cols-2">
-          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-            <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><TrendingUp className="h-5 w-5 text-emerald-400" />Member Growth</CardTitle></CardHeader>
-            <CardContent>
-              <ResponsiveContainer width="100%" height={220}>
-                <BarChart data={[
-                  { month: 'Jan', members: 3 }, { month: 'Feb', members: 5 }, { month: 'Mar', members: 6 },
-                  { month: 'Apr', members: 7 }, { month: 'May', members: 9 }, { month: 'Jun', members: stats?.totalMembers || 10 },
-                ]}>
-                  <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" />
-                  <XAxis dataKey="month" stroke="#666" fontSize={12} />
-                  <YAxis stroke="#666" fontSize={12} />
-                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
-                  <Bar dataKey="members" fill="#10b981" radius={[4, 4, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
-            </CardContent>
-          </Card>
-          <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-            <CardHeader><CardTitle className="flex items-center gap-2 text-lg text-white"><BarChart3 className="h-5 w-5 text-cyan-400" />Event Distribution</CardTitle></CardHeader>
-            <CardContent className="flex items-center justify-center">
-              <ResponsiveContainer width="100%" height={220}>
-                <PieChart>
-                  <Pie
-                    data={[
-                      { name: 'Workshops', value: 35, fill: '#10b981' },
-                      { name: 'CTF', value: 25, fill: '#06b6d4' },
-                      { name: 'Seminars', value: 20, fill: '#f59e0b' },
-                      { name: 'Meetups', value: 15, fill: '#8b5cf6' },
-                      { name: 'Training', value: 5, fill: '#ef4444' },
-                    ]}
-                    cx="50%" cy="50%" innerRadius={50} outerRadius={80} paddingAngle={4} dataKey="value"
-                  >
-                  </Pie>
-                  <Tooltip contentStyle={{ backgroundColor: '#1a1a2e', border: '1px solid rgba(255,255,255,0.1)', borderRadius: '8px' }} />
-                </PieChart>
-              </ResponsiveContainer>
-              <div className="absolute flex flex-wrap justify-center gap-3">
-                {[{n:'Workshops',c:'#10b981'},{n:'CTF',c:'#06b6d4'},{n:'Seminars',c:'#f59e0b'},{n:'Meetups',c:'#8b5cf6'},{n:'Training',c:'#ef4444'}].map(item => (
-                  <div key={item.n} className="flex items-center gap-1.5 text-xs"><div className="h-2.5 w-2.5 rounded-full" style={{backgroundColor:item.c}}/><span className="text-gray-400">{item.n}</span></div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
-        </div>
-      )}
-
-      {/* Recent Notifications Section */}
-      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-        <CardHeader className="flex flex-row items-center justify-between pb-2">
-          <CardTitle className="flex items-center gap-2 text-lg font-semibold text-white">
-            <Bell className="h-5 w-5 text-cyan-400" />
-            Recent Notifications
-          </CardTitle>
-          <Button variant="ghost" size="sm" onClick={() => setCurrentView('notifications')} className="text-xs text-cyan-400">View All</Button>
-        </CardHeader>
-        <CardContent>
-          {recentNotifications.length > 0 ? (
-            <div className="space-y-3">
-              {recentNotifications.map((notification, index) => {
-                const typeColor = notification.type === 'SUCCESS' ? '#10b981' : notification.type === 'WARNING' ? '#f59e0b' : notification.type === 'ERROR' ? '#ef4444' : '#06b6d4';
-                return (
-                  <motion.div
-                    key={notification.id}
-                    initial={{ opacity: 0, y: 10 }}
-                    animate={{ opacity: 1, y: 0 }}
-                    transition={{ delay: index * 0.1 }}
-                    className="flex items-start gap-3 rounded-lg border border-white/5 bg-white/[0.02] p-3 hover:bg-white/[0.04] transition-colors"
-                    style={{ borderLeftWidth: '3px', borderLeftColor: typeColor }}
-                  >
-                    <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full" style={{ backgroundColor: `${typeColor}15` }}>
-                      <Info className="h-4 w-4" style={{ color: typeColor }} />
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-medium text-white">{notification.title}</p>
-                      <p className="text-xs text-gray-500 truncate">{notification.message}</p>
-                    </div>
-                    <span className="shrink-0 text-[10px] text-gray-600">
-                      {new Date(notification.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                    </span>
-                  </motion.div>
-                );
-              })}
-            </div>
-          ) : (
-            <div className="flex flex-col items-center justify-center py-8 text-gray-500">
-              <Bell className="mb-2 h-8 w-8 text-gray-600" />
-              <p className="text-sm">No notifications yet</p>
-            </div>
-          )}
-        </CardContent>
-      </Card>
     </div>
   );
 }

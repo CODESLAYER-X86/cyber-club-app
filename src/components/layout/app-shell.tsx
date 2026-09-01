@@ -8,9 +8,13 @@ import { Sidebar } from './sidebar';
 import { Header } from './header';
 import { Footer } from './footer';
 import type { AppView } from '@/types';
+import { ROLE_LABELS } from '@/types';
 import { isViewAllowed } from '@/lib/utils';
 import { AdSenseBanner } from '@/components/shared/adsense-banner';
 import { MobileNav } from './mobile-nav';
+import { MobileBottomNav } from './mobile-bottom-nav';
+import { Button } from '@/components/ui/button';
+import { LayoutDashboard, ArrowRight } from 'lucide-react';
 
 import { LandingPage } from '@/components/pages/landing-page';
 
@@ -92,11 +96,14 @@ function PageLoader() {
   );
 }
 
-function MatrixBackground() {
+function AmbientEnvironmentalGlow() {
   return (
-    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden opacity-[0.03]">
+    <div className="pointer-events-none fixed inset-0 z-0 overflow-hidden">
+      {/* Top subtle radial spotlight */}
+      <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[800px] h-[350px] bg-emerald-500/10 blur-[130px] rounded-full" />
+      {/* Subtle grid mesh */}
       <div
-        className="absolute inset-0"
+        className="absolute inset-0 opacity-[0.025]"
         style={{
           backgroundImage: `
             linear-gradient(rgba(16, 185, 129, 0.3) 1px, transparent 1px),
@@ -105,21 +112,20 @@ function MatrixBackground() {
           backgroundSize: '60px 60px',
         }}
       />
-      <div className="absolute left-1/2 top-0 h-[600px] w-[600px] -translate-x-1/2 rounded-full bg-emerald-500/10" style={{ background: 'radial-gradient(circle, rgba(16,185,129,0.08) 0%, transparent 70%)' }} />
     </div>
   );
 }
 
-// Views that should NEVER show the sidebar - truly standalone full-page views
-// For unauthenticated users, public pages (about, gallery, achievements, events) use full-page layout
-// with header navigation instead of sidebar, providing a consistent public browsing experience
-const FULL_PAGE_VIEWS: Set<AppView> = new Set([
-  'landing', 'login', 'register', 'certificate-public',
-  'about', 'resources', 'gallery', 'achievements', 'events', 'certificate-verify', 'apply-membership'
+// Full page views that render full width
+const STANDALONE_FULL_VIEWS: Set<AppView> = new Set([
+  'landing',
+  'login',
+  'register',
+  'certificate-public',
 ]);
 
 export function AppShell() {
-  const { currentView, isAuthenticated, currentUser, setSidebarOpen } = useAppStore();
+  const { currentView, setCurrentView, isAuthenticated, currentUser, setSidebarOpen } = useAppStore();
   const { isMobile, transitionConfig } = useMobileOptimized();
 
   useEffect(() => {
@@ -133,15 +139,29 @@ export function AppShell() {
   const allowed = isViewAllowed(currentView, isAuthenticated, currentUser?.role);
   const PageComponent = allowed ? (PAGE_MAP[currentView] || LandingPage) : (isAuthenticated ? DashboardPage : LandingPage);
 
-  // Determine if this view should use the full-page layout (no sidebar)
-  // Unauthenticated users get full-page layout for all public pages
-  // Authenticated users always get the sidebar layout (with header + sidebar)
-  const showFullPageLayout = !isAuthenticated && FULL_PAGE_VIEWS.has(currentView);
+  // Full-page layout for landing / auth pages OR when unauthenticated on public views
+  const isFullPageLayout = STANDALONE_FULL_VIEWS.has(currentView) || (!isAuthenticated && ['about', 'resources', 'gallery', 'achievements', 'events', 'certificate-verify', 'apply-membership'].includes(currentView));
 
-  if (showFullPageLayout) {
+  if (isFullPageLayout) {
     return (
-      <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100 pb-16 md:pb-0">
-        <MatrixBackground />
+      <div className="relative flex min-h-screen flex-col bg-[#060b08] text-gray-100 pb-20 md:pb-0 font-sans">
+        <AmbientEnvironmentalGlow />
+        
+        {/* Floating Executive Return Pill if logged in on Public Views */}
+        {isAuthenticated && currentUser && currentView === 'landing' && (
+          <div className="fixed top-3 right-4 z-50 pointer-events-auto">
+            <Button
+              size="sm"
+              onClick={() => setCurrentView('dashboard')}
+              className="gap-2 bg-emerald-500/90 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs shadow-2xl shadow-emerald-500/30 rounded-full px-4 h-8 backdrop-blur-md border border-emerald-400/40"
+            >
+              <LayoutDashboard className="h-3.5 w-3.5" />
+              <span>Return to Dashboard</span>
+              <ArrowRight className="h-3 w-3" />
+            </Button>
+          </div>
+        )}
+
         <div className="relative z-10 flex flex-1 flex-col">
           <Header />
           <main className="flex flex-1 flex-col">
@@ -157,27 +177,30 @@ export function AppShell() {
           <Footer />
         </div>
         <MobileNav />
+        <MobileBottomNav />
       </div>
     );
   }
 
-  // Sidebar layout - used for ALL authenticated views AND for guest views that need navigation
+  // Authenticated Sidebar Layout
   return (
-    <div className="relative flex min-h-screen flex-col bg-[#0a0a0a] text-gray-100 pb-16 md:pb-0">
-      <MatrixBackground />
+    <div className="relative flex min-h-screen flex-col bg-[#060b08] text-gray-100 pb-20 md:pb-0 font-sans">
+      <AmbientEnvironmentalGlow />
       <div className="relative z-10 flex flex-1 min-h-0">
         {/* Mobile Backdrop */}
-        {isMobile && <AnimatePresence>
-          <motion.div
-            key="sidebar-backdrop"
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            transition={transitionConfig}
-            onClick={() => setSidebarOpen(false)}
-            className="absolute inset-0 z-30 bg-black/50 md:hidden"
-          />
-        </AnimatePresence>}
+        {isMobile && (
+          <AnimatePresence>
+            <motion.div
+              key="sidebar-backdrop"
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={transitionConfig}
+              onClick={() => setSidebarOpen(false)}
+              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+            />
+          </AnimatePresence>
+        )}
         
         <Sidebar />
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
@@ -203,6 +226,7 @@ export function AppShell() {
         </div>
       </div>
       <MobileNav />
+      <MobileBottomNav />
     </div>
   );
 }
