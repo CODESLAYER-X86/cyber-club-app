@@ -725,14 +725,14 @@ export function CertificateAuthorityPage() {
           {isPresident && (
             <TabsTrigger
               value="pending-approval"
-              className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400"
+              className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400 gap-2 px-3 py-1.5"
             >
-              <Clock className="mr-1.5 h-4 w-4" />
-              Pending Approval
+              <Clock className="h-4 w-4" />
+              <span>Pending Approval</span>
               {stats.pendingApproval > 0 && (
-                <Badge className="ml-1.5 h-5 min-w-5 bg-amber-500/20 text-amber-400 border-amber-500/30 text-[10px] px-1.5">
+                <span className="inline-flex items-center justify-center px-1.5 py-0.5 min-w-5 h-4 text-[10px] font-bold rounded-full bg-amber-400 text-slate-950 shadow-sm leading-none">
                   {stats.pendingApproval}
-                </Badge>
+                </span>
               )}
             </TabsTrigger>
           )}

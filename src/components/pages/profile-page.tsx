@@ -299,9 +299,17 @@ export function ProfilePage() {
             <div className="flex items-end gap-6 -mt-14">
               <div className="relative group">
                 <div className="rounded-full p-[3px] bg-gradient-to-br from-emerald-400 via-cyan-400 to-emerald-500">
-                  <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#111] text-emerald-400 text-4xl font-bold border-2 border-[#111]">
-                    {userToShow.name?.charAt(0)?.toUpperCase() || '?'}
-                  </div>
+                  {userToShow.avatar ? (
+                    <img
+                      src={userToShow.avatar}
+                      alt={userToShow.name}
+                      className="h-24 w-24 rounded-full object-cover border-2 border-[#111]"
+                    />
+                  ) : (
+                    <div className="flex h-24 w-24 items-center justify-center rounded-full bg-[#111] text-emerald-400 text-4xl font-bold border-2 border-[#111]">
+                      {userToShow.name?.charAt(0)?.toUpperCase() || '?'}
+                    </div>
+                  )}
                 </div>
                 <div className="absolute bottom-1 right-1 h-5 w-5 rounded-full bg-emerald-500 border-[3px] border-[#111]">
                   <div className="h-full w-full rounded-full bg-emerald-500 animate-pulse" />

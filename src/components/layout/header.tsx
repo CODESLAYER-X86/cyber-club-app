@@ -3,7 +3,6 @@
 import { useMemo, useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
-  Search,
   Bell,
   Sun,
   Moon,
@@ -30,7 +29,7 @@ import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
 import type { AppView } from '@/types';
 import { Input } from '@/components/ui/input';
 import { Button } from '@/components/ui/button';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Badge } from '@/components/ui/badge';
 import {
   DropdownMenu,
@@ -49,7 +48,6 @@ import {
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
 import { cn } from '@/lib/utils';
-import { SearchCommand } from '@/components/shared/search-command';
 
 const VIEW_TITLES: Record<AppView, string> = {
   landing: 'Home',
@@ -151,7 +149,6 @@ export function Header() {
   const { isMobile, transitionConfig } = useMobileOptimized();
 
   const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
-  const [searchOpen, setSearchOpen] = useState(false);
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
   // Determine if we're in full-page mode (public portal pages)
@@ -178,19 +175,6 @@ export function Header() {
     }, 1000);
     return () => clearInterval(timer);
   }, []);
-
-  // Global Ctrl+K / Cmd+K listener
-  useEffect(() => {
-    if (!isAuthenticated) return;
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === 'k') {
-        e.preventDefault();
-        setSearchOpen((prev) => !prev);
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isAuthenticated]);
 
   const unreadCount = useMemo(
     () => notifications.filter((n) => !n.read).length,
@@ -223,16 +207,18 @@ export function Header() {
         'sticky top-0 z-30 flex h-16 items-center gap-2 sm:gap-4 border-b border-white/5 bg-[#0a0a0a] px-2 sm:px-4 md:px-6'
       )}
     >
-      {/* Mobile menu toggle */}
-      <Button
-        variant="ghost"
-        size="icon"
-        onClick={toggleSidebar}
-        className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden"
-        aria-label="Toggle navigation drawer"
-      >
-        <Menu className="h-5 w-5" />
-      </Button>
+      {/* Mobile menu toggle (dashboard only) */}
+      {!isFullPageMode && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={toggleSidebar}
+          className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden"
+          aria-label="Toggle navigation drawer"
+        >
+          <Menu className="h-5 w-5" />
+        </Button>
+      )}
 
       {/* Public page: Logo + Navigation */}
       {isFullPageMode ? (
@@ -240,12 +226,12 @@ export function Header() {
           {/* Logo */}
           <button
             onClick={() => setCurrentView('landing')}
-            className="flex items-center gap-2.5 shrink-0"
+            className="flex items-center gap-3 shrink-0"
           >
-            <div className="flex h-8 w-8 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
+            <div className="flex h-10 w-10 sm:h-11 sm:w-11 items-center justify-center rounded-full overflow-hidden border-2 border-emerald-500/40 shadow-[0_0_15px_rgba(16,185,129,0.25)]">
               <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
             </div>
-            <span className="hidden text-sm font-bold text-white sm:block">
+            <span className="hidden text-base font-bold text-white sm:block">
               Cyber Security <span className="text-emerald-400">Club</span>
             </span>
           </button>
@@ -287,6 +273,7 @@ export function Header() {
             size="icon"
             onClick={() => setMobileNavOpen(!mobileNavOpen)}
             className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden ml-auto"
+            aria-label="Toggle navigation menu"
           >
             {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
           </Button>
@@ -326,24 +313,6 @@ export function Header() {
 
       {/* Spacer */}
       <div className="flex-1" />
-
-      {/* Search bar with Ctrl+K hint - clickable */}
-      {isAuthenticated && (
-        <button
-          onClick={() => setSearchOpen(true)}
-          className="relative hidden max-w-xs flex-1 md:flex"
-        >
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <div className="h-9 w-full rounded-lg border border-white/10 bg-white/5 pl-9 pr-14 text-sm text-gray-500 flex items-center">
-            Search...
-          </div>
-          <div className="absolute right-2 top-1/2 -translate-y-1/2 flex items-center gap-0.5 rounded bg-white/5 px-1.5 py-0.5">
-            <kbd className="text-[10px] font-mono text-gray-500">Ctrl</kbd>
-            <span className="text-[10px] text-gray-600">+</span>
-            <kbd className="text-[10px] font-mono text-gray-500">K</kbd>
-          </div>
-        </button>
-      )}
 
       {/* Real-time Clock */}
       {currentTime && (
@@ -431,6 +400,9 @@ export function Header() {
             <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5">
               <div className="relative">
                 <Avatar className="h-8 w-8 border border-emerald-500/30">
+                  {currentUser.avatar && (
+                    <AvatarImage src={currentUser.avatar} alt={currentUser.name} className="object-cover" />
+                  )}
                   <AvatarFallback className="bg-emerald-500/20 text-xs font-semibold text-emerald-400">
                     {initials}
                   </AvatarFallback>
@@ -541,28 +513,64 @@ export function Header() {
                 </button>
               );
             })}
-            <div className="mt-3 flex gap-2 border-t border-white/5 pt-3">
-              <Button
-                onClick={() => { setCurrentView('register'); setMobileNavOpen(false); }}
-                variant="outline"
-                className="flex-1 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
-              >
-                Join Club
-              </Button>
-              <Button
-                onClick={() => { setCurrentView('login'); setMobileNavOpen(false); }}
-                className="flex-1 bg-emerald-600 text-white hover:bg-emerald-500"
-              >
-                Sign In
-              </Button>
+            {/* Mobile Nav Auth/Guest Actions */}
+            <div className="mt-3 border-t border-white/5 pt-3">
+              {isAuthenticated && currentUser ? (
+                <div className="flex items-center justify-between gap-3">
+                  <div className="flex items-center gap-2.5 min-w-0">
+                    <Avatar className="h-8 w-8 border border-emerald-500/30 shrink-0">
+                      {currentUser.avatar && (
+                        <AvatarImage src={currentUser.avatar} alt={currentUser.name} className="object-cover" />
+                      )}
+                      <AvatarFallback className="bg-emerald-500/20 text-xs font-semibold text-emerald-400">
+                        {initials}
+                      </AvatarFallback>
+                    </Avatar>
+                    <div className="min-w-0">
+                      <div className="text-xs font-semibold text-white truncate">{currentUser.name}</div>
+                      <div className="text-[10px] text-emerald-400 font-mono">{currentUser.role}</div>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0">
+                    <Button
+                      onClick={() => { setCurrentView('dashboard'); setMobileNavOpen(false); }}
+                      size="sm"
+                      className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs"
+                    >
+                      Dashboard
+                    </Button>
+                    <Button
+                      onClick={() => { logout(); setMobileNavOpen(false); }}
+                      variant="ghost"
+                      size="sm"
+                      className="text-red-400 hover:text-red-300 hover:bg-red-500/10 font-mono text-xs"
+                    >
+                      Sign Out
+                    </Button>
+                  </div>
+                </div>
+              ) : (
+                <div className="flex gap-2">
+                  <Button
+                    onClick={() => { setCurrentView('register'); setMobileNavOpen(false); }}
+                    variant="outline"
+                    className="flex-1 border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
+                  >
+                    Join Club
+                  </Button>
+                  <Button
+                    onClick={() => { setCurrentView('login'); setMobileNavOpen(false); }}
+                    className="flex-1 bg-emerald-600 text-white hover:bg-emerald-500"
+                  >
+                    Sign In
+                  </Button>
+                </div>
+              )}
             </div>
           </nav>
         </motion.div>
       )}
     </AnimatePresence>
-
-      {/* Global Search Command */}
-      {isAuthenticated && <SearchCommand open={searchOpen} onOpenChange={setSearchOpen} />}
     </>
   );
 }

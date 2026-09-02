@@ -226,14 +226,14 @@ export function LandingPage() {
         <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
           {/* Left Column: Clear Mission & Call-to-Actions */}
           <div className="space-y-6 lg:col-span-7">
-            <div className="flex items-center gap-4">
-              <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 shrink-0 items-center justify-center rounded-2xl border border-emerald-500/30 bg-slate-950/90 p-2 shadow-xl shadow-emerald-500/10 backdrop-blur-md">
+            <div className="flex items-center gap-5">
+              <div className="relative flex h-24 w-24 sm:h-28 sm:w-28 shrink-0 items-center justify-center rounded-3xl border-2 border-emerald-500/40 bg-slate-950/95 p-2.5 shadow-2xl shadow-emerald-500/25 ring-1 ring-emerald-500/20 backdrop-blur-md">
                 <img
                   src="/logo.png"
                   alt="DIU Cyber Security Club Logo"
-                  className="h-full w-full object-contain rounded-xl"
-                  width={80}
-                  height={80}
+                  className="h-full w-full object-contain rounded-2xl"
+                  width={112}
+                  height={112}
                 />
               </div>
               <div className="space-y-1.5">

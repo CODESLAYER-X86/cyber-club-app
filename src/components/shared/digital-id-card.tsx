@@ -173,35 +173,35 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
     <div className="space-y-4">
       {/* 3D Flip Card Container */}
       <div
-        className="relative w-full max-w-xl mx-auto cursor-pointer select-none perspective-1000"
+        className="relative w-full max-w-lg mx-auto h-[260px] sm:h-[270px] cursor-pointer select-none perspective-1000"
         style={{ perspective: '1000px' }}
         onClick={() => setIsFlipped(!isFlipped)}
       >
         <motion.div
-          className="relative w-full rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-slate-950 via-[#071224] to-black p-6 shadow-2xl transition-all duration-500 hover:border-emerald-400/50 hover:shadow-emerald-500/10"
+          className="relative w-full h-full rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-slate-950 via-[#071224] to-black shadow-2xl transition-all duration-500 hover:border-emerald-400/50 hover:shadow-emerald-500/10"
           animate={{ rotateY: isFlipped ? 180 : 0 }}
           transition={{ duration: 0.6, type: 'spring', stiffness: 260, damping: 20 }}
           style={{ transformStyle: 'preserve-3d' }}
         >
           {/* FRONT SIDE */}
-          <div className={`space-y-6 ${isFlipped ? 'invisible' : 'visible'}`}>
+          <div className="absolute inset-0 w-full h-full p-4 sm:p-5 flex flex-col justify-between backface-hidden">
             {/* Holographic corner brackets */}
-            <div className="absolute top-3 left-3 w-4 h-4 border-t-2 border-l-2 border-emerald-400" />
-            <div className="absolute top-3 right-3 w-4 h-4 border-t-2 border-r-2 border-emerald-400" />
-            <div className="absolute bottom-3 left-3 w-4 h-4 border-b-2 border-l-2 border-emerald-400" />
-            <div className="absolute bottom-3 right-3 w-4 h-4 border-b-2 border-r-2 border-emerald-400" />
+            <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400" />
+            <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400" />
+            <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400" />
+            <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400" />
 
             {/* Top Bar: Club Branding & Clearance */}
-            <div className="flex items-center justify-between border-b border-white/10 pb-4">
-              <div className="flex items-center gap-3">
-                <div className="flex h-10 w-10 items-center justify-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 shadow-inner">
-                  <ShieldCheck className="h-6 w-6 text-emerald-400" />
+            <div className="flex items-center justify-between border-b border-white/10 pb-2.5">
+              <div className="flex items-center gap-2.5">
+                <div className="flex h-8 w-8 items-center justify-center rounded-lg border border-emerald-500/40 bg-emerald-500/10 shadow-inner">
+                  <ShieldCheck className="h-5 w-5 text-emerald-400" />
                 </div>
                 <div>
-                  <h3 className="font-mono text-base font-black tracking-wider text-white">
+                  <h3 className="font-mono text-sm font-black tracking-wider text-white">
                     CYBER SECURITY CLUB
                   </h3>
-                  <p className="font-mono text-xs text-emerald-400/80">
+                  <p className="font-mono text-[10px] text-emerald-400/80">
                     OPERATIVE IDENTIFIER // DIU
                   </p>
                 </div>
@@ -209,36 +209,40 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
 
               <Badge
                 variant="outline"
-                className={`font-mono text-[10px] uppercase tracking-widest ${
+                className={`font-mono text-[9px] uppercase tracking-widest px-2 py-0.5 ${
                   isExecutive
                     ? 'border-cyan-500/50 bg-cyan-500/10 text-cyan-300'
                     : 'border-emerald-500/50 bg-emerald-500/10 text-emerald-300'
                 }`}
               >
-                <Cpu className="mr-1 h-3 w-3" />
+                <Cpu className="mr-1 h-2.5 w-2.5" />
                 {isExecutive ? 'TIER 3 // EXEC' : 'TIER 1 // OPERATIVE'}
               </Badge>
             </div>
 
             {/* Member Details Layout */}
-            <div className="grid grid-cols-3 gap-4 items-center">
+            <div className="grid grid-cols-3 gap-3.5 items-center my-auto">
               {/* Avatar Box */}
-              <div className="col-span-1 flex flex-col items-center justify-center rounded-xl border border-emerald-500/20 bg-slate-900/60 p-4">
-                <div className="relative flex h-20 w-20 items-center justify-center rounded-xl border-2 border-emerald-400/40 bg-emerald-950/40 text-2xl font-black text-emerald-300 shadow-md">
-                  {user.name ? user.name.charAt(0).toUpperCase() : 'C'}
-                  <div className="absolute -bottom-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-emerald-500 text-slate-950">
-                    <CheckCircle2 className="h-4 w-4" />
+              <div className="col-span-1 flex flex-col items-center justify-center rounded-xl border border-emerald-500/20 bg-slate-900/60 p-2">
+                <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-xl border-2 border-emerald-400/40 bg-emerald-950/40 text-2xl font-black text-emerald-300 shadow-md overflow-hidden">
+                  {user.avatar ? (
+                    <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                  ) : (
+                    user.name ? user.name.charAt(0).toUpperCase() : 'C'
+                  )}
+                  <div className="absolute -bottom-1 -right-1 flex h-5 w-5 items-center justify-center rounded-full bg-emerald-500 text-slate-950 shadow">
+                    <CheckCircle2 className="h-3.5 w-3.5" />
                   </div>
                 </div>
-                <span className="mt-2 font-mono text-[9px] uppercase tracking-wider text-emerald-400">
+                <span className="mt-1 font-mono text-[8px] sm:text-[9px] uppercase tracking-wider text-emerald-400 font-bold">
                   VERIFIED
                 </span>
               </div>
 
               {/* Info Matrix */}
-              <div className="col-span-2 space-y-3 font-mono">
+              <div className="col-span-2 space-y-2 font-mono">
                 <div>
-                  <span className="text-[10px] text-gray-400 uppercase">Operative Name</span>
+                  <span className="text-[9px] text-gray-400 uppercase">Operative Name</span>
                   <p className="text-sm font-bold text-white tracking-wide truncate">{user.name}</p>
                 </div>
 
@@ -264,29 +268,35 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
             </div>
 
             {/* Card Footer: Scanline & Hash */}
-            <div className="flex items-center justify-between border-t border-white/10 pt-3 font-mono text-[10px] text-gray-400">
+            <div className="flex items-center justify-between border-t border-white/10 pt-2 font-mono text-[9px] sm:text-[10px] text-gray-400">
               <div className="flex items-center gap-1.5 text-emerald-400">
-                <Sparkles className="h-3.5 w-3.5 animate-pulse" />
+                <Sparkles className="h-3 w-3 animate-pulse" />
                 <span>SEC_HASH: 0x{user.id.slice(0, 8).toUpperCase()}</span>
               </div>
-              <span className="text-gray-500">CLICK TO FLIP CARD ➔</span>
+              <span className="text-gray-500 text-[9px]">CLICK TO FLIP CARD ➔</span>
             </div>
           </div>
 
           {/* BACK SIDE (Shown on flip) */}
           <div
-            className={`space-y-4 font-mono text-xs ${isFlipped ? 'visible' : 'invisible'}`}
+            className="absolute inset-0 w-full h-full p-4 sm:p-5 flex flex-col justify-between backface-hidden font-mono text-xs"
             style={{ transform: 'rotateY(180deg)' }}
           >
+            {/* Holographic corner brackets */}
+            <div className="absolute top-2.5 left-2.5 w-3.5 h-3.5 border-t-2 border-l-2 border-emerald-400" />
+            <div className="absolute top-2.5 right-2.5 w-3.5 h-3.5 border-t-2 border-r-2 border-emerald-400" />
+            <div className="absolute bottom-2.5 left-2.5 w-3.5 h-3.5 border-b-2 border-l-2 border-emerald-400" />
+            <div className="absolute bottom-2.5 right-2.5 w-3.5 h-3.5 border-b-2 border-r-2 border-emerald-400" />
+
             <div className="flex items-center justify-between border-b border-white/10 pb-2">
               <div className="flex items-center gap-2 text-amber-400 font-bold">
                 <ShieldAlert className="h-4 w-4" />
-                <span>OPERATIVE CODE OF ETHICS</span>
+                <span className="text-xs">OPERATIVE CODE OF ETHICS</span>
               </div>
               <span className="text-[10px] text-gray-400">EST. {joinYear}</span>
             </div>
 
-            <div className="space-y-2 text-[11px] leading-relaxed text-gray-300">
+            <div className="space-y-1.5 text-[10px] sm:text-[11px] leading-relaxed text-gray-300 my-auto">
               <p>
                 1. <strong className="text-white">Responsible Disclosure:</strong> Always act with authorization and adhere to ethical standards.
               </p>
@@ -298,11 +308,11 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
               </p>
             </div>
 
-            <div className="flex items-center justify-between border-t border-white/10 pt-3 text-[10px] text-gray-400">
+            <div className="flex items-center justify-between border-t border-white/10 pt-2 text-[10px] text-gray-400">
               <div>
                 <span>DISPATCH: soc@diu.cyber.edu</span>
               </div>
-              <span className="text-emerald-400">AUTHENTICATED CARD</span>
+              <span className="text-emerald-400 font-semibold">AUTHENTICATED CARD</span>
             </div>
           </div>
         </motion.div>
