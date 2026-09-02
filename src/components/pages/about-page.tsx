@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { motion, useInView } from 'framer-motion';
 import {
   Shield,
@@ -16,17 +16,6 @@ import {
   Rocket,
   Flag,
   Handshake,
-  UserPlus,
-  Pencil,
-  Trash2,
-  Mail,
-  Linkedin,
-  Github,
-  Facebook,
-  Upload,
-  X,
-  Loader2,
-  ImageIcon,
   Compass,
   CheckCircle2,
   AlertTriangle,
@@ -41,34 +30,7 @@ import {
   Globe2,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
-import { Textarea } from '@/components/ui/textarea';
-import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from '@/components/ui/dialog';
-import {
-  AlertDialog,
-  AlertDialogAction,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from '@/components/ui/alert-dialog';
-import { useAppStore } from '@/store/use-app-store';
-import type { CommitteeMember } from '@/types';
-import { uploadToSupabase } from '@/lib/upload';
-import { CommitteeMemberCard } from '@/components/shared/committee-member-card';
 
 /* ──────────── Animation helpers ──────────── */
 
@@ -320,65 +282,8 @@ const semesterRhythm = [
 ];
 
 export function AboutPage() {
-  const { currentUser } = useAppStore();
-  const canManage = currentUser?.role === 'PRESIDENT' || currentUser?.role === 'PLATFORM_ADMIN';
-
-  // Committee Members State
-  const [members, setMembers] = useState<CommitteeMember[]>([]);
-  const [membersLoading, setMembersLoading] = useState(true);
   // Sponsors State
   const [sponsors, setSponsors] = useState<any[]>([]);
-
-  // Dialog State
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deletingMemberId, setDeletingMemberId] = useState<string | null>(null);
-  const [deletingMemberName, setDeletingMemberName] = useState<string>('');
-  const [dialogSaving, setDialogSaving] = useState(false);
-  const [imageFile, setImageFile] = useState<File | null>(null);
-  const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  // Dialog Form State
-  const [formState, setFormState] = useState<{
-    id?: string;
-    name: string;
-    role: string;
-    description: string;
-    department: string;
-    email: string;
-    linkedin: string;
-    github: string;
-    facebook: string;
-    imageUrl: string;
-    order: number;
-  }>({
-    name: '',
-    role: '',
-    description: '',
-    department: '',
-    email: '',
-    linkedin: '',
-    github: '',
-    facebook: '',
-    imageUrl: '',
-    order: 0,
-  });
-
-  // Fetch committee members
-  const fetchMembers = useCallback(async () => {
-    try {
-      setMembersLoading(true);
-      const res = await fetch('/api/committee');
-      const data = await res.json();
-      if (data.success && Array.isArray(data.data?.members)) {
-        setMembers(data.data.members);
-      }
-    } catch (err) {
-      console.error('Failed to fetch committee members', err);
-    } finally {
-      setMembersLoading(false);
-    }
-  }, []);
 
   // Fetch sponsors
   useEffect(() => {
@@ -393,136 +298,8 @@ export function AboutPage() {
         console.error('Failed to fetch sponsors', err);
       }
     }
-    fetchMembers();
     fetchSponsors();
-  }, [fetchMembers]);
-
-  const openAddDialog = () => {
-    setFormState({
-      name: '',
-      role: '',
-      description: '',
-      department: '',
-      email: '',
-      linkedin: '',
-      github: '',
-      facebook: '',
-      imageUrl: '',
-      order: members.length + 1,
-    });
-    setImageFile(null);
-    setImagePreview(null);
-    setEditDialogOpen(true);
-  };
-
-  const openEditDialog = (member: CommitteeMember) => {
-    let links: any = {};
-    try {
-      if (member.socialLinks) {
-        links = typeof member.socialLinks === 'string' ? JSON.parse(member.socialLinks) : member.socialLinks;
-      }
-    } catch (e) {
-      links = {};
-    }
-
-    setFormState({
-      id: member.id,
-      name: member.name,
-      role: member.role,
-      description: member.description || '',
-      department: member.department || '',
-      email: member.email || '',
-      linkedin: links.linkedin || '',
-      github: links.github || '',
-      facebook: links.facebook || '',
-      imageUrl: member.imageUrl || '',
-      order: member.order,
-    });
-    setImageFile(null);
-    setImagePreview(member.imageUrl || null);
-    setEditDialogOpen(true);
-  };
-
-  const handleImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (file) {
-      setImageFile(file);
-      const reader = new FileReader();
-      reader.onloadend = () => {
-        setImagePreview(reader.result as string);
-      };
-      reader.readAsDataURL(file);
-    }
-  };
-
-  const saveMember = async () => {
-    if (!formState.name || !formState.role) return;
-
-    try {
-      setDialogSaving(true);
-      let imageUrl = formState.imageUrl || '';
-
-      if (imageFile) {
-        imageUrl = await uploadToSupabase(imageFile, 'committee');
-      }
-
-      const socialLinksObj = {
-        linkedin: formState.linkedin,
-        github: formState.github,
-        facebook: formState.facebook,
-      };
-
-      const payload = {
-        name: formState.name,
-        role: formState.role,
-        description: formState.description || `${formState.role} of Cyber Security Club`,
-        department: formState.department,
-        email: formState.email,
-        socialLinks: socialLinksObj,
-        imageUrl,
-        order: formState.order,
-      };
-
-      const isEdit = !!formState.id;
-      const url = isEdit ? `/api/committee/${formState.id}` : '/api/committee';
-      const method = isEdit ? 'PATCH' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-
-      const data = await res.json();
-      if (data.success) {
-        setEditDialogOpen(false);
-        fetchMembers();
-      }
-    } catch (err) {
-      console.error('Failed to save committee member', err);
-    } finally {
-      setDialogSaving(false);
-    }
-  };
-
-  const deleteMember = async () => {
-    if (!deletingMemberId) return;
-    try {
-      setDialogSaving(true);
-      const res = await fetch(`/api/committee/${deletingMemberId}`, {
-        method: 'DELETE',
-      });
-      const data = await res.json();
-      if (data.success) {
-        setDeleteDialogOpen(false);
-        fetchMembers();
-      }
-    } catch (err) {
-      console.error('Failed to delete committee member', err);
-    } finally {
-      setDialogSaving(false);
-    }
-  };
+  }, []);
 
   return (
     <div className="relative min-h-screen bg-[#040810] text-gray-100 selection:bg-emerald-500 selection:text-black">
@@ -714,72 +491,7 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* ── 6. COMMITTEE & LEADERSHIP MANAGEMENT ── */}
-      <section className="relative z-10 border-t border-emerald-500/10 bg-[#060c16]/80 px-4 py-20 sm:px-6 lg:px-8">
-        <div className="mx-auto max-w-6xl space-y-12">
-          <div className="flex flex-col sm:flex-row items-center justify-between gap-4 text-center sm:text-left">
-            <div>
-              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-mono text-xs">
-                <Users className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
-                EXECUTIVE COMMITTEE
-              </Badge>
-              <h2 className="text-3xl font-black tracking-tight text-white font-mono sm:text-4xl mt-1">
-                LEADERSHIP & ADVISORY
-              </h2>
-              <p className="text-xs text-gray-400 mt-1">
-                The students and faculty mentors steering Dhaka International University Cyber Security Club.
-              </p>
-            </div>
 
-            {canManage && (
-              <Button
-                onClick={openAddDialog}
-                size="sm"
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs"
-              >
-                <UserPlus className="mr-1.5 h-3.5 w-3.5" />
-                Add Member
-              </Button>
-            )}
-          </div>
-
-          {membersLoading ? (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {Array.from({ length: 3 }).map((_, i) => (
-                <Card key={i} className="border-white/5 bg-slate-950/60 p-6 space-y-4">
-                  <div className="flex items-center gap-4">
-                    <Skeleton className="h-14 w-14 rounded-full" />
-                    <div className="space-y-2 flex-1">
-                      <Skeleton className="h-4 w-3/4" />
-                      <Skeleton className="h-3 w-1/2" />
-                    </div>
-                  </div>
-                </Card>
-              ))}
-            </div>
-          ) : members.length === 0 ? (
-            <div className="text-center py-12 border border-dashed border-white/10 rounded-xl">
-              <p className="text-xs font-mono text-gray-500">No committee members listed yet.</p>
-            </div>
-          ) : (
-            <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-              {members.map((member) => (
-                <CommitteeMemberCard
-                  key={member.id}
-                  member={member}
-                  canManage={canManage}
-                  onEdit={openEditDialog}
-                  onDelete={(m) => {
-                    setDeletingMemberId(m.id);
-                    setDeletingMemberName(m.name);
-                    setDeleteDialogOpen(true);
-                  }}
-                />
-              ))}
-            </div>
-          )}
-        </div>
-      </section>
 
       {/* ── 7. OFFICIAL SPONSORS ── */}
       {sponsors.length > 0 && (
@@ -847,148 +559,6 @@ export function AboutPage() {
         </div>
       </section>
 
-      {/* ── CRUD Dialogs for Committee Members ── */}
-      <Dialog open={editDialogOpen} onOpenChange={setEditDialogOpen}>
-        <DialogContent className="border-white/10 bg-slate-950 text-white max-w-lg">
-          <DialogHeader>
-            <DialogTitle className="font-mono">{formState.id ? 'Edit Committee Member' : 'Add Committee Member'}</DialogTitle>
-            <DialogDescription className="text-xs text-gray-400">
-              Provide member details, leadership designation, and professional links.
-            </DialogDescription>
-          </DialogHeader>
-
-          <div className="space-y-4 py-4 text-xs font-mono">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Full Name *</Label>
-                <Input
-                  value={formState.name}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, name: e.target.value }))}
-                  placeholder="e.g. Omar Faruk"
-                  className="bg-slate-900 border-white/10 text-xs font-mono"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Designation / Role *</Label>
-                <Input
-                  value={formState.role}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, role: e.target.value }))}
-                  placeholder="e.g. President / Vice President"
-                  className="bg-slate-900 border-white/10 text-xs font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>Department</Label>
-                <Input
-                  value={formState.department}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, department: e.target.value }))}
-                  placeholder="e.g. CSE / SWE"
-                  className="bg-slate-900 border-white/10 text-xs font-mono"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>Email</Label>
-                <Input
-                  value={formState.email}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, email: e.target.value }))}
-                  placeholder="e.g. member@diu.edu.bd"
-                  className="bg-slate-900 border-white/10 text-xs font-mono"
-                />
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Photo / Avatar</Label>
-              <div className="flex items-center gap-4">
-                {imagePreview ? (
-                  <img src={imagePreview} alt="Preview" className="h-12 w-12 rounded-full object-cover border border-emerald-500/30" />
-                ) : (
-                  <div className="h-12 w-12 rounded-full bg-slate-900 flex items-center justify-center border border-white/10 text-gray-500">
-                    <ImageIcon className="h-5 w-5" />
-                  </div>
-                )}
-                <input ref={fileInputRef} type="file" accept="image/*" onChange={handleImageChange} className="hidden" />
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => fileInputRef.current?.click()}
-                  className="border-white/10 text-xs font-mono text-gray-300"
-                >
-                  <Upload className="mr-1.5 h-3.5 w-3.5" />
-                  Upload Photo
-                </Button>
-              </div>
-            </div>
-
-            <div className="space-y-1.5">
-              <Label>Description / Bio</Label>
-              <Textarea
-                value={formState.description}
-                onChange={(e) => setFormState((prev) => ({ ...prev, description: e.target.value }))}
-                placeholder="Brief profile or security specialization..."
-                className="bg-slate-900 border-white/10 text-xs font-mono h-18"
-              />
-            </div>
-
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1.5">
-                <Label>LinkedIn URL</Label>
-                <Input
-                  value={formState.linkedin}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, linkedin: e.target.value }))}
-                  placeholder="https://linkedin.com/in/..."
-                  className="bg-slate-900 border-white/10 text-xs font-mono"
-                />
-              </div>
-              <div className="space-y-1.5">
-                <Label>GitHub URL</Label>
-                <Input
-                  value={formState.github}
-                  onChange={(e) => setFormState((prev) => ({ ...prev, github: e.target.value }))}
-                  placeholder="https://github.com/..."
-                  className="bg-slate-900 border-white/10 text-xs font-mono"
-                />
-              </div>
-            </div>
-          </div>
-
-          <DialogFooter>
-            <Button variant="ghost" onClick={() => setEditDialogOpen(false)} className="text-xs font-mono">
-              Cancel
-            </Button>
-            <Button
-              onClick={saveMember}
-              disabled={dialogSaving || !formState.name || !formState.role}
-              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold text-xs font-mono"
-            >
-              {dialogSaving ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : null}
-              Save Member
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation */}
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent className="border-white/10 bg-slate-950 text-white font-mono text-xs">
-          <AlertDialogHeader>
-            <AlertDialogTitle>Remove Committee Member?</AlertDialogTitle>
-            <AlertDialogDescription className="text-xs text-gray-400">
-              Are you sure you want to remove <strong className="text-white">{deletingMemberName}</strong> from the committee roster?
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-xs">Cancel</AlertDialogCancel>
-            <AlertDialogAction onClick={deleteMember} className="bg-red-600 hover:bg-red-500 text-white text-xs">
-              Delete
-            </AlertDialogAction>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
     </div>
   );
 }

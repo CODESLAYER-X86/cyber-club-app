@@ -23,6 +23,7 @@ import {
   BookOpen,
   Globe,
   LayoutDashboard,
+  Users,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
@@ -118,7 +119,7 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
   gallery: [{ label: 'Gallery' }],
   achievements: [{ label: 'Achievements' }],
   'certificate-designer': [{ label: 'Settings', parent: 'settings' }, { label: 'Certificate Designer' }],
-  committee: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Committee' }],
+  committee: [{ label: 'Home', parent: 'landing' }, { label: 'Committee' }],
   sponsors: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Official Sponsors' }],
 };
 
@@ -126,6 +127,7 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
 const PUBLIC_NAV_LINKS: { label: string; view: AppView; icon: React.ElementType }[] = [
   { label: 'Home', view: 'landing', icon: Home },
   { label: 'About', view: 'about', icon: Info },
+  { label: 'Committee', view: 'committee', icon: Users },
   { label: 'Events', view: 'events', icon: Calendar },
   { label: 'Resources', view: 'resources', icon: BookOpen },
   { label: 'Gallery', view: 'gallery', icon: Image },
@@ -221,17 +223,16 @@ export function Header() {
         'sticky top-0 z-30 flex h-16 items-center gap-2 sm:gap-4 border-b border-white/5 bg-[#0a0a0a] px-2 sm:px-4 md:px-6'
       )}
     >
-      {/* Mobile menu toggle (sidebar mode) */}
-      {!isFullPageMode && (
-        <Button
-          variant="ghost"
-          size="icon"
-          onClick={toggleSidebar}
-          className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden"
-        >
-          <Menu className="h-5 w-5" />
-        </Button>
-      )}
+      {/* Mobile menu toggle */}
+      <Button
+        variant="ghost"
+        size="icon"
+        onClick={toggleSidebar}
+        className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden"
+        aria-label="Toggle navigation drawer"
+      >
+        <Menu className="h-5 w-5" />
+      </Button>
 
       {/* Public page: Logo + Navigation */}
       {isFullPageMode ? (

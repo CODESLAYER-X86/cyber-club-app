@@ -35,7 +35,22 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
   }
 
   // Views allowed for all authenticated users
-  if (['profile', 'settings', 'notifications', 'dashboard', 'announcements'].includes(view)) {
+  if ([
+    'profile',
+    'settings',
+    'notifications',
+    'dashboard',
+    'announcements',
+    'certificates',
+    'events',
+    'event-detail',
+    'gallery',
+    'achievements',
+    'about',
+    'resources',
+    'committee',
+    'sponsors',
+  ].includes(view)) {
     return true;
   }
 
@@ -53,99 +68,51 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'certificate-authority',
         'certificate-designer',
         'members',
-        'events',
-        'event-detail',
         'create-event',
-        'gallery',
-        'achievements',
-        'committee',
         'deposits',
         'expenses',
         'analytics',
         'finance',
-        'announcements',
-        'sponsors',
       ].includes(view);
 
     case 'VP':
       return [
-        'dashboard',
         'analytics',
-        'events',
-        'event-detail',
-        'gallery',
-        'achievements',
         'members',
         'finance',
-        'announcements',
-        'committee',
-        'sponsors',
       ].includes(view);
 
     case 'TREASURER':
       return [
-        'dashboard',
         'deposits',
         'expenses',
         'verify-payments',
         'analytics',
         'finance',
-        'events',
-        'event-detail',
-        'certificates',
         'members',
-        'committee',
-        'resources',
-        'gallery',
-        'achievements',
-        'announcements',
-        'sponsors',
       ].includes(view);
 
     case 'MEDIA':
       return [
-        'dashboard',
-        'events',
-        'event-detail',
         'create-event',
-        'gallery',
-        'achievements',
-        'announcements',
-        'committee',
         'analytics',
-        'sponsors',
       ].includes(view);
 
     case 'VERIFIER':
       return [
-        'dashboard',
         'verify-payments',
-        'events',
-        'event-detail',
-        'gallery',
-        'achievements',
-        'certificates',
         'finance',
-        'committee',
-        'announcements',
       ].includes(view);
 
     case 'MEMBER':
       return [
-        'dashboard',
-        'events',
-        'event-detail',
-        'gallery',
-        'achievements',
-        'certificates',
         'finance',
-        'committee',
-        'announcements',
-        'resources',
       ].includes(view);
 
     case 'GUEST':
-      return ['dashboard', 'apply-membership', 'announcements'].includes(view);
+      return [
+        'apply-membership',
+      ].includes(view);
 
     default:
       return false;

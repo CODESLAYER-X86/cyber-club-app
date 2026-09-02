@@ -152,6 +152,9 @@ export function AppShell() {
       <div className="relative flex min-h-screen flex-col bg-[#060b08] text-gray-100 pb-20 md:pb-0 font-sans">
         <AmbientEnvironmentalGlow />
 
+        {/* Mobile Slide-over Drawer for Public Views */}
+        <Sidebar className="md:hidden" />
+
         <div className="relative z-10 flex flex-1 flex-col">
           <Header />
           <main className="flex flex-1 flex-col">

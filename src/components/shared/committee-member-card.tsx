@@ -19,6 +19,7 @@ interface SocialLinkData {
   github?: string;
   facebook?: string;
   twitter?: string;
+  category?: string;
 }
 
 interface CommitteeMemberCardProps {
@@ -36,6 +37,16 @@ interface RoleColors {
 }
 
 function getRoleColors(role: string): RoleColors {
+  const lowerRole = role.toLowerCase();
+  if (lowerRole.includes('advisor') || lowerRole.includes('mentor') || lowerRole.includes('faculty')) {
+    return {
+      avatarBg: 'from-cyan-500 to-blue-600',
+      accentClass: 'text-cyan-300',
+      borderAccent: 'border-cyan-500/40',
+      glowClass: 'shadow-cyan-500/15 hover:shadow-cyan-500/30',
+    };
+  }
+
   const firstWord = role.split(' ')[0].toLowerCase();
   switch (firstWord) {
     case 'president':

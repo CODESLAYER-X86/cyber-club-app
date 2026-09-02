@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -12,6 +12,8 @@ import {
   Github,
   Facebook,
   ImageIcon,
+  Shield,
+  Sparkles,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -19,6 +21,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
+import { Badge } from '@/components/ui/badge';
 import {
   Dialog,
   DialogContent,
@@ -41,6 +44,7 @@ import { useAppStore } from '@/store/use-app-store';
 import type { CommitteeMember } from '@/types';
 import { uploadToSupabase } from '@/lib/upload';
 import { CommitteeMemberCard } from '@/components/shared/committee-member-card';
+import { cn } from '@/lib/utils';
 
 /* ──────────── Animation helpers ──────────── */
 
@@ -60,6 +64,7 @@ const stagger = {
 interface MemberFormData {
   name: string;
   role: string;
+  category: 'COMMITTEE' | 'ADVISORY';
   description: string;
   department: string;
   email: string;
@@ -73,6 +78,7 @@ interface MemberFormData {
 const emptyForm: MemberFormData = {
   name: '',
   role: '',
+  category: 'COMMITTEE',
   description: '',
   department: '',
   email: '',
@@ -88,6 +94,7 @@ interface SocialLinkData {
   github?: string;
   facebook?: string;
   twitter?: string;
+  category?: 'COMMITTEE' | 'ADVISORY';
 }
 
 function parseSocialLinks(raw: string | null | undefined): SocialLinkData | null {
@@ -97,6 +104,19 @@ function parseSocialLinks(raw: string | null | undefined): SocialLinkData | null
   } catch {
     return null;
   }
+}
+
+export function isAdvisoryMember(member: CommitteeMember): boolean {
+  const socials = parseSocialLinks(member.socialLinks);
+  if (socials?.category === 'ADVISORY') return true;
+  if (socials?.category === 'COMMITTEE') return false;
+  const lowerRole = (member.role || '').toLowerCase();
+  return (
+    lowerRole.includes('advisor') ||
+    lowerRole.includes('mentor') ||
+    lowerRole.includes('faculty') ||
+    lowerRole.includes('patron')
+  );
 }
 
 export function CommitteePage() {
@@ -152,6 +172,10 @@ export function CommitteePage() {
     fetchMembers();
   }, [fetchMembers]);
 
+  // Separate members into Advisory and Committee
+  const advisoryMembers = useMemo(() => members.filter(isAdvisoryMember), [members]);
+  const committeeMembers = useMemo(() => members.filter((m) => !isAdvisoryMember(m)), [members]);
+
   // Upload image
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
@@ -203,18 +227,26 @@ export function CommitteePage() {
     setEditingMemberId(null);
   };
 
-  // Open add dialog
-  const openAddDialog = () => {
+  // Open add dialog with initial category
+  const openAddDialog = (initialCategory: 'COMMITTEE' | 'ADVISORY' = 'COMMITTEE') => {
     resetForm();
+    setFormData({ ...emptyForm, category: initialCategory });
     setAddDialogOpen(true);
   };
 
   // Open edit dialog
   const openEditDialog = (member: CommitteeMember) => {
     const socials = parseSocialLinks(member.socialLinks);
+    const category: 'COMMITTEE' | 'ADVISORY' = socials?.category
+      ? socials.category
+      : isAdvisoryMember(member)
+      ? 'ADVISORY'
+      : 'COMMITTEE';
+
     setFormData({
       name: member.name,
       role: member.role,
+      category,
       description: member.description,
       department: member.department || '',
       email: member.email || '',
@@ -241,7 +273,9 @@ export function CommitteePage() {
         if (uploadedUrl) imageUrl = uploadedUrl;
       }
 
-      const socialLinks: SocialLinkData = {};
+      const socialLinks: SocialLinkData = {
+        category: formData.category,
+      };
       if (formData.socialLinkedIn) socialLinks.linkedin = formData.socialLinkedIn;
       if (formData.socialGithub) socialLinks.github = formData.socialGithub;
       if (formData.socialFacebook) socialLinks.facebook = formData.socialFacebook;
@@ -256,7 +290,7 @@ export function CommitteePage() {
           department: formData.department || undefined,
           email: formData.email || undefined,
           imageUrl: imageUrl || undefined,
-          socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : undefined,
+          socialLinks,
           order: formData.order,
           requesterRole: currentUser?.role,
         }),
@@ -287,7 +321,9 @@ export function CommitteePage() {
         if (uploadedUrl) imageUrl = uploadedUrl;
       }
 
-      const socialLinks: SocialLinkData = {};
+      const socialLinks: SocialLinkData = {
+        category: formData.category,
+      };
       if (formData.socialLinkedIn) socialLinks.linkedin = formData.socialLinkedIn;
       if (formData.socialGithub) socialLinks.github = formData.socialGithub;
       if (formData.socialFacebook) socialLinks.facebook = formData.socialFacebook;
@@ -302,7 +338,7 @@ export function CommitteePage() {
           department: formData.department || undefined,
           email: formData.email || undefined,
           imageUrl: imageUrl || undefined,
-          socialLinks: Object.keys(socialLinks).length > 0 ? socialLinks : undefined,
+          socialLinks,
           order: formData.order,
           requesterRole: currentUser?.role,
         }),
@@ -324,14 +360,18 @@ export function CommitteePage() {
   // Delete member
   const handleDelete = async () => {
     if (!deletingMemberId) return;
+
     try {
-      const res = await fetch(`/api/committee/${deletingMemberId}?role=${currentUser?.role}`, {
+      const res = await fetch(`/api/committee/${deletingMemberId}`, {
         method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ requesterRole: currentUser?.role }),
       });
       const data = await res.json();
       if (data.success) {
         setDeleteDialogOpen(false);
         setDeletingMemberId(null);
+        setDeletingMemberName('');
         fetchMembers();
       }
     } catch {
@@ -339,18 +379,51 @@ export function CommitteePage() {
     }
   };
 
-  // Form field updater
-  const updateField = <K extends keyof MemberFormData>(field: K, value: MemberFormData[K]) => {
+  const updateField = (field: keyof MemberFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
 
-  /* ──────────── Member Form Dialog Layout ──────────── */
-
+  // Reusable member form inside Dialogs
   const renderMemberForm = (isEdit: boolean) => (
     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
+      {/* Member Category Selection */}
+      <div className="space-y-2">
+        <Label className="text-gray-300 font-mono text-xs">
+          Member Classification <span className="text-red-400">*</span>
+        </Label>
+        <div className="grid grid-cols-2 gap-3">
+          <button
+            type="button"
+            onClick={() => updateField('category', 'ADVISORY')}
+            className={cn(
+              'flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-mono transition-all',
+              formData.category === 'ADVISORY'
+                ? 'bg-cyan-500/15 border-cyan-500 text-cyan-300 font-semibold shadow-[0_0_12px_rgba(6,182,212,0.2)]'
+                : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+            )}
+          >
+            <Shield className="h-3.5 w-3.5" />
+            Advisory Member
+          </button>
+          <button
+            type="button"
+            onClick={() => updateField('category', 'COMMITTEE')}
+            className={cn(
+              'flex items-center justify-center gap-2 p-2.5 rounded-lg border text-xs font-mono transition-all',
+              formData.category === 'COMMITTEE'
+                ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-semibold shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                : 'bg-white/5 border-white/10 text-gray-400 hover:border-white/20'
+            )}
+          >
+            <Users className="h-3.5 w-3.5" />
+            Committee Member
+          </button>
+        </div>
+      </div>
+
       {/* Avatar Upload */}
       <div className="space-y-2">
-        <Label className="text-gray-300">Avatar Image</Label>
+        <Label className="text-gray-300 font-mono text-xs">Avatar Image</Label>
         <div
           className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer ${
             dragOver
@@ -407,84 +480,71 @@ export function CommitteePage() {
 
       {/* Name */}
       <div className="space-y-2">
-        <Label className="text-gray-300">
+        <Label className="text-gray-300 font-mono text-xs">
           Name <span className="text-red-400">*</span>
         </Label>
         <Input
           value={formData.name}
           onChange={(e) => updateField('name', e.target.value)}
-          placeholder="Full name"
-          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+          placeholder="e.g. Dr. John Doe or MD Abdullah Al Omar"
+          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
         />
       </div>
 
       {/* Role */}
       <div className="space-y-2">
-        <Label className="text-gray-300">
-          Role / Position <span className="text-red-400">*</span>
+        <Label className="text-gray-300 font-mono text-xs">
+          Role / Designation <span className="text-red-400">*</span>
         </Label>
         <Input
           value={formData.role}
           onChange={(e) => updateField('role', e.target.value)}
-          placeholder="e.g., President, Vice President, Treasurer"
-          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+          placeholder={formData.category === 'ADVISORY' ? 'e.g. Faculty Advisor, Chief Mentor' : 'e.g. President, Event Co-ordinator'}
+          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
         />
       </div>
 
       {/* Description */}
       <div className="space-y-2">
-        <Label className="text-gray-300">
+        <Label className="text-gray-300 font-mono text-xs">
           Bio / About <span className="text-red-400">*</span>
         </Label>
         <Textarea
           value={formData.description}
           onChange={(e) => updateField('description', e.target.value)}
-          placeholder="Brief biography of their role and contributions"
-          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 min-h-[80px]"
+          placeholder="Brief biography of their role, expertise, and contributions..."
+          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 min-h-[80px] font-mono text-xs"
         />
       </div>
 
       {/* Department & Email */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div className="space-y-2">
-          <Label className="text-gray-300">Department</Label>
+          <Label className="text-gray-300 font-mono text-xs">Department</Label>
           <Input
             value={formData.department}
             onChange={(e) => updateField('department', e.target.value)}
-            placeholder="e.g., Computer Science"
-            className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+            placeholder="e.g. CSE, SWE, Cyber"
+            className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
           />
         </div>
         <div className="space-y-2">
-          <Label className="text-gray-300">Email Address</Label>
+          <Label className="text-gray-300 font-mono text-xs">Email</Label>
           <Input
-            type="email"
             value={formData.email}
             onChange={(e) => updateField('email', e.target.value)}
-            placeholder="email@example.com"
-            className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
+            placeholder="e.g. name@diu.edu.bd"
+            className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
           />
         </div>
-      </div>
-
-      {/* Order */}
-      <div className="space-y-2">
-        <Label className="text-gray-300">Display Order</Label>
-        <Input
-          type="number"
-          value={formData.order}
-          onChange={(e) => updateField('order', parseInt(e.target.value) || 0)}
-          placeholder="0"
-          className="border-white/10 bg-white/5 text-white placeholder:text-gray-600"
-        />
       </div>
 
       {/* Social Links */}
-      <div className="space-y-3">
-        <Label className="text-gray-300">Social Links</Label>
-        <div className="space-y-2">
+      <div className="space-y-3 pt-2">
+        <Label className="text-gray-300 font-mono text-xs">Social Profiles</Label>
+        <div className="space-y-2 font-mono text-xs">
           <div className="flex items-center gap-2">
-            <Facebook className="h-4 w-4 text-blue-500 shrink-0" />
+            <Facebook className="h-4 w-4 text-blue-400 shrink-0" />
             <Input
               value={formData.socialFacebook}
               onChange={(e) => updateField('socialFacebook', e.target.value)}
@@ -493,7 +553,7 @@ export function CommitteePage() {
             />
           </div>
           <div className="flex items-center gap-2">
-            <Linkedin className="h-4 w-4 text-blue-400 shrink-0" />
+            <Linkedin className="h-4 w-4 text-cyan-400 shrink-0" />
             <Input
               value={formData.socialLinkedIn}
               onChange={(e) => updateField('socialLinkedIn', e.target.value)}
@@ -516,99 +576,248 @@ export function CommitteePage() {
   );
 
   return (
-    <div className="space-y-6">
+    <div className="space-y-12 pb-16">
       {/* ── Page Header ── */}
-      <motion.div {...fadeUp} className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/5 pb-5">
+      <motion.div
+        {...fadeUp}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 border-b border-white/5 pb-6"
+      >
         <div>
-          <h1 className="text-3xl font-bold tracking-tight text-white">Committee Members</h1>
-          <p className="text-sm text-gray-400 mt-1">Manage and edit the club committee members roster.</p>
+          <div className="flex items-center gap-2 mb-2">
+            <Badge
+              variant="outline"
+              className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-mono text-xs"
+            >
+              <Users className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+              DHAKA INTERNATIONAL UNIVERSITY
+            </Badge>
+          </div>
+          <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white font-mono">
+            ADVISORY & COMMITTEE MEMBERS
+          </h1>
+          <p className="text-sm text-gray-400 mt-1 max-w-2xl font-sans">
+            The faculty mentors, advisors, and executive student board steering Dhaka International University Cyber Security Club.
+          </p>
         </div>
+
         {canManage && (
-          <Button
-            onClick={openAddDialog}
-            className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold shadow-lg shadow-emerald-500/20 hover:shadow-emerald-500/40 hover:scale-[1.02] transition-all duration-300"
-          >
-            <Plus className="mr-1.5 h-4.5 w-4.5" />
-            Add Committee Member
-          </Button>
+          <div className="flex items-center gap-2">
+            <Button
+              onClick={() => openAddDialog('ADVISORY')}
+              variant="outline"
+              size="sm"
+              className="border-cyan-500/30 text-cyan-300 hover:bg-cyan-500/10 text-xs font-mono"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5 text-cyan-400" />
+              Add Advisory
+            </Button>
+            <Button
+              onClick={() => openAddDialog('COMMITTEE')}
+              size="sm"
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs shadow-lg shadow-emerald-500/20"
+            >
+              <Plus className="mr-1.5 h-3.5 w-3.5" />
+              Add Committee
+            </Button>
+          </div>
         )}
       </motion.div>
 
-      {/* ── Committee Grid ── */}
-      {membersLoading ? (
-        /* Loading Skeletons */
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-8">
-          {Array.from({ length: 3 }).map((_, i) => (
-            <Card key={i} className="border-white/5 bg-[#111]/60 backdrop-blur h-[450px]">
-              <CardContent className="p-6 flex flex-col justify-between h-full">
-                <div className="space-y-4">
-                  <Skeleton className="h-[280px] w-full rounded-xl" />
-                  <Skeleton className="h-5 w-32" />
-                  <Skeleton className="h-6 w-48" />
-                </div>
-                <Skeleton className="h-10 w-full rounded-lg" />
-              </CardContent>
-            </Card>
-          ))}
-        </div>
-      ) : membersError ? (
-        <div className="text-center py-16 border border-white/5 bg-[#111]/40 rounded-2xl">
-          <ImageIcon className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-          <p className="text-gray-500">{membersError}</p>
-          <Button
-            variant="outline"
-            size="sm"
-            className="mt-4 border-white/10 text-gray-400 hover:text-white"
-            onClick={fetchMembers}
-          >
-            Retry
-          </Button>
-        </div>
-      ) : members.length === 0 ? (
-        <div className="text-center py-16 border border-white/5 bg-[#111]/40 rounded-2xl">
-          <Users className="mx-auto h-12 w-12 text-gray-600 mb-4" />
-          <p className="text-gray-500">No committee members found.</p>
+      {/* ── SECTION 1: ADVISORY MEMBERS ── */}
+      <section className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-cyan-500/20 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-cyan-500/40 bg-cyan-500/10 text-cyan-300 font-mono text-xs">
+                <Shield className="mr-1.5 h-3.5 w-3.5 text-cyan-400" />
+                FACULTY & MENTORS
+              </Badge>
+            </div>
+            <h2 className="text-2xl font-bold font-mono text-white tracking-tight mt-1.5">
+              ADVISORY MEMBERS
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5 font-sans">
+              Honorable faculty mentors and industry advisors guiding our cybersecurity mission and research.
+            </p>
+          </div>
+
           {canManage && (
             <Button
-              onClick={openAddDialog}
+              onClick={() => openAddDialog('ADVISORY')}
               size="sm"
-              className="mt-4 bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold"
+              variant="ghost"
+              className="text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10 font-mono text-xs self-start sm:self-auto"
             >
-              <Plus className="mr-1 h-4 w-4" />
-              Add First Member
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Add Advisory Member
             </Button>
           )}
         </div>
-      ) : (
-        <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-8">
-          {members.map((member, i) => (
-            <motion.div
-              key={member.id}
-              {...stagger}
-              transition={{ duration: 0.5, delay: i * 0.1 }}
-            >
-              <CommitteeMemberCard
-                member={member}
-                canManage={canManage}
-                onEdit={openEditDialog}
-                onDelete={(m) => {
-                  setDeletingMemberId(m.id);
-                  setDeletingMemberName(m.name);
-                  setDeleteDialogOpen(true);
-                }}
-              />
-            </motion.div>
-          ))}
+
+        {/* Advisory Grid */}
+        {membersLoading ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="border-white/5 bg-[#111]/60 backdrop-blur h-[420px]">
+                <CardContent className="p-6 flex flex-col justify-between h-full">
+                  <div className="space-y-4">
+                    <Skeleton className="h-[250px] w-full rounded-xl" />
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-6 w-48" />
+                  </div>
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : advisoryMembers.length === 0 ? (
+          <div className="text-center py-12 border border-dashed border-cyan-500/20 bg-cyan-950/10 rounded-2xl">
+            <Users className="mx-auto h-10 w-10 text-cyan-500/40 mb-3" />
+            <p className="text-xs font-mono text-gray-400">No advisory members listed yet.</p>
+            {canManage && (
+              <Button
+                onClick={() => openAddDialog('ADVISORY')}
+                size="sm"
+                className="mt-3 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold font-mono text-xs"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Add First Advisory Member
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+            {advisoryMembers.map((member, i) => (
+              <motion.div
+                key={member.id}
+                {...stagger}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+              >
+                <CommitteeMemberCard
+                  member={member}
+                  canManage={canManage}
+                  onEdit={openEditDialog}
+                  onDelete={(m) => {
+                    setDeletingMemberId(m.id);
+                    setDeletingMemberName(m.name);
+                    setDeleteDialogOpen(true);
+                  }}
+                />
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </section>
+
+      {/* ── Cyber Glowing Section Divider ── */}
+      <div className="relative py-6">
+        <div className="absolute inset-0 flex items-center">
+          <div className="w-full border-t border-white/10" />
         </div>
-      )}
+        <div className="relative flex justify-center">
+          <span className="bg-[#060b08] px-4 text-[11px] font-mono tracking-widest text-emerald-400 uppercase flex items-center gap-2">
+            <Sparkles className="h-3 w-3 text-emerald-400" />
+            EXECUTIVE OPERATIONAL BOARD
+            <Sparkles className="h-3 w-3 text-emerald-400" />
+          </span>
+        </div>
+      </div>
+
+      {/* ── SECTION 2: COMMITTEE MEMBERS ── */}
+      <section className="space-y-6">
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-emerald-500/20 pb-3">
+          <div>
+            <div className="flex items-center gap-2">
+              <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-mono text-xs">
+                <Users className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
+                EXECUTIVE BOARD
+              </Badge>
+            </div>
+            <h2 className="text-2xl font-bold font-mono text-white tracking-tight mt-1.5">
+              COMMITTEE MEMBERS
+            </h2>
+            <p className="text-xs text-gray-400 mt-0.5 font-sans">
+              The student leaders, department heads, and event coordinators executing club operations.
+            </p>
+          </div>
+
+          {canManage && (
+            <Button
+              onClick={() => openAddDialog('COMMITTEE')}
+              size="sm"
+              variant="ghost"
+              className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 font-mono text-xs self-start sm:self-auto"
+            >
+              <Plus className="mr-1 h-3.5 w-3.5" />
+              Add Committee Member
+            </Button>
+          )}
+        </div>
+
+        {/* Committee Grid */}
+        {membersLoading ? (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+            {Array.from({ length: 3 }).map((_, i) => (
+              <Card key={i} className="border-white/5 bg-[#111]/60 backdrop-blur h-[420px]">
+                <CardContent className="p-6 flex flex-col justify-between h-full">
+                  <div className="space-y-4">
+                    <Skeleton className="h-[250px] w-full rounded-xl" />
+                    <Skeleton className="h-5 w-32" />
+                    <Skeleton className="h-6 w-48" />
+                  </div>
+                  <Skeleton className="h-10 w-full rounded-lg" />
+                </CardContent>
+              </Card>
+            ))}
+          </div>
+        ) : committeeMembers.length === 0 ? (
+          <div className="text-center py-12 border border-dashed border-emerald-500/20 bg-emerald-950/10 rounded-2xl">
+            <Users className="mx-auto h-10 w-10 text-emerald-500/40 mb-3" />
+            <p className="text-xs font-mono text-gray-400">No committee members listed yet.</p>
+            {canManage && (
+              <Button
+                onClick={() => openAddDialog('COMMITTEE')}
+                size="sm"
+                className="mt-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                Add First Committee Member
+              </Button>
+            )}
+          </div>
+        ) : (
+          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+            {committeeMembers.map((member, i) => (
+              <motion.div
+                key={member.id}
+                {...stagger}
+                transition={{ duration: 0.4, delay: i * 0.08 }}
+              >
+                <CommitteeMemberCard
+                  member={member}
+                  canManage={canManage}
+                  onEdit={openEditDialog}
+                  onDelete={(m) => {
+                    setDeletingMemberId(m.id);
+                    setDeletingMemberName(m.name);
+                    setDeleteDialogOpen(true);
+                  }}
+                />
+              </motion.div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* ── Add Member Dialog ── */}
       <Dialog open={addDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setAddDialogOpen(open); }}>
         <DialogContent className="bg-[#111] border-white/10 text-white sm:max-w-lg max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle className="text-white">Add Committee Member</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Create a new profile card for the committee members directory.
+            <DialogTitle className="text-white font-mono">
+              Add {formData.category === 'ADVISORY' ? 'Advisory Member' : 'Committee Member'}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400 font-sans text-xs">
+              Create a new profile card for the {formData.category === 'ADVISORY' ? 'advisory mentors' : 'executive committee'} directory.
             </DialogDescription>
           </DialogHeader>
           {renderMemberForm(false)}
@@ -616,14 +825,14 @@ export function CommitteePage() {
             <Button
               variant="outline"
               onClick={() => { setAddDialogOpen(false); resetForm(); }}
-              className="border-white/10 text-gray-400 hover:text-white"
+              className="border-white/10 text-gray-400 hover:text-white font-mono text-xs"
             >
               Cancel
             </Button>
             <Button
               onClick={handleAddSubmit}
               disabled={formSubmitting || uploadingImage || !formData.name || !formData.role || !formData.description}
-              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold"
+              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold font-mono text-xs"
             >
               {formSubmitting || uploadingImage ? (
                 <>
@@ -642,9 +851,11 @@ export function CommitteePage() {
       <Dialog open={editDialogOpen} onOpenChange={(open) => { if (!open) resetForm(); setEditDialogOpen(open); }}>
         <DialogContent className="bg-[#111] border-white/10 text-white sm:max-w-lg max-h-[90vh]">
           <DialogHeader>
-            <DialogTitle className="text-white">Edit Committee Member</DialogTitle>
-            <DialogDescription className="text-gray-400">
-              Update existing profile details for this committee member.
+            <DialogTitle className="text-white font-mono">
+              Edit {formData.category === 'ADVISORY' ? 'Advisory Member' : 'Committee Member'}
+            </DialogTitle>
+            <DialogDescription className="text-gray-400 font-sans text-xs">
+              Update existing profile details for this member.
             </DialogDescription>
           </DialogHeader>
           {renderMemberForm(true)}
@@ -652,14 +863,14 @@ export function CommitteePage() {
             <Button
               variant="outline"
               onClick={() => { setEditDialogOpen(false); resetForm(); }}
-              className="border-white/10 text-gray-400 hover:text-white"
+              className="border-white/10 text-gray-400 hover:text-white font-mono text-xs"
             >
               Cancel
             </Button>
             <Button
               onClick={handleEditSubmit}
               disabled={formSubmitting || uploadingImage || !formData.name || !formData.role || !formData.description}
-              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold"
+              className="bg-gradient-to-r from-emerald-500 to-cyan-500 text-white font-semibold font-mono text-xs"
             >
               {formSubmitting || uploadingImage ? (
                 <>
@@ -678,18 +889,18 @@ export function CommitteePage() {
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent className="bg-[#111] border-white/10 text-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Committee Member</AlertDialogTitle>
-            <AlertDialogDescription className="text-gray-400">
-              Are you sure you want to delete <span className="text-white font-semibold">{deletingMemberName}</span> from the committee? This will permanently remove their profile card.
+            <AlertDialogTitle className="text-white font-mono">Delete Member Profile?</AlertDialogTitle>
+            <AlertDialogDescription className="text-gray-400 font-sans text-xs">
+              Are you sure you want to delete <span className="text-white font-semibold">{deletingMemberName}</span>? This will permanently remove their profile card from the directory.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 text-gray-400 hover:text-white">
+            <AlertDialogCancel className="border-white/10 text-gray-400 hover:text-white font-mono text-xs">
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDelete}
-              className="bg-red-600 text-white hover:bg-red-500 hover:scale-[1.02] transition-transform duration-200"
+              className="bg-red-600 text-white hover:bg-red-500 font-mono text-xs"
             >
               Delete Profile
             </AlertDialogAction>

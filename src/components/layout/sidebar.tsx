@@ -137,6 +137,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Events', view: 'events', icon: 'PenSquare' },
+    { label: 'Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'Committee Member', view: 'committee', icon: 'Users' },
@@ -164,6 +165,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Approve Members', view: 'member-approval', icon: 'UserCheck' },
     { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
+    { label: 'My Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Members', view: 'members', icon: 'Users' },
     { label: 'Treasury', view: 'finance', icon: 'DollarSign' },
     { label: 'Deposits', view: 'deposits', icon: 'TrendingUp' },
@@ -181,6 +183,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Analytics', view: 'analytics', icon: 'TrendingUp' },
     { label: 'Events', view: 'events', icon: 'Calendar' },
+    { label: 'Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Gallery', view: 'gallery', icon: 'Image' },
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'Members', view: 'members', icon: 'Users' },
@@ -191,6 +194,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Approve Members', view: 'member-approval', icon: 'UserCheck' },
     { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
+    { label: 'My Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Members', view: 'members', icon: 'Users' },
     { label: 'Finance', view: 'finance', icon: 'DollarSign' },
     { label: 'Deposits', view: 'deposits', icon: 'TrendingUp' },
@@ -220,6 +224,7 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Dashboard', view: 'dashboard', icon: 'LayoutDashboard' },
     { label: 'Announcements', view: 'announcements', icon: 'Megaphone' },
     { label: 'Certificate Authority', view: 'certificate-authority', icon: 'ShieldCheck' },
+    { label: 'My Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Users', view: 'members', icon: 'Users' },
     { label: 'Finance', view: 'finance', icon: 'DollarSign' },
     { label: 'Deposits', view: 'deposits', icon: 'TrendingUp' },
@@ -259,7 +264,11 @@ const ROLE_GLOW_COLORS: Record<UserRole, string> = {
   GUEST: 'shadow-gray-500/10',
 };
 
-export function Sidebar() {
+interface SidebarProps {
+  className?: string;
+}
+
+export function Sidebar({ className }: SidebarProps = {}) {
   const { currentUser, currentView, sidebarOpen, toggleSidebar, setCurrentView, setSidebarOpen, notifications } = useAppStore();
   const { isMobile, transitionConfig } = useMobileOptimized();
 
@@ -312,7 +321,8 @@ export function Sidebar() {
           // Mobile: hide when closed
           !sidebarOpen && 'max-md:-translate-x-full max-md:w-[260px]',
           // Smooth transition on all sizes
-          'transition-all duration-300 ease-out'
+          'transition-all duration-300 ease-out',
+          className
         )}
       >
         {/* Animated scan line effect */}
