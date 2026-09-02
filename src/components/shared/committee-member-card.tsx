@@ -36,9 +36,9 @@ interface RoleColors {
   glowClass: string;
 }
 
-function getRoleColors(role: string): RoleColors {
-  const lowerRole = role.toLowerCase();
-  if (lowerRole.includes('advisor') || lowerRole.includes('mentor') || lowerRole.includes('faculty')) {
+function getRoleColors(role?: string): RoleColors {
+  const safeRole = (role || '').toLowerCase();
+  if (safeRole.includes('advisor') || safeRole.includes('mentor') || safeRole.includes('faculty')) {
     return {
       avatarBg: 'from-cyan-500 to-blue-600',
       accentClass: 'text-cyan-300',
@@ -47,7 +47,7 @@ function getRoleColors(role: string): RoleColors {
     };
   }
 
-  const firstWord = role.split(' ')[0].toLowerCase();
+  const firstWord = (role || '').split(' ')[0]?.toLowerCase() || '';
   switch (firstWord) {
     case 'president':
       return {
@@ -96,18 +96,23 @@ function getRoleColors(role: string): RoleColors {
   }
 }
 
-function getInitials(name: string): string {
-  return name
-    .split(' ')
-    .map((w) => w[0])
-    .join('')
-    .toUpperCase()
-    .slice(0, 2);
+function getInitials(name?: string): string {
+  if (!name) return '??';
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return '??';
+  return (
+    parts
+      .map((w) => w[0])
+      .join('')
+      .toUpperCase()
+      .slice(0, 2) || '??'
+  );
 }
 
 function parseSocialLinks(raw: string | null | undefined): SocialLinkData | null {
   if (!raw) return null;
   try {
+    if (typeof raw === 'object') return raw as SocialLinkData;
     return JSON.parse(raw) as SocialLinkData;
   } catch {
     return null;
@@ -226,7 +231,7 @@ export function CommitteeMemberCard({
               onClick={toggleFlip}
               className="flex w-full h-full items-center justify-between px-5 py-3.5 text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/[0.02] transition-colors"
             >
-              <span>About {member.name.split(' ')[0]}</span>
+              <span>About {(member.name || 'Member').trim().split(/\s+/)[0]}</span>
               <ArrowRight className="h-4 w-4 text-emerald-500" />
             </button>
           </div>
@@ -279,7 +284,7 @@ export function CommitteeMemberCard({
 
             {/* Bio content */}
             <div className="flex-1 overflow-y-auto custom-scrollbar mt-4 text-sm text-gray-400 leading-relaxed pr-1">
-              <p className="whitespace-pre-line">{member.description}</p>
+              <p className="whitespace-pre-line">{member.description || ''}</p>
             </div>
           </div>
 

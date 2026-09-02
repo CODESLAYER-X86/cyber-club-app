@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { Component, useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from 'react';
 import { motion } from 'framer-motion';
 import {
   Users,
@@ -11,9 +11,10 @@ import {
   Linkedin,
   Github,
   Facebook,
-  ImageIcon,
   Shield,
   Sparkles,
+  RefreshCw,
+  AlertTriangle,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -100,13 +101,15 @@ interface SocialLinkData {
 function parseSocialLinks(raw: string | null | undefined): SocialLinkData | null {
   if (!raw) return null;
   try {
+    if (typeof raw === 'object') return raw as SocialLinkData;
     return JSON.parse(raw) as SocialLinkData;
   } catch {
     return null;
   }
 }
 
-export function isAdvisoryMember(member: CommitteeMember): boolean {
+export function isAdvisoryMember(member?: CommitteeMember | null): boolean {
+  if (!member) return false;
   const socials = parseSocialLinks(member.socialLinks);
   if (socials?.category === 'ADVISORY') return true;
   if (socials?.category === 'COMMITTEE') return false;
@@ -119,7 +122,64 @@ export function isAdvisoryMember(member: CommitteeMember): boolean {
   );
 }
 
-export function CommitteePage() {
+/* ──────────── Error Boundary ──────────── */
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error?: Error;
+}
+
+class CommitteeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(error: Error) {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, info: React.ErrorInfo) {
+    console.error('CommitteePage error boundary caught:', error, info);
+  }
+
+  render() {
+    if (this.state.hasError) {
+      return (
+        <div className="mx-auto max-w-2xl px-4 py-24 text-center space-y-6">
+          <div className="mx-auto flex h-16 w-16 items-center justify-center rounded-2xl border border-red-500/20 bg-red-500/10 text-red-400">
+            <AlertTriangle className="h-8 w-8" />
+          </div>
+          <div className="space-y-2">
+            <h2 className="text-2xl font-bold font-mono text-white">Unable to Load Committee Directory</h2>
+            <p className="text-sm text-gray-400 font-sans">
+              An unexpected error occurred while rendering the committee list.
+            </p>
+          </div>
+          <Button
+            onClick={() => {
+              this.setState({ hasError: false });
+              window.location.reload();
+            }}
+            className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs"
+          >
+            <RefreshCw className="mr-2 h-4 w-4" />
+            Reload Page
+          </Button>
+        </div>
+      );
+    }
+    return this.props.children;
+  }
+}
+
+/* ──────────── Main Committee Page Content ──────────── */
+
+function CommitteePageContent() {
   const currentUser = useAppStore((s) => s.currentUser);
 
   // Committee members state
@@ -139,7 +199,8 @@ export function CommitteePage() {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [uploadingImage, setUploadingImage] = useState(false);
   const [dragOver, setDragOver] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
+  const addFileInputRef = useRef<HTMLInputElement>(null);
+  const editFileInputRef = useRef<HTMLInputElement>(null);
 
   // Delete confirmation state
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -156,12 +217,16 @@ export function CommitteePage() {
       setMembersError(null);
       const res = await fetch('/api/committee');
       const data = await res.json();
-      if (data.success) {
-        setMembers(data.data.members || []);
+      if (data?.success && Array.isArray(data?.data?.members)) {
+        setMembers(data.data.members);
       } else {
-        setMembersError('Failed to load committee members');
+        setMembers([]);
+        if (!data?.success) {
+          setMembersError('Failed to load committee members');
+        }
       }
     } catch {
+      setMembers([]);
       setMembersError('Failed to load committee members');
     } finally {
       setMembersLoading(false);
@@ -173,10 +238,11 @@ export function CommitteePage() {
   }, [fetchMembers]);
 
   // Separate members into Advisory and Committee
-  const advisoryMembers = useMemo(() => members.filter(isAdvisoryMember), [members]);
-  const committeeMembers = useMemo(() => members.filter((m) => !isAdvisoryMember(m)), [members]);
+  const safeMembers = Array.isArray(members) ? members : [];
+  const advisoryMembers = useMemo(() => safeMembers.filter(isAdvisoryMember), [safeMembers]);
+  const committeeMembers = useMemo(() => safeMembers.filter((m) => !isAdvisoryMember(m)), [safeMembers]);
 
-  // Upload image
+  // Upload image to Supabase
   const uploadImage = async (file: File): Promise<string | null> => {
     try {
       setUploadingImage(true);
@@ -244,13 +310,13 @@ export function CommitteePage() {
       : 'COMMITTEE';
 
     setFormData({
-      name: member.name,
-      role: member.role,
+      name: member.name || '',
+      role: member.role || '',
       category,
-      description: member.description,
+      description: member.description || '',
       department: member.department || '',
       email: member.email || '',
-      order: member.order,
+      order: member.order || 0,
       imageUrl: member.imageUrl || '',
       socialLinkedIn: socials?.linkedin || '',
       socialGithub: socials?.github || '',
@@ -384,7 +450,7 @@ export function CommitteePage() {
   };
 
   // Reusable member form inside Dialogs
-  const renderMemberForm = (isEdit: boolean) => (
+  const renderMemberForm = (isEdit: boolean, fileRef: React.RefObject<HTMLInputElement | null>) => (
     <div className="space-y-4 max-h-[60vh] overflow-y-auto pr-1 custom-scrollbar">
       {/* Member Category Selection */}
       <div className="space-y-2">
@@ -423,7 +489,9 @@ export function CommitteePage() {
 
       {/* Avatar Upload */}
       <div className="space-y-2">
-        <Label className="text-gray-300 font-mono text-xs">Avatar Image</Label>
+        <Label className="text-gray-300 font-mono text-xs">
+          Picture / Avatar <span className="text-emerald-400 font-sans font-normal">(Click or Drag image)</span>
+        </Label>
         <div
           className={`relative flex flex-col items-center justify-center rounded-lg border-2 border-dashed p-6 transition-colors cursor-pointer ${
             dragOver
@@ -433,10 +501,10 @@ export function CommitteePage() {
           onDragOver={handleDragOver}
           onDragLeave={handleDragLeave}
           onDrop={handleDrop}
-          onClick={() => fileInputRef.current?.click()}
+          onClick={() => fileRef.current?.click()}
         >
           <input
-            ref={fileInputRef}
+            ref={fileRef}
             type="file"
             accept="image/*"
             className="hidden"
@@ -450,7 +518,7 @@ export function CommitteePage() {
               <img
                 src={imagePreview}
                 alt="Preview"
-                className="h-24 w-24 rounded-full object-cover border-2 border-emerald-500/30"
+                className="h-28 w-28 rounded-xl object-cover border-2 border-emerald-500/40 shadow-lg shadow-emerald-500/20"
               />
               <button
                 type="button"
@@ -459,20 +527,20 @@ export function CommitteePage() {
                   setSelectedFile(null);
                   setImagePreview(isEdit && formData.imageUrl ? formData.imageUrl : null);
                   if (!isEdit || !formData.imageUrl) setImagePreview(null);
-                  if (fileInputRef.current) fileInputRef.current.value = '';
+                  if (fileRef.current) fileRef.current.value = '';
                 }}
-                className="absolute -top-1 -right-1 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors"
+                className="absolute -top-2 -right-2 flex h-6 w-6 items-center justify-center rounded-full bg-red-500 text-white hover:bg-red-600 transition-colors shadow-md"
               >
-                <X className="h-3 w-3" />
+                <X className="h-3.5 w-3.5" />
               </button>
             </div>
           ) : (
             <>
-              <Upload className="h-8 w-8 text-gray-500 mb-2" />
-              <p className="text-sm text-gray-400">
-                Drag & drop or <span className="text-emerald-400">click to browse</span>
+              <Upload className="h-8 w-8 text-gray-400 mb-2" />
+              <p className="text-sm text-gray-300 font-mono">
+                Click to browse photo or <span className="text-emerald-400 font-bold">drag & drop</span>
               </p>
-              <p className="text-xs text-gray-600 mt-1">PNG, JPG up to 5MB</p>
+              <p className="text-xs text-gray-500 mt-1 font-mono">PNG, JPG, WEBP up to 5MB</p>
             </>
           )}
         </div>
@@ -576,7 +644,7 @@ export function CommitteePage() {
   );
 
   return (
-    <div className="space-y-12 pb-16">
+    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-12 pb-20">
       {/* ── Page Header ── */}
       <motion.div
         {...fadeUp}
@@ -820,7 +888,7 @@ export function CommitteePage() {
               Create a new profile card for the {formData.category === 'ADVISORY' ? 'advisory mentors' : 'executive committee'} directory.
             </DialogDescription>
           </DialogHeader>
-          {renderMemberForm(false)}
+          {renderMemberForm(false, addFileInputRef)}
           <DialogFooter className="mt-4">
             <Button
               variant="outline"
@@ -855,10 +923,10 @@ export function CommitteePage() {
               Edit {formData.category === 'ADVISORY' ? 'Advisory Member' : 'Committee Member'}
             </DialogTitle>
             <DialogDescription className="text-gray-400 font-sans text-xs">
-              Update existing profile details for this member.
+              Update existing profile details and picture for this member.
             </DialogDescription>
           </DialogHeader>
-          {renderMemberForm(true)}
+          {renderMemberForm(true, editFileInputRef)}
           <DialogFooter className="mt-4">
             <Button
               variant="outline"
@@ -908,5 +976,13 @@ export function CommitteePage() {
         </AlertDialogContent>
       </AlertDialog>
     </div>
+  );
+}
+
+export function CommitteePage() {
+  return (
+    <CommitteeErrorBoundary>
+      <CommitteePageContent />
+    </CommitteeErrorBoundary>
   );
 }
