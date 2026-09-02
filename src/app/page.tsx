@@ -30,7 +30,7 @@ export default function Home() {
     // View parameter from URL (e.g. ?view=events)
     const viewParam = params.get('view');
     if (viewParam && isValidAppView(viewParam)) {
-      setCurrentView(viewParam as AppView);
+      setCurrentView(viewParam as AppView, { replace: true });
     }
 
     // Clean google_auth param if present
@@ -55,27 +55,36 @@ export default function Home() {
           login(data.data.user);
         } else {
           if (typeof window !== 'undefined') localStorage.removeItem('csc_logged_in');
-          if (isGoogleAuthRedirect) setCurrentView('login');
+          if (isGoogleAuthRedirect) setCurrentView('login', { replace: true });
         }
         setIsAuthenticating(false);
       })
       .catch(() => {
         if (typeof window !== 'undefined') localStorage.removeItem('csc_logged_in');
-        if (isGoogleAuthRedirect) setCurrentView('login');
+        if (isGoogleAuthRedirect) setCurrentView('login', { replace: true });
         setIsAuthenticating(false);
       });
   }, [setCurrentView, setCertificateShareCode, login]);
 
   // Handle browser back/forward buttons
   useEffect(() => {
-    const handlePopState = () => {
+    // Stamp the initial history entry with the view state if not already stamped
+    if (typeof window !== 'undefined' && !window.history.state?.view) {
+      const params = new URLSearchParams(window.location.search);
+      const viewParam = params.get('view') || (isAuthenticated ? 'dashboard' : 'landing');
+      window.history.replaceState({ view: viewParam }, '', window.location.href);
+    }
+
+    const handlePopState = (event: PopStateEvent) => {
       const params = new URLSearchParams(window.location.search);
       const viewParam = params.get('view');
-      if (viewParam && isValidAppView(viewParam)) {
-        setCurrentView(viewParam as AppView);
-      } else {
-        setCurrentView(isAuthenticated ? 'dashboard' : 'landing');
-      }
+      const targetView: AppView = (viewParam && isValidAppView(viewParam))
+        ? (viewParam as AppView)
+        : (event.state?.view && isValidAppView(event.state.view)
+          ? event.state.view
+          : (isAuthenticated ? 'dashboard' : 'landing'));
+
+      setCurrentView(targetView, { replace: true });
     };
 
     window.addEventListener('popstate', handlePopState);

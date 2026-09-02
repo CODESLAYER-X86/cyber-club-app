@@ -100,7 +100,7 @@ interface AppState {
   // Actions
   login: (user: User) => void;
   logout: () => void;
-  setCurrentView: (view: AppView) => void;
+  setCurrentView: (view: AppView, options?: { replace?: boolean }) => void;
   setSelectedEventId: (id: string | null) => void;
   setSelectedMemberId: (id: string | null) => void;
   setEditingEventId: (id: string | null) => void;
@@ -175,7 +175,7 @@ export const useAppStore = create<AppState>((set, get) => ({
     });
   },
 
-  setCurrentView: (view) => {
+  setCurrentView: (view, options) => {
     if (typeof window !== "undefined") {
       try {
         localStorage.setItem("csc_current_view", view);
@@ -185,7 +185,14 @@ export const useAppStore = create<AppState>((set, get) => ({
         } else {
           url.searchParams.set("view", view);
         }
-        window.history.replaceState({}, "", url.pathname + (url.search ? url.search : ""));
+        const targetUrl = url.pathname + (url.search ? url.search : "");
+        const currentParam = new URLSearchParams(window.location.search).get("view") || "landing";
+
+        if (options?.replace) {
+          window.history.replaceState({ view }, "", targetUrl);
+        } else if (currentParam !== view) {
+          window.history.pushState({ view }, "", targetUrl);
+        }
       } catch {}
     }
     set({ currentView: view });
