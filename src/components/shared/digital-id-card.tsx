@@ -173,9 +173,18 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
     <div className="space-y-4">
       {/* 3D Flip Card Container */}
       <div
-        className="relative w-full max-w-lg mx-auto h-[260px] sm:h-[270px] cursor-pointer select-none perspective-1000"
+        role="button"
+        tabIndex={0}
+        aria-label="Toggle flip digital ID card"
+        className="relative w-full max-w-lg mx-auto h-[260px] sm:h-[270px] cursor-pointer select-none perspective-1000 focus:outline-none focus:ring-2 focus:ring-emerald-500/50 rounded-2xl"
         style={{ perspective: '1000px' }}
         onClick={() => setIsFlipped(!isFlipped)}
+        onKeyDown={(e) => {
+          if (e.key === 'Enter' || e.key === ' ') {
+            e.preventDefault();
+            setIsFlipped(!isFlipped);
+          }
+        }}
       >
         <motion.div
           className="relative w-full h-full rounded-2xl border border-emerald-500/30 bg-gradient-to-br from-slate-950 via-[#071224] to-black shadow-2xl transition-all duration-500 hover:border-emerald-400/50 hover:shadow-emerald-500/10"

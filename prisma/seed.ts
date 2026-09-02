@@ -2,6 +2,11 @@ import prisma from "@/lib/db";
 import { hash } from "crypto";
 
 async function main() {
+  if (process.env.NODE_ENV === "production" || process.env.VERCEL_ENV === "production") {
+    console.error("❌ CRITICAL: Seeding demo fixtures is forbidden in production environment!");
+    process.exit(1);
+  }
+
   console.log("🌱 Seeding database...");
 
   // Create demo users for each role
