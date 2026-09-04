@@ -54,8 +54,13 @@ export function LandingPage() {
   const [terminalInput, setTerminalInput] = useState('');
   const [terminalHistory, setTerminalHistory] = useState<TerminalLine[]>([
     { id: '1', type: 'system', text: '[SYSTEM] Initializing DIU Cyber Security Club CLI v4.5.0...' },
-    { id: '2', type: 'system', text: '[SYSTEM] Node: DIU_CSC_MAIN | Status: ONLINE' },
-    { id: '3', type: 'system', text: 'Welcome! Type "help" to see available club commands.' },
+    { id: '2', type: 'system', text: '[SYSTEM] Node: DIU_CSC_MAIN | Status: ONLINE | Latency: 14ms' },
+    { id: '3', type: 'system', text: '⚡ Welcome to DIU Cyber Security Club Defense Terminal!' },
+    {
+      id: '4',
+      type: 'output',
+      text: 'Type "help" for full manual or try one of these quick commands:\n  • about      - Mission, wings & department affiliation\n  • ctf        - Competitive CTF team & training formats\n  • wings      - Specialized offensive & defensive wings\n  • events     - Upcoming hands-on workshops & bootcamps\n  • join       - Apply for official club membership\n  • verify     - Verify issued credentials & certificates',
+    },
   ]);
   const terminalEndRef = useRef<HTMLDivElement>(null);
 
@@ -77,7 +82,12 @@ export function LandingPage() {
     async function fetchUpcomingEvents() {
       try {
         const res = await fetch('/api/events?status=UPCOMING');
-        const data = await res.json();
+        if (!res.ok) {
+          return;
+        }
+        const text = await res.text();
+        if (!text) return;
+        const data = JSON.parse(text);
         if (data.success && Array.isArray(data.data?.events)) {
           setEvents(data.data.events.slice(0, 3));
         }
@@ -222,10 +232,10 @@ export function LandingPage() {
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#091a2415_1px,transparent_1px),linear-gradient(to_bottom,#091a2415_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
 
       {/* 2. HERO SECTION WITH CLEAR VALUE PROP & INTERACTIVE TERMINAL */}
-      <section className="relative z-10 mx-auto max-w-7xl px-4 pt-14 pb-20 sm:px-6 lg:px-8">
-        <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
+      <section className="relative z-10 mx-auto max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1536px] px-4 pt-12 pb-20 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:gap-12 lg:grid-cols-12 lg:items-center">
           {/* Left Column: Clear Mission & Call-to-Actions */}
-          <div className="space-y-6 lg:col-span-7 min-w-0 max-w-full">
+          <div className="space-y-6 lg:col-span-6 min-w-0 max-w-full">
             {/* Club Brand Emblem & University Affiliation */}
             <div className="flex flex-col items-center sm:items-start gap-4 max-w-full">
               {/* 4x Scaled Cyber Emblem Container */}
@@ -264,7 +274,7 @@ export function LandingPage() {
               </div>
             </div>
 
-            <h1 className="text-2xl xs:text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white font-mono leading-tight break-words max-w-full">
+            <h1 className="text-2xl xs:text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black tracking-tight text-white font-mono leading-tight break-words max-w-full">
               EMPOWERING THE NEXT GENERATION OF{' '}
               <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-teal-300 bg-clip-text text-transparent inline-block">
                 CYBER DEFENDERS.
@@ -306,24 +316,30 @@ export function LandingPage() {
             </div>
           </div>
 
-          {/* Right Column: Aesthetic Interactive Terminal */}
-          <div className="w-full min-w-0 max-w-full lg:col-span-5">
-            <div className="rounded-2xl border border-emerald-500/30 bg-[#070e18]/90 shadow-2xl backdrop-blur-xl overflow-hidden font-mono min-h-[320px] sm:min-h-[340px] max-w-full">
+          {/* Right Column: Wide Landscape Rectangular Interactive Terminal */}
+          <div className="w-full min-w-0 max-w-full lg:col-span-6">
+            <div className="relative group rounded-2xl border border-emerald-500/30 bg-[#070e18]/95 shadow-2xl shadow-emerald-500/10 backdrop-blur-xl overflow-hidden font-mono min-h-[360px] sm:min-h-[420px] lg:min-h-[480px] max-w-full flex flex-col justify-between transition-all duration-300 hover:border-emerald-500/50 hover:shadow-emerald-500/25">
               {/* Terminal Window Header */}
-              <div className="flex items-center justify-between border-b border-emerald-500/20 bg-slate-950/80 px-3 sm:px-4 py-2 sm:py-2.5">
-                <div className="flex items-center gap-1.5 sm:gap-2">
-                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-red-500/80" />
-                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-amber-500/80" />
-                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500/80" />
-                  <span className="ml-1.5 sm:ml-2 text-[11px] sm:text-xs font-bold text-gray-400">diu-csc-terminal</span>
+              <div className="flex items-center justify-between border-b border-emerald-500/20 bg-slate-950/90 px-4 py-2.5 sm:py-3 shrink-0">
+                <div className="flex items-center gap-2">
+                  <div className="h-3 w-3 rounded-full bg-red-500/80 shadow-sm shadow-red-500/50" />
+                  <div className="h-3 w-3 rounded-full bg-amber-500/80 shadow-sm shadow-amber-500/50" />
+                  <div className="h-3 w-3 rounded-full bg-emerald-500/80 shadow-sm shadow-emerald-500/50" />
+                  <span className="ml-1.5 text-xs sm:text-[13px] font-bold text-gray-300 tracking-wide">diu-csc-terminal</span>
                 </div>
-                <Badge variant="outline" className="border-emerald-500/40 text-[9px] sm:text-[10px] text-emerald-400 px-1.5 py-0.5">
-                  LIVE CLI
-                </Badge>
+                <div className="flex items-center gap-3">
+                  <span className="hidden sm:inline-flex items-center text-[11px] text-emerald-400/80 font-mono">
+                    <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 mr-1.5 animate-pulse" />
+                    STATUS: ACTIVE
+                  </span>
+                  <Badge variant="outline" className="border-emerald-500/40 text-[9px] sm:text-[10px] text-emerald-400 px-2 py-0.5 bg-emerald-500/10 font-bold">
+                    LIVE CLI
+                  </Badge>
+                </div>
               </div>
 
-              {/* Terminal Output Area */}
-              <div className="h-56 sm:h-64 overflow-y-auto p-3 sm:p-4 space-y-2 text-xs leading-relaxed break-words" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
+              {/* Terminal Output Area (Landscape Rectangular Proportions with Increased Height) */}
+              <div className="h-64 sm:h-72 lg:h-[380px] xl:h-[400px] overflow-y-auto p-4 sm:p-5 space-y-2.5 text-xs sm:text-[13px] leading-relaxed break-words flex-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
                 {terminalHistory.map((item) => (
                   <div
                     key={item.id}
@@ -344,17 +360,17 @@ export function LandingPage() {
               </div>
 
               {/* Terminal Input Form */}
-              <form onSubmit={handleTerminalSubmit} className="flex items-center border-t border-emerald-500/20 bg-slate-950/90 px-3 py-2 gap-1.5">
-                <span className="text-emerald-400 font-bold text-xs shrink-0">$</span>
+              <form onSubmit={handleTerminalSubmit} className="flex items-center border-t border-emerald-500/20 bg-slate-950/95 px-4 py-2.5 sm:py-3 gap-2.5 shrink-0">
+                <span className="text-emerald-400 font-bold text-xs sm:text-sm shrink-0 font-mono">$</span>
                 <input
                   type="text"
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
                   placeholder="type help, ctf, wings, events..."
-                  className="flex-1 min-w-0 bg-transparent text-xs text-white placeholder-gray-600 focus:outline-none font-mono"
+                  className="flex-1 min-w-0 bg-transparent text-xs sm:text-sm text-white placeholder-gray-500 focus:outline-none font-mono tracking-wide"
                 />
-                <Button size="sm" type="submit" variant="ghost" className="h-7 w-7 p-0 shrink-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
-                  <Send className="h-3.5 w-3.5" />
+                <Button size="sm" type="submit" variant="ghost" className="h-7 w-7 sm:h-8 sm:w-8 p-0 shrink-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
+                  <Send className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                 </Button>
               </form>
             </div>
