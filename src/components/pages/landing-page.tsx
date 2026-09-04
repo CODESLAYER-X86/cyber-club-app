@@ -226,25 +226,39 @@ export function LandingPage() {
         <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
           {/* Left Column: Clear Mission & Call-to-Actions */}
           <div className="space-y-6 lg:col-span-7 min-w-0 max-w-full">
-            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3.5 sm:gap-5 max-w-full">
-              <div className="relative flex h-16 w-16 sm:h-24 sm:w-24 md:h-28 md:w-28 shrink-0 items-center justify-center rounded-2xl sm:rounded-3xl border-2 border-emerald-500/40 bg-slate-950/95 p-2 sm:p-2.5 shadow-2xl shadow-emerald-500/25 ring-1 ring-emerald-500/20 backdrop-blur-md">
-                <img
-                  src="/logo.png"
-                  alt="DIU Cyber Security Club Logo"
-                  className="h-full w-full object-contain rounded-xl sm:rounded-2xl"
-                  width={112}
-                  height={112}
-                />
+            {/* Club Brand Emblem & University Affiliation */}
+            <div className="flex flex-col items-center sm:items-start gap-4 max-w-full">
+              {/* 4x Scaled Cyber Emblem Container */}
+              <div className="relative group">
+                {/* Ambient Cyber Glow */}
+                <div className="absolute -inset-1.5 rounded-[2rem] bg-gradient-to-r from-emerald-500/30 via-cyan-500/20 to-teal-500/30 blur-xl opacity-75 group-hover:opacity-100 transition-all duration-500 pointer-events-none" />
+
+                <div className="relative flex h-48 w-48 min-[400px]:h-56 min-[400px]:w-56 sm:h-64 sm:w-64 shrink-0 items-center justify-center rounded-[2rem] border-2 border-emerald-500/40 bg-slate-950/95 p-3.5 sm:p-5 shadow-2xl shadow-emerald-500/20 ring-1 ring-emerald-500/30 backdrop-blur-xl transition-all duration-300 group-hover:border-emerald-400/70 group-hover:shadow-emerald-500/35">
+                  <img
+                    src="/logo.png"
+                    alt="DIU Cyber Security Club Logo"
+                    className="h-full w-full object-contain rounded-2xl filter drop-shadow-[0_0_18px_rgba(16,185,129,0.35)] transition-transform duration-300 group-hover:scale-[1.02]"
+                    width={256}
+                    height={256}
+                  />
+                  {/* Subtle Tech Corner Accents */}
+                  <div className="absolute top-2.5 left-2.5 h-3 w-3 border-t-2 border-l-2 border-emerald-400/60 rounded-tl pointer-events-none" />
+                  <div className="absolute top-2.5 right-2.5 h-3 w-3 border-t-2 border-r-2 border-emerald-400/60 rounded-tr pointer-events-none" />
+                  <div className="absolute bottom-2.5 left-2.5 h-3 w-3 border-b-2 border-l-2 border-emerald-400/60 rounded-bl pointer-events-none" />
+                  <div className="absolute bottom-2.5 right-2.5 h-3 w-3 border-b-2 border-r-2 border-emerald-400/60 rounded-br pointer-events-none" />
+                </div>
               </div>
-              <div className="space-y-1 sm:space-y-1.5 min-w-0 max-w-full">
+
+              {/* Affiliation Badges Stacked Under Logo */}
+              <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-1.5 min-w-0 max-w-full">
                 <Badge
                   variant="outline"
-                  className="border-emerald-500/40 bg-emerald-500/10 px-2.5 sm:px-3 py-0.5 font-mono text-[10px] sm:text-xs tracking-wider text-emerald-300 max-w-full whitespace-normal text-left inline-flex"
+                  className="border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-xs sm:text-sm tracking-wider text-emerald-300 max-w-full whitespace-normal text-center sm:text-left inline-flex items-center gap-1.5 shadow-sm shadow-emerald-500/10"
                 >
-                  <Radio className="mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 animate-pulse text-emerald-400" />
+                  <Radio className="mr-1.5 h-3.5 w-3.5 shrink-0 animate-pulse text-emerald-400" />
                   <span>DHAKA INTERNATIONAL UNIVERSITY</span>
                 </Badge>
-                <div className="font-mono text-[11px] sm:text-xs text-gray-400 truncate max-w-full">
+                <div className="font-mono text-xs sm:text-sm text-gray-300 font-medium tracking-wide">
                   Department of CSE • Cyber Security Club
                 </div>
               </div>
