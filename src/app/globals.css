@@ -154,12 +154,16 @@ html {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   scroll-behavior: smooth;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 body {
   -webkit-tap-highlight-color: transparent;
   /* Prevent layout shift from scrollbar */
   scrollbar-gutter: stable;
+  max-width: 100vw;
+  overflow-x: hidden;
 }
 
 /* Optimize animations for devices with reduced motion preference */
@@ -173,14 +177,12 @@ body {
   }
 }
 
-/* Mobile-first touch targets (44x44px minimum) */
-button,
-a,
-input,
-select,
+/* Mobile-first touch targets (44px height recommended for interactive targets) */
+button:not([class*="h-"]),
+a:not([class*="h-"]),
+select:not([class*="h-"]),
 textarea {
   min-height: 44px;
-  min-width: 44px;
 }
 
 /* Optimize scrolling on mobile */

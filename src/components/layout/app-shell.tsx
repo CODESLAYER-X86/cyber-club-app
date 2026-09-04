@@ -149,15 +149,15 @@ export function AppShell() {
 
   if (isFullPageLayout) {
     return (
-      <div className="relative flex min-h-screen flex-col bg-[#060b08] text-gray-100 pb-20 md:pb-0 font-sans">
+      <div className="relative flex min-h-screen flex-col bg-[#060b08] text-gray-100 pb-20 md:pb-0 font-sans w-full max-w-full overflow-x-hidden">
         <AmbientEnvironmentalGlow />
 
         {/* Mobile Slide-over Drawer for Public Views */}
         <Sidebar className="md:hidden" />
 
-        <div className="relative z-10 flex flex-1 flex-col">
+        <div className="relative z-10 flex flex-1 flex-col w-full max-w-full overflow-x-hidden">
           <Header />
-          <main className="flex flex-1 flex-col">
+          <main className="flex flex-1 flex-col w-full max-w-full overflow-x-hidden">
             <AnimatePresence mode="popLayout">
               <motion.div
                 key={currentView}
@@ -165,7 +165,7 @@ export function AppShell() {
                 animate={{ opacity: 1 }}
                 exit={{ opacity: 0 }}
                 transition={{ duration: 0.15 }}
-                className="flex flex-1 flex-col"
+                className="flex flex-1 flex-col w-full max-w-full"
               >
                 <Suspense fallback={<PageLoader />}>
                   <PageComponent />

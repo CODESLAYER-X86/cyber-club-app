@@ -225,48 +225,48 @@ export function LandingPage() {
       <section className="relative z-10 mx-auto max-w-7xl px-4 pt-14 pb-20 sm:px-6 lg:px-8">
         <div className="grid gap-12 lg:grid-cols-12 lg:items-center">
           {/* Left Column: Clear Mission & Call-to-Actions */}
-          <div className="space-y-6 lg:col-span-7">
-            <div className="flex items-center gap-5">
-              <div className="relative flex h-24 w-24 sm:h-28 sm:w-28 shrink-0 items-center justify-center rounded-3xl border-2 border-emerald-500/40 bg-slate-950/95 p-2.5 shadow-2xl shadow-emerald-500/25 ring-1 ring-emerald-500/20 backdrop-blur-md">
+          <div className="space-y-6 lg:col-span-7 min-w-0 max-w-full">
+            <div className="flex flex-col sm:flex-row items-start sm:items-center gap-3.5 sm:gap-5 max-w-full">
+              <div className="relative flex h-16 w-16 sm:h-24 sm:w-24 md:h-28 md:w-28 shrink-0 items-center justify-center rounded-2xl sm:rounded-3xl border-2 border-emerald-500/40 bg-slate-950/95 p-2 sm:p-2.5 shadow-2xl shadow-emerald-500/25 ring-1 ring-emerald-500/20 backdrop-blur-md">
                 <img
                   src="/logo.png"
                   alt="DIU Cyber Security Club Logo"
-                  className="h-full w-full object-contain rounded-2xl"
+                  className="h-full w-full object-contain rounded-xl sm:rounded-2xl"
                   width={112}
                   height={112}
                 />
               </div>
-              <div className="space-y-1.5">
+              <div className="space-y-1 sm:space-y-1.5 min-w-0 max-w-full">
                 <Badge
                   variant="outline"
-                  className="border-emerald-500/40 bg-emerald-500/10 px-3 py-0.5 font-mono text-xs tracking-wider text-emerald-300"
+                  className="border-emerald-500/40 bg-emerald-500/10 px-2.5 sm:px-3 py-0.5 font-mono text-[10px] sm:text-xs tracking-wider text-emerald-300 max-w-full whitespace-normal text-left inline-flex"
                 >
-                  <Radio className="mr-1.5 h-3.5 w-3.5 animate-pulse text-emerald-400" />
-                  DHAKA INTERNATIONAL UNIVERSITY
+                  <Radio className="mr-1.5 h-3 w-3 sm:h-3.5 sm:w-3.5 shrink-0 animate-pulse text-emerald-400" />
+                  <span>DHAKA INTERNATIONAL UNIVERSITY</span>
                 </Badge>
-                <div className="font-mono text-xs text-gray-400">
+                <div className="font-mono text-[11px] sm:text-xs text-gray-400 truncate max-w-full">
                   Department of CSE • Cyber Security Club
                 </div>
               </div>
             </div>
 
-            <h1 className="text-4xl font-black tracking-tight text-white sm:text-5xl lg:text-6xl font-mono leading-tight">
+            <h1 className="text-2xl xs:text-3xl sm:text-5xl lg:text-6xl font-black tracking-tight text-white font-mono leading-tight break-words max-w-full">
               EMPOWERING THE NEXT GENERATION OF{' '}
-              <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-teal-300 bg-clip-text text-transparent">
+              <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-teal-300 bg-clip-text text-transparent inline-block">
                 CYBER DEFENDERS.
               </span>
             </h1>
 
-            <p className="text-base text-gray-300 leading-relaxed max-w-2xl font-sans">
+            <p className="text-sm sm:text-base text-gray-300 leading-relaxed max-w-2xl font-sans">
               The premier student community for hands-on ethical hacking education, defensive security architecture,
               competitive CTF preparation, and professional career readiness at Dhaka International University.
             </p>
 
-            <div className="flex flex-wrap items-center gap-4 pt-2">
+            <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
               <Button
                 size="lg"
                 onClick={() => setCurrentView(isAuthenticated ? 'apply-membership' : 'login')}
-                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono tracking-wide shadow-lg shadow-emerald-500/20 text-sm px-6 h-12"
+                className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono tracking-wide shadow-lg shadow-emerald-500/20 text-sm px-6 h-11 sm:h-12"
               >
                 Apply for Membership
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -275,7 +275,7 @@ export function LandingPage() {
                 size="lg"
                 variant="outline"
                 onClick={() => setCurrentView('events')}
-                className="border-emerald-500/30 bg-slate-950/60 font-mono text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/60 text-sm px-6 h-12"
+                className="w-full sm:w-auto border-emerald-500/30 bg-slate-950/60 font-mono text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/60 text-sm px-6 h-11 sm:h-12"
               >
                 <Calendar className="mr-2 h-4 w-4" />
                 Workshops & Events
@@ -284,7 +284,7 @@ export function LandingPage() {
                 size="lg"
                 variant="ghost"
                 onClick={() => setCurrentView('certificate-verify')}
-                className="text-gray-300 hover:text-emerald-400 font-mono text-xs"
+                className="w-full sm:w-auto text-gray-300 hover:text-emerald-400 font-mono text-xs h-10"
               >
                 <FileCheck className="mr-1.5 h-4 w-4" />
                 Verify a Certificate
@@ -293,27 +293,27 @@ export function LandingPage() {
           </div>
 
           {/* Right Column: Aesthetic Interactive Terminal */}
-          <div className="lg:col-span-5">
-            <div className="rounded-2xl border border-emerald-500/30 bg-[#070e18]/90 shadow-2xl backdrop-blur-xl overflow-hidden font-mono min-h-[340px]">
+          <div className="w-full min-w-0 max-w-full lg:col-span-5">
+            <div className="rounded-2xl border border-emerald-500/30 bg-[#070e18]/90 shadow-2xl backdrop-blur-xl overflow-hidden font-mono min-h-[320px] sm:min-h-[340px] max-w-full">
               {/* Terminal Window Header */}
-              <div className="flex items-center justify-between border-b border-emerald-500/20 bg-slate-950/80 px-4 py-2.5">
-                <div className="flex items-center gap-2">
-                  <div className="h-3 w-3 rounded-full bg-red-500/80" />
-                  <div className="h-3 w-3 rounded-full bg-amber-500/80" />
-                  <div className="h-3 w-3 rounded-full bg-emerald-500/80" />
-                  <span className="ml-2 text-xs font-bold text-gray-400">diu-csc-terminal</span>
+              <div className="flex items-center justify-between border-b border-emerald-500/20 bg-slate-950/80 px-3 sm:px-4 py-2 sm:py-2.5">
+                <div className="flex items-center gap-1.5 sm:gap-2">
+                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-red-500/80" />
+                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-amber-500/80" />
+                  <div className="h-2.5 w-2.5 sm:h-3 sm:w-3 rounded-full bg-emerald-500/80" />
+                  <span className="ml-1.5 sm:ml-2 text-[11px] sm:text-xs font-bold text-gray-400">diu-csc-terminal</span>
                 </div>
-                <Badge variant="outline" className="border-emerald-500/40 text-[10px] text-emerald-400">
+                <Badge variant="outline" className="border-emerald-500/40 text-[9px] sm:text-[10px] text-emerald-400 px-1.5 py-0.5">
                   LIVE CLI
                 </Badge>
               </div>
 
               {/* Terminal Output Area */}
-              <div className="h-64 overflow-y-auto p-4 space-y-2 text-xs leading-relaxed" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
+              <div className="h-56 sm:h-64 overflow-y-auto p-3 sm:p-4 space-y-2 text-xs leading-relaxed break-words" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
                 {terminalHistory.map((item) => (
                   <div
                     key={item.id}
-                    className={`whitespace-pre-wrap ${
+                    className={`whitespace-pre-wrap break-words ${
                       item.type === 'input'
                         ? 'text-cyan-300 font-bold'
                         : item.type === 'system'
@@ -330,16 +330,16 @@ export function LandingPage() {
               </div>
 
               {/* Terminal Input Form */}
-              <form onSubmit={handleTerminalSubmit} className="flex items-center border-t border-emerald-500/20 bg-slate-950/90 px-3 py-2">
-                <span className="mr-2 text-emerald-400 font-bold text-xs">$</span>
+              <form onSubmit={handleTerminalSubmit} className="flex items-center border-t border-emerald-500/20 bg-slate-950/90 px-3 py-2 gap-1.5">
+                <span className="text-emerald-400 font-bold text-xs shrink-0">$</span>
                 <input
                   type="text"
                   value={terminalInput}
                   onChange={(e) => setTerminalInput(e.target.value)}
-                  placeholder="type help, about, ctf, wings, events..."
-                  className="flex-1 bg-transparent text-xs text-white placeholder-gray-600 focus:outline-none font-mono"
+                  placeholder="type help, ctf, wings, events..."
+                  className="flex-1 min-w-0 bg-transparent text-xs text-white placeholder-gray-600 focus:outline-none font-mono"
                 />
-                <Button size="sm" type="submit" variant="ghost" className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
+                <Button size="sm" type="submit" variant="ghost" className="h-7 w-7 p-0 shrink-0 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10">
                   <Send className="h-3.5 w-3.5" />
                 </Button>
               </form>
@@ -356,7 +356,7 @@ export function LandingPage() {
               <Sparkles className="mr-1 h-3.5 w-3.5 text-emerald-400" />
               WHY JOIN US
             </Badge>
-            <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl font-mono">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white font-mono break-words">
               OFFICIAL MEMBER PRIVILEGES
             </h2>
             <p className="text-sm text-gray-400 max-w-2xl mx-auto">
@@ -466,7 +466,7 @@ export function LandingPage() {
               <Flag className="mr-1 h-3.5 w-3.5 text-red-400" />
               COMPETITIVE CYBERSECURITY ESSENTIALS
             </Badge>
-            <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl font-mono">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white font-mono break-words">
               WHAT IS CAPTURE THE FLAG (CTF)?
             </h2>
             <p className="text-sm text-gray-400 max-w-3xl mx-auto leading-relaxed">
@@ -475,9 +475,9 @@ export function LandingPage() {
           </div>
 
           {/* Interactive Flag Concept Box */}
-          <div className="mx-auto max-w-2xl mb-12 rounded-xl border border-emerald-500/30 bg-slate-950/90 p-4 font-mono text-xs text-center shadow-lg">
-            <span className="text-gray-500">SAMPLE COMPETITION FLAG FORMAT:</span>
-            <div className="mt-1.5 inline-block rounded-md border border-emerald-500/40 bg-emerald-950/30 px-4 py-1.5 text-emerald-300 font-bold text-sm tracking-wider">
+          <div className="mx-auto max-w-2xl mb-12 rounded-xl border border-emerald-500/30 bg-slate-950/90 p-3 sm:p-4 font-mono text-xs text-center shadow-lg">
+            <span className="text-gray-500 text-[11px] sm:text-xs">SAMPLE COMPETITION FLAG FORMAT:</span>
+            <div className="mt-1.5 inline-block max-w-full rounded-md border border-emerald-500/40 bg-emerald-950/30 px-3 sm:px-4 py-1.5 text-emerald-300 font-bold text-xs sm:text-sm tracking-wider break-all">
               flag&#123;d1u_cyclub_3th1c4l_h4ck3r_2026&#125;
             </div>
             <p className="mt-2 text-[11px] text-gray-400">
@@ -587,7 +587,7 @@ export function LandingPage() {
               <Target className="mr-1 h-3.5 w-3.5 text-cyan-400" />
               STRUCTURED CURRICULUM
             </Badge>
-            <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl font-mono">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white font-mono break-words">
               CORE CYBER LEARNING TRACKS
             </h2>
             <p className="text-sm text-gray-400 max-w-2xl mx-auto">
@@ -711,7 +711,7 @@ export function LandingPage() {
                   <Calendar className="mr-1 h-3.5 w-3.5 text-emerald-400" />
                   UPCOMING SCHEDULE
                 </Badge>
-                <h2 className="text-2xl font-black tracking-tight text-white sm:text-3xl font-mono mt-1">
+                <h2 className="text-xl sm:text-2xl lg:text-3xl font-black tracking-tight text-white font-mono mt-1 break-words">
                   WORKSHOPS & TECHNICAL SESSIONS
                 </h2>
               </div>
@@ -783,7 +783,7 @@ export function LandingPage() {
               <HelpCircle className="mr-1 h-3.5 w-3.5 text-emerald-400" />
               COMMON INQUIRIES
             </Badge>
-            <h2 className="text-3xl font-black tracking-tight text-white sm:text-4xl font-mono">
+            <h2 className="text-2xl sm:text-3xl lg:text-4xl font-black tracking-tight text-white font-mono break-words">
               FREQUENTLY ASKED QUESTIONS
             </h2>
             <p className="text-sm text-gray-400 max-w-xl mx-auto">
@@ -845,7 +845,7 @@ export function LandingPage() {
             JOIN THE CLUB TODAY
           </Badge>
 
-          <h2 className="text-3xl font-black tracking-tight text-white sm:text-5xl font-mono">
+          <h2 className="text-2xl xs:text-3xl sm:text-4xl lg:text-5xl font-black tracking-tight text-white font-mono break-words">
             READY TO BUILD YOUR CYBER CAREER?
           </h2>
 
