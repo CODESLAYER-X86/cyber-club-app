@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, notFoundResponse, errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isPlatformAdminEmail } from "@/lib/auth";
 
 export async function GET(
   _request: NextRequest,
@@ -212,7 +213,7 @@ export async function DELETE(
 
     // Protection rules:
     // 1. Cannot kick a platform admin
-    if (targetUser.role === "PLATFORM_ADMIN" || targetUser.email === "admin@csc.com") {
+    if (targetUser.role === "PLATFORM_ADMIN" || targetUser.email === "admin@csc.com" || isPlatformAdminEmail(targetUser.email)) {
       return forbiddenResponse("Platform Admins cannot be kicked");
     }
 
