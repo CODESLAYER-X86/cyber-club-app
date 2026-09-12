@@ -113,9 +113,13 @@ export function DashboardPage() {
     const load = async () => {
       setLoading(true);
       try {
+        const isExecutive = !!(currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role));
+
         const fetchPromises: Promise<any>[] = [
           fetch('/api/stats').then((res) => res.json()),
-          fetch('/api/audit-logs?limit=5').then((res) => res.json()),
+          isExecutive
+            ? fetch('/api/audit-logs?limit=6').then((res) => res.json())
+            : fetch('/api/announcements').then((res) => res.json()),
         ];
 
         if (currentUser) {
@@ -147,9 +151,26 @@ export function DashboardPage() {
           });
         }
 
-        const auditData = results[1];
-        if (auditData?.success && Array.isArray(auditData.data)) {
-          setAuditLogs(auditData.data);
+        const feedData = results[1];
+        if (feedData?.success && feedData.data) {
+          if (isExecutive) {
+            const rawLogs = feedData.data.auditLogs || feedData.data;
+            if (Array.isArray(rawLogs)) {
+              setAuditLogs(rawLogs);
+            }
+          } else {
+            // For regular members: display latest club announcements & activity
+            const rawAnnouncements = feedData.data.announcements || feedData.data;
+            if (Array.isArray(rawAnnouncements)) {
+              const mapped = rawAnnouncements.slice(0, 6).map((ann: any) => ({
+                id: ann.id,
+                action: 'ANNOUNCEMENT_CREATED',
+                details: `${ann.title}: ${ann.content ? ann.content.substring(0, 75) : ''}${ann.content && ann.content.length > 75 ? '...' : ''}`,
+                createdAt: ann.createdAt,
+              }));
+              setAuditLogs(mapped);
+            }
+          }
         }
 
         if (currentUser) {
@@ -440,9 +461,11 @@ export function DashboardPage() {
           <CardHeader className="flex flex-row items-center justify-between pb-3 border-b border-white/5">
             <div className="flex items-center gap-2">
               <Activity className="h-4 w-4 text-cyan-400" />
-              <CardTitle className="text-base font-mono font-bold text-white">Live Activity Feed</CardTitle>
+              <CardTitle className="text-base font-mono font-bold text-white">
+                {['PLATFORM_ADMIN', 'PRESIDENT', 'GS'].includes(role) ? 'Live Audit Feed' : 'Live Club Feed'}
+              </CardTitle>
             </div>
-            {['PLATFORM_ADMIN', 'PRESIDENT'].includes(role) && (
+            {['PLATFORM_ADMIN', 'PRESIDENT', 'GS'].includes(role) ? (
               <Button
                 variant="ghost"
                 size="sm"
@@ -451,6 +474,15 @@ export function DashboardPage() {
               >
                 Audit Trail ➔
               </Button>
+            ) : (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setCurrentView('announcements')}
+                className="text-xs font-mono text-cyan-400 hover:text-cyan-300 hover:bg-cyan-500/10"
+              >
+                Announcements ➔
+              </Button>
             )}
           </CardHeader>
           <CardContent className="pt-4">
@@ -458,7 +490,11 @@ export function DashboardPage() {
               {auditLogs.length === 0 ? (
                 <div className="text-center py-8 space-y-2">
                   <Activity className="h-8 w-8 text-gray-600 mx-auto" />
-                  <p className="text-xs text-gray-400">No recent club activity logged.</p>
+                  <p className="text-xs text-gray-400">
+                    {['PLATFORM_ADMIN', 'PRESIDENT', 'GS'].includes(role)
+                      ? 'No recent club audit actions logged.'
+                      : 'No recent club announcements or activity.'}
+                  </p>
                 </div>
               ) : (
                 auditLogs.map((log) => {
