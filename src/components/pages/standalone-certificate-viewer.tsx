@@ -111,7 +111,10 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
   const currentTemplate = layout.templates?.[templateType] || DEFAULT_TEMPLATES[templateType] || DEFAULT_TEMPLATES.PARTICIPATION;
   const certTitle = currentTemplate.title;
 
-  const displayName = cert.user?.name || 'Unknown User';
+  const displayName = (cert as any).registration?.preferredName || (cert as any).preferredName || cert.user?.name || 'Unknown User';
+  const studentId = (cert as any).registration?.studentId || (cert as any).user?.studentId || '';
+  const department = (cert as any).registration?.department || (cert as any).user?.department || '';
+  const institution = (cert as any).registration?.institution || 'Dhaka International University';
   const eventTitle = cert.event?.title || 'Unknown Event';
   const dateStr = cert.issuedAt
     ? new Date(cert.issuedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
@@ -123,6 +126,9 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
     .replace('{{certificate_type}}', CERT_TYPE_LABELS[templateType] || templateType)
     .replace('{{position}}', templateType.includes('PLACE') ? CERT_TYPE_LABELS[templateType] : 'Winner')
     .replace('{{certificate_id}}', cert.certificateCode)
+    .replace('{{student_id}}', studentId)
+    .replace('{{department}}', department)
+    .replace('{{institution}}', institution)
     .replace('{{issue_date}}', dateStr);
 
   const activeSigs = layout.signatures ? layout.signatures.filter((s: any) => s.visible) : [];

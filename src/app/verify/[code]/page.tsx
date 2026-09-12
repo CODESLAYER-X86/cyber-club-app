@@ -69,6 +69,8 @@ async function getCertificate(code: string) {
             id: true,
             name: true,
             email: true,
+            studentId: true,
+            department: true,
           },
         },
         event: {
@@ -83,7 +85,28 @@ async function getCertificate(code: string) {
         },
       },
     });
-    return certificate;
+
+    if (!certificate) return null;
+
+    const registration = await prisma.eventRegistration.findUnique({
+      where: {
+        userId_eventId: {
+          userId: certificate.userId,
+          eventId: certificate.eventId,
+        },
+      },
+      select: {
+        preferredName: true,
+        studentId: true,
+        department: true,
+        institution: true,
+      },
+    });
+
+    return {
+      ...certificate,
+      registration: registration || null,
+    };
   } catch (error) {
     console.error('[VerifyPage] Fetch error:', error);
     return null;
