@@ -223,15 +223,33 @@ export async function PATCH(
       if (body[field] !== undefined) {
         if (field === "startDate" || field === "endDate") {
           data[field] = new Date(body[field]);
+        } else if (field === "fee") {
+          data[field] = Number(body[field]) || 0;
+        } else if (field === "maxSeats") {
+          data[field] = body[field] ? parseInt(String(body[field]), 10) : null;
+        } else if (field === "passingScore") {
+          data[field] = body[field] !== null && body[field] !== undefined && body[field] !== "" ? parseFloat(String(body[field])) : null;
         } else if (field === "paymentConfig") {
-          if (typeof body[field] === "string") {
+          if (body[field] === null) {
+            data[field] = null;
+          } else if (typeof body[field] === "string") {
             try {
               JSON.parse(body[field]);
+              data[field] = body[field];
             } catch {
               return errorResponse("Invalid paymentConfig JSON payload", 400);
             }
+          } else if (typeof body[field] === "object") {
+            data[field] = JSON.stringify(body[field]);
           }
-          data[field] = body[field];
+        } else if (field === "certificateLayout") {
+          if (body[field] === null) {
+            data[field] = null;
+          } else if (typeof body[field] === "string") {
+            data[field] = body[field];
+          } else if (typeof body[field] === "object") {
+            data[field] = JSON.stringify(body[field]);
+          }
         } else {
           data[field] = body[field];
         }
@@ -324,7 +342,8 @@ export async function PATCH(
     }
 
     return successResponse({ event: updatedEvent });
-  } catch {
-    return serverErrorResponse();
+  } catch (error: any) {
+    console.error("[PATCH /api/events/[id]] Error:", error);
+    return serverErrorResponse(error?.message || "Internal server error");
   }
 }
