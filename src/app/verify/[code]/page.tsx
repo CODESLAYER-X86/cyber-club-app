@@ -26,8 +26,35 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
     const name = certificate.user?.name || 'Member';
     const event = certificate.event?.title || 'Event';
+    const isRevoked = certificate.status === 'REVOKED';
     
     const ogUrl = `/api/certificates/${code}/og`;
+
+    if (isRevoked) {
+      return {
+        title: `REVOKED Certificate - ${name} | Cyber Security Club`,
+        description: `This certificate issued to ${name} for "${event}" has been officially REVOKED by the Cyber Security Club.`,
+        openGraph: {
+          title: `REVOKED Certificate - ${name} | Cyber Security Club`,
+          description: `This certificate has been revoked.`,
+          images: [
+            {
+              url: ogUrl,
+              width: 1200,
+              height: 630,
+              type: 'image/svg+xml',
+            }
+          ],
+          type: 'website',
+        },
+        twitter: {
+          card: 'summary_large_image',
+          title: `REVOKED Certificate - ${name} | Cyber Security Club`,
+          description: `This certificate has been revoked.`,
+          images: [ogUrl],
+        }
+      };
+    }
 
     return {
       title: `Verified Certificate - ${name} | Cyber Security Club`,
@@ -125,6 +152,7 @@ export default async function VerifyPage({ params }: Props) {
   const serializedCert = {
     ...certificate,
     issuedAt: certificate.issuedAt.toISOString(),
+    revokedAt: certificate.revokedAt ? certificate.revokedAt.toISOString() : null,
     event: certificate.event ? {
       ...certificate.event,
       startDate: certificate.event.startDate.toISOString(),

@@ -12,6 +12,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+import { sanitizeUrl } from '@/lib/utils';
 import type { CommitteeMember } from '@/types';
 
 interface SocialLinkData {
@@ -181,7 +182,7 @@ export function CommitteeMemberCard({
               <div className="mt-3 flex items-center gap-2">
                 {socials?.facebook && (
                   <a
-                    href={socials.facebook}
+                    href={sanitizeUrl(socials.facebook)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
@@ -192,7 +193,7 @@ export function CommitteeMemberCard({
                 )}
                 {socials?.linkedin && (
                   <a
-                    href={socials.linkedin}
+                    href={sanitizeUrl(socials.linkedin)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}
@@ -203,7 +204,7 @@ export function CommitteeMemberCard({
                 )}
                 {socials?.github && (
                   <a
-                    href={socials.github}
+                    href={sanitizeUrl(socials.github)}
                     target="_blank"
                     rel="noopener noreferrer"
                     onClick={(e) => e.stopPropagation()}

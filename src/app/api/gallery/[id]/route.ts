@@ -33,10 +33,21 @@ export async function DELETE(
       return forbiddenResponse("Only MEDIA, PRESIDENT, or PLATFORM_ADMIN can delete gallery images");
     }
 
-    // Delete the physical file
+    // Delete the physical file if it is a local upload within public/
     try {
-      const filePath = path.join(process.cwd(), "public", galleryImage.imageUrl);
-      await unlink(filePath);
+      if (
+        galleryImage.imageUrl &&
+        !galleryImage.imageUrl.startsWith("http://") &&
+        !galleryImage.imageUrl.startsWith("https://") &&
+        !galleryImage.imageUrl.startsWith("//") &&
+        !galleryImage.imageUrl.includes("\0")
+      ) {
+        const publicDir = path.resolve(process.cwd(), "public");
+        const filePath = path.resolve(publicDir, galleryImage.imageUrl.replace(/^\/+/, ""));
+        if (filePath.startsWith(publicDir)) {
+          await unlink(filePath);
+        }
+      }
     } catch {
       // File might not exist on disk, continue with DB deletion
     }

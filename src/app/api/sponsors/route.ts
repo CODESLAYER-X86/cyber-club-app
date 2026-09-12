@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -37,6 +38,14 @@ export async function POST(request: NextRequest) {
 
     if (!name || !logoUrl) {
       return errorResponse("Sponsor name and logo URL are required", 400);
+    }
+
+    if (!isSafeUrl(logoUrl)) {
+      return errorResponse("Invalid logo URL. Must be a safe HTTP/HTTPS URL.", 400);
+    }
+
+    if (websiteUrl && !isSafeUrl(websiteUrl)) {
+      return errorResponse("Invalid website URL. Must be a safe HTTP/HTTPS URL.", 400);
     }
 
     const newSponsor = await prisma.clubSponsor.create({

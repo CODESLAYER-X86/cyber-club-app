@@ -1,83 +1,149 @@
 import { NextRequest, NextResponse } from "next/server";
 
-// ===== In-memory rate limiter (per-instance, resets on cold start) =====
-// For multi-instance production, replace with Redis (@upstash/ratelimit)
+// ===== In-memory rate limiter (per-instance, standalone resilience) =====
+// Optimized for Vercel/Node runtime without external dependencies like Cloudflare/Redis
 const rateLimitMap = new Map<string, { count: number; resetAt: number }>();
 
-function rateLimit(key: string, limit: number, windowMs: number): boolean {
+function isValidIpFormat(ip: string): boolean {
+  return /^[0-9a-fA-F:.]+$/.test(ip) && ip.length <= 45;
+}
+
+function getIP(request: NextRequest): string {
+  const forwardedFor = request.headers.get("x-forwarded-for");
+  if (forwardedFor) {
+    const firstIp = forwardedFor.split(",")[0]?.trim();
+    if (firstIp && isValidIpFormat(firstIp)) {
+      return firstIp;
+    }
+  }
+  const realIp = request.headers.get("x-real-ip")?.trim();
+  if (realIp && isValidIpFormat(realIp)) {
+    return realIp;
+  }
+  return "127.0.0.1";
+}
+
+interface RateLimitResult {
+  allowed: boolean;
+  remaining: number;
+  resetAt: number;
+}
+
+function checkRateLimit(key: string, limit: number, windowMs: number): RateLimitResult {
   const now = Date.now();
   const entry = rateLimitMap.get(key);
 
-  // Periodic cleanup to prevent memory leak
-  if (Math.random() < 0.01) {
+  // Periodic cleanup to prevent memory bloat under attack
+  if (Math.random() < 0.02) {
     for (const [k, v] of rateLimitMap) {
       if (v.resetAt < now) rateLimitMap.delete(k);
+    }
+    // Hard ceiling safeguard to protect Node process RAM
+    if (rateLimitMap.size > 10000) {
+      rateLimitMap.clear();
     }
   }
 
   if (!entry || entry.resetAt < now) {
-    rateLimitMap.set(key, { count: 1, resetAt: now + windowMs });
-    return true;
+    const resetAt = now + windowMs;
+    rateLimitMap.set(key, { count: 1, resetAt });
+    return { allowed: true, remaining: limit - 1, resetAt };
   }
-  if (entry.count >= limit) return false;
+
+  if (entry.count >= limit) {
+    return { allowed: false, remaining: 0, resetAt: entry.resetAt };
+  }
+
   entry.count++;
-  return true;
+  return { allowed: true, remaining: limit - entry.count, resetAt: entry.resetAt };
 }
 
-function getIP(request: NextRequest): string {
-  return (
-    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ||
-    request.headers.get("x-real-ip") ||
-    "unknown"
-  );
+// Specific endpoint rate limit rules
+interface RateLimitRule {
+  pattern: RegExp;
+  methods?: string[]; // If omitted, applies to mutating methods: POST, PATCH, DELETE
+  limit: number;
+  windowMs: number;
+  label: string;
 }
 
-// Sensitive endpoint rate limits
-const RATE_LIMITS: Record<string, [number, number]> = {
-  "/api/auth/callback":              [10, 15 * 60 * 1000], // 10 OAuth callbacks / 15min
-  "/api/users":                     [30, 60 * 1000],       // 30 user list requests / min
-  "/api/export":                    [10, 60 * 1000],       // 10 exports / min
-  "/api/certificates":              [30, 60 * 1000],       // certificate issuance
-};
+const RATE_LIMIT_RULES: RateLimitRule[] = [
+  { pattern: /^\/api\/auth\//,                     methods: ["POST", "GET"], limit: 25, windowMs: 5 * 60 * 1000, label: "auth" },
+  { pattern: /^\/api\/events\/[^/]+\/register/,    limit: 10, windowMs: 60 * 1000, label: "event_reg" },
+  { pattern: /^\/api\/events\/[^/]+\/attendance/,  limit: 30, windowMs: 60 * 1000, label: "event_att" },
+  { pattern: /^\/api\/payments/,                   limit: 20, windowMs: 60 * 1000, label: "payments" },
+  { pattern: /^\/api\/treasury/,                   limit: 30, windowMs: 60 * 1000, label: "treasury" },
+  { pattern: /^\/api\/expenses/,                   limit: 30, windowMs: 60 * 1000, label: "expenses" },
+  { pattern: /^\/api\/export/,                     methods: ["GET", "POST"], limit: 10, windowMs: 60 * 1000, label: "export" },
+  { pattern: /^\/api\/certificates/,               limit: 30, windowMs: 60 * 1000, label: "certificates" },
+  { pattern: /^\/api\/users\/approval/,            limit: 20, windowMs: 60 * 1000, label: "user_approval" },
+  { pattern: /^\/api\/users$/,                     methods: ["GET"], limit: 40, windowMs: 60 * 1000, label: "user_list" },
+  { pattern: /^\/api\/gallery/,                    limit: 25, windowMs: 60 * 1000, label: "gallery" },
+  { pattern: /^\/api\/sponsors/,                   limit: 25, windowMs: 60 * 1000, label: "sponsors" },
+];
 
-const GENERAL_API_LIMIT  = 60;
+const GENERAL_API_LIMIT  = 120; // 120 requests per minute per IP for general browsing
 const GENERAL_API_WINDOW = 60 * 1000;
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
   const ip = getIP(request);
+  const method = request.method;
 
-  // --- Rate limiting for sensitive endpoints ---
-  if (["POST", "PATCH", "DELETE"].includes(request.method)) {
-    const config = RATE_LIMITS[pathname];
-    if (config) {
-      const [limit, window] = config;
-      if (!rateLimit(`${ip}:${pathname}`, limit, window)) {
-        console.warn(`[SECURITY] Rate limit hit: ${ip} → ${pathname}`);
+  // --- 1. Targeted Rate Limiting for Sensitive Endpoints ---
+  for (const rule of RATE_LIMIT_RULES) {
+    const appliesToMethod = rule.methods
+      ? rule.methods.includes(method)
+      : ["POST", "PATCH", "DELETE"].includes(method);
+
+    if (appliesToMethod && rule.pattern.test(pathname)) {
+      const result = checkRateLimit(`${ip}:${rule.label}`, rule.limit, rule.windowMs);
+      if (!result.allowed) {
+        const retryAfter = Math.max(1, Math.ceil((result.resetAt - Date.now()) / 1000));
+        console.warn(`[SECURITY] Sensitive rate limit exceeded (${rule.label}): ${ip} → ${pathname}`);
         return NextResponse.json(
           { error: "Too many requests. Please try again later." },
-          { status: 429 }
+          {
+            status: 429,
+            headers: {
+              "Retry-After": String(retryAfter),
+              "X-RateLimit-Limit": String(rule.limit),
+              "X-RateLimit-Remaining": "0",
+              "X-RateLimit-Reset": String(Math.ceil(result.resetAt / 1000)),
+            },
+          }
         );
       }
+      break; // Only apply the first matching sensitive rule
     }
   }
 
-  // --- General API rate limiting ---
+  // --- 2. General API Rate Limiting ---
   if (pathname.startsWith("/api/")) {
-    if (!rateLimit(`${ip}:api`, GENERAL_API_LIMIT, GENERAL_API_WINDOW)) {
-      console.warn(`[SECURITY] General rate limit hit: ${ip}`);
+    const generalResult = checkRateLimit(`${ip}:api_general`, GENERAL_API_LIMIT, GENERAL_API_WINDOW);
+    if (!generalResult.allowed) {
+      const retryAfter = Math.max(1, Math.ceil((generalResult.resetAt - Date.now()) / 1000));
+      console.warn(`[SECURITY] General rate limit exceeded: ${ip} → ${pathname}`);
       return NextResponse.json(
         { error: "Rate limit exceeded. Please slow down." },
-        { status: 429 }
+        {
+          status: 429,
+          headers: {
+            "Retry-After": String(retryAfter),
+            "X-RateLimit-Limit": String(GENERAL_API_LIMIT),
+            "X-RateLimit-Remaining": "0",
+            "X-RateLimit-Reset": String(Math.ceil(generalResult.resetAt / 1000)),
+          },
+        }
       );
     }
   }
 
-  // --- CSRF protection on mutating requests ---
+  // --- 3. Cross-Origin CSRF Protection for Mutating Requests ---
   if (
     pathname.startsWith("/api/") &&
     !pathname.startsWith("/api/auth/") &&
-    ["POST", "PATCH", "DELETE"].includes(request.method)
+    ["POST", "PATCH", "DELETE"].includes(method)
   ) {
     const origin = request.headers.get("origin");
     const host   = request.headers.get("host");

@@ -1,9 +1,17 @@
 import prisma from "@/lib/db";
-import { successResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
+
+const ALLOWED_ROLES = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS"];
 
 export async function GET(request: NextRequest) {
   try {
+    const caller = await getSupabaseUser(ALLOWED_ROLES);
+    if (!caller) {
+      return forbiddenResponse("Only Certificate Authority executives can view audit logs");
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const certificateId = searchParams.get("certificateId");
     const performedBy = searchParams.get("performedBy");

@@ -31,6 +31,7 @@ import {
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
+import { sanitizeUrl } from '@/lib/utils';
 
 /* ──────────── Animation helpers ──────────── */
 
@@ -506,7 +507,7 @@ export function AboutPage() {
               {sponsors.map((sponsor) => (
                 <a
                   key={sponsor.id}
-                  href={sponsor.websiteUrl || '#'}
+                  href={sanitizeUrl(sponsor.websiteUrl)}
                   target="_blank"
                   rel="noreferrer noopener"
                   className="rounded-xl border border-white/5 bg-slate-950/70 p-6 text-center hover:border-emerald-500/30 transition-all flex flex-col items-center justify-center space-y-3 group"

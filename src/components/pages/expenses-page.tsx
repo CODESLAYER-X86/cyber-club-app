@@ -18,6 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
+import { sanitizeUrl } from '@/lib/utils';
 
 /* ─── Constants ─── */
 const UNIT_OPTIONS = ['pcs', 'kg', 'box', 'set', 'pair', 'pack', 'liter', 'meter', 'other'] as const;
@@ -482,7 +483,7 @@ export function ExpensesPage() {
                         {expense.attachmentUrl && (
                           <div className="pt-0.5">
                             <a
-                              href={expense.attachmentUrl}
+                              href={sanitizeUrl(expense.attachmentUrl)}
                               target="_blank"
                               rel="noopener noreferrer"
                               className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 hover:underline bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-md"

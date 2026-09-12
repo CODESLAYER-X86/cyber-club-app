@@ -1,8 +1,9 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { Prisma } from "@prisma/client";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function POST(
   request: NextRequest,
@@ -11,11 +12,18 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { userId, transactionId, paymentMethod = "BKASH" } = body;
+    const { userId: requestedUserId, transactionId, paymentMethod = "BKASH" } = body;
 
-    if (!userId) {
-      return errorResponse("userId is required", 400);
+    // Caller session verification
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("Please sign in to register for events");
     }
+
+    // Prevent IDOR: Standard members can only register themselves. Only Platform Admin / President can register on behalf of another user.
+    const isAdmin = ["PLATFORM_ADMIN", "PRESIDENT"].includes(caller.role);
+    const targetUserId = (isAdmin && requestedUserId) ? requestedUserId : caller.userId;
+    const userId = targetUserId;
 
     // Step 1: Pre-validation checks
     const event = await prisma.event.findUnique({ where: { id } });

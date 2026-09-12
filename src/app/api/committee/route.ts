@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 import { NextRequest } from "next/server";
 
 const CREATE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
@@ -28,6 +29,18 @@ export async function POST(request: NextRequest) {
 
     if (!name || !role || !description) {
       return errorResponse("name, role, and description are required");
+    }
+
+    if (imageUrl && !isSafeUrl(imageUrl)) {
+      return errorResponse("Invalid or unsafe imageUrl");
+    }
+
+    if (socialLinks && typeof socialLinks === "object") {
+      for (const [key, val] of Object.entries(socialLinks)) {
+        if (typeof val === "string" && val.trim() && !isSafeUrl(val)) {
+          return errorResponse(`Invalid or unsafe social link for ${key}`);
+        }
+      }
     }
 
     const member = await prisma.committeeMember.create({

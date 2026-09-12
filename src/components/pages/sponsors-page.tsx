@@ -3,6 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useAppStore } from '@/store/use-app-store';
 import { Plus, Edit2, Trash2, CheckCircle, XCircle, LayoutDashboard, Globe, AlertTriangle } from 'lucide-react';
+import { sanitizeUrl } from '@/lib/utils';
 
 interface Sponsor {
   id: string;
@@ -147,7 +148,7 @@ export function SponsorsPage() {
                 {sponsor.description && <p className="text-xs text-gray-400 line-clamp-2">{sponsor.description}</p>}
                 <div className="mt-2 flex w-full justify-between text-xs text-gray-500">
                   <span>Priority: {sponsor.priority}</span>
-                  {sponsor.websiteUrl && <a href={sponsor.websiteUrl} target="_blank" rel="noreferrer" className="text-emerald-500 hover:underline">Website ↗</a>}
+                  {sponsor.websiteUrl && <a href={sanitizeUrl(sponsor.websiteUrl)} target="_blank" rel="noreferrer" className="text-emerald-500 hover:underline">Website ↗</a>}
                 </div>
               </div>
             </div>

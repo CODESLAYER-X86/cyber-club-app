@@ -6,13 +6,14 @@ import {
   DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   Loader2, Wallet, Activity, Landmark, Receipt, Eye, ExternalLink,
   ShieldCheck, Calendar, User, FileText, CheckCircle, XCircle, AlertCircle,
-  ChevronDown, ChevronUp
+  ChevronDown, ChevronUp, Package
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { sanitizeUrl } from '@/lib/utils';
 import {
   Dialog,
   DialogContent,
@@ -33,7 +34,7 @@ const DEPOSIT_SOURCE_LABELS: Record<string, string> = {
   UNIVERSITY_FUND: 'University Fund',
   SPONSOR: 'Sponsor',
   EVENT_REGISTRATION: 'Event Registration',
-  MEMBERSHIP_REGISTRATION: 'Membership Registration',
+  MEMBERSHIP_FEE: 'Membership Fee',
   DONATION: 'Donation',
   OTHER: 'Other',
 };
@@ -59,6 +60,7 @@ export function FinancePage() {
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ActivityItem | null>(null);
   const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
+  const [activityFilter, setActivityFilter] = useState<'all' | 'expense' | 'deposit'>('all');
 
   const isExecutive = currentUser && ['PRESIDENT', 'GS', 'TREASURER', 'PLATFORM_ADMIN', 'VP'].includes(currentUser.role);
 
@@ -76,8 +78,8 @@ export function FinancePage() {
       const expensesData = await expensesRes.json();
 
       if (statsData.success) setStats(statsData.data.stats);
-      if (depositsData.success) setRecentDeposits((depositsData.data.deposits || []).slice(0, 15));
-      if (expensesData.success) setRecentExpenses((expensesData.data.expenses || []).slice(0, 15));
+      if (depositsData.success) setRecentDeposits(depositsData.data.deposits || []);
+      if (expensesData.success) setRecentExpenses(expensesData.data.expenses || []);
     } catch (e) {
       console.error('[FinancePage] Load error:', e);
     } finally {
@@ -93,8 +95,8 @@ export function FinancePage() {
   const pendingDeposits = stats?.pendingDepositsCount ?? 0;
   const pendingExpenses = stats?.pendingExpensesCount ?? 0;
 
-  // Merge recent activity with full underlying raw details
-  const recentActivity: ActivityItem[] = [
+  // Merge activity with full underlying raw details
+  const allActivities: ActivityItem[] = [
     ...recentDeposits.map((d: any) => ({
       id: d.id,
       type: 'deposit' as const,
@@ -116,9 +118,12 @@ export function FinancePage() {
       note: e.note,
       raw: e,
     })),
-  ]
-    .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime())
-    .slice(0, 12);
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+
+  const filteredActivities = allActivities.filter((item) => {
+    if (activityFilter === 'all') return true;
+    return item.type === activityFilter;
+  });
 
   if (loading) {
     return (
@@ -189,88 +194,118 @@ export function FinancePage() {
         </motion.div>
       </div>
 
-      {/* Navigation Cards — Available to both Members (View Ledger) and Executives (Manage) */}
-      <div className="grid gap-4 sm:grid-cols-2">
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.35 }}
-        >
-          <Card
-            className="border-white/5 bg-[#111]/60 backdrop-blur cursor-pointer hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group"
-            onClick={() => setCurrentView('deposits')}
+      {/* Navigation Cards — Available to Executives to Manage Ledgers */}
+      {isExecutive && (
+        <div className="grid gap-4 sm:grid-cols-2">
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.35 }}
           >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
-                    <ArrowUpRight className="h-5 w-5 text-emerald-400" />
+            <Card
+              className="border-white/5 bg-[#111]/60 backdrop-blur cursor-pointer hover:border-emerald-500/30 hover:shadow-lg hover:shadow-emerald-500/5 transition-all group"
+              onClick={() => setCurrentView('deposits')}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-emerald-500/10 group-hover:bg-emerald-500/20 transition-colors">
+                      <ArrowUpRight className="h-5 w-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white group-hover:text-emerald-300 transition-colors">
+                        Manage Deposits
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        Record and approve income entries
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white group-hover:text-emerald-300 transition-colors">
-                      {isExecutive ? 'Manage Deposits' : 'View Deposits Ledger'}
-                    </h3>
-                    <p className="text-xs text-gray-400">
-                      {isExecutive ? 'Record and approve income entries' : 'Browse verified deposit entries, sources, and receipts'}
-                    </p>
-                  </div>
+                  <ArrowUpRight className="h-5 w-5 text-gray-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
                 </div>
-                <ArrowUpRight className="h-5 w-5 text-gray-600 group-hover:text-emerald-400 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 transition-all" />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.4, delay: 0.4 }}
-        >
-          <Card
-            className="border-white/5 bg-[#111]/60 backdrop-blur cursor-pointer hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5 transition-all group"
-            onClick={() => setCurrentView('expenses')}
+              </CardContent>
+            </Card>
+          </motion.div>
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.4, delay: 0.4 }}
           >
-            <CardContent className="p-6">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
-                    <ArrowDownRight className="h-5 w-5 text-amber-400" />
+            <Card
+              className="border-white/5 bg-[#111]/60 backdrop-blur cursor-pointer hover:border-amber-500/30 hover:shadow-lg hover:shadow-amber-500/5 transition-all group"
+              onClick={() => setCurrentView('expenses')}
+            >
+              <CardContent className="p-6">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-amber-500/10 group-hover:bg-amber-500/20 transition-colors">
+                      <ArrowDownRight className="h-5 w-5 text-amber-400" />
+                    </div>
+                    <div>
+                      <h3 className="font-semibold text-white group-hover:text-amber-300 transition-colors">
+                        Manage Expenses
+                      </h3>
+                      <p className="text-xs text-gray-400">
+                        Record, audit, and approve expense vouchers
+                      </p>
+                    </div>
                   </div>
-                  <div>
-                    <h3 className="font-semibold text-white group-hover:text-amber-300 transition-colors">
-                      {isExecutive ? 'Manage Expenses' : 'View Expenses Ledger'}
-                    </h3>
-                    <p className="text-xs text-gray-400">
-                      {isExecutive ? 'Record, audit, and approve expense vouchers' : 'Inspect itemized club purchases and expense receipts'}
-                    </p>
-                  </div>
+                  <ArrowDownRight className="h-5 w-5 text-gray-600 group-hover:text-amber-400 group-hover:translate-x-0.5 group-hover:translate-y-0.5 transition-all" />
                 </div>
-                <ArrowDownRight className="h-5 w-5 text-gray-600 group-hover:text-amber-400 group-hover:translate-x-0.5 group-hover:translate-y-0.5 transition-all" />
-              </div>
-            </CardContent>
-          </Card>
-        </motion.div>
-      </div>
+              </CardContent>
+            </Card>
+          </motion.div>
+        </div>
+      )}
 
-      {/* Recent Activity List with Clickable Details */}
+      {/* Treasury Activity List with Clickable Expandable Details */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.4, delay: 0.45 }}
       >
         <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-          <CardHeader className="pb-3 flex flex-row items-center justify-between">
-            <CardTitle className="flex items-center gap-2 text-lg text-white">
-              <Activity className="h-5 w-5 text-emerald-400" />
-              Recent Treasury Activity
-            </CardTitle>
-            <span className="text-xs text-gray-400">Click any transaction to view full details</span>
+          <CardHeader className="pb-3 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
+            <div>
+              <CardTitle className="flex items-center gap-2 text-lg text-white">
+                <Activity className="h-5 w-5 text-emerald-400" />
+                Treasury Activity
+              </CardTitle>
+              <span className="text-xs text-gray-400">Click any transaction to expand and inspect purchased items & details</span>
+            </div>
+            <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-lg border border-white/5 self-start sm:self-auto">
+              <Button
+                variant={activityFilter === 'all' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setActivityFilter('all')}
+                className={`h-7 px-2.5 text-xs ${activityFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+              >
+                All ({allActivities.length})
+              </Button>
+              <Button
+                variant={activityFilter === 'expense' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setActivityFilter('expense')}
+                className={`h-7 px-2.5 text-xs ${activityFilter === 'expense' ? 'bg-amber-500/20 text-amber-300' : 'text-gray-400 hover:text-amber-400'}`}
+              >
+                Expenses ({allActivities.filter((a) => a.type === 'expense').length})
+              </Button>
+              <Button
+                variant={activityFilter === 'deposit' ? 'secondary' : 'ghost'}
+                size="sm"
+                onClick={() => setActivityFilter('deposit')}
+                className={`h-7 px-2.5 text-xs ${activityFilter === 'deposit' ? 'bg-emerald-500/20 text-emerald-300' : 'text-gray-400 hover:text-emerald-400'}`}
+              >
+                Deposits ({allActivities.filter((a) => a.type === 'deposit').length})
+              </Button>
+            </div>
           </CardHeader>
           <CardContent>
-            {recentActivity.length === 0 ? (
-              <p className="text-center text-sm text-gray-500 py-8">No recent activity found</p>
+            {filteredActivities.length === 0 ? (
+              <p className="text-center text-sm text-gray-500 py-8">No treasury activity found for this filter</p>
             ) : (
               <div className="space-y-2.5">
-                {recentActivity.map((item) => {
+                {filteredActivities.map((item) => {
                   const statusConf = STATUS_CONFIG[item.status] || STATUS_CONFIG.PENDING;
                   const isDeposit = item.type === 'deposit';
                   const isExpanded = expandedActivityId === item.id;
@@ -296,6 +331,9 @@ export function FinancePage() {
                               {item.type === 'expense' && item.raw?.purchasedBy && (
                                 <span>• By {item.raw.purchasedBy}</span>
                               )}
+                              {item.type === 'expense' && Array.isArray(item.raw?.items) && item.raw.items.length > 0 && (
+                                <span className="text-[11px] text-amber-400/80 font-mono">({item.raw.items.length} item{item.raw.items.length > 1 ? 's' : ''})</span>
+                              )}
                             </p>
                           </div>
                         </div>
@@ -316,65 +354,80 @@ export function FinancePage() {
 
                       {/* Dropdown Accordion Section */}
                       {isExpanded && (
-                        <div className="border-t border-white/5 p-4 space-y-3 bg-black/25 text-xs">
+                        <div className="border-t border-white/5 p-4 space-y-3.5 bg-black/35 text-xs">
+                          {/* Purchased Products Breakdown */}
+                          {item.type === 'expense' && Array.isArray(item.raw.items) && item.raw.items.length > 0 ? (
+                            <div className="space-y-1.5">
+                              <div className="flex items-center justify-between text-xs font-semibold text-amber-300">
+                                <span className="flex items-center gap-1.5">
+                                  <Package className="h-3.5 w-3.5" /> Purchased Products & Items ({item.raw.items.length}):
+                                </span>
+                                <span className="text-[11px] font-mono text-gray-400">Total: ৳{item.amount.toLocaleString()}</span>
+                              </div>
+                              <div className="rounded-md border border-white/10 bg-black/40 overflow-hidden">
+                                <table className="w-full text-left border-collapse">
+                                  <thead className="bg-white/5 text-gray-400 font-medium text-[11px]">
+                                    <tr>
+                                      <th className="py-2 px-3">Product / Item</th>
+                                      <th className="py-2 px-3 text-center">Qty & Unit</th>
+                                      <th className="py-2 px-3 text-right">Unit Price</th>
+                                      <th className="py-2 px-3 text-right">Total Cost</th>
+                                    </tr>
+                                  </thead>
+                                  <tbody>
+                                    {item.raw.items.map((it: any, idx: number) => (
+                                      <tr key={idx} className="border-t border-white/5 text-gray-300 hover:bg-white/[0.02]">
+                                        <td className="py-2 px-3 text-white font-medium">{it.itemName}</td>
+                                        <td className="py-2 px-3 text-center text-gray-400">{it.quantity} {it.unit}</td>
+                                        <td className="py-2 px-3 text-right font-mono text-gray-400">৳{Number(it.price).toLocaleString()}</td>
+                                        <td className="py-2 px-3 text-right font-mono font-semibold text-amber-300">৳{(it.quantity * it.price).toLocaleString()}</td>
+                                      </tr>
+                                    ))}
+                                  </tbody>
+                                </table>
+                              </div>
+                            </div>
+                          ) : item.type === 'expense' ? (
+                            <div className="rounded-md border border-white/5 bg-white/[0.02] p-2.5 text-xs flex justify-between items-center text-gray-300">
+                              <span>Operational expense: <span className="text-white font-medium">{item.description}</span></span>
+                              <span className="font-mono font-bold text-amber-400">৳{item.amount.toLocaleString()}</span>
+                            </div>
+                          ) : (
+                            <div className="rounded-md border border-white/5 bg-white/[0.02] p-2.5 text-xs flex justify-between items-center text-gray-300">
+                              <span>Deposit Source: <span className="text-white font-medium">{DEPOSIT_SOURCE_LABELS[item.raw.source] || item.raw.source || 'Club Funds'}</span></span>
+                              <span className="font-mono font-bold text-emerald-400">+৳{item.amount.toLocaleString()}</span>
+                            </div>
+                          )}
+
                           {/* Note / Memo */}
                           {item.raw.note && (
                             <div className="p-2.5 rounded-md bg-white/[0.02] border border-white/5 text-gray-300">
-                              <span className="text-gray-500 block text-[10px] uppercase font-semibold mb-0.5">Description / Memo:</span>
+                              <span className="text-gray-500 block text-[10px] uppercase font-semibold mb-0.5">Purpose / Memo:</span>
                               <p className="leading-relaxed">{item.raw.note}</p>
                             </div>
                           )}
 
-                          {/* Itemized Table if Expense */}
-                          {item.type === 'expense' && Array.isArray(item.raw.items) && item.raw.items.length > 0 ? (
-                            <div className="rounded-md border border-white/5 overflow-hidden">
-                              <table className="w-full text-left">
-                                <thead className="bg-white/5 text-gray-400 font-medium">
-                                  <tr>
-                                    <th className="py-1.5 px-3">Item</th>
-                                    <th className="py-1.5 px-3 text-center">Qty & Unit</th>
-                                    <th className="py-1.5 px-3 text-right">Cost</th>
-                                  </tr>
-                                </thead>
-                                <tbody>
-                                  {item.raw.items.map((it: any, idx: number) => (
-                                    <tr key={idx} className="border-t border-white/5 text-gray-300">
-                                      <td className="py-1.5 px-3 text-white font-medium">{it.itemName}</td>
-                                      <td className="py-1.5 px-3 text-center text-gray-400">{it.quantity} {it.unit}</td>
-                                      <td className="py-1.5 px-3 text-right font-mono text-gray-200">৳{(it.quantity * it.price).toLocaleString()}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            </div>
-                          ) : item.type === 'expense' ? (
-                            <div className="rounded-md border border-white/5 bg-white/[0.02] p-2.5 text-xs flex justify-between items-center text-gray-300">
-                              <span>General operational expense: <span className="text-white font-medium">{item.description}</span></span>
-                              <span className="font-mono font-bold text-amber-400">৳{item.amount.toLocaleString()}</span>
-                            </div>
-                          ) : null}
-
-                          {/* Sign-off & Submitter */}
+                          {/* Submitter, Purchaser & Approvals */}
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-400 bg-white/[0.02] border border-white/5 p-3 rounded-lg">
                             <div>
                               <span className="text-gray-500">Recorded By: </span>
-                              <span className="text-gray-300">{item.raw.creator?.name || item.raw.submitter?.name || 'Treasurer'}</span>
+                              <span className="text-gray-300 font-medium">{item.raw.creator?.name || item.raw.submitter?.name || 'Treasurer'}</span>
                             </div>
                             {item.raw.purchasedBy && (
                               <div>
                                 <span className="text-gray-500">Purchased By: </span>
-                                <span className="text-gray-300">{item.raw.purchasedBy}</span>
+                                <span className="text-emerald-400 font-medium">{item.raw.purchasedBy}</span>
                               </div>
                             )}
                             <div>
-                              <span className="text-gray-500">President Review: </span>
-                              <span className={item.raw.presidentStatus === 'APPROVED' ? 'text-emerald-400' : 'text-amber-400'}>
+                              <span className="text-gray-500">President Verification: </span>
+                              <span className={item.raw.presidentStatus === 'APPROVED' ? 'text-emerald-400 font-medium' : 'text-amber-400'}>
                                 {item.raw.presidentStatus || (item.status === 'APPROVED' ? 'Verified' : 'Pending')}
                               </span>
                             </div>
                             <div>
-                              <span className="text-gray-500">General Secretary Review: </span>
-                              <span className={item.raw.gsStatus === 'APPROVED' ? 'text-emerald-400' : 'text-amber-400'}>
+                              <span className="text-gray-500">General Secretary Verification: </span>
+                              <span className={item.raw.gsStatus === 'APPROVED' ? 'text-emerald-400 font-medium' : 'text-amber-400'}>
                                 {item.raw.gsStatus || (item.status === 'APPROVED' ? 'Verified' : 'Pending')}
                               </span>
                             </div>
@@ -384,7 +437,7 @@ export function FinancePage() {
                           <div className="flex items-center justify-between pt-1">
                             {item.raw.attachmentUrl ? (
                               <a
-                                href={item.raw.attachmentUrl}
+                                href={sanitizeUrl(item.raw.attachmentUrl)}
                                 target="_blank"
                                 rel="noopener noreferrer"
                                 className="inline-flex items-center gap-1.5 text-emerald-400 hover:underline"
@@ -543,7 +596,7 @@ export function FinancePage() {
               {selectedItem.raw.attachmentUrl && (
                 <div className="pt-1">
                   <a
-                    href={selectedItem.raw.attachmentUrl}
+                    href={sanitizeUrl(selectedItem.raw.attachmentUrl)}
                     target="_blank"
                     rel="noopener noreferrer"
                     className="inline-flex items-center gap-2 text-xs text-emerald-400 hover:text-emerald-300 hover:underline"

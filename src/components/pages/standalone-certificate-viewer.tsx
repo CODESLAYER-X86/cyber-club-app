@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Shield, CheckCircle, XCircle, Linkedin, Twitter, Copy, Award, Download, Fingerprint, Loader2 } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, AlertTriangle, Linkedin, Twitter, Copy, Award, Download, Fingerprint, Loader2 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -14,6 +14,8 @@ interface CertificateData {
   score?: number | null;
   status: string;
   issuedAt: Date | string;
+  revokedAt?: Date | string | null;
+  revocationReason?: string | null;
   user?: { id: string; name: string; email: string } | null;
   event?: {
     id: string;
@@ -87,6 +89,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
   const [base64Images, setBase64Images] = useState<Record<string, string>>({});
 
   const isValid = ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(cert.status);
+  const isRevoked = cert.status === 'REVOKED';
   
   const layout = useMemo(() => {
     let l: any = {};
@@ -321,7 +324,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
     <div className="w-full max-w-4xl space-y-6">
       <div className="flex items-center justify-between">
         <a href="/" className="inline-flex items-center text-gray-400 hover:text-white text-sm font-medium gap-2">
-          <Shield className="h-4 w-4 text-emerald-400" /> Cyber Security Club Home
+          <Shield className={`h-4 w-4 ${isRevoked ? 'text-rose-400' : 'text-emerald-400'}`} /> Cyber Security Club Home
         </a>
 
         {isValid && (
@@ -336,7 +339,45 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
         )}
       </div>
 
-      <div className="relative rounded-xl p-[2px] bg-gradient-to-r from-emerald-500/50 via-cyan-500/50 to-emerald-500/50 shadow-2xl">
+      {isRevoked && (
+        <div className="rounded-xl border border-rose-500/30 bg-rose-500/10 p-5 backdrop-blur-md">
+          <div className="flex items-start gap-4">
+            <div className="rounded-lg bg-rose-500/20 p-2 text-rose-400 border border-rose-500/30">
+              <AlertTriangle className="h-6 w-6" />
+            </div>
+            <div className="flex-1 space-y-1">
+              <div className="flex items-center gap-2">
+                <h3 className="text-lg font-bold text-rose-400">
+                  Certificate Revoked
+                </h3>
+                <Badge className="bg-rose-500/20 text-rose-300 border-rose-500/40 text-[10px] uppercase tracking-wider">
+                  Invalid
+                </Badge>
+              </div>
+              <p className="text-sm text-gray-300">
+                This certificate has been officially revoked by Club Administration. It is no longer recognized as a valid credential.
+              </p>
+              {cert.revocationReason && (
+                <div className="mt-2 text-xs text-rose-200/90 bg-rose-950/40 rounded-md p-2.5 border border-rose-500/20">
+                  <span className="font-semibold text-rose-300">Official Reason: </span>
+                  {cert.revocationReason}
+                </div>
+              )}
+              {cert.revokedAt && (
+                <p className="text-xs text-gray-500 pt-1">
+                  Revoked on {new Date(cert.revokedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+                </p>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      <div className={`relative rounded-xl p-[2px] shadow-2xl ${
+        isRevoked
+          ? 'bg-gradient-to-r from-rose-500/60 via-red-600/50 to-rose-500/60'
+          : 'bg-gradient-to-r from-emerald-500/50 via-cyan-500/50 to-emerald-500/50'
+      }`}>
         <div className="rounded-[10px] bg-[#000000] overflow-hidden">
           <div className="w-full relative" style={{ aspectRatio: `${width}/${height}` }}>
             <svg id="certificate-svg" viewBox={`0 0 ${width} ${height}`} className="w-full h-full select-none">
@@ -429,10 +470,39 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
               {/* Footer line & text */}
               <line x1="100" y1={height - 50} x2={width - 100} y2={height - 50} stroke="rgba(255,255,255,0.05)" strokeWidth="1"/>
               {renderEl(el.footer)}
+
+              {/* Revoked watermark stamp across the certificate */}
+              {isRevoked && (
+                <g transform={`translate(${width / 2}, ${height / 2}) rotate(-25)`} pointerEvents="none">
+                  <rect
+                    x="-240"
+                    y="-55"
+                    width="480"
+                    height="110"
+                    rx="14"
+                    fill="rgba(239, 68, 68, 0.22)"
+                    stroke="#ef4444"
+                    strokeWidth="5"
+                    strokeDasharray="12 6"
+                  />
+                  <text
+                    x="0"
+                    y="18"
+                    textAnchor="middle"
+                    fontFamily="sans-serif"
+                    fontSize="56"
+                    fontWeight="900"
+                    fill="#ef4444"
+                    letterSpacing="8"
+                  >
+                    REVOKED
+                  </text>
+                </g>
+              )}
             </svg>
           </div>
 
-          {isValid && (
+          {isValid ? (
             <div className="border-t border-white/5 bg-white/[0.02] px-8 py-5 flex items-center justify-between flex-wrap gap-4">
               <div className="flex items-center gap-2">
                 <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 px-3 py-1 text-xs">
@@ -455,7 +525,22 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
                 </Button>
               </div>
             </div>
-          )}
+          ) : isRevoked ? (
+            <div className="border-t border-rose-500/20 bg-rose-500/[0.04] px-8 py-5 flex items-center justify-between flex-wrap gap-4">
+              <div className="flex items-center gap-2">
+                <Badge className="bg-rose-500/15 text-rose-400 border-rose-500/30 px-3 py-1 text-xs">
+                  <XCircle className="mr-1 h-3.5 w-3.5" /> Certificate Status: Revoked
+                </Badge>
+                <span className="text-xs text-gray-400 hidden sm:inline">Official invalidation record.</span>
+              </div>
+
+              <div className="flex items-center gap-3">
+                <Button onClick={handleCopyLink} variant="outline" className="border-rose-500/30 text-rose-300 hover:bg-rose-500/10 hover:text-white gap-2 text-xs" size="sm">
+                  <Copy className="h-4 w-4" /> {copied ? 'Copied Link' : 'Copy Verification URL'}
+                </Button>
+              </div>
+            </div>
+          ) : null}
         </div>
       </div>
     </div>

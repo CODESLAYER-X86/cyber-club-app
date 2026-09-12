@@ -1,9 +1,13 @@
 import prisma from '@/lib/db';
 import { successResponse, serverErrorResponse } from '@/lib/api-utils';
+import { getSupabaseUser } from '@/lib/supabase-server';
 
 // ─── GET /api/stats ─── Dashboard stats with treasury data
 export async function GET() {
   try {
+    const caller = await getSupabaseUser();
+    const canViewAuditLogs = !!(caller && ['PRESIDENT', 'PLATFORM_ADMIN', 'GS'].includes(caller.role));
+
     const [
       totalMembers,
       activeMembers,
@@ -24,13 +28,15 @@ export async function GET() {
       prisma.event.count({ where: { status: { in: ['UPCOMING', 'ONGOING'] } } }),
       prisma.payment.count({ where: { status: 'PENDING' } }),
       prisma.event.count(),
-      prisma.auditLog.findMany({
-        take: 5,
-        orderBy: { createdAt: 'desc' },
-        include: {
-          user: { select: { id: true, name: true, email: true, avatar: true, role: true } },
-        },
-      }),
+      canViewAuditLogs
+        ? prisma.auditLog.findMany({
+            take: 5,
+            orderBy: { createdAt: 'desc' },
+            include: {
+              user: { select: { id: true, name: true, email: true, avatar: true, role: true } },
+            },
+          })
+        : Promise.resolve([]),
       prisma.event.findMany({
         where: { status: 'UPCOMING' },
         take: 5,
@@ -52,6 +58,7 @@ export async function GET() {
       // Pending expenses count
       prisma.expense.count({ where: { status: 'PENDING' } }),
     ]);
+
 
     const totalDeposits = approvedDepositsResult._sum.amount ?? 0;
     const totalExpenses = approvedExpensesResult._sum.amount ?? 0;

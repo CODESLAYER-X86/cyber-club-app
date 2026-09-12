@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 
 const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "MEDIA", "VP", "GS"];
 
@@ -139,21 +140,50 @@ export async function GET(
       return notFoundResponse("Event not found");
     }
 
-    // Fetch payments for this event to link transactionId/payment info
-    const payments = await prisma.payment.findMany({
-      where: { eventId: id },
-      select: {
-        id: true,
-        userId: true,
-        amount: true,
-        status: true,
-        transactionId: true,
-        proofUrl: true,
-        createdAt: true,
-      },
-    });
+    // Auth & Permission check
+    const caller = await getSupabaseUser();
+    const isLeadershipOrVerifier = !!(caller && (
+      ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER", "VERIFIER"].includes(caller.role) ||
+      caller.userId === event.verifierId ||
+      caller.userId === event.createdBy
+    ));
 
-    const registrationsWithPayment = event.registrations.map((reg) => {
+    // Fetch payments for this event to link transactionId/payment info
+    let payments: any[] = [];
+    if (isLeadershipOrVerifier) {
+      payments = await prisma.payment.findMany({
+        where: { eventId: id },
+        select: {
+          id: true,
+          userId: true,
+          amount: true,
+          status: true,
+          transactionId: true,
+          proofUrl: true,
+          createdAt: true,
+        },
+      });
+    } else if (caller) {
+      payments = await prisma.payment.findMany({
+        where: { eventId: id, userId: caller.userId },
+        select: {
+          id: true,
+          userId: true,
+          amount: true,
+          status: true,
+          transactionId: true,
+          proofUrl: true,
+          createdAt: true,
+        },
+      });
+    }
+
+    // Filter registrations: leadership sees all; general users see only their own
+    const visibleRegistrations = isLeadershipOrVerifier
+      ? event.registrations
+      : (caller ? event.registrations.filter((r) => r.userId === caller.userId) : []);
+
+    const registrationsWithPayment = visibleRegistrations.map((reg) => {
       const payment = payments.find((p) => p.userId === reg.userId);
       return {
         ...reg,
@@ -170,9 +200,20 @@ export async function GET(
       };
     });
 
+    // Filter attendance and certificates: leadership sees all; general users see only their own
+    const visibleAttendance = isLeadershipOrVerifier
+      ? event.attendance
+      : (caller ? event.attendance.filter((a) => a.userId === caller.userId) : []);
+
+    const visibleCertificates = isLeadershipOrVerifier
+      ? event.certificates
+      : (caller ? event.certificates.filter((c) => c.userId === caller.userId) : []);
+
     const eventWithPayments = {
       ...event,
       registrations: registrationsWithPayment,
+      attendance: visibleAttendance,
+      certificates: visibleCertificates,
     };
 
     return successResponse({ event: eventWithPayments });
@@ -225,6 +266,11 @@ export async function PATCH(
           data[field] = body[field] === "MEMBER_ONLY" ? "MEMBER_ONLY" : "PUBLIC";
         } else if (field === "startDate" || field === "endDate") {
           data[field] = new Date(body[field]);
+        } else if (field === "poster") {
+          if (body[field] && !isSafeUrl(body[field])) {
+            return errorResponse("Invalid or unsafe poster URL", 400);
+          }
+          data[field] = body[field] || null;
         } else if (field === "fee") {
           data[field] = Number(body[field]) || 0;
         } else if (field === "maxSeats") {

@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server';
 import prisma from '@/lib/db';
-import { successResponse, errorResponse, serverErrorResponse } from '@/lib/api-utils';
+import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from '@/lib/api-utils';
+import { getSupabaseUser } from '@/lib/supabase-server';
 
 // ─── PATCH /api/expenses/[id]/approve ─── Dual approval (President + GS)
 export async function PATCH(
@@ -10,15 +11,17 @@ export async function PATCH(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { action, approvedBy, role } = body;
+    const { action } = body;
 
-    if (!action || !approvedBy || !role) {
-      return errorResponse('action, approvedBy, and role are required', 400);
+    const caller = await getSupabaseUser(['PRESIDENT', 'GS', 'PLATFORM_ADMIN']);
+    if (!caller) {
+      return forbiddenResponse('Only President, GS, or Platform Admin can approve/reject expenses');
     }
+    const approvedBy = caller.userId;
+    const role = caller.role;
 
-    const validRoles = ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'];
-    if (!validRoles.includes(role)) {
-      return errorResponse('Only President, GS, or Platform Admin can approve/reject', 403);
+    if (!action) {
+      return errorResponse('action is required', 400);
     }
 
     const expense = await prisma.expense.findUnique({

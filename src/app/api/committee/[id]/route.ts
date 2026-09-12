@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 
 const UPDATE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
 const DELETE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
@@ -25,6 +26,18 @@ export async function PATCH(
 
     if (!member) {
       return notFoundResponse("Committee member not found");
+    }
+
+    if (updateFields.imageUrl && !isSafeUrl(updateFields.imageUrl)) {
+      return errorResponse("Invalid or unsafe imageUrl");
+    }
+
+    if (socialLinks && typeof socialLinks === "object") {
+      for (const [key, val] of Object.entries(socialLinks)) {
+        if (typeof val === "string" && val.trim() && !isSafeUrl(val)) {
+          return errorResponse(`Invalid or unsafe social link for ${key}`);
+        }
+      }
     }
 
     // Build update data from allowed fields

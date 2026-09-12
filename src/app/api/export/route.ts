@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
 import { errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 const ALLOWED_ROLES = ["PRESIDENT", "TREASURER", "PLATFORM_ADMIN"];
 
@@ -20,23 +21,14 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url);
     const type = searchParams.get("type");
-    const userId = searchParams.get("userId");
 
     if (!type || !["members", "events", "payments", "certificates"].includes(type)) {
       return errorResponse("Invalid export type. Must be one of: members, events, payments, certificates");
     }
 
-    // RBAC check
-    if (!userId) {
-      return forbiddenResponse("User ID is required for export");
-    }
-
-    const user = await prisma.user.findUnique({
-      where: { id: userId },
-      select: { role: true },
-    });
-
-    if (!user || !ALLOWED_ROLES.includes(user.role)) {
+    // Cryptographic RBAC session check
+    const caller = await getSupabaseUser(ALLOWED_ROLES);
+    if (!caller) {
       return forbiddenResponse("Only President, Treasurer, and Platform Admin can export data");
     }
 

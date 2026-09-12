@@ -18,11 +18,19 @@ export async function GET(
     // Verify event exists
     const event = await prisma.event.findUnique({
       where: { id },
-      select: { id: true, title: true, status: true },
+      select: { id: true, title: true, status: true, verifierId: true, createdBy: true },
     });
 
     if (!event) {
       return notFoundResponse("Event not found");
+    }
+
+    const isAuthorized = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER", "VERIFIER"].includes(caller.role) ||
+      caller.userId === event.verifierId ||
+      caller.userId === event.createdBy;
+
+    if (!isAuthorized) {
+      return forbiddenResponse("Only event administrators and verifiers can view the full registration roster");
     }
 
     const registrations = await prisma.eventRegistration.findMany({

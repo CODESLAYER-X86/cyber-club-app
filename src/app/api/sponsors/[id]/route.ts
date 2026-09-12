@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -11,6 +12,14 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
     const { id } = await params;
     const body = await request.json();
     const { name, logoUrl, websiteUrl, description, priority, isActive } = body;
+
+    if (logoUrl && !isSafeUrl(logoUrl)) {
+      return errorResponse("Invalid logo URL. Must be a safe HTTP/HTTPS URL.", 400);
+    }
+
+    if (websiteUrl && !isSafeUrl(websiteUrl)) {
+      return errorResponse("Invalid website URL. Must be a safe HTTP/HTTPS URL.", 400);
+    }
 
     const existing = await prisma.clubSponsor.findUnique({ where: { id } });
     if (!existing) return errorResponse("Sponsor not found", 404);

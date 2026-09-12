@@ -31,35 +31,81 @@ const CERT_TYPE_LABELS: Record<string, string> = {
 import fs from 'fs';
 import path from 'path';
 
+function isPrivateOrLoopbackHost(hostname: string): boolean {
+  const lower = hostname.toLowerCase();
+  if (
+    lower === 'localhost' ||
+    lower === '127.0.0.1' ||
+    lower === '0.0.0.0' ||
+    lower === '::1' ||
+    lower.endsWith('.local') ||
+    lower.endsWith('.internal')
+  ) {
+    return true;
+  }
+
+  const parts = lower.split('.').map(Number);
+  if (parts.length === 4 && parts.every((p) => !isNaN(p) && p >= 0 && p <= 255)) {
+    if (parts[0] === 10) return true;
+    if (parts[0] === 127) return true;
+    if (parts[0] === 169 && parts[1] === 254) return true;
+    if (parts[0] === 172 && parts[1] >= 16 && parts[1] <= 31) return true;
+    if (parts[0] === 192 && parts[1] === 168) return true;
+    if (parts[0] === 0) return true;
+  }
+  return false;
+}
+
 async function fetchBase64(url: string | undefined, protocol?: string, host?: string): Promise<string> {
-  if (!url) return '';
+  if (!url || typeof url !== 'string') return '';
+  const trimmed = url.trim();
   try {
-    if (url.startsWith('/')) {
-      const localPath = path.join(process.cwd(), 'public', url);
-      if (fs.existsSync(localPath)) {
-        const buffer = fs.readFileSync(localPath);
-        const ext = url.split('.').pop()?.toLowerCase();
+    if (trimmed.startsWith('/')) {
+      if (trimmed.includes('..') || trimmed.includes('\0')) return '';
+      const publicDir = path.resolve(process.cwd(), 'public');
+      const resolvedPath = path.resolve(publicDir, '.' + trimmed);
+      if (!resolvedPath.startsWith(publicDir)) return '';
+
+      if (fs.existsSync(resolvedPath)) {
+        const stats = fs.statSync(resolvedPath);
+        if (stats.size > 5 * 1024 * 1024) return '';
+        const buffer = fs.readFileSync(resolvedPath);
+        const ext = path.extname(resolvedPath).toLowerCase();
         let mime = 'image/png';
-        if (ext === 'jpg' || ext === 'jpeg') mime = 'image/jpeg';
-        else if (ext === 'svg') mime = 'image/svg+xml';
+        if (ext === '.jpg' || ext === '.jpeg') mime = 'image/jpeg';
+        else if (ext === '.svg') mime = 'image/svg+xml';
+        else if (ext === '.webp') mime = 'image/webp';
         return `data:${mime};base64,${buffer.toString('base64')}`;
       }
-      if (protocol && host) {
-        url = `${protocol}://${host}${url}`;
-      } else {
-        return '';
-      }
+      return '';
     }
-    const res = await fetch(url);
+
+    const parsed = new URL(trimmed);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return '';
+    if (isPrivateOrLoopbackHost(parsed.hostname)) return '';
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 6000);
+    const res = await fetch(parsed.toString(), {
+      signal: controller.signal,
+      headers: { 'User-Agent': 'CSC-OG-Generator/1.0', Accept: 'image/*' },
+    });
+    clearTimeout(timer);
+
     if (!res.ok) return '';
-    const contentType = res.headers.get('content-type') || 'image/png';
+    const contentType = (res.headers.get('content-type') || 'image/png').toLowerCase();
+    if (!contentType.startsWith('image/')) return '';
+
     const arrayBuffer = await res.arrayBuffer();
+    if (arrayBuffer.byteLength > 5 * 1024 * 1024) return '';
+
     const buffer = Buffer.from(arrayBuffer);
     return `data:${contentType};base64,${buffer.toString('base64')}`;
-  } catch (e) {
+  } catch {
     return '';
   }
 }
+
 
 export async function GET(
   _request: NextRequest,
@@ -276,6 +322,12 @@ export async function GET(
 
   <line x1="100" y1="${height - 50}" x2="${width - 100}" y2="${height - 50}" stroke="rgba(255,255,255,0.05)" stroke-width="1"/>
   <text x="${width / 2}" y="${height - 30}" text-anchor="middle" font-family="sans-serif" font-size="10" fill="#4b5563">Verification URL: ${verifyUrl}</text>
+
+  ${certificate.status === 'REVOKED' ? `
+  <g transform="translate(${width / 2}, ${height / 2}) rotate(-25)">
+    <rect x="-240" y="-55" width="480" height="110" rx="14" fill="rgba(239, 68, 68, 0.25)" stroke="#ef4444" stroke-width="6" stroke-dasharray="12 6" />
+    <text x="0" y="18" text-anchor="middle" font-family="sans-serif" font-size="56" font-weight="900" fill="#ef4444" letter-spacing="8">REVOKED</text>
+  </g>` : ''}
 </svg>`;
 
     return new Response(svg, {

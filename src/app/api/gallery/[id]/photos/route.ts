@@ -7,6 +7,7 @@ import {
   serverErrorResponse,
 } from "@/lib/api-utils";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 import { NextRequest } from "next/server";
 
 const ALLOWED_ROLES = ["MEDIA", "PRESIDENT", "PLATFORM_ADMIN"];
@@ -27,6 +28,10 @@ export async function POST(
 
     if (!imageUrl || !title) {
       return errorResponse("imageUrl and title are required");
+    }
+
+    if (!isSafeUrl(imageUrl)) {
+      return errorResponse("Invalid or unsafe imageUrl");
     }
 
     // Verify event exists (the :id here is the event the photos belong to)

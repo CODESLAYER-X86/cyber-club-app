@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -53,6 +54,10 @@ export async function POST(request: NextRequest) {
 
     if (!title || !description || !achievedDate) {
       return errorResponse("title, description, and achievedDate are required");
+    }
+
+    if (imageUrl && !isSafeUrl(imageUrl)) {
+      return errorResponse("Invalid or unsafe imageUrl");
     }
 
     const caller = await getSupabaseUser();

@@ -6,6 +6,55 @@ export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs))
 }
 
+/**
+ * Sanitizes URLs to prevent link-based DOM XSS (e.g. javascript: / vbscript: pseudo-protocols).
+ * Allows: http:, https:, mailto:, tel:, relative paths (/...), in-page anchors (#...), or data:image/.
+ * Prepend https:// for domain-like inputs without protocol (e.g. linkedin.com/in/...).
+ */
+export function sanitizeUrl(url?: string | null, fallback = '#'): string {
+  if (!url || typeof url !== 'string') return fallback;
+  const trimmed = url.trim();
+  if (!trimmed) return fallback;
+
+  // Strip control characters and whitespace used in obfuscation bypasses
+  const normalized = trimmed.replace(/[\u0000-\u001F\u007F-\u009F\s]/g, '').toLowerCase();
+  if (
+    normalized.startsWith('javascript:') ||
+    normalized.startsWith('vbscript:') ||
+    (normalized.startsWith('data:') && !normalized.startsWith('data:image/'))
+  ) {
+    return fallback;
+  }
+
+  // Allow safe relative paths, anchors, or phone/mail
+  if (trimmed.startsWith('/') || trimmed.startsWith('#')) {
+    return trimmed;
+  }
+
+  if (/^(https?|mailto|tel):/i.test(trimmed)) {
+    return trimmed;
+  }
+
+  // Allow data:image/ for base64 images and logos
+  if (trimmed.startsWith('data:image/')) {
+    return trimmed;
+  }
+
+  // Auto-prefix domains without protocol like "facebook.com/club" or "www.github.com"
+  if (/^([a-zA-Z0-9-]+\.)+[a-zA-Z]{2,}(\/.*)?$/i.test(trimmed)) {
+    return `https://${trimmed}`;
+  }
+
+  return fallback;
+}
+
+export function isSafeUrl(url?: string | null): boolean {
+  if (!url || typeof url !== 'string') return false;
+  const sanitized = sanitizeUrl(url, '');
+  return sanitized !== '' && sanitized !== '#';
+}
+
+
 export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: string): boolean {
   // Public Views - always allowed
   const PUBLIC_VIEWS: AppView[] = [
@@ -51,8 +100,6 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     'committee',
     'sponsors',
     'finance',
-    'deposits',
-    'expenses',
   ].includes(view)) {
     return true;
   }
@@ -110,8 +157,6 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     case 'MEMBER':
       return [
         'finance',
-        'deposits',
-        'expenses',
       ].includes(view);
 
     case 'GUEST':

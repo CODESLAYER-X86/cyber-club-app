@@ -1,21 +1,25 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, forbiddenResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   try {
-    const userId = request.nextUrl.searchParams.get("userId");
-
-    if (!userId) {
-      return errorResponse("userId query parameter is required");
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("Unauthorized");
     }
 
+    const requestedUserId = request.nextUrl.searchParams.get("userId");
+    const isAdmin = caller.role === "PLATFORM_ADMIN";
+    const targetUserId = (isAdmin && requestedUserId) ? requestedUserId : caller.userId;
+
     const user = await prisma.user.findUnique({
-      where: { id: userId },
+      where: { id: targetUserId },
     });
 
     if (!user) {
-      return errorResponse("User not found", 404);
+      return notFoundResponse("User not found");
     }
 
     const { password: _, ...userWithoutPassword } = user;
@@ -24,3 +28,4 @@ export async function GET(request: NextRequest) {
     return serverErrorResponse();
   }
 }
+

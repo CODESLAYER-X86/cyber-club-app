@@ -1,11 +1,16 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 
 // GET pending member approval requests
 export async function GET() {
   try {
+    const approver = await getSupabaseUser(["PRESIDENT", "GS", "VERIFIER", "PLATFORM_ADMIN"]);
+    if (!approver) {
+      return forbiddenResponse("Unauthorized: Only executives and verifiers can view pending applications");
+    }
+
     const pendingUsers = await prisma.user.findMany({
       where: { membershipStatus: "PENDING" },
       select: {

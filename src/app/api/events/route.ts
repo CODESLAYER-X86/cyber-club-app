@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
@@ -128,6 +129,10 @@ export async function POST(request: NextRequest) {
 
     if (!title || !description || !startDate || !endDate || !venue) {
       return errorResponse("title, description, startDate, endDate, and venue are required");
+    }
+
+    if (poster && !isSafeUrl(poster)) {
+      return errorResponse("Invalid or unsafe poster URL");
     }
 
     const EVENT_CREATOR_ROLES = ["PRESIDENT", "VP", "GS", "PLATFORM_ADMIN", "MEDIA"];

@@ -2,15 +2,30 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, serverErrorResponse, forbiddenResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { isSafeUrl } from "@/lib/utils";
 
 export async function GET(request: NextRequest) {
   try {
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("Please sign in to view payment records");
+    }
+
     const searchParams = request.nextUrl.searchParams;
     const status = searchParams.get("status");
     const type = searchParams.get("type");
-    const userId = searchParams.get("userId");
+    const requestedUserId = searchParams.get("userId");
+
+    const isFinancialStaff = ["TREASURER", "PRESIDENT", "GS", "PLATFORM_ADMIN", "VERIFIER"].includes(caller.role);
 
     const where: Record<string, unknown> = {};
+
+    if (!isFinancialStaff) {
+      // Non-staff can ONLY query their own payments
+      where.userId = caller.userId;
+    } else if (requestedUserId) {
+      where.userId = requestedUserId;
+    }
 
     if (status) {
       if (status.includes(",")) {
@@ -22,10 +37,6 @@ export async function GET(request: NextRequest) {
 
     if (type) {
       where.type = type;
-    }
-
-    if (userId) {
-      where.userId = userId;
     }
 
     const payments = await prisma.payment.findMany({
@@ -82,6 +93,10 @@ export async function POST(request: NextRequest) {
     const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH"];
     if (!VALID_METHODS.includes(paymentMethod)) {
       return errorResponse(`Invalid paymentMethod. Must be one of: ${VALID_METHODS.join(", ")}`);
+    }
+
+    if (proofUrl && !isSafeUrl(proofUrl)) {
+      return errorResponse("Invalid payment proof URL. Must be a safe HTTP/HTTPS URL.", 400);
     }
 
     const caller = await getSupabaseUser();

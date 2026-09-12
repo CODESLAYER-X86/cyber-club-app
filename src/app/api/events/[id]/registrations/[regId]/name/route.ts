@@ -1,6 +1,7 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function PATCH(
   request: NextRequest,
@@ -9,10 +10,11 @@ export async function PATCH(
   try {
     const { id: eventId, regId } = await params;
     const body = await request.json();
-    const { preferredName, studentId, department, institution, requestingUserId, requestingUserRole } = body;
+    const { preferredName, studentId, department, institution } = body;
 
-    if (!requestingUserId) {
-      return errorResponse("requestingUserId is required");
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("Unauthorized");
     }
 
     const registration = await prisma.eventRegistration.findUnique({
@@ -24,12 +26,12 @@ export async function PATCH(
       return notFoundResponse("Registration not found");
     }
 
-    // Auth check: User must own the registration OR be an executive/admin
-    const isOwner = registration.userId === requestingUserId;
-    const isAdmin = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS"].includes(requestingUserRole);
+    // Cryptographic auth check: Caller must own the registration OR be an executive/admin
+    const isOwner = registration.userId === caller.userId;
+    const isAdmin = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS"].includes(caller.role);
 
     if (!isOwner && !isAdmin) {
-      return errorResponse("You are not authorized to edit this information", 403);
+      return forbiddenResponse("You are not authorized to edit this information");
     }
 
     // Lifecycle check: Once Authorized or Generated, name is locked

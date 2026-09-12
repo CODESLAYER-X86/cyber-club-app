@@ -1,7 +1,8 @@
 import prisma from "@/lib/db";
-import { successResponse, errorResponse, notFoundResponse, serverErrorResponse } from "@/lib/api-utils";
+import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 const AUTHORIZED_ROLES = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "VERIFIER"];
 
@@ -12,7 +13,7 @@ export async function POST(
   try {
     const { id: eventId } = await params;
     const body = await request.json();
-    const { userId, status, verifierRole, verifierId } = body;
+    const { userId, status } = body;
 
     if (!userId || !status) {
       return errorResponse("userId and status are required");
@@ -20,6 +21,12 @@ export async function POST(
 
     if (!["PRESENT", "ABSENT", "LATE"].includes(status)) {
       return errorResponse("status must be PRESENT, ABSENT, or LATE");
+    }
+
+    // Authenticate caller session
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to mark attendance");
     }
 
     // Verify event exists
@@ -31,11 +38,12 @@ export async function POST(
       return notFoundResponse("Event not found");
     }
 
-    // Check if designated verifier or event creator, otherwise check global role
-    const isDesignatedVerifier = verifierId && (event.verifierId === verifierId || event.createdBy === verifierId);
+    // Cryptographically secure authorization check
+    const isDesignatedVerifier = event.verifierId === caller.userId || event.createdBy === caller.userId;
+    const isGlobalAuthorized = AUTHORIZED_ROLES.includes(caller.role);
 
-    if (!isDesignatedVerifier && (!verifierRole || !AUTHORIZED_ROLES.includes(verifierRole))) {
-      return errorResponse("You are not authorized to mark attendance", 403);
+    if (!isDesignatedVerifier && !isGlobalAuthorized) {
+      return forbiddenResponse("You are not authorized to mark attendance for this event");
     }
 
     // 1. Create or update Attendance record

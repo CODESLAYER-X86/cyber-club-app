@@ -13,8 +13,11 @@ const AUTHORIZED_ROLES = ["GS", "PRESIDENT", "PLATFORM_ADMIN"];
 
 export async function GET(request: NextRequest) {
   try {
+    const caller = await getSupabaseUser();
+    const isCertAuthority = !!(caller && ["GS", "PRESIDENT", "PLATFORM_ADMIN", "VP"].includes(caller.role));
+
     const searchParams = request.nextUrl.searchParams;
-    const userId = searchParams.get("userId");
+    const requestedUserId = searchParams.get("userId");
     const eventId = searchParams.get("eventId");
     const type = searchParams.get("type");
     const status = searchParams.get("status");
@@ -22,8 +25,11 @@ export async function GET(request: NextRequest) {
 
     const where: Record<string, unknown> = {};
 
-    if (userId) {
-      where.userId = userId;
+    if (!isCertAuthority) {
+      // General members can only access their own certificates
+      where.userId = caller ? caller.userId : "__UNAUTHORIZED__";
+    } else if (requestedUserId) {
+      where.userId = requestedUserId;
     }
 
     if (eventId) {
