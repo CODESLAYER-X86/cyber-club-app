@@ -107,6 +107,8 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     case 'MEMBER':
       return [
         'finance',
+        'deposits',
+        'expenses',
       ].includes(view);
 
     case 'GUEST':

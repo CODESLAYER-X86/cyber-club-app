@@ -130,6 +130,8 @@ const NAV_ITEMS: Record<UserRole, NavItem[]> = {
     { label: 'Achievements', view: 'achievements', icon: 'Trophy' },
     { label: 'Certificates', view: 'certificates', icon: 'Award' },
     { label: 'Treasury', view: 'finance', icon: 'DollarSign' },
+    { label: 'Deposits', view: 'deposits', icon: 'TrendingUp' },
+    { label: 'Expenses', view: 'expenses', icon: 'Receipt' },
     { label: 'Profile', view: 'profile', icon: 'User' },
     { label: 'Settings', view: 'settings', icon: 'Settings' },
   ],
