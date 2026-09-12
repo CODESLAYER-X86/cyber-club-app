@@ -11,7 +11,7 @@ export type UserRole =
 
 export type MembershipStatus = "NON_MEMBER" | "PENDING" | "ACTIVE" | "REJECTED";
 
-export type EventType = "PUBLIC" | "MEMBER_ONLY" | "PAID" | "LIMITED";
+export type EventType = "PUBLIC" | "MEMBER_ONLY";
 export type EventCategory = "WORKSHOP" | "SEMINAR" | "TRAINING" | "CTF" | "MEETUP";
 export type EventStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
 
@@ -77,6 +77,10 @@ export interface User {
   rejectionReason?: string;
   createdAt: string;
   updatedAt: string;
+  eventRegistrations?: EventRegistration[];
+  certificates?: Certificate[];
+  attendance?: Attendance[];
+  payments?: Payment[];
 }
 
 export interface EventPaymentConfig {
@@ -430,9 +434,12 @@ export const MEMBERSHIP_STATUS_LABELS: Record<MembershipStatus, string> = {
 export const EVENT_TYPE_LABELS: Record<EventType, string> = {
   PUBLIC: "Public",
   MEMBER_ONLY: "Member Only",
-  PAID: "Paid",
-  LIMITED: "Limited Seats",
 };
+
+export function normalizeEventType(type?: string | null): EventType {
+  if (type === "MEMBER_ONLY") return "MEMBER_ONLY";
+  return "PUBLIC";
+}
 
 export const EVENT_CATEGORY_LABELS: Record<EventCategory, string> = {
   WORKSHOP: "Workshop",

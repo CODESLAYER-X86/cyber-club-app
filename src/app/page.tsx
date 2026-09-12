@@ -7,7 +7,7 @@ import { Loader2 } from 'lucide-react';
 import type { AppView } from '@/types';
 
 export default function Home() {
-  const { setCurrentView, setCertificateShareCode, login, isAuthenticated } = useAppStore();
+  const { setCurrentView, setCertificateShareCode, setSelectedEventId, login, isAuthenticated } = useAppStore();
   const [isAuthenticating, setIsAuthenticating] = useState(() => {
     if (typeof window === 'undefined') return false;
     return new URLSearchParams(window.location.search).get('google_auth') === '1';
@@ -25,6 +25,15 @@ export default function Home() {
       url.searchParams.delete('cert');
       window.history.replaceState({}, '', url.pathname + (url.search ? url.search : ''));
       return;
+    }
+
+    // Event deep-link (e.g. ?event=xxx or ?id=xxx)
+    const eventParam = params.get('event') || params.get('id') || params.get('eventId');
+    if (eventParam) {
+      setSelectedEventId(eventParam);
+      if (params.get('view') !== 'event-detail') {
+        setCurrentView('event-detail', { replace: true });
+      }
     }
 
     // View parameter from URL (e.g. ?view=events)
@@ -64,7 +73,7 @@ export default function Home() {
         if (isGoogleAuthRedirect) setCurrentView('login', { replace: true });
         setIsAuthenticating(false);
       });
-  }, [setCurrentView, setCertificateShareCode, login]);
+  }, [setCurrentView, setCertificateShareCode, setSelectedEventId, login]);
 
   // Handle browser back/forward buttons
   useEffect(() => {
@@ -84,12 +93,17 @@ export default function Home() {
           ? event.state.view
           : (isAuthenticated ? 'dashboard' : 'landing'));
 
+      const eventParam = params.get('event') || params.get('id') || params.get('eventId');
+      if (eventParam) {
+        setSelectedEventId(eventParam);
+      }
+
       setCurrentView(targetView, { replace: true });
     };
 
     window.addEventListener('popstate', handlePopState);
     return () => window.removeEventListener('popstate', handlePopState);
-  }, [isAuthenticated, setCurrentView]);
+  }, [isAuthenticated, setCurrentView, setSelectedEventId]);
 
   if (isAuthenticating) {
     return (

@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import { ArrowLeft, Plus, Loader2, Calendar, MapPin, Users, FileText, ClipboardCheck, Info, Check, Pencil } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventType, EventCategory } from '@/types';
-import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS } from '@/types';
+import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, normalizeEventType } from '@/types';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -84,7 +84,7 @@ export function CreateEventPage() {
     setForm({
       title: e.title || '',
       description: e.description || '',
-      type: (e.type || 'PUBLIC') as EventType,
+      type: normalizeEventType(e.type),
       category: (e.category || 'WORKSHOP') as EventCategory,
       startDate: toLocalDatetime(e.startDate),
       endDate: toLocalDatetime(e.endDate),
@@ -431,7 +431,15 @@ export function CreateEventPage() {
                 <div className="flex flex-wrap items-center gap-1.5 mb-3">
                   <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 text-[10px]">UPCOMING</Badge>
                   <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 text-[10px]">{EVENT_CATEGORY_LABELS[form.category]}</Badge>
-                  <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{EVENT_TYPE_LABELS[form.type]}</Badge>
+                  <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">{EVENT_TYPE_LABELS[form.type] || form.type}</Badge>
+                  {Number(form.fee) > 0 ? (
+                    <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 text-[10px]">Paid</Badge>
+                  ) : (
+                    <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">Free</Badge>
+                  )}
+                  {Number(form.maxSeats) > 0 && (
+                    <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 text-[10px]">Limited Seats</Badge>
+                  )}
                   {form.requiresAssessment && (
                     <Badge variant="outline" className="border-amber-500/30 text-amber-400 text-[10px]">Assessment</Badge>
                   )}

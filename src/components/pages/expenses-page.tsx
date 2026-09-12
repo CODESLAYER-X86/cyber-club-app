@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Receipt, Plus, CheckCircle, XCircle, Loader2,
   Trash2, ChevronDown, ChevronUp, Shield, ShieldCheck,
-  ArrowDownRight, DollarSign,
+  ArrowDownRight, DollarSign, ExternalLink,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Expense, ExpenseItem } from '@/types';
@@ -403,50 +403,102 @@ export function ExpensesPage() {
                     {/* Expanded Details */}
                     {isExpanded && (
                       <div className="mt-4 space-y-3 border-t border-white/5 pt-3">
+                        {/* Note / Memo */}
+                        {expense.note && (
+                          <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs text-gray-300">
+                            <span className="block mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Expense Purpose / Memo:</span>
+                            <p className="leading-relaxed">{expense.note}</p>
+                          </div>
+                        )}
+
                         {/* Items Table */}
-                        {expense.items && expense.items.length > 0 && (
-                          <div className="overflow-x-auto">
+                        {expense.items && expense.items.length > 0 ? (
+                          <div className="overflow-x-auto rounded-lg border border-white/5">
                             <table className="w-full text-sm">
-                              <thead>
+                              <thead className="bg-white/[0.02]">
                                 <tr className="border-b border-white/5">
-                                  <th className="pb-2 text-left font-medium text-gray-400">Name</th>
-                                  <th className="pb-2 text-center font-medium text-gray-400">Qty</th>
-                                  <th className="pb-2 text-center font-medium text-gray-400">Unit</th>
-                                  <th className="pb-2 text-right font-medium text-gray-400">Price</th>
-                                  <th className="pb-2 text-right font-medium text-gray-400">Subtotal</th>
+                                  <th className="py-2 px-3 text-left font-medium text-gray-400">Item</th>
+                                  <th className="py-2 px-3 text-center font-medium text-gray-400">Qty</th>
+                                  <th className="py-2 px-3 text-center font-medium text-gray-400">Unit</th>
+                                  <th className="py-2 px-3 text-right font-medium text-gray-400">Unit Price</th>
+                                  <th className="py-2 px-3 text-right font-medium text-gray-400">Subtotal</th>
                                 </tr>
                               </thead>
                               <tbody>
                                 {expense.items.map((it: any) => (
                                   <tr key={it.id} className="border-b border-white/[0.03]">
-                                    <td className="py-1.5 text-gray-300">{it.itemName}</td>
-                                    <td className="py-1.5 text-center text-gray-300">{it.quantity}</td>
-                                    <td className="py-1.5 text-center text-gray-400">{it.unit}</td>
-                                    <td className="py-1.5 text-right text-gray-300">৳{it.price.toLocaleString()}</td>
-                                    <td className="py-1.5 text-right text-white font-medium">৳{(it.quantity * it.price).toLocaleString()}</td>
+                                    <td className="py-2 px-3 text-gray-200 font-medium">{it.itemName}</td>
+                                    <td className="py-2 px-3 text-center text-gray-300">{it.quantity}</td>
+                                    <td className="py-2 px-3 text-center text-gray-400">{it.unit}</td>
+                                    <td className="py-2 px-3 text-right text-gray-300 font-mono">৳{it.price.toLocaleString()}</td>
+                                    <td className="py-2 px-3 text-right text-white font-mono font-medium">৳{(it.quantity * it.price).toLocaleString()}</td>
                                   </tr>
                                 ))}
                               </tbody>
                               <tfoot>
-                                <tr className="border-t border-white/10">
-                                  <td colSpan={4} className="pt-2 text-right font-medium text-gray-400">Total</td>
-                                  <td className="pt-2 text-right font-bold text-amber-400">৳{expense.amount.toLocaleString()}</td>
+                                <tr className="border-t border-white/10 bg-white/[0.02]">
+                                  <td colSpan={4} className="py-2.5 px-3 text-right font-medium text-gray-400">Total Invoiced:</td>
+                                  <td className="py-2.5 px-3 text-right font-bold text-amber-400 font-mono">৳{expense.amount.toLocaleString()}</td>
                                 </tr>
                               </tfoot>
                             </table>
                           </div>
+                        ) : (
+                          <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs flex items-center justify-between">
+                            <span className="text-gray-400">Single-voucher expenditure: <span className="text-white font-medium">{expense.note || 'General Club Operations'}</span></span>
+                            <span className="font-mono font-bold text-amber-400">৳{expense.amount.toLocaleString()}</span>
+                          </div>
                         )}
 
-                        {/* Approval Status */}
-                        <div className="flex items-center gap-4 text-xs text-gray-400">
-                          <span>Submitted by: <span className="text-gray-300">{expense.creator?.name || '—'}</span></span>
-                          <span className={expense.presidentStatus === 'APPROVED' ? 'text-emerald-400' : expense.presidentStatus === 'REJECTED' ? 'text-red-400' : ''}>
-                            President: {expense.presidentStatus} {expense.presidentApprover ? `(${expense.presidentApprover.name})` : ''}
-                          </span>
-                          <span className={expense.gsStatus === 'APPROVED' ? 'text-emerald-400' : expense.gsStatus === 'REJECTED' ? 'text-red-400' : ''}>
-                            GS: {expense.gsStatus} {expense.gsApprover ? `(${expense.gsApprover.name})` : ''}
-                          </span>
+                        {/* Metadata & Sign-off Details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 text-xs text-gray-400 bg-white/[0.02] border border-white/5 p-3 rounded-lg">
+                          <div>
+                            <span className="text-gray-500 block text-[11px]">Recorded By:</span>
+                            <span className="text-gray-200 font-medium">
+                              {expense.creator?.name || 'Treasurer'} {expense.creator?.role ? `(${expense.creator.role})` : ''}
+                            </span>
+                          </div>
+                          {expense.purchasedBy && (
+                            <div>
+                              <span className="text-gray-500 block text-[11px]">Purchased By:</span>
+                              <span className="text-gray-200 font-medium">{expense.purchasedBy}</span>
+                            </div>
+                          )}
+                          <div>
+                            <span className="text-gray-500 block text-[11px]">President Review:</span>
+                            <span className={expense.presidentStatus === 'APPROVED' ? 'text-emerald-400 font-medium' : expense.presidentStatus === 'REJECTED' ? 'text-red-400 font-medium' : 'text-amber-400'}>
+                              {expense.presidentStatus} {expense.presidentApprover ? `(${expense.presidentApprover.name})` : ''}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 block text-[11px]">General Secretary Review:</span>
+                            <span className={expense.gsStatus === 'APPROVED' ? 'text-emerald-400 font-medium' : expense.gsStatus === 'REJECTED' ? 'text-red-400 font-medium' : 'text-amber-400'}>
+                              {expense.gsStatus} {expense.gsApprover ? `(${expense.gsApprover.name})` : ''}
+                            </span>
+                          </div>
                         </div>
+
+                        {/* Receipt Attachment Link */}
+                        {expense.attachmentUrl && (
+                          <div className="pt-0.5">
+                            <a
+                              href={expense.attachmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 hover:underline bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1.5 rounded-md"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" /> View Receipt / Supporting Voucher Document
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Voided Details if VOIDED */}
+                        {expense.status === 'VOIDED' && (
+                          <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 p-2.5 text-xs text-rose-300">
+                            <span className="font-semibold text-rose-400 block mb-0.5">Voided Audit Record:</span>
+                            {expense.voidReason || 'Reversed by Executive Board & restored to treasury balance.'}
+                          </div>
+                        )}
 
                         {/* Approval Actions */}
                         {canApprove && (

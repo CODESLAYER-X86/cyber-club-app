@@ -14,7 +14,11 @@ export async function GET(request: NextRequest) {
     const where: Record<string, unknown> = {};
 
     if (type) {
-      where.type = type;
+      if (type === "PUBLIC") {
+        where.type = { not: "MEMBER_ONLY" };
+      } else {
+        where.type = type;
+      }
     }
 
     if (status) {
@@ -142,11 +146,13 @@ export async function POST(request: NextRequest) {
       return errorResponse((configError as Error).message, 400);
     }
 
+    const normalizedType = type === "MEMBER_ONLY" ? "MEMBER_ONLY" : "PUBLIC";
+
     const event = await prisma.event.create({
       data: {
         title,
         description,
-        type,
+        type: normalizedType,
         category,
         startDate: new Date(startDate),
         endDate: new Date(endDate),

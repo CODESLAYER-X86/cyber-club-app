@@ -27,15 +27,15 @@ export async function POST(
       return errorResponse("Cannot register for a cancelled event", 400);
     }
 
-    // Check membership for MEMBER_ONLY type
+    // Check membership for MEMBER_ONLY type: all roles except GUEST can apply
     if (event.type === "MEMBER_ONLY") {
       const user = await prisma.user.findUnique({ where: { id: userId } });
-      if (!user || user.membershipStatus !== "ACTIVE") {
-        return errorResponse("Only active members can register for this event", 403);
+      if (!user || (user.role === "GUEST" && user.membershipStatus !== "ACTIVE")) {
+        return errorResponse("This event is restricted to club members. Guests cannot register.", 403);
       }
     }
 
-    // For PAID events, require transaction ID
+    // For PAID events (fee > 0), require transaction ID
     if (event.fee > 0 && !transactionId) {
       return errorResponse("Transaction ID is required for paid events", 400);
     }
@@ -47,8 +47,8 @@ export async function POST(
 
     // Step 2: Atomic Transaction execution (prevents race condition & overselling)
     const result = await prisma.$transaction(async (tx) => {
-      // 1. Atomic seat increment with conditional capacity check
-      if (event.type === "LIMITED" && event.maxSeats) {
+      // 1. Atomic seat increment with conditional capacity check (maxSeats > 0 implies limited seats)
+      if (event.maxSeats && event.maxSeats > 0) {
         const updateResult = await tx.event.updateMany({
           where: {
             id,

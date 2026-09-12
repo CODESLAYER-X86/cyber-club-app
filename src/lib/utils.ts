@@ -50,6 +50,9 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     'resources',
     'committee',
     'sponsors',
+    'finance',
+    'deposits',
+    'expenses',
   ].includes(view)) {
     return true;
   }

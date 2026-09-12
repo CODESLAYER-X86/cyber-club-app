@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag, FileDown } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
-import type { Event, EventRegistration, User as UserType } from '@/types';
+import type { Event, EventRegistration, User as UserType, EventType } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, ROLE_LABELS, CERTIFICATE_TYPE_LABELS, CertificateType } from '@/types';
 import { EventBadge, RegistrationBadge } from '@/components/shared/status-badge';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -34,7 +34,7 @@ const parsePaymentConfig = (paymentConfig?: string | null) => {
   }
 };
 export function EventDetailPage() {
-  const { currentUser, selectedEventId, setCurrentView, setSelectedEventId, setEditingEventId, setEditingEventData } = useAppStore();
+  const { currentUser, selectedEventId, setCurrentView, setSelectedEventId, setSelectedMemberId, setEditingEventId, setEditingEventData } = useAppStore();
   const [event, setEvent] = useState<EventDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [registering, setRegistering] = useState(false);
@@ -59,11 +59,26 @@ export function EventDetailPage() {
   const [updatingAttendanceId, setUpdatingAttendanceId] = useState<string | null>(null);
 
   const loadEvent = useCallback(async (showSkeleton = true) => {
-    if (!selectedEventId) return;
+    let eventId = selectedEventId;
+    if (!eventId && typeof window !== 'undefined') {
+      try {
+        const urlParams = new URLSearchParams(window.location.search);
+        eventId = urlParams.get('id') || urlParams.get('eventId') || urlParams.get('event') || localStorage.getItem('csc_selected_event_id');
+        if (eventId) {
+          setSelectedEventId(eventId);
+        }
+      } catch {}
+    }
+
+    if (!eventId) {
+      if (showSkeleton) setLoading(false);
+      return;
+    }
+
     if (showSkeleton) setLoading(true);
     try {
       // Parallel fetch: event data + certificate status (if logged in)
-      const eventPromise = fetch(`/api/events/${selectedEventId}`).then(r => r.json());
+      const eventPromise = fetch(`/api/events/${eventId}`).then(r => r.json());
       const certPromise = currentUser
         ? fetch(`/api/certificates?userId=${currentUser.id}`).then(r => r.json()).catch(() => null)
         : Promise.resolve(null);
@@ -83,7 +98,7 @@ export function EventDetailPage() {
 
       // Process certificate status from parallel fetch
       if (certData?.success && certData.data.certificates) {
-        const userCert = certData.data.certificates.find((c: any) => c.eventId === selectedEventId);
+        const userCert = certData.data.certificates.find((c: any) => c.eventId === eventId);
         if (userCert) {
           setCertificateStatus(userCert.status);
         }
@@ -93,7 +108,7 @@ export function EventDetailPage() {
     } finally {
       if (showSkeleton) setLoading(false);
     }
-  }, [selectedEventId, currentUser]);
+  }, [selectedEventId, currentUser, setSelectedEventId]);
 
   useEffect(() => {
     loadEvent();
@@ -245,7 +260,7 @@ export function EventDetailPage() {
   };
 
   const handleShare = async () => {
-    const url = `${window.location.origin}?event=${event?.id}`;
+    const url = `${window.location.origin}?view=event-detail&id=${event?.id}`;
     try {
       await navigator.clipboard.writeText(url);
       setShareMsg('Link copied!');
@@ -311,16 +326,22 @@ export function EventDetailPage() {
       </div>
     );
   }
-  if (!event) return <div className="py-16 text-center text-gray-500">Event not found</div>;
+  if (!event) {
+    return (
+      <div className="py-24 text-center space-y-4">
+        <p className="text-gray-400 text-lg">Event not found or no event selected.</p>
+        <Button variant="outline" onClick={() => setCurrentView('events')} className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10">
+          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Events
+        </Button>
+      </div>
+    );
+  }
 
   const seatPercent = event.maxSeats ? Math.min((event.currentSeats / event.maxSeats) * 100, 100) : 0;
   const isFull = event.maxSeats ? event.currentSeats >= event.maxSeats : false;
-  const isMember = currentUser?.membershipStatus === 'ACTIVE';
-  // PUBLIC events: anyone logged in can register
-  // MEMBER_ONLY events: only active members can register
-  // PAID events: anyone logged in can register (payment required)
-  // LIMITED events: anyone logged in can register (subject to seat availability)
-  const canRegisterForEventType = event.type === 'MEMBER_ONLY' ? isMember : !!currentUser;
+  // For MEMBER_ONLY events, without guest, all other roles can apply (or active member status)
+  const isEligibleMember = !!currentUser && (currentUser.role !== 'GUEST' || currentUser.membershipStatus === 'ACTIVE');
+  const canRegisterForEventType = event.type === 'MEMBER_ONLY' ? isEligibleMember : !!currentUser;
   const canRegister = canRegisterForEventType && !isFull && event.status === 'UPCOMING' && !userRegistration;
   const isAdmin = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role);
   const canApproveReg = currentUser && (
@@ -413,7 +434,15 @@ export function EventDetailPage() {
           <CardContent className="pt-6">
             <div className="flex flex-wrap items-center gap-2 mb-4">
               <EventBadge status={event.status} />
-              <Badge variant="outline" className="border-white/10 text-gray-400">{EVENT_TYPE_LABELS[event.type]}</Badge>
+              <Badge variant="outline" className="border-white/10 text-gray-400">{EVENT_TYPE_LABELS[event.type as EventType] || (event.type === 'MEMBER_ONLY' ? 'Member Only' : 'Public')}</Badge>
+              {event.fee > 0 ? (
+                <Badge variant="outline" className="border-emerald-500/30 text-emerald-400">Paid (৳{event.fee})</Badge>
+              ) : (
+                <Badge variant="outline" className="border-white/10 text-gray-400">Free</Badge>
+              )}
+              {event.maxSeats && event.maxSeats > 0 && (
+                <Badge variant="outline" className="border-cyan-500/30 text-cyan-400">Limited Seats ({event.maxSeats})</Badge>
+              )}
               <Badge variant="outline" className="border-white/10 text-gray-400">{EVENT_CATEGORY_LABELS[event.category]}</Badge>
               {event.requiresAssessment && <Badge variant="outline" className="border-amber-500/30 text-amber-400">Assessment Required</Badge>}
             </div>
@@ -639,7 +668,7 @@ export function EventDetailPage() {
               {!canRegisterForEventType ? (
                 <div className="flex items-center gap-2 text-amber-400">
                   <AlertTriangle className="h-4 w-4" />
-                  <p className="text-sm">You need to be an approved member to register for this event.</p>
+                  <p className="text-sm">This event is restricted to club members. Guests cannot register.</p>
                 </div>
               ) : isFull ? (
                 <div className="flex items-center gap-2 text-red-400">
@@ -792,12 +821,23 @@ export function EventDetailPage() {
                           transition={{ delay: index * 0.03 }}
                           className="flex items-center justify-between rounded-lg border border-white/5 bg-white/5 px-4 py-3"
                         >
-                          <div className="flex items-center gap-3">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-xs font-medium text-emerald-400">
+                          <div
+                            className={`flex items-center gap-3 ${isAdmin ? 'cursor-pointer group' : ''}`}
+                            onClick={() => {
+                              if (isAdmin && reg.userId) {
+                                setSelectedMemberId(reg.userId);
+                                setCurrentView('profile');
+                              }
+                            }}
+                          >
+                            <div className="flex h-8 w-8 items-center justify-center rounded-full border border-emerald-500/20 bg-emerald-500/10 text-xs font-medium text-emerald-400 group-hover:border-emerald-400 transition-colors">
                               {reg.user?.name?.charAt(0)?.toUpperCase() || '?'}
                             </div>
                             <div>
-                              <p className="text-sm font-medium text-white">{reg.user?.name || 'Unknown'}</p>
+                              <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors flex items-center gap-1.5">
+                                {reg.user?.name || 'Unknown'}
+                                {isAdmin && <span className="text-[10px] text-gray-500 font-mono group-hover:text-emerald-400">↗</span>}
+                              </p>
                               <p className="text-xs text-gray-500">{reg.user?.email}</p>
                               {reg.payment && (
                                 <div className="mt-1 flex flex-wrap items-center gap-1.5">

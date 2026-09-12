@@ -5,7 +5,8 @@ import { motion } from 'framer-motion';
 import {
   DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   Loader2, Wallet, Activity, Landmark, Receipt, Eye, ExternalLink,
-  ShieldCheck, Calendar, User, FileText, CheckCircle, XCircle, AlertCircle
+  ShieldCheck, Calendar, User, FileText, CheckCircle, XCircle, AlertCircle,
+  ChevronDown, ChevronUp
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { StatCard } from '@/components/shared/stat-card';
@@ -57,6 +58,7 @@ export function FinancePage() {
   const [recentExpenses, setRecentExpenses] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [selectedItem, setSelectedItem] = useState<ActivityItem | null>(null);
+  const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
 
   const isExecutive = currentUser && ['PRESIDENT', 'GS', 'TREASURER', 'PLATFORM_ADMIN', 'VP'].includes(currentUser.role);
 
@@ -271,39 +273,139 @@ export function FinancePage() {
                 {recentActivity.map((item) => {
                   const statusConf = STATUS_CONFIG[item.status] || STATUS_CONFIG.PENDING;
                   const isDeposit = item.type === 'deposit';
+                  const isExpanded = expandedActivityId === item.id;
                   return (
                     <div
                       key={item.id}
-                      onClick={() => setSelectedItem(item)}
-                      className="group flex items-center justify-between rounded-lg border border-white/5 bg-white/[0.02] p-3.5 cursor-pointer hover:border-emerald-500/30 hover:bg-white/[0.05] transition-all"
+                      className="rounded-lg border border-white/5 bg-white/[0.02] transition-all hover:border-emerald-500/20 overflow-hidden"
                     >
-                      <div className="flex items-center gap-3">
-                        <div className={`flex h-9 w-9 items-center justify-center rounded-lg transition-transform group-hover:scale-105 ${isDeposit ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
-                          {isDeposit ? <ArrowUpRight className="h-4.5 w-4.5" /> : <ArrowDownRight className="h-4.5 w-4.5" />}
+                      <div
+                        onClick={() => setExpandedActivityId(isExpanded ? null : item.id)}
+                        className="group flex items-center justify-between p-3.5 cursor-pointer hover:bg-white/[0.03] transition-all"
+                      >
+                        <div className="flex items-center gap-3">
+                          <div className={`flex h-9 w-9 items-center justify-center rounded-lg transition-transform group-hover:scale-105 ${isDeposit ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
+                            {isDeposit ? <ArrowUpRight className="h-4.5 w-4.5" /> : <ArrowDownRight className="h-4.5 w-4.5" />}
+                          </div>
+                          <div>
+                            <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">
+                              {item.description}
+                            </p>
+                            <p className="text-xs text-gray-500 flex items-center gap-2">
+                              <span>{new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                              {item.type === 'expense' && item.raw?.purchasedBy && (
+                                <span>• By {item.raw.purchasedBy}</span>
+                              )}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">
-                            {item.description}
-                          </p>
-                          <p className="text-xs text-gray-500 flex items-center gap-2">
-                            <span>{new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
-                            {item.type === 'expense' && item.raw?.purchasedBy && (
-                              <span>• By {item.raw.purchasedBy}</span>
-                            )}
-                          </p>
+
+                        <div className="flex items-center gap-3">
+                          <span className={`text-sm font-semibold font-mono ${isDeposit ? 'text-emerald-400' : 'text-amber-400'}`}>
+                            {isDeposit ? '+' : '−'}৳{item.amount.toLocaleString()}
+                          </span>
+                          <div className="flex items-center gap-1.5">
+                            <div className={`h-2 w-2 rounded-full ${statusConf.dotColor}`} />
+                            <span className={`text-xs ${statusConf.color}`}>{statusConf.label}</span>
+                          </div>
+                          <div className="text-gray-500 group-hover:text-emerald-400 transition-colors p-1">
+                            {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
+                          </div>
                         </div>
                       </div>
 
-                      <div className="flex items-center gap-3">
-                        <span className={`text-sm font-semibold font-mono ${isDeposit ? 'text-emerald-400' : 'text-amber-400'}`}>
-                          {isDeposit ? '+' : '−'}৳{item.amount.toLocaleString()}
-                        </span>
-                        <div className="flex items-center gap-1.5">
-                          <div className={`h-2 w-2 rounded-full ${statusConf.dotColor}`} />
-                          <span className={`text-xs ${statusConf.color}`}>{statusConf.label}</span>
+                      {/* Dropdown Accordion Section */}
+                      {isExpanded && (
+                        <div className="border-t border-white/5 p-4 space-y-3 bg-black/25 text-xs">
+                          {/* Note / Memo */}
+                          {item.raw.note && (
+                            <div className="p-2.5 rounded-md bg-white/[0.02] border border-white/5 text-gray-300">
+                              <span className="text-gray-500 block text-[10px] uppercase font-semibold mb-0.5">Description / Memo:</span>
+                              <p className="leading-relaxed">{item.raw.note}</p>
+                            </div>
+                          )}
+
+                          {/* Itemized Table if Expense */}
+                          {item.type === 'expense' && Array.isArray(item.raw.items) && item.raw.items.length > 0 ? (
+                            <div className="rounded-md border border-white/5 overflow-hidden">
+                              <table className="w-full text-left">
+                                <thead className="bg-white/5 text-gray-400 font-medium">
+                                  <tr>
+                                    <th className="py-1.5 px-3">Item</th>
+                                    <th className="py-1.5 px-3 text-center">Qty & Unit</th>
+                                    <th className="py-1.5 px-3 text-right">Cost</th>
+                                  </tr>
+                                </thead>
+                                <tbody>
+                                  {item.raw.items.map((it: any, idx: number) => (
+                                    <tr key={idx} className="border-t border-white/5 text-gray-300">
+                                      <td className="py-1.5 px-3 text-white font-medium">{it.itemName}</td>
+                                      <td className="py-1.5 px-3 text-center text-gray-400">{it.quantity} {it.unit}</td>
+                                      <td className="py-1.5 px-3 text-right font-mono text-gray-200">৳{(it.quantity * it.price).toLocaleString()}</td>
+                                    </tr>
+                                  ))}
+                                </tbody>
+                              </table>
+                            </div>
+                          ) : item.type === 'expense' ? (
+                            <div className="rounded-md border border-white/5 bg-white/[0.02] p-2.5 text-xs flex justify-between items-center text-gray-300">
+                              <span>General operational expense: <span className="text-white font-medium">{item.description}</span></span>
+                              <span className="font-mono font-bold text-amber-400">৳{item.amount.toLocaleString()}</span>
+                            </div>
+                          ) : null}
+
+                          {/* Sign-off & Submitter */}
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-gray-400 bg-white/[0.02] border border-white/5 p-3 rounded-lg">
+                            <div>
+                              <span className="text-gray-500">Recorded By: </span>
+                              <span className="text-gray-300">{item.raw.creator?.name || item.raw.submitter?.name || 'Treasurer'}</span>
+                            </div>
+                            {item.raw.purchasedBy && (
+                              <div>
+                                <span className="text-gray-500">Purchased By: </span>
+                                <span className="text-gray-300">{item.raw.purchasedBy}</span>
+                              </div>
+                            )}
+                            <div>
+                              <span className="text-gray-500">President Review: </span>
+                              <span className={item.raw.presidentStatus === 'APPROVED' ? 'text-emerald-400' : 'text-amber-400'}>
+                                {item.raw.presidentStatus || (item.status === 'APPROVED' ? 'Verified' : 'Pending')}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-500">General Secretary Review: </span>
+                              <span className={item.raw.gsStatus === 'APPROVED' ? 'text-emerald-400' : 'text-amber-400'}>
+                                {item.raw.gsStatus || (item.status === 'APPROVED' ? 'Verified' : 'Pending')}
+                              </span>
+                            </div>
+                          </div>
+
+                          {/* Attachment Link & Modal trigger */}
+                          <div className="flex items-center justify-between pt-1">
+                            {item.raw.attachmentUrl ? (
+                              <a
+                                href={item.raw.attachmentUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="inline-flex items-center gap-1.5 text-emerald-400 hover:underline"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" /> View Receipt Document
+                              </a>
+                            ) : <div />}
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedItem(item);
+                              }}
+                              className="h-7 text-xs text-gray-400 hover:text-white hover:bg-white/10"
+                            >
+                              <Eye className="h-3.5 w-3.5 mr-1" /> Full Details Dialog
+                            </Button>
+                          </div>
                         </div>
-                        <Eye className="h-4 w-4 text-gray-600 group-hover:text-emerald-400 transition-colors hidden sm:block ml-1" />
-                      </div>
+                      )}
                     </div>
                   );
                 })}

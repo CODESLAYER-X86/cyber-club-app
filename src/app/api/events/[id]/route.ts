@@ -221,7 +221,9 @@ export async function PATCH(
     const data: Record<string, unknown> = {};
     for (const field of allowedFields) {
       if (body[field] !== undefined) {
-        if (field === "startDate" || field === "endDate") {
+        if (field === "type") {
+          data[field] = body[field] === "MEMBER_ONLY" ? "MEMBER_ONLY" : "PUBLIC";
+        } else if (field === "startDate" || field === "endDate") {
           data[field] = new Date(body[field]);
         } else if (field === "fee") {
           data[field] = Number(body[field]) || 0;

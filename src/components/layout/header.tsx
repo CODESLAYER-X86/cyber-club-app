@@ -440,7 +440,10 @@ export function Header() {
               {currentView === 'landing' ? 'Executive Dashboard' : 'View Public Website'}
             </DropdownMenuItem>
             <DropdownMenuItem
-              onClick={() => setCurrentView('profile')}
+              onClick={() => {
+                useAppStore.getState().setSelectedMemberId(null);
+                setCurrentView('profile');
+              }}
               className="cursor-pointer gap-2 text-gray-300 focus:bg-white/5 focus:text-emerald-400"
             >
               <User className="h-4 w-4" />

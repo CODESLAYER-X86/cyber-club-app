@@ -16,7 +16,8 @@ export async function GET(
     }
 
     const isSelf = caller.userId === id;
-    const isAdmin = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER"].includes(caller.role);
+    // Only President, Platform Admin, VP, and GS can inspect other members' dossiers. Treasurer is explicitly excluded.
+    const canInspectOtherRecords = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS"].includes(caller.role) && caller.role !== "TREASURER";
 
     // Build selection object based on authorization level
     const selectFields: any = {
@@ -29,16 +30,71 @@ export async function GET(
       bio: true,
       createdAt: true,
       updatedAt: true,
-      eventRegistrations: {
-        include: { event: true },
-        orderBy: { registeredAt: "desc" },
-      },
-      certificates: {
-        include: { event: true },
-      },
     };
 
-    if (isSelf || isAdmin) {
+    // Joined events, earned certificates, and attendance are only included for self or leadership (Treasurer excluded)
+    if (isSelf || canInspectOtherRecords) {
+      selectFields.eventRegistrations = {
+        include: {
+          event: {
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              category: true,
+              startDate: true,
+              endDate: true,
+              venue: true,
+              status: true,
+              fee: true,
+              maxSeats: true,
+              currentSeats: true,
+              poster: true,
+            },
+          },
+        },
+        orderBy: { registeredAt: "desc" },
+      };
+      selectFields.certificates = {
+        include: {
+          event: {
+            select: {
+              id: true,
+              title: true,
+              type: true,
+              category: true,
+              startDate: true,
+              certificateLayout: true,
+            },
+          },
+          issuer: {
+            select: { id: true, name: true, role: true },
+          },
+          approver: {
+            select: { id: true, name: true, role: true },
+          },
+          revoker: {
+            select: { id: true, name: true, role: true },
+          },
+        },
+        orderBy: { issuedAt: "desc" },
+      };
+      selectFields.attendance = {
+        select: {
+          id: true,
+          eventId: true,
+          status: true,
+          markedAt: true,
+          event: {
+            select: {
+              id: true,
+              title: true,
+              startDate: true,
+            },
+          },
+        },
+        orderBy: { markedAt: "desc" },
+      };
       selectFields.phone = true;
       selectFields.studentId = true;
       selectFields.rollNumber = true;

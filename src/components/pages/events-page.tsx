@@ -133,7 +133,7 @@ export function EventsPage() {
                         filtered.map(e => ({
                           Title: e.title,
                           Category: EVENT_CATEGORY_LABELS[e.category] || e.category,
-                          Type: EVENT_TYPE_LABELS[e.type] || e.type,
+                          Type: EVENT_TYPE_LABELS[e.type as EventType] || (e.type === 'MEMBER_ONLY' ? 'Member Only' : 'Public'),
                           Date: new Date(e.startDate).toLocaleDateString(),
                           Venue: e.venue,
                           Fee: e.fee > 0 ? e.fee : 'Free',
@@ -177,7 +177,7 @@ export function EventsPage() {
                         filtered.map(e => ({
                           Title: e.title,
                           Category: EVENT_CATEGORY_LABELS[e.category] || e.category,
-                          Type: EVENT_TYPE_LABELS[e.type] || e.type,
+                          Type: EVENT_TYPE_LABELS[e.type as EventType] || (e.type === 'MEMBER_ONLY' ? 'Member Only' : 'Public'),
                           Date: new Date(e.startDate).toLocaleDateString(),
                           Venue: e.venue,
                           Fee: e.fee > 0 ? e.fee : 'Free',
@@ -263,7 +263,15 @@ export function EventsPage() {
                     <div className="mb-3 flex flex-wrap items-center gap-2">
                       <EventBadge status={event.status} />
                       <Badge variant="outline" className={`border-white/10 text-[10px] ${catColor.text}`}>{EVENT_CATEGORY_LABELS[event.category]}</Badge>
-                      <Badge variant="outline" className="border-white/10 text-[10px] text-gray-400">{EVENT_TYPE_LABELS[event.type]}</Badge>
+                      <Badge variant="outline" className="border-white/10 text-[10px] text-gray-400">{EVENT_TYPE_LABELS[event.type as EventType] || (event.type === 'MEMBER_ONLY' ? 'Member Only' : 'Public')}</Badge>
+                      {event.fee > 0 ? (
+                        <Badge variant="outline" className="border-emerald-500/30 text-emerald-400 text-[10px]">Paid</Badge>
+                      ) : (
+                        <Badge variant="outline" className="border-white/10 text-gray-400 text-[10px]">Free</Badge>
+                      )}
+                      {event.maxSeats && event.maxSeats > 0 && (
+                        <Badge variant="outline" className="border-cyan-500/30 text-cyan-400 text-[10px]">Limited Seats</Badge>
+                      )}
                       {isFeatured && (
                         <Badge className="bg-gradient-to-r from-amber-500/20 to-amber-600/20 text-amber-400 border border-amber-500/30 text-[10px]">
                           <Star className="mr-1 h-3 w-3" /> Featured
@@ -333,7 +341,9 @@ export function EventsPage() {
                   </div>
                   <div className="hidden items-center gap-3 sm:flex">
                     <EventBadge status={event.status} />
-                    {event.fee > 0 && <span className="text-sm text-emerald-400">৳{event.fee}</span>}
+                    <Badge variant="outline" className="border-white/10 text-[10px] text-gray-400">{EVENT_TYPE_LABELS[event.type as EventType] || (event.type === 'MEMBER_ONLY' ? 'Member Only' : 'Public')}</Badge>
+                    {event.fee > 0 ? <span className="text-sm font-medium text-emerald-400">৳{event.fee}</span> : <span className="text-sm text-gray-400">Free</span>}
+                    {event.maxSeats && event.maxSeats > 0 && <span className="text-xs text-gray-500 font-mono">({event.currentSeats}/{event.maxSeats})</span>}
                     {canDelete && (
                       <Button
                         variant="ghost"

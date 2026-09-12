@@ -401,6 +401,9 @@ export function Sidebar({ className }: SidebarProps = {}) {
                 <button
                   key={item.view}
                   onClick={() => {
+                    if (item.view === 'profile') {
+                      useAppStore.getState().setSelectedMemberId(null);
+                    }
                     setCurrentView(item.view as AppView);
                     if (window.innerWidth < 768) setSidebarOpen(false);
                   }}

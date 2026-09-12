@@ -50,12 +50,41 @@ function getInitialView(): AppView {
     if (isValidAppView(viewFromUrl)) {
       return viewFromUrl;
     }
+    if (urlParams.get("event")) {
+      return "event-detail";
+    }
     const viewFromStorage = localStorage.getItem("csc_current_view");
     if (isValidAppView(viewFromStorage)) {
       return viewFromStorage;
     }
   } catch {}
   return "landing";
+}
+
+function getInitialEventId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const idFromUrl = urlParams.get("id") || urlParams.get("eventId") || urlParams.get("event");
+    if (idFromUrl) {
+      return idFromUrl;
+    }
+    return localStorage.getItem("csc_selected_event_id");
+  } catch {
+    return null;
+  }
+}function getInitialMemberId(): string | null {
+  if (typeof window === "undefined") return null;
+  try {
+    const urlParams = new URLSearchParams(window.location.search);
+    const idFromUrl = urlParams.get("memberId") || urlParams.get("userId");
+    if (idFromUrl) {
+      return idFromUrl;
+    }
+    return localStorage.getItem("csc_selected_member_id");
+  } catch {
+    return null;
+  }
 }
 
 // Partial event data for editing — only the fields the form needs
@@ -119,8 +148,8 @@ export const useAppStore = create<AppState>((set, get) => ({
   currentUser: null,
   isAuthenticated: false,
   currentView: getInitialView(),
-  selectedEventId: null,
-  selectedMemberId: null,
+  selectedEventId: getInitialEventId(),
+  selectedMemberId: getInitialMemberId(),
   editingEventId: null,
   editingEventData: null,
   sidebarOpen: true,
@@ -159,8 +188,12 @@ export const useAppStore = create<AppState>((set, get) => ({
       try {
         localStorage.removeItem("csc_logged_in");
         localStorage.removeItem("csc_current_view");
+        localStorage.removeItem("csc_selected_event_id");
         const url = new URL(window.location.href);
         url.searchParams.delete("view");
+        url.searchParams.delete("id");
+        url.searchParams.delete("event");
+        url.searchParams.delete("eventId");
         window.history.replaceState({}, "", url.pathname);
       } catch {}
     }
@@ -185,6 +218,18 @@ export const useAppStore = create<AppState>((set, get) => ({
         } else {
           url.searchParams.set("view", view);
         }
+
+        if (view === "event-detail") {
+          const evId = get().selectedEventId || localStorage.getItem("csc_selected_event_id");
+          if (evId) {
+            url.searchParams.set("id", evId);
+          }
+        } else if (view !== "create-event" && view !== "certificate-designer") {
+          url.searchParams.delete("id");
+          url.searchParams.delete("event");
+          url.searchParams.delete("eventId");
+        }
+
         const targetUrl = url.pathname + (url.search ? url.search : "");
         const currentParam = new URLSearchParams(window.location.search).get("view") || "landing";
 
@@ -198,9 +243,48 @@ export const useAppStore = create<AppState>((set, get) => ({
     set({ currentView: view });
   },
 
-  setSelectedEventId: (id) => set({ selectedEventId: id }),
+  setSelectedEventId: (id) => {
+    if (typeof window !== "undefined") {
+      try {
+        if (id) {
+          localStorage.setItem("csc_selected_event_id", id);
+          const url = new URL(window.location.href);
+          if (url.searchParams.get("view") === "event-detail") {
+            url.searchParams.set("id", id);
+            window.history.replaceState(window.history.state, "", url.pathname + url.search);
+          }
+        } else {
+          localStorage.removeItem("csc_selected_event_id");
+          const url = new URL(window.location.href);
+          url.searchParams.delete("id");
+          url.searchParams.delete("event");
+          url.searchParams.delete("eventId");
+          window.history.replaceState(window.history.state, "", url.pathname + (url.search ? url.search : ""));
+        }
+      } catch {}
+    }
+    set({ selectedEventId: id });
+  },
 
-  setSelectedMemberId: (id) => set({ selectedMemberId: id }),
+  setSelectedMemberId: (id) => {
+    if (typeof window !== "undefined") {
+      try {
+        if (id) {
+          localStorage.setItem("csc_selected_member_id", id);
+          const url = new URL(window.location.href);
+          url.searchParams.set("memberId", id);
+          window.history.replaceState(window.history.state, "", url.pathname + url.search);
+        } else {
+          localStorage.removeItem("csc_selected_member_id");
+          const url = new URL(window.location.href);
+          url.searchParams.delete("memberId");
+          url.searchParams.delete("userId");
+          window.history.replaceState(window.history.state, "", url.pathname + (url.search ? url.search : ""));
+        }
+      } catch {}
+    }
+    set({ selectedMemberId: id });
+  },
 
   setEditingEventId: (id) => set({ editingEventId: id }),
 
