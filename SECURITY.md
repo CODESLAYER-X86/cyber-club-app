@@ -42,5 +42,5 @@
 ## 3. Reporting a Vulnerability
 
 If you discover a security issue or potential vulnerability in this platform, please contact the Cyber Security Club Security Operations Center (SOC) at:
-- **Email**: `soc@diu.cyber.edu`
+- **Email**: `cscdiucse@gmail.com`
 - **Lead Executive**: President / Platform Admin
