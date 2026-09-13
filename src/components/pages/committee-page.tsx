@@ -70,7 +70,7 @@ interface MemberFormData {
   description: string;
   department: string;
   email: string;
-  order: number;
+  order: number | '';
   imageUrl: string;
   socialLinkedIn: string;
   socialGithub: string;
@@ -84,7 +84,7 @@ const emptyForm: MemberFormData = {
   description: '',
   department: '',
   email: '',
-  order: 0,
+  order: 1,
   imageUrl: '',
   socialLinkedIn: '',
   socialGithub: '',
@@ -238,10 +238,16 @@ function CommitteePageContent() {
     fetchMembers();
   }, [fetchMembers]);
 
-  // Separate members into Advisory and Committee
+  // Separate members into Advisory and Committee sorted by order
   const safeMembers = Array.isArray(members) ? members : [];
-  const advisoryMembers = useMemo(() => safeMembers.filter(isAdvisoryMember), [safeMembers]);
-  const committeeMembers = useMemo(() => safeMembers.filter((m) => !isAdvisoryMember(m)), [safeMembers]);
+  const advisoryMembers = useMemo(
+    () => safeMembers.filter(isAdvisoryMember).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [safeMembers]
+  );
+  const committeeMembers = useMemo(
+    () => safeMembers.filter((m) => !isAdvisoryMember(m)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
+    [safeMembers]
+  );
 
   // Upload image to Supabase
   const uploadImage = async (file: File): Promise<string | null> => {
@@ -294,10 +300,11 @@ function CommitteePageContent() {
     setEditingMemberId(null);
   };
 
-  // Open add dialog with initial category
+  // Open add dialog with initial category and auto-suggested order
   const openAddDialog = (initialCategory: 'COMMITTEE' | 'ADVISORY' = 'COMMITTEE') => {
     resetForm();
-    setFormData({ ...emptyForm, category: initialCategory });
+    const count = initialCategory === 'ADVISORY' ? advisoryMembers.length : committeeMembers.length;
+    setFormData({ ...emptyForm, category: initialCategory, order: count + 1 });
     setAddDialogOpen(true);
   };
 
@@ -317,7 +324,7 @@ function CommitteePageContent() {
       description: member.description || '',
       department: member.department || '',
       email: member.email || '',
-      order: member.order || 0,
+      order: typeof member.order === 'number' && member.order > 0 ? member.order : 1,
       imageUrl: member.imageUrl || '',
       socialLinkedIn: socials?.linkedin || '',
       socialGithub: socials?.github || '',
@@ -347,6 +354,8 @@ function CommitteePageContent() {
       if (formData.socialGithub) socialLinks.github = formData.socialGithub;
       if (formData.socialFacebook) socialLinks.facebook = formData.socialFacebook;
 
+      const parsedOrder = typeof formData.order === 'number' ? formData.order : parseInt(String(formData.order), 10);
+
       const res = await fetch('/api/committee', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -358,19 +367,22 @@ function CommitteePageContent() {
           email: formData.email || undefined,
           imageUrl: imageUrl || undefined,
           socialLinks,
-          order: formData.order,
+          order: isNaN(parsedOrder) ? 0 : parsedOrder,
           requesterRole: currentUser?.role,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
+        toast({ title: 'Success', description: 'Committee member added successfully.' });
         setAddDialogOpen(false);
         resetForm();
         fetchMembers();
+      } else {
+        toast({ title: 'Creation failed', description: data.error || 'Could not add committee member', variant: 'destructive' });
       }
     } catch {
-      // Error handled silently
+      toast({ title: 'Error', description: 'A network error occurred. Please try again.', variant: 'destructive' });
     } finally {
       setFormSubmitting(false);
     }
@@ -395,6 +407,8 @@ function CommitteePageContent() {
       if (formData.socialGithub) socialLinks.github = formData.socialGithub;
       if (formData.socialFacebook) socialLinks.facebook = formData.socialFacebook;
 
+      const parsedOrder = typeof formData.order === 'number' ? formData.order : parseInt(String(formData.order), 10);
+
       const res = await fetch(`/api/committee/${editingMemberId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
@@ -406,7 +420,7 @@ function CommitteePageContent() {
           email: formData.email || undefined,
           imageUrl: imageUrl || undefined,
           socialLinks,
-          order: formData.order,
+          order: isNaN(parsedOrder) ? 0 : parsedOrder,
           requesterRole: currentUser?.role,
         }),
       });
@@ -439,13 +453,16 @@ function CommitteePageContent() {
       });
       const data = await res.json();
       if (data.success) {
+        toast({ title: 'Deleted', description: 'Committee member removed successfully.' });
         setDeleteDialogOpen(false);
         setDeletingMemberId(null);
         setDeletingMemberName('');
         fetchMembers();
+      } else {
+        toast({ title: 'Delete failed', description: data.error || 'Could not delete committee member', variant: 'destructive' });
       }
     } catch {
-      // Error handled silently
+      toast({ title: 'Error', description: 'A network error occurred while deleting member.', variant: 'destructive' });
     }
   };
 
@@ -589,19 +606,19 @@ function CommitteePageContent() {
         />
       </div>
 
-      {/* Department & Email */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div className="space-y-2">
+      {/* Department, Email & Display Order */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <div className="space-y-1.5">
           <Label className="text-gray-300 font-mono text-xs">Department</Label>
           <Input
             value={formData.department}
             onChange={(e) => updateField('department', e.target.value)}
-            placeholder="e.g. CSE, SWE, Cyber"
+            placeholder="e.g. CSE, SWE"
             className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
           />
         </div>
-        <div className="space-y-2">
-          <Label className="text-gray-300 font-mono text-xs">Email</Label>
+        <div className="space-y-1.5">
+          <Label className="text-gray-300 font-mono text-xs">Public Email (Optional)</Label>
           <Input
             value={formData.email}
             onChange={(e) => updateField('email', e.target.value)}
@@ -609,7 +626,26 @@ function CommitteePageContent() {
             className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
           />
         </div>
+        <div className="space-y-1.5">
+          <Label className="text-gray-300 font-mono text-xs flex items-center justify-between">
+            <span>Card Order</span>
+            <span className="text-[10px] text-emerald-400 font-semibold">1 = 1st</span>
+          </Label>
+          <Input
+            type="number"
+            min={1}
+            max={999}
+            step={1}
+            value={formData.order || ''}
+            onChange={(e) => updateField('order', e.target.value === '' ? '' : parseInt(e.target.value, 10))}
+            placeholder="1"
+            className="border-emerald-500/30 bg-emerald-500/5 text-emerald-300 font-mono text-xs focus:border-emerald-400"
+          />
+        </div>
       </div>
+      <p className="text-[10px] text-gray-500 font-mono -mt-2">
+        Card position order in the directory (lower numbers appear first: 1 for President, 2 for VP, 3 for GS, etc.)
+      </p>
 
       {/* Social Links */}
       <div className="space-y-3 pt-2">

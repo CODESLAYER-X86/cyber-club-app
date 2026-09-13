@@ -246,7 +246,14 @@ export function CommitteeMemberCard({
             {/* Header section on Back */}
             <div className="flex items-start justify-between border-b border-white/5 pb-3">
               <div>
-                <h4 className="text-lg font-bold text-white truncate">{member.name}</h4>
+                <div className="flex items-center gap-2">
+                  <h4 className="text-lg font-bold text-white truncate">{member.name}</h4>
+                  {typeof member.order === 'number' && member.order > 0 && (
+                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/10">
+                      #{member.order}
+                    </span>
+                  )}
+                </div>
                 <p className={`text-xs font-semibold uppercase ${colors.accentClass}`}>{member.role}</p>
               </div>
 

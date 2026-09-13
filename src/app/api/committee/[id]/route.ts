@@ -47,7 +47,12 @@ export async function PATCH(
 
     for (const field of allowedFields) {
       if (field in updateFields) {
-        data[field] = updateFields[field];
+        if (field === "order") {
+          const parsed = typeof updateFields.order === "number" ? updateFields.order : parseInt(String(updateFields.order), 10);
+          data.order = isNaN(parsed) ? 0 : parsed;
+        } else {
+          data[field] = updateFields[field];
+        }
       }
     }
 

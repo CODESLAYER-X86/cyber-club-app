@@ -67,7 +67,7 @@ export async function POST(request: NextRequest) {
         department,
         email,
         socialLinks: socialLinks ? JSON.stringify(socialLinks) : null,
-        order: order ?? 0,
+        order: typeof order === "number" ? order : parseInt(String(order), 10) || 0,
       },
     });
 
