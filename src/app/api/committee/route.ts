@@ -24,16 +24,15 @@ export async function GET() {
         socialLinks: true,
         order: true,
         isActive: true,
-        email: canManage,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    const sanitizedMembers = members.map((m) => ({
-      ...m,
-      email: canManage ? m.email : null,
-    }));
+    const sanitizedMembers = members.map((m) => {
+      const { id, ...publicFields } = m;
+      return canManage ? m : publicFields;
+    });
 
     return successResponse({ members: sanitizedMembers });
   } catch {
