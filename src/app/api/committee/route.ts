@@ -4,18 +4,15 @@ import { getSupabaseUser } from "@/lib/supabase-server";
 import { isSafeUrl } from "@/lib/utils";
 import { NextRequest } from "next/server";
 
-const CREATE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
+const CREATE_ROLES = ["PRESIDENT", "VP", "GS", "MEDIA", "PLATFORM_ADMIN"];
 
 export async function GET() {
   try {
-    const caller = await getSupabaseUser();
-    const canManage = !!(caller && CREATE_ROLES.includes(caller.role));
-
     const members = await prisma.committeeMember.findMany({
       where: { isActive: true },
       orderBy: { order: "asc" },
       select: {
-        id: true,
+        id: true, // Required for card edit/delete and React tracking
         name: true,
         role: true,
         description: true,
@@ -29,12 +26,7 @@ export async function GET() {
       },
     });
 
-    const sanitizedMembers = members.map((m) => {
-      const { id, ...publicFields } = m;
-      return canManage ? m : publicFields;
-    });
-
-    return successResponse({ members: sanitizedMembers });
+    return successResponse({ members });
   } catch {
     return serverErrorResponse();
   }

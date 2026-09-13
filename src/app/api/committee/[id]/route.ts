@@ -4,8 +4,8 @@ import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 import { isSafeUrl } from "@/lib/utils";
 
-const UPDATE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
-const DELETE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
+const UPDATE_ROLES = ["PRESIDENT", "VP", "GS", "MEDIA", "PLATFORM_ADMIN"];
+const DELETE_ROLES = ["PRESIDENT", "VP", "GS", "MEDIA", "PLATFORM_ADMIN"];
 
 export async function PATCH(
   request: NextRequest,

@@ -42,6 +42,7 @@ import {
   AlertDialogTitle,
 } from '@/components/ui/alert-dialog';
 import { useAppStore } from '@/store/use-app-store';
+import { toast } from '@/hooks/use-toast';
 import type { CommitteeMember } from '@/types';
 import { uploadToSupabase } from '@/lib/upload';
 import { CommitteeMemberCard } from '@/components/shared/committee-member-card';
@@ -208,7 +209,7 @@ function CommitteePageContent() {
   const [deletingMemberName, setDeletingMemberName] = useState('');
 
   // Permission check
-  const canManage = !!(currentUser && ['PRESIDENT', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(currentUser.role));
+  const canManage = !!(currentUser && ['PRESIDENT', 'VP', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(currentUser.role));
 
   // Fetch committee members
   const fetchMembers = useCallback(async () => {
@@ -412,12 +413,15 @@ function CommitteePageContent() {
 
       const data = await res.json();
       if (data.success) {
+        toast({ title: 'Success', description: 'Committee member updated successfully.' });
         setEditDialogOpen(false);
         resetForm();
         fetchMembers();
+      } else {
+        toast({ title: 'Update failed', description: data.error || 'Could not update committee member', variant: 'destructive' });
       }
     } catch {
-      // Error handled silently
+      toast({ title: 'Error', description: 'A network error occurred. Please try again.', variant: 'destructive' });
     } finally {
       setFormSubmitting(false);
     }
