@@ -23,6 +23,10 @@ export async function GET(request: NextRequest) {
     const status = searchParams.get("status");
     const search = searchParams.get("search");
 
+    if (requestedUserId && requestedUserId !== caller?.userId && !isCertAuthority) {
+      return forbiddenResponse("You do not have permission to view other users' certificates");
+    }
+
     const where: Record<string, unknown> = {};
 
     if (!isCertAuthority) {
@@ -140,7 +144,7 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              email: true,
+              email: isCertAuthority,
               avatar: true,
             },
           },
@@ -186,7 +190,7 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              email: true,
+              email: isCertAuthority,
               avatar: true,
             },
           },

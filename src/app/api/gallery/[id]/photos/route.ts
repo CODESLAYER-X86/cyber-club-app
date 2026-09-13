@@ -51,7 +51,7 @@ export async function POST(
       },
       include: {
         uploader: {
-          select: { id: true, name: true, email: true, avatar: true, role: true },
+          select: { id: true, name: true, avatar: true, role: true },
         },
       },
     });
