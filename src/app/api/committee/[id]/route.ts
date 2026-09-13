@@ -34,6 +34,7 @@ export async function PATCH(
 
     if (socialLinks && typeof socialLinks === "object") {
       for (const [key, val] of Object.entries(socialLinks)) {
+        if (key === "category") continue;
         if (typeof val === "string" && val.trim() && !isSafeUrl(val)) {
           return errorResponse(`Invalid or unsafe social link for ${key}`);
         }
