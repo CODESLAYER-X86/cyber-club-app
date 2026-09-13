@@ -27,8 +27,6 @@ export async function GET() {
         department: true,
         bio: true,
         avatar: true,
-        studentId: true,
-        email: true,
       },
     });
 

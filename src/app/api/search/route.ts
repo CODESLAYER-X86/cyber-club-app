@@ -13,11 +13,13 @@ export async function GET(request: NextRequest) {
     }
 
     const caller = await getSupabaseUser();
-    const isAuthenticated = !!caller;
+    const isMemberOrHigher = !!(caller && caller.role !== "GUEST");
+    const isLeadership = !!(caller && ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER"].includes(caller.role));
 
     const [events, users, certificates] = await Promise.all([
       prisma.event.findMany({
         where: {
+          ...(!isMemberOrHigher ? { type: { not: "MEMBER_ONLY" } } : {}),
           OR: [
             { title: { contains: query } },
             { description: { contains: query } },
@@ -35,12 +37,12 @@ export async function GET(request: NextRequest) {
         },
         orderBy: { startDate: "desc" },
       }),
-      isAuthenticated
+      isMemberOrHigher
         ? prisma.user.findMany({
             where: {
               OR: [
                 { name: { contains: query } },
-                { email: { contains: query } },
+                ...(isLeadership ? [{ email: { contains: query } }] : []),
                 { department: { contains: query } },
               ],
             },
@@ -48,14 +50,14 @@ export async function GET(request: NextRequest) {
             select: {
               id: true,
               name: true,
-              email: true,
+              email: isLeadership,
               role: true,
               department: true,
               avatar: true,
             },
           })
         : Promise.resolve([]),
-      isAuthenticated
+      isMemberOrHigher
         ? prisma.certificate.findMany({
             where: {
               certificateCode: { contains: query },

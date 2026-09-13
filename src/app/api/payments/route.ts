@@ -18,6 +18,10 @@ export async function GET(request: NextRequest) {
 
     const isFinancialStaff = ["TREASURER", "PRESIDENT", "GS", "PLATFORM_ADMIN", "VERIFIER"].includes(caller.role);
 
+    if (requestedUserId && requestedUserId !== caller.userId && !isFinancialStaff) {
+      return forbiddenResponse("You do not have permission to view other users' payment records");
+    }
+
     const where: Record<string, unknown> = {};
 
     if (!isFinancialStaff) {

@@ -95,7 +95,6 @@ async function getCertificate(code: string) {
           select: {
             id: true,
             name: true,
-            email: true,
             studentId: true,
             department: true,
           },

@@ -16,7 +16,7 @@ interface CertificateData {
   issuedAt: Date | string;
   revokedAt?: Date | string | null;
   revocationReason?: string | null;
-  user?: { id: string; name: string; email: string } | null;
+  user?: { id: string; name: string; email?: string } | null;
   event?: {
     id: string;
     title: string;

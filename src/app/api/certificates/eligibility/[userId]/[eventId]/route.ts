@@ -3,9 +3,11 @@ import {
   successResponse,
   errorResponse,
   notFoundResponse,
+  forbiddenResponse,
   serverErrorResponse,
 } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
+import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(
   _request: NextRequest,
@@ -15,6 +17,19 @@ export async function GET(
 ) {
   try {
     const { userId, eventId } = await params;
+
+    const caller = await getSupabaseUser();
+    if (!caller) {
+      return forbiddenResponse("You must be logged in to check certificate eligibility");
+    }
+
+    const isAuthorized =
+      caller.userId === userId ||
+      ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "VERIFIER"].includes(caller.role);
+
+    if (!isAuthorized) {
+      return forbiddenResponse("You do not have permission to inspect another member's certificate eligibility");
+    }
 
     // Verify user exists
     const user = await prisma.user.findUnique({
