@@ -9,7 +9,26 @@ export async function GET() {
       orderBy: { createdAt: "desc" },
     });
 
-    return successResponse({ announcements });
+    // Fetch author names to display in UI without leaking internal user IDs
+    const userIds = [...new Set(announcements.map((a) => a.createdBy).filter(Boolean))];
+    const users = userIds.length > 0
+      ? await prisma.user.findMany({
+          where: { id: { in: userIds } },
+          select: { id: true, name: true, role: true },
+        })
+      : [];
+    const userMap = new Map(users.map((u) => [u.id, u.name]));
+
+    const sanitizedAnnouncements = announcements.map((a) => ({
+      id: a.id,
+      title: a.title,
+      content: a.content,
+      type: a.type,
+      authorName: userMap.get(a.createdBy) || "Executive Committee",
+      createdAt: a.createdAt,
+    }));
+
+    return successResponse({ announcements: sanitizedAnnouncements });
   } catch {
     return serverErrorResponse();
   }
