@@ -502,6 +502,64 @@ function CommitteePageContent() {
     }
   };
 
+  // Reorder member position earlier or later in list
+  const handleMoveMember = async (
+    target: CommitteeMember,
+    list: CommitteeMember[],
+    direction: 'earlier' | 'later'
+  ) => {
+    const currentIndex = list.findIndex((m) => m.id === target.id);
+    if (currentIndex === -1) return;
+    const neighborIndex = direction === 'earlier' ? currentIndex - 1 : currentIndex + 1;
+    if (neighborIndex < 0 || neighborIndex >= list.length) return;
+
+    const neighbor = list[neighborIndex];
+
+    let targetNewOrder = neighbor.order || (neighborIndex + 1);
+    let neighborNewOrder = target.order || (currentIndex + 1);
+
+    if (targetNewOrder === neighborNewOrder) {
+      targetNewOrder = direction === 'earlier' ? Math.max(1, neighborNewOrder - 1) : neighborNewOrder + 1;
+    }
+
+    // Optimistic UI update
+    setMembers((prev) =>
+      prev.map((m) => {
+        if (m.id === target.id) return { ...m, order: targetNewOrder };
+        if (m.id === neighbor.id) return { ...m, order: neighborNewOrder };
+        return m;
+      })
+    );
+
+    try {
+      await Promise.all([
+        fetch(`/api/committee/${target.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: targetNewOrder, requesterRole: currentUser?.role }),
+        }),
+        fetch(`/api/committee/${neighbor.id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order: neighborNewOrder, requesterRole: currentUser?.role }),
+        }),
+      ]);
+
+      toast({
+        title: 'Position Updated',
+        description: `Moved ${target.name} ${direction === 'earlier' ? 'earlier' : 'later'}.`,
+      });
+      fetchMembers();
+    } catch {
+      toast({
+        title: 'Reorder Failed',
+        description: 'Could not update member position.',
+        variant: 'destructive',
+      });
+      fetchMembers();
+    }
+  };
+
   const updateField = (field: keyof MemberFormData, value: any) => {
     setFormData((prev) => ({ ...prev, [field]: value }));
   };
@@ -664,8 +722,10 @@ function CommitteePageContent() {
         </div>
         <div className="space-y-1.5">
           <Label className="text-gray-300 font-mono text-xs flex items-center justify-between">
-            <span>Card Order</span>
-            <span className="text-[10px] text-emerald-400 font-semibold">1 = 1st</span>
+            <span>Card Order / Position</span>
+            <span className="text-[10px] text-emerald-400 font-semibold font-mono">
+              {formData.order ? `Position #${formData.order}` : 'Auto'}
+            </span>
           </Label>
           <Input
             type="number"
@@ -677,6 +737,30 @@ function CommitteePageContent() {
             placeholder="1"
             className="border-emerald-500/30 bg-emerald-500/5 text-emerald-300 font-mono text-xs focus:border-emerald-400"
           />
+          {/* Quick presets for common club positions */}
+          <div className="flex flex-wrap gap-1.5 pt-1">
+            {[
+              { label: '1 (President)', val: 1 },
+              { label: '2 (VP)', val: 2 },
+              { label: '3 (GS)', val: 3 },
+              { label: '4 (Treasurer)', val: 4 },
+              { label: '5 (Lead/Head)', val: 5 },
+            ].map((preset) => (
+              <button
+                key={preset.val}
+                type="button"
+                onClick={() => updateField('order', preset.val)}
+                className={cn(
+                  'text-[10px] font-mono px-2 py-0.5 rounded border transition-colors',
+                  formData.order === preset.val
+                    ? 'border-emerald-500 bg-emerald-500/20 text-emerald-300 font-bold'
+                    : 'border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-white/20'
+                )}
+              >
+                {preset.label}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
       <p className="text-[10px] text-gray-500 font-mono -mt-2">
@@ -720,7 +804,7 @@ function CommitteePageContent() {
   );
 
   return (
-    <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8 py-8 space-y-12 pb-20">
+    <div className="mx-auto w-full max-w-[1400px] 2xl:max-w-[1536px] px-4 sm:px-6 lg:px-8 xl:px-12 py-10 space-y-16 pb-24">
       {/* ── Page Header ── */}
       <motion.div
         {...fadeUp}
@@ -829,24 +913,46 @@ function CommitteePageContent() {
               </Button>
             )}
           </div>
+        ) : advisoryMembers.length === 1 ? (
+          <div className="flex justify-center my-6">
+            <div className="w-full max-w-[420px]">
+              <CommitteeMemberCard
+                member={advisoryMembers[0]}
+                canManage={canManage}
+                onEdit={openEditDialog}
+                onDelete={(m) => {
+                  setDeletingMemberId(m.id);
+                  setDeletingMemberName(m.name);
+                  setDeleteDialogOpen(true);
+                }}
+              />
+            </div>
+          </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+          <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3 justify-center items-stretch mt-6">
             {advisoryMembers.map((member, i) => (
               <motion.div
                 key={member.id}
                 {...stagger}
                 transition={{ duration: 0.4, delay: i * 0.08 }}
+                className="w-full flex justify-center"
               >
-                <CommitteeMemberCard
-                  member={member}
-                  canManage={canManage}
-                  onEdit={openEditDialog}
-                  onDelete={(m) => {
-                    setDeletingMemberId(m.id);
-                    setDeletingMemberName(m.name);
-                    setDeleteDialogOpen(true);
-                  }}
-                />
+                <div className="w-full max-w-[420px]">
+                  <CommitteeMemberCard
+                    member={member}
+                    canManage={canManage}
+                    onEdit={openEditDialog}
+                    onDelete={(m) => {
+                      setDeletingMemberId(m.id);
+                      setDeletingMemberName(m.name);
+                      setDeleteDialogOpen(true);
+                    }}
+                    onMoveEarlier={() => handleMoveMember(member, advisoryMembers, 'earlier')}
+                    onMoveLater={() => handleMoveMember(member, advisoryMembers, 'later')}
+                    canMoveEarlier={i > 0}
+                    canMoveLater={i < advisoryMembers.length - 1}
+                  />
+                </div>
               </motion.div>
             ))}
           </div>
@@ -930,23 +1036,30 @@ function CommitteePageContent() {
             )}
           </div>
         ) : (
-          <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
+          <div className="grid gap-6 md:gap-8 sm:grid-cols-2 lg:grid-cols-3 justify-center items-stretch mt-6">
             {committeeMembers.map((member, i) => (
               <motion.div
                 key={member.id}
                 {...stagger}
                 transition={{ duration: 0.4, delay: i * 0.08 }}
+                className="w-full flex justify-center"
               >
-                <CommitteeMemberCard
-                  member={member}
-                  canManage={canManage}
-                  onEdit={openEditDialog}
-                  onDelete={(m) => {
-                    setDeletingMemberId(m.id);
-                    setDeletingMemberName(m.name);
-                    setDeleteDialogOpen(true);
-                  }}
-                />
+                <div className="w-full max-w-[420px]">
+                  <CommitteeMemberCard
+                    member={member}
+                    canManage={canManage}
+                    onEdit={openEditDialog}
+                    onDelete={(m) => {
+                      setDeletingMemberId(m.id);
+                      setDeletingMemberName(m.name);
+                      setDeleteDialogOpen(true);
+                    }}
+                    onMoveEarlier={() => handleMoveMember(member, committeeMembers, 'earlier')}
+                    onMoveLater={() => handleMoveMember(member, committeeMembers, 'later')}
+                    canMoveEarlier={i > 0}
+                    canMoveLater={i < committeeMembers.length - 1}
+                  />
+                </div>
               </motion.div>
             ))}
           </div>

@@ -28,6 +28,10 @@ interface CommitteeMemberCardProps {
   canManage?: boolean;
   onEdit?: (member: CommitteeMember) => void;
   onDelete?: (member: CommitteeMember) => void;
+  onMoveEarlier?: (member: CommitteeMember) => void;
+  onMoveLater?: (member: CommitteeMember) => void;
+  canMoveEarlier?: boolean;
+  canMoveLater?: boolean;
 }
 
 interface RoleColors {
@@ -125,6 +129,10 @@ export function CommitteeMemberCard({
   canManage = false,
   onEdit,
   onDelete,
+  onMoveEarlier,
+  onMoveLater,
+  canMoveEarlier = false,
+  canMoveLater = false,
 }: CommitteeMemberCardProps) {
   const [isFlipped, setIsFlipped] = useState(false);
   const colors = getRoleColors(member.role);
@@ -137,7 +145,7 @@ export function CommitteeMemberCard({
   };
 
   return (
-    <div className="perspective-1000 w-full h-[450px]">
+    <div className="perspective-1000 w-full h-[460px]">
       <div
         className={`relative w-full h-full transition-transform duration-700 transform-style-3d ${
           isFlipped ? 'rotate-y-180' : ''
@@ -246,24 +254,46 @@ export function CommitteeMemberCard({
             {/* Header section on Back */}
             <div className="flex items-start justify-between border-b border-white/5 pb-3">
               <div>
-                <div className="flex items-center gap-2">
-                  <h4 className="text-lg font-bold text-white truncate">{member.name}</h4>
-                  {typeof member.order === 'number' && member.order > 0 && (
-                    <span className="text-[10px] font-mono px-1.5 py-0.5 rounded bg-white/5 text-gray-400 border border-white/10">
-                      #{member.order}
-                    </span>
-                  )}
-                </div>
+                <h4 className="text-lg font-bold text-white truncate">{member.name}</h4>
                 <p className={`text-xs font-semibold uppercase ${colors.accentClass}`}>{member.role}</p>
               </div>
 
-              {/* Admin controls */}
+              {/* Admin controls (Only visible to authenticated managers) */}
               {canManage && (
                 <div className="flex items-center gap-1 shrink-0">
+                  {onMoveEarlier && canMoveEarlier && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Move card earlier (higher position)"
+                      className="h-8 w-8 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveEarlier(member);
+                      }}
+                    >
+                      <ArrowLeft className="h-4 w-4" />
+                    </Button>
+                  )}
+                  {onMoveLater && canMoveLater && (
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Move card later (lower position)"
+                      className="h-8 w-8 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onMoveLater(member);
+                      }}
+                    >
+                      <ArrowRight className="h-4 w-4" />
+                    </Button>
+                  )}
                   {onEdit && (
                     <Button
                       variant="ghost"
                       size="icon"
+                      title="Edit member details"
                       className="h-8 w-8 text-gray-400 hover:text-emerald-400 hover:bg-emerald-500/10"
                       onClick={(e) => {
                         e.stopPropagation();
@@ -277,6 +307,7 @@ export function CommitteeMemberCard({
                     <Button
                       variant="ghost"
                       size="icon"
+                      title="Delete member"
                       className="h-8 w-8 text-gray-400 hover:text-red-400 hover:bg-red-500/10"
                       onClick={(e) => {
                         e.stopPropagation();
