@@ -20,16 +20,28 @@ export async function GET(request: NextRequest) {
       where.status = status;
     }
 
-    const isLeadership = !!(caller && ['PRESIDENT', 'PLATFORM_ADMIN', 'GS', 'TREASURER'].includes(caller.role));
-
     const expenses = await prisma.expense.findMany({
       where,
       orderBy: { createdAt: 'desc' },
-      include: {
-        items: { orderBy: { id: 'asc' } },
-        creator: { select: { id: true, name: true, email: isLeadership, role: true } },
-        presidentApprover: { select: { id: true, name: true, email: isLeadership, role: true } },
-        gsApprover: { select: { id: true, name: true, email: isLeadership, role: true } },
+      select: {
+        id: true,
+        date: true,
+        amount: true,
+        note: true,
+        purchasedBy: true,
+        attachmentUrl: true,
+        status: true,
+        presidentStatus: true,
+        gsStatus: true,
+        createdAt: true,
+        updatedAt: true,
+        items: {
+          orderBy: { id: 'asc' },
+          select: { id: true, itemName: true, quantity: true, unit: true, price: true },
+        },
+        creator: { select: { name: true, role: true } },
+        presidentApprover: { select: { name: true, role: true } },
+        gsApprover: { select: { name: true, role: true } },
       },
     });
 

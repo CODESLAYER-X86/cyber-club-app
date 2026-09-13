@@ -37,12 +37,15 @@ export async function GET() {
             take: 5,
             orderBy: { createdAt: 'desc' },
             include: {
-              user: { select: { id: true, name: true, email: true, avatar: true, role: true } },
+              user: { select: { name: true, avatar: true, role: true } },
             },
           })
         : Promise.resolve([]),
       prisma.event.findMany({
-        where: { status: 'UPCOMING' },
+        where: {
+          status: 'UPCOMING',
+          ...(isGuest ? { type: { not: 'MEMBER_ONLY' } } : {}),
+        },
         take: 5,
         orderBy: { startDate: 'asc' },
         select: {

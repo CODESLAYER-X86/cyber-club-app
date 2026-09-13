@@ -8,11 +8,34 @@ const CREATE_ROLES = ["PRESIDENT", "GS", "MEDIA", "PLATFORM_ADMIN"];
 
 export async function GET() {
   try {
+    const caller = await getSupabaseUser();
+    const canManage = !!(caller && CREATE_ROLES.includes(caller.role));
+
     const members = await prisma.committeeMember.findMany({
       where: { isActive: true },
       orderBy: { order: "asc" },
+      select: {
+        id: true,
+        name: true,
+        role: true,
+        description: true,
+        imageUrl: true,
+        department: true,
+        socialLinks: true,
+        order: true,
+        isActive: true,
+        email: canManage,
+        createdAt: true,
+        updatedAt: true,
+      },
     });
-    return successResponse({ members });
+
+    const sanitizedMembers = members.map((m) => ({
+      ...m,
+      email: canManage ? m.email : null,
+    }));
+
+    return successResponse({ members: sanitizedMembers });
   } catch {
     return serverErrorResponse();
   }

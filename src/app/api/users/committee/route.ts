@@ -21,7 +21,6 @@ export async function GET() {
         membershipStatus: "ACTIVE",
       },
       select: {
-        id: true,
         name: true,
         role: true,
         department: true,

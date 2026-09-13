@@ -12,14 +12,23 @@ export async function GET() {
       return forbiddenResponse('Guests cannot view treasury deposits');
     }
 
-    const isLeadership = !!(caller && ['PRESIDENT', 'PLATFORM_ADMIN', 'GS', 'TREASURER'].includes(caller.role));
-
     const deposits = await prisma.treasuryDeposit.findMany({
       orderBy: { createdAt: 'desc' },
-      include: {
-        submitter: { select: { id: true, name: true, email: isLeadership, role: true } },
-        presidentApprover: { select: { id: true, name: true, email: isLeadership, role: true } },
-        gsApprover: { select: { id: true, name: true, email: isLeadership, role: true } },
+      select: {
+        id: true,
+        date: true,
+        amount: true,
+        source: true,
+        note: true,
+        attachmentUrl: true,
+        status: true,
+        presidentStatus: true,
+        gsStatus: true,
+        createdAt: true,
+        updatedAt: true,
+        submitter: { select: { name: true, role: true } },
+        presidentApprover: { select: { name: true, role: true } },
+        gsApprover: { select: { name: true, role: true } },
       },
     });
 
