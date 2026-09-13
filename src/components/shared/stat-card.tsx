@@ -17,15 +17,17 @@ export interface StatCardProps {
   delay?: number;
   progress?: number; // 0-100 for progress bar indicator
   progressColor?: string; // custom progress bar color
+  onClick?: () => void;
 }
 
-export function StatCard({ icon: Icon, label, value, trend, trendValue, trendLabel, className, delay = 0, progress, progressColor }: StatCardProps) {
+export function StatCard({ icon: Icon, label, value, trend, trendValue, trendLabel, className, delay = 0, progress, progressColor, onClick }: StatCardProps) {
   return (
     <motion.div
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.3, delay }}
-      className="group relative"
+      className={cn("group relative", onClick && "cursor-pointer")}
+      onClick={onClick}
     >
       {/* Animated gradient border on hover */}
       <div className="absolute -inset-[1px] rounded-xl bg-gradient-to-r from-emerald-500/0 via-cyan-500/0 to-emerald-500/0 opacity-0 transition-all duration-500 group-hover:from-emerald-500/40 group-hover:via-cyan-500/40 group-hover:to-emerald-500/40 group-hover:opacity-100 blur-[1px]" />
@@ -34,6 +36,7 @@ export function StatCard({ icon: Icon, label, value, trend, trendValue, trendLab
         className={cn(
           'relative overflow-hidden border-white/5 bg-[#111] py-0 transition-all duration-300',
           'hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5',
+          onClick && 'hover:scale-[1.02] active:scale-[0.98]',
           className
         )}
       >

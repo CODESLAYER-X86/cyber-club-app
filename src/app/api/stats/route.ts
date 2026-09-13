@@ -6,6 +6,8 @@ import { getSupabaseUser } from '@/lib/supabase-server';
 export async function GET() {
   try {
     const caller = await getSupabaseUser();
+    const isGuest = !caller || caller.role === 'GUEST';
+    const canViewTreasury = !isGuest; // All authenticated members/executives can view; GUEST and unauthenticated cannot
     const canViewAuditLogs = !!(caller && ['PRESIDENT', 'PLATFORM_ADMIN', 'GS'].includes(caller.role));
 
     const [
@@ -26,7 +28,9 @@ export async function GET() {
       prisma.user.count({ where: { membershipStatus: 'ACTIVE' } }),
       prisma.user.count({ where: { membershipStatus: 'PENDING' } }),
       prisma.event.count({ where: { status: { in: ['UPCOMING', 'ONGOING'] } } }),
-      prisma.payment.count({ where: { status: 'PENDING' } }),
+      canViewTreasury
+        ? prisma.payment.count({ where: { status: 'PENDING' } })
+        : Promise.resolve(0),
       prisma.event.count(),
       canViewAuditLogs
         ? prisma.auditLog.findMany({
@@ -41,45 +45,69 @@ export async function GET() {
         where: { status: 'UPCOMING' },
         take: 5,
         orderBy: { startDate: 'asc' },
-        include: { _count: { select: { registrations: true } } },
+        select: {
+          id: true,
+          title: true,
+          description: true,
+          type: true,
+          category: true,
+          startDate: true,
+          endDate: true,
+          venue: true,
+          fee: true,
+          maxSeats: true,
+          currentSeats: true,
+          poster: true,
+          status: true,
+          _count: { select: { registrations: true } },
+        },
       }),
-      // Treasury: sum of approved deposits
-      prisma.treasuryDeposit.aggregate({
-        where: { status: 'APPROVED' },
-        _sum: { amount: true },
-      }),
-      // Treasury: sum of approved expenses
-      prisma.expense.aggregate({
-        where: { status: 'APPROVED' },
-        _sum: { amount: true },
-      }),
-      // Pending deposits count
-      prisma.treasuryDeposit.count({ where: { status: 'PENDING' } }),
-      // Pending expenses count
-      prisma.expense.count({ where: { status: 'PENDING' } }),
+      // Treasury: only query when caller is authorized executive
+      canViewTreasury
+        ? prisma.treasuryDeposit.aggregate({
+            where: { status: 'APPROVED' },
+            _sum: { amount: true },
+          })
+        : Promise.resolve({ _sum: { amount: 0 } }),
+      canViewTreasury
+        ? prisma.expense.aggregate({
+            where: { status: 'APPROVED' },
+            _sum: { amount: true },
+          })
+        : Promise.resolve({ _sum: { amount: 0 } }),
+      canViewTreasury
+        ? prisma.treasuryDeposit.count({ where: { status: 'PENDING' } })
+        : Promise.resolve(0),
+      canViewTreasury
+        ? prisma.expense.count({ where: { status: 'PENDING' } })
+        : Promise.resolve(0),
     ]);
 
+    const totalDeposits = canViewTreasury ? (approvedDepositsResult._sum.amount ?? 0) : 0;
+    const totalExpenses = canViewTreasury ? (approvedExpensesResult._sum.amount ?? 0) : 0;
+    const currentBalance = canViewTreasury ? totalDeposits - totalExpenses : 0;
 
-    const totalDeposits = approvedDepositsResult._sum.amount ?? 0;
-    const totalExpenses = approvedExpensesResult._sum.amount ?? 0;
-    const currentBalance = totalDeposits - totalExpenses;
+    const statsPayload: Record<string, unknown> = {
+      totalMembers,
+      activeMembers,
+      activeEvents,
+      totalEvents,
+    };
+
+    if (canViewTreasury) {
+      statsPayload.totalFunds = currentBalance;
+      statsPayload.totalDeposits = totalDeposits;
+      statsPayload.totalExpenses = totalExpenses;
+      statsPayload.currentBalance = currentBalance;
+      statsPayload.pendingMembers = pendingMembers;
+      statsPayload.pendingPayments = pendingPayments;
+      statsPayload.pendingApprovals = pendingMembers;
+      statsPayload.pendingDepositsCount = pendingDepositsCount;
+      statsPayload.pendingExpensesCount = pendingExpensesCount;
+    }
 
     return successResponse({
-      stats: {
-        totalMembers,
-        activeMembers,
-        pendingMembers,
-        totalFunds: currentBalance,
-        totalDeposits,
-        totalExpenses,
-        currentBalance,
-        activeEvents,
-        pendingPayments,
-        pendingApprovals: pendingMembers,
-        totalEvents,
-        pendingDepositsCount,
-        pendingExpensesCount,
-      },
+      stats: statsPayload,
       recentActivity: recentAuditLogs,
       upcomingEvents,
     });

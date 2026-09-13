@@ -7,6 +7,11 @@ import { isSafeUrl } from '@/lib/utils';
 // ─── GET /api/expenses ─── List all expenses (with items, creator, approvers)
 export async function GET(request: NextRequest) {
   try {
+    const caller = await getSupabaseUser();
+    if (!caller || caller.role === 'GUEST') {
+      return forbiddenResponse('Guests cannot view expenses');
+    }
+
     const { searchParams } = new URL(request.url);
     const status = searchParams.get('status');
 

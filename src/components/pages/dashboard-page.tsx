@@ -175,13 +175,15 @@ export function DashboardPage() {
 
         if (currentUser) {
           const certData = results[2];
-          if (certData?.success && Array.isArray(certData.data)) {
-            setCertificates(certData.data);
+          const rawCerts = certData?.data?.certificates || certData?.data;
+          if (certData?.success && Array.isArray(rawCerts)) {
+            setCertificates(rawCerts);
           }
 
           const paymentData = results[3];
-          if (paymentData?.success && Array.isArray(paymentData.data)) {
-            setPayments(paymentData.data);
+          const rawPayments = paymentData?.data?.payments || paymentData?.data;
+          if (paymentData?.success && Array.isArray(rawPayments)) {
+            setPayments(rawPayments);
           }
 
           if (['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role) && results[4]) {
@@ -219,15 +221,37 @@ export function DashboardPage() {
 
   const renderStatCards = () => {
     switch (role) {
-      case 'MEMBER':
+      case 'MEMBER': {
+        const earnedCerts = certificates.filter((c) =>
+          ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(c.status)
+        );
+        const awaitingCerts = certificates.filter((c) =>
+          ['REGISTERED', 'PRESENT', 'ELIGIBLE'].includes(c.status)
+        );
+
+        const certTrendLabel = awaitingCerts.length > 0
+          ? `${awaitingCerts.length} awaiting authorization`
+          : earnedCerts.length > 0
+          ? 'All certificates issued'
+          : undefined;
+
         return (
           <>
-            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} />
-            <StatCard icon={Award} label="My Certificates" value={certificates.length} trend="up" delay={0.1} />
-            <StatCard icon={CreditCard} label="Payment Records" value={payments.length} trend="neutral" delay={0.2} />
-            <StatCard icon={Calendar} label="Upcoming Labs" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} />
+            <StatCard icon={Calendar} label="Active Events" value={stats?.activeEvents ?? 0} trend="up" delay={0} onClick={() => setCurrentView('events')} />
+            <StatCard
+              icon={Award}
+              label="My Certificates"
+              value={earnedCerts.length}
+              trend={awaitingCerts.length > 0 ? "up" : earnedCerts.length > 0 ? "up" : "neutral"}
+              trendLabel={certTrendLabel}
+              delay={0.1}
+              onClick={() => setCurrentView('certificates')}
+            />
+            <StatCard icon={CreditCard} label="Payment Records" value={payments.length} trend="neutral" delay={0.2} onClick={() => setCurrentView('profile')} />
+            <StatCard icon={Calendar} label="Upcoming Labs" value={stats?.upcomingEvents?.length ?? 0} trend="up" delay={0.3} onClick={() => setCurrentView('events')} />
           </>
         );
+      }
       case 'MEDIA':
         return (
           <>
@@ -291,11 +315,43 @@ export function DashboardPage() {
             <StatCard icon={AlertTriangle} label="System Alerts" value={pendingUsers.length} trend="neutral" delay={0.3} />
           </>
         );
+      case 'GUEST':
       default:
         return (
           <>
-            <StatCard icon={Users} label="Members" value={stats?.totalMembers ?? 0} delay={0} />
-            <StatCard icon={Calendar} label="Events" value={stats?.activeEvents ?? 0} delay={0.1} />
+            <StatCard
+              icon={Calendar}
+              label="Active Events"
+              value={stats?.activeEvents ?? 0}
+              trend="up"
+              delay={0}
+              onClick={() => setCurrentView('events')}
+            />
+            <StatCard
+              icon={Calendar}
+              label="Upcoming Labs"
+              value={stats?.upcomingEvents?.length ?? 0}
+              trend="up"
+              delay={0.1}
+              onClick={() => setCurrentView('events')}
+            />
+            <StatCard
+              icon={Users}
+              label="Club Community"
+              value={stats?.totalMembers ?? 0}
+              trend="up"
+              delay={0.2}
+              onClick={() => setCurrentView('members')}
+            />
+            <StatCard
+              icon={Shield}
+              label="Membership Status"
+              value="GUEST"
+              trend="neutral"
+              trendLabel="Click to Apply for Membership"
+              delay={0.3}
+              onClick={() => setCurrentView('apply-membership')}
+            />
           </>
         );
     }
@@ -304,7 +360,7 @@ export function DashboardPage() {
   return (
     <div className="space-y-6">
       
-      {/* 1. EXECUTIVE HERO GREETING CARD (HIGH CONTRAST & AMBIENT GLOW) */}
+      {/* 1. EXECUTIVE / MEMBER / GUEST HERO GREETING CARD */}
       <div className="relative rounded-3xl border border-emerald-500/25 bg-gradient-to-b from-[#0e1a14]/90 via-[#0a130e]/90 to-[#070e0a]/90 p-6 sm:p-8 shadow-2xl backdrop-blur-xl overflow-hidden">
         {/* Top-right ambient lighting */}
         <div className="absolute top-0 right-0 w-64 h-64 bg-emerald-500/15 blur-3xl rounded-full pointer-events-none" />
@@ -316,13 +372,19 @@ export function DashboardPage() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-emerald-500" />
               </span>
-              <span>[ EXECUTIVE TELEMETRY ACTIVE ]</span>
+              <span>
+                {['PRESIDENT', 'GS', 'PLATFORM_ADMIN', 'TREASURER', 'VP'].includes(role)
+                  ? '[ EXECUTIVE TELEMETRY ACTIVE ]'
+                  : role === 'GUEST'
+                  ? '[ GUEST ACCESS PORTAL ]'
+                  : '[ MEMBER TELEMETRY ACTIVE ]'}
+              </span>
             </div>
 
             <h1 className="text-2xl sm:text-3xl font-black font-mono text-white tracking-tight">
               {greeting},{' '}
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400">
-                {currentUser?.name || 'Executive'}
+                {currentUser?.name || (role === 'GUEST' ? 'Guest Visitor' : 'Member')}
               </span>
             </h1>
 
@@ -341,6 +403,17 @@ export function DashboardPage() {
 
           {/* Action Chips */}
           <div className="flex flex-wrap items-center gap-2.5">
+            {role === 'GUEST' && (
+              <Button
+                size="sm"
+                onClick={() => setCurrentView('apply-membership')}
+                className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs px-4 h-9 shadow-lg shadow-emerald-500/20"
+              >
+                <ShieldCheck className="mr-1.5 h-3.5 w-3.5" />
+                Apply for Membership ➔
+              </Button>
+            )}
+
             {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && (
               <Button
                 size="sm"

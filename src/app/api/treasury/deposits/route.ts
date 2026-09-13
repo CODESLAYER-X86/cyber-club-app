@@ -7,6 +7,11 @@ import { isSafeUrl } from '@/lib/utils';
 // ─── GET /api/treasury/deposits ─── List all deposits (with submitter & approver info)
 export async function GET() {
   try {
+    const caller = await getSupabaseUser();
+    if (!caller || caller.role === 'GUEST') {
+      return forbiddenResponse('Guests cannot view treasury deposits');
+    }
+
     const deposits = await prisma.treasuryDeposit.findMany({
       orderBy: { createdAt: 'desc' },
       include: {
