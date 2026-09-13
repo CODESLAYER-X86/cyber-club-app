@@ -18,11 +18,11 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 
 interface Announcement {
-  id: string;
+  id?: string;
   title: string;
   content: string;
   type: string;
-  createdBy: string;
+  createdBy?: string;
   createdAt: string;
   authorName?: string;
 }
@@ -395,19 +395,20 @@ export function AnnouncementsPage() {
       ) : (
         <AnimatePresence mode="popLayout">
           <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
-            {filtered.map((ann) => {
+            {filtered.map((ann, idx) => {
               const styles = TYPE_STYLES[ann.type] || TYPE_STYLES.GENERAL;
-              const isExpanded = expandedIds.has(ann.id);
+              const annKey = ann.id || `${ann.title}-${ann.createdAt}-${idx}`;
+              const isExpanded = expandedIds.has(annKey);
               const contentLong = isContentLong(ann.content);
               const displayContent = contentLong && !isExpanded
                 ? ann.content.slice(0, 150) + '...'
                 : ann.content;
-              const authorName = users[ann.createdBy] || ann.authorName || 'Unknown';
-              const isDeleting = deletingId === ann.id;
+              const authorName = (ann.createdBy && users[ann.createdBy]) || ann.authorName || 'Unknown';
+              const isDeleting = ann.id ? deletingId === ann.id : false;
 
               return (
                 <motion.div
-                  key={ann.id}
+                  key={annKey}
                   variants={item}
                   layout
                   exit={{ opacity: 0, x: -30, height: 0, marginBottom: 0, transition: { duration: 0.3 } }}
@@ -439,7 +440,7 @@ export function AnnouncementsPage() {
                           </p>
                           {contentLong && (
                             <button
-                              onClick={() => toggleExpand(ann.id)}
+                              onClick={() => toggleExpand(annKey)}
                               className="mt-1 flex items-center gap-1 text-xs text-emerald-400 hover:text-emerald-300 transition-colors"
                             >
                               {isExpanded ? (
@@ -460,7 +461,7 @@ export function AnnouncementsPage() {
                                 {timeAgo(ann.createdAt)}
                               </span>
                             </div>
-                            {canCreate && (
+                            {canCreate && ann.id && (
                               <AlertDialog>
                                 <AlertDialogTrigger asChild>
                                   <Button
@@ -487,7 +488,7 @@ export function AnnouncementsPage() {
                                     <AlertDialogCancel className="border-white/10 text-gray-400 hover:bg-white/5">Cancel</AlertDialogCancel>
                                     <AlertDialogAction
                                       className="bg-red-600 text-white hover:bg-red-500"
-                                      onClick={() => handleDelete(ann.id)}
+                                      onClick={() => handleDelete(ann.id!)}
                                     >
                                       Delete
                                     </AlertDialogAction>

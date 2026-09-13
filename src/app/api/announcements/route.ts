@@ -19,14 +19,20 @@ export async function GET() {
       : [];
     const userMap = new Map(users.map((u) => [u.id, u.name]));
 
-    const sanitizedAnnouncements = announcements.map((a) => ({
-      id: a.id,
-      title: a.title,
-      content: a.content,
-      type: a.type,
-      authorName: userMap.get(a.createdBy) || "Executive Committee",
-      createdAt: a.createdAt,
-    }));
+    const caller = await getSupabaseUser();
+    const canManage = !!(caller && ["PRESIDENT", "VP", "GS", "PLATFORM_ADMIN", "MEDIA"].includes(caller.role));
+
+    const sanitizedAnnouncements = announcements.map((a) => {
+      const { id, ...publicFields } = {
+        id: a.id,
+        title: a.title,
+        content: a.content,
+        type: a.type,
+        authorName: userMap.get(a.createdBy) || "Executive Committee",
+        createdAt: a.createdAt,
+      };
+      return canManage ? { id, ...publicFields } : publicFields;
+    });
 
     return successResponse({ announcements: sanitizedAnnouncements });
   } catch {
