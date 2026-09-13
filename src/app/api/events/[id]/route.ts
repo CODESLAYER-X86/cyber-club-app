@@ -142,6 +142,13 @@ export async function GET(
 
     // Auth & Permission check
     const caller = await getSupabaseUser();
+    const isMemberOrHigher = !!(caller && caller.role !== "GUEST");
+
+    // Guard: If event is MEMBER_ONLY, unauthenticated or guest users cannot view it
+    if (event.type === "MEMBER_ONLY" && !isMemberOrHigher) {
+      return forbiddenResponse("This event is exclusively for registered club members");
+    }
+
     const isLeadershipOrVerifier = !!(caller && (
       ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER", "VERIFIER"].includes(caller.role) ||
       caller.userId === event.verifierId ||
@@ -209,8 +216,37 @@ export async function GET(
       ? event.certificates
       : (caller ? event.certificates.filter((c) => c.userId === caller.userId) : []);
 
+    let paymentConfig = event.paymentConfig;
+    if (!isMemberOrHigher && paymentConfig) {
+      try {
+        const parsed = typeof paymentConfig === "string" ? JSON.parse(paymentConfig) : paymentConfig;
+        paymentConfig = JSON.stringify({
+          paymentRequired: !!parsed.paymentRequired,
+          feeAmount: parsed.feeAmount || 0,
+          paymentDeadline: parsed.paymentDeadline || "",
+          paymentInstructions: parsed.paymentInstructions || "",
+        });
+      } catch {
+        paymentConfig = null;
+      }
+    }
+
     const eventWithPayments = {
       ...event,
+      creator: event.creator
+        ? {
+            ...event.creator,
+            email: isLeadershipOrVerifier ? event.creator.email : undefined,
+          }
+        : null,
+      verifier: event.verifier
+        ? {
+            ...event.verifier,
+            email: isLeadershipOrVerifier ? event.verifier.email : undefined,
+          }
+        : null,
+      certificateLayout: isLeadershipOrVerifier ? event.certificateLayout : null,
+      paymentConfig,
       registrations: registrationsWithPayment,
       attendance: visibleAttendance,
       certificates: visibleCertificates,

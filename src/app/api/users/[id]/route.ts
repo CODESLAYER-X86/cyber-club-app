@@ -20,6 +20,10 @@ export async function GET(
     // Only President, Platform Admin, VP, and GS can inspect other members' dossiers. Treasurer is explicitly excluded.
     const canInspectOtherRecords = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS"].includes(caller.role) && caller.role !== "TREASURER";
 
+    if (!isSelf && !canInspectOtherRecords) {
+      return forbiddenResponse("You do not have permission to view other user profiles");
+    }
+
     // Build selection object based on authorization level
     const selectFields: any = {
       id: true,

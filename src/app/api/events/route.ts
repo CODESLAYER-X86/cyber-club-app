@@ -12,13 +12,27 @@ export async function GET(request: NextRequest) {
     const category = searchParams.get("category");
     const search = searchParams.get("search");
 
+    const caller = await getSupabaseUser();
+    const isMemberOrHigher = !!(caller && caller.role !== "GUEST");
+    const isLeadership = !!(caller && ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER"].includes(caller.role));
+
     const where: Record<string, unknown> = {};
 
     if (type) {
       if (type === "PUBLIC") {
         where.type = { not: "MEMBER_ONLY" };
+      } else if (type === "MEMBER_ONLY") {
+        if (!isMemberOrHigher) {
+          return successResponse({ events: [] });
+        }
+        where.type = "MEMBER_ONLY";
       } else {
         where.type = type;
+      }
+    } else {
+      // By default, public visitors and guests NEVER see MEMBER_ONLY events
+      if (!isMemberOrHigher) {
+        where.type = { not: "MEMBER_ONLY" };
       }
     }
 
@@ -40,23 +54,43 @@ export async function GET(request: NextRequest) {
 
     const events = await prisma.event.findMany({
       where,
-      include: {
+      select: {
+        id: true,
+        title: true,
+        description: true,
+        type: true,
+        category: true,
+        startDate: true,
+        endDate: true,
+        venue: true,
+        fee: true,
+        maxSeats: true,
+        currentSeats: true,
+        poster: true,
+        status: true,
+        requiresAssessment: true,
+        passingScore: true,
+        createdAt: true,
+        updatedAt: true,
+        // certificateLayout: ONLY for leadership/designers
+        certificateLayout: isLeadership,
+        paymentConfig: true,
         creator: {
           select: {
-            id: true,
+            id: isLeadership,
             name: true,
-            email: true,
             avatar: true,
             role: true,
+            email: isLeadership,
           },
         },
         verifier: {
           select: {
-            id: true,
+            id: isLeadership,
             name: true,
-            email: true,
             avatar: true,
             role: true,
+            email: isLeadership,
           },
         },
         _count: {
@@ -66,7 +100,29 @@ export async function GET(request: NextRequest) {
       orderBy: { startDate: "desc" },
     });
 
-    return successResponse({ events });
+    // Sanitize paymentConfig for public/guests to prevent phone/payment scraping
+    const sanitizedEvents = events.map((ev) => {
+      let paymentConfig = ev.paymentConfig;
+      if (!isMemberOrHigher && paymentConfig) {
+        try {
+          const parsed = typeof paymentConfig === "string" ? JSON.parse(paymentConfig) : paymentConfig;
+          paymentConfig = JSON.stringify({
+            paymentRequired: !!parsed.paymentRequired,
+            feeAmount: parsed.feeAmount || 0,
+            paymentDeadline: parsed.paymentDeadline || "",
+            paymentInstructions: parsed.paymentInstructions || "",
+          });
+        } catch {
+          paymentConfig = null;
+        }
+      }
+      return {
+        ...ev,
+        paymentConfig,
+      };
+    });
+
+    return successResponse({ events: sanitizedEvents });
   } catch (error) {
     console.error("GET events error:", error);
     return successResponse({ events: [] });
