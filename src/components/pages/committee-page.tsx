@@ -123,6 +123,24 @@ export function isAdvisoryMember(member?: CommitteeMember | null): boolean {
   );
 }
 
+export function getRolePriority(role?: string): number {
+  const r = (role || '').toLowerCase().trim();
+  if (r.includes('advisor') || r.includes('mentor') || r.includes('faculty') || r.includes('patron')) {
+    if (r.includes('chief') || r.includes('cheif') || r.includes('head') || r.includes('lead')) return 1;
+    return 2;
+  }
+  if (r.includes('president') && !r.includes('vice') && !r.includes('vp')) return 1;
+  if (r.includes('vice') || r.includes('vp')) return 2;
+  if (r.includes('general') || r.includes('secretary') || r.includes('gs')) return 3;
+  if (r.includes('joint') && r.includes('secretary')) return 4;
+  if (r.includes('assistant') && r.includes('secretary')) return 4;
+  if (r.includes('treasurer')) return 5;
+  if (r.includes('head') || r.includes('lead') || r.includes('director')) return 6;
+  if (r.includes('coordinator') || r.includes('manager')) return 7;
+  if (r.includes('executive')) return 8;
+  return 9;
+}
+
 /* ──────────── Error Boundary ──────────── */
 
 interface ErrorBoundaryProps {
@@ -238,15 +256,33 @@ function CommitteePageContent() {
     fetchMembers();
   }, [fetchMembers]);
 
-  // Separate members into Advisory and Committee sorted by order
+  // Sort helper: order ascending, with role hierarchy tie-breaker (President > VP > GS)
+  const sortMembers = useCallback((a: CommitteeMember, b: CommitteeMember) => {
+    const orderA = typeof a.order === 'number' && a.order > 0 ? a.order : null;
+    const orderB = typeof b.order === 'number' && b.order > 0 ? b.order : null;
+
+    if (orderA !== null && orderB !== null && orderA !== orderB) {
+      return orderA - orderB;
+    }
+    if (orderA !== null && orderB === null) return -1;
+    if (orderA === null && orderB !== null) return 1;
+
+    const prioA = getRolePriority(a.role);
+    const prioB = getRolePriority(b.role);
+    if (prioA !== prioB) return prioA - prioB;
+
+    return (a.name || '').localeCompare(b.name || '');
+  }, []);
+
+  // Separate members into Advisory and Committee sorted by order & hierarchy
   const safeMembers = Array.isArray(members) ? members : [];
   const advisoryMembers = useMemo(
-    () => safeMembers.filter(isAdvisoryMember).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-    [safeMembers]
+    () => safeMembers.filter(isAdvisoryMember).sort(sortMembers),
+    [safeMembers, sortMembers]
   );
   const committeeMembers = useMemo(
-    () => safeMembers.filter((m) => !isAdvisoryMember(m)).sort((a, b) => (a.order ?? 0) - (b.order ?? 0)),
-    [safeMembers]
+    () => safeMembers.filter((m) => !isAdvisoryMember(m)).sort(sortMembers),
+    [safeMembers, sortMembers]
   );
 
   // Upload image to Supabase
