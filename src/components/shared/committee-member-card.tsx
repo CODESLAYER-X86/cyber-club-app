@@ -12,7 +12,7 @@ import {
   ArrowLeft,
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
-import { sanitizeUrl } from '@/lib/utils';
+import { cn, sanitizeUrl } from '@/lib/utils';
 import type { CommitteeMember } from '@/types';
 
 interface SocialLinkData {
@@ -145,15 +145,23 @@ export function CommitteeMemberCard({
   };
 
   return (
-    <div className="perspective-1000 w-full h-[460px]">
-      <div
-        className={`relative w-full h-full transition-transform duration-700 transform-style-3d ${
-          isFlipped ? 'rotate-y-180' : ''
-        }`}
-      >
+    <div className="w-full h-[460px] [perspective:1000px] [-webkit-perspective:1000px]">
+      <div className="relative w-full h-full">
         {/* FRONT SIDE */}
         <div
-          className={`absolute inset-0 w-full h-full backface-hidden rounded-2xl border border-white/5 bg-[#111]/80 backdrop-blur-xl overflow-hidden flex flex-col justify-between transition-all duration-300 hover:border-white/10 ${colors.glowClass}`}
+          style={{
+            WebkitBackfaceVisibility: 'hidden',
+            backfaceVisibility: 'hidden',
+            WebkitTransformStyle: 'preserve-3d',
+            transformStyle: 'preserve-3d',
+          }}
+          className={cn(
+            'absolute inset-0 w-full h-full rounded-2xl border border-white/10 bg-[#121614] overflow-hidden flex flex-col justify-between transition-all duration-500 ease-out hover:border-white/20',
+            colors.glowClass,
+            isFlipped
+              ? 'opacity-0 pointer-events-none [transform:rotateY(180deg)] -z-10'
+              : 'opacity-100 pointer-events-auto [transform:rotateY(0deg)] z-10'
+          )}
         >
           {/* Photo/Avatar Container */}
           <div className="relative w-full h-[380px] bg-neutral-900 overflow-hidden flex items-center justify-center">
@@ -172,7 +180,7 @@ export function CommitteeMemberCard({
             )}
 
             {/* Gradient Overlay for Text */}
-            <div className="absolute inset-0 bg-gradient-to-t from-[#111] via-[#111]/30 to-transparent opacity-90" />
+            <div className="absolute inset-0 bg-gradient-to-t from-[#121614] via-[#121614]/40 to-transparent opacity-95" />
 
             {/* Info and Social Links positioned at bottom of image */}
             <div className="absolute bottom-4 left-4 right-4 z-10">
@@ -235,8 +243,9 @@ export function CommitteeMemberCard({
           </div>
 
           {/* Bottom Flip Action area */}
-          <div className="flex-1 flex items-center bg-[#151515] border-t border-white/5">
+          <div className="flex-1 flex items-center bg-[#161c18] border-t border-white/5">
             <button
+              type="button"
               onClick={toggleFlip}
               className="flex w-full h-full items-center justify-between px-5 py-3.5 text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/[0.02] transition-colors"
             >
@@ -248,7 +257,18 @@ export function CommitteeMemberCard({
 
         {/* BACK SIDE */}
         <div
-          className="absolute inset-0 w-full h-full backface-hidden rotate-y-180 rounded-2xl border border-white/5 bg-[#121212] flex flex-col justify-between p-6"
+          style={{
+            WebkitBackfaceVisibility: 'hidden',
+            backfaceVisibility: 'hidden',
+            WebkitTransformStyle: 'preserve-3d',
+            transformStyle: 'preserve-3d',
+          }}
+          className={cn(
+            'absolute inset-0 w-full h-full rounded-2xl border border-white/10 bg-[#121614] flex flex-col justify-between p-6 transition-all duration-500 ease-out',
+            isFlipped
+              ? 'opacity-100 pointer-events-auto [transform:rotateY(0deg)] z-10'
+              : 'opacity-0 pointer-events-none [transform:rotateY(-180deg)] -z-10'
+          )}
         >
           <div className="flex-1 flex flex-col min-h-0">
             {/* Header section on Back */}
@@ -329,6 +349,7 @@ export function CommitteeMemberCard({
 
           {/* Back button to flip back */}
           <button
+            type="button"
             onClick={toggleFlip}
             className="mt-4 flex items-center justify-center gap-1.5 w-full rounded-lg border border-white/5 bg-white/[0.02] px-4 py-2.5 text-xs font-semibold text-gray-400 hover:text-white hover:bg-white/[0.05] hover:border-white/10 transition-all duration-200"
           >
