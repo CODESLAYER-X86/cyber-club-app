@@ -145,22 +145,22 @@ export function CommitteeMemberCard({
   };
 
   return (
-    <div className="w-full h-[460px] [perspective:1000px] [-webkit-perspective:1000px]">
+    <div className="w-full max-w-[420px] h-[460px] mx-auto [perspective:1000px] [-webkit-perspective:1000px]">
       <div className="relative w-full h-full">
         {/* FRONT SIDE */}
         <div
           style={{
-            WebkitBackfaceVisibility: 'hidden',
+            transform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
+            WebkitTransform: isFlipped ? 'rotateY(180deg)' : 'rotateY(0deg)',
             backfaceVisibility: 'hidden',
-            WebkitTransformStyle: 'preserve-3d',
-            transformStyle: 'preserve-3d',
+            WebkitBackfaceVisibility: 'hidden',
           }}
           className={cn(
             'absolute inset-0 w-full h-full rounded-2xl border border-white/10 bg-[#121614] overflow-hidden flex flex-col justify-between transition-all duration-500 ease-out hover:border-white/20',
             colors.glowClass,
             isFlipped
-              ? 'opacity-0 pointer-events-none [transform:rotateY(180deg)] -z-10'
-              : 'opacity-100 pointer-events-auto [transform:rotateY(0deg)] z-10'
+              ? 'opacity-0 pointer-events-none -z-10'
+              : 'opacity-100 pointer-events-auto z-10'
           )}
         >
           {/* Photo/Avatar Container */}
@@ -258,16 +258,16 @@ export function CommitteeMemberCard({
         {/* BACK SIDE */}
         <div
           style={{
-            WebkitBackfaceVisibility: 'hidden',
+            transform: isFlipped ? 'rotateY(0deg)' : 'rotateY(-180deg)',
+            WebkitTransform: isFlipped ? 'rotateY(0deg)' : 'rotateY(-180deg)',
             backfaceVisibility: 'hidden',
-            WebkitTransformStyle: 'preserve-3d',
-            transformStyle: 'preserve-3d',
+            WebkitBackfaceVisibility: 'hidden',
           }}
           className={cn(
             'absolute inset-0 w-full h-full rounded-2xl border border-white/10 bg-[#121614] flex flex-col justify-between p-6 transition-all duration-500 ease-out',
             isFlipped
-              ? 'opacity-100 pointer-events-auto [transform:rotateY(0deg)] z-10'
-              : 'opacity-0 pointer-events-none [transform:rotateY(-180deg)] -z-10'
+              ? 'opacity-100 pointer-events-auto z-10'
+              : 'opacity-0 pointer-events-none -z-10'
           )}
         >
           <div className="flex-1 flex flex-col min-h-0">
