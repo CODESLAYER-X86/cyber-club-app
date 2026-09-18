@@ -31,6 +31,9 @@ interface AuditLogEntry {
     email: string;
     avatar?: string;
     role?: string;
+    transactionId?: string;
+    studentId?: string;
+    phone?: string;
   };
 }
 
@@ -288,7 +291,7 @@ function formatFullDate(date: string): string {
 /**
  * Parses raw audit string into human readable story elements with styled badges.
  */
-function renderHumanNarrative(action: string, details: string) {
+function renderHumanNarrative(action: string, details: string, user?: AuditLogEntry['user']) {
   // Case 1: Role Update
   // Format: Changed role of Name (email) from OLD to NEW
   const roleMatch = details.match(/Changed role of (.*?) \((.*?)\) from (\w+) to (\w+)/i);
@@ -344,22 +347,28 @@ function renderHumanNarrative(action: string, details: string) {
   // Case 4: Membership Application
   if (action === 'MEMBERSHIP_APPLICATION') {
     const isReapply = details.toLowerCase().includes('re-submitted') || details.toLowerCase().includes('prior rejection');
+    
+    // Extract transaction ID from details string or fallback to user.transactionId
+    const trxMatch = details.match(/Trx ID:\s*([A-Za-z0-9_-]+)/i);
+    const trxId = trxMatch ? trxMatch[1] : user?.transactionId;
+
     return (
-      <div className="text-xs text-gray-300 flex items-center gap-1.5 flex-wrap">
+      <div className="text-xs text-gray-300 flex items-center gap-2 flex-wrap">
         {isReapply ? (
-          <>
-            <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-[10px]">
-              Revised Application
-            </Badge>
-            <span>Candidate re-submitted club membership form after revising academic credentials</span>
-          </>
+          <Badge variant="outline" className="border-amber-500/30 bg-amber-500/10 text-amber-300 text-[10px]">
+            Revised Application
+          </Badge>
         ) : (
-          <>
-            <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px]">
-              New Applicant
-            </Badge>
-            <span>Submitted new membership application and payment slip for committee review</span>
-          </>
+          <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300 text-[10px]">
+            New Applicant
+          </Badge>
+        )}
+        <span>Candidate submitted membership application</span>
+        {trxId && (
+          <span className="inline-flex items-center gap-1 font-mono text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shadow-sm">
+            <CreditCard className="h-3 w-3 text-emerald-400" />
+            Trx ID: <span className="font-bold text-white tracking-wider">{trxId}</span>
+          </span>
         )}
       </div>
     );
@@ -628,7 +637,7 @@ export function AuditLogsPage() {
 
                       {/* Bottom Row: Human Story Narrative */}
                       <div className="pt-0.5">
-                        {renderHumanNarrative(log.action, log.details)}
+                        {renderHumanNarrative(log.action, log.details, log.user)}
                       </div>
                     </div>
 
@@ -700,11 +709,52 @@ export function AuditLogsPage() {
                 </div>
               </div>
 
+              {/* Payment & Student Credentials Section */}
+              {(selectedLog.user?.transactionId || selectedLog.user?.studentId || selectedLog.details.includes('Trx ID:')) && (
+                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] uppercase tracking-wider text-emerald-400 font-mono font-semibold flex items-center gap-1.5">
+                      <CreditCard className="h-3.5 w-3.5" />
+                      Payment & Student Reference
+                    </span>
+                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-[10px]">
+                      Application Record
+                    </Badge>
+                  </div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                    {(selectedLog.user?.transactionId || selectedLog.details.match(/Trx ID:\s*([A-Za-z0-9_-]+)/i)?.[1]) && (
+                      <div className="bg-black/40 rounded p-2 border border-white/5">
+                        <span className="text-gray-400 text-[10px] uppercase font-mono block">Transaction ID</span>
+                        <span className="font-mono text-emerald-400 font-bold text-xs select-all">
+                          {selectedLog.user?.transactionId || selectedLog.details.match(/Trx ID:\s*([A-Za-z0-9_-]+)/i)?.[1]}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLog.user?.studentId && (
+                      <div className="bg-black/40 rounded p-2 border border-white/5">
+                        <span className="text-gray-400 text-[10px] uppercase font-mono block">Student ID</span>
+                        <span className="font-mono text-gray-200 text-xs select-all">
+                          {selectedLog.user.studentId}
+                        </span>
+                      </div>
+                    )}
+                    {selectedLog.user?.phone && (
+                      <div className="bg-black/40 rounded p-2 border border-white/5">
+                        <span className="text-gray-400 text-[10px] uppercase font-mono block">Phone</span>
+                        <span className="font-mono text-gray-200 text-xs">
+                          {selectedLog.user.phone}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Event Description */}
               <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
                 <span className="text-[11px] uppercase tracking-wider text-gray-500 font-mono">Action Story</span>
                 <div className="py-1">
-                  {renderHumanNarrative(selectedLog.action, selectedLog.details)}
+                  {renderHumanNarrative(selectedLog.action, selectedLog.details, selectedLog.user)}
                 </div>
                 <div className="pt-2 border-t border-white/5 text-[11px] text-gray-500 font-mono break-all">
                   Raw Details: {selectedLog.details}

@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
         userId,
         action: "MEMBERSHIP_APPLICATION",
         details: user.membershipStatus === "REJECTED"
-          ? "User re-submitted membership application after prior rejection"
-          : "User submitted membership application",
+          ? `User re-submitted membership application after prior rejection (Trx ID: ${transactionId}, Method: ${validatedMethod})`
+          : `User submitted membership application (Trx ID: ${transactionId}, Method: ${validatedMethod})`,
       },
     });
 
