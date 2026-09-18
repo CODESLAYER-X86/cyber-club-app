@@ -18,11 +18,11 @@ export async function PATCH(
     const body = await request.json();
     const { reason } = body;
 
-    // Validate authority: Only PRESIDENT or PLATFORM_ADMIN can revoke
-    const caller = await getSupabaseUser(["PRESIDENT", "PLATFORM_ADMIN"]);
+    // Validate authority: Only PRESIDENT, VP, or PLATFORM_ADMIN can revoke
+    const caller = await getSupabaseUser(["PRESIDENT", "VP", "PLATFORM_ADMIN"]);
     if (!caller) {
       return forbiddenResponse(
-        "Only the President or Platform Admin can revoke certificates"
+        "Only the President, Vice President, or Platform Admin can revoke certificates"
       );
     }
     const performedBy = caller.userId;

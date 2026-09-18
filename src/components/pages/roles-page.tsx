@@ -68,7 +68,7 @@ const ROLE_CONFIG: Record<string, {
     borderColor: 'border-l-indigo-400',
     iconBg: 'bg-indigo-500/10',
     iconColor: 'text-indigo-400',
-    description: 'Supports the president, assists with club operations, and approves members',
+    description: 'Supports the president, manages operations, member approvals, certificate authority, and audit oversight',
     dotColor: 'fill-indigo-400',
   },
   GS: {
@@ -137,6 +137,9 @@ const PERMISSION_MATRIX: { action: string; roles: Record<string, boolean> }[] = 
   { action: 'Verify Payment', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: true, MEDIA: false, VERIFIER: true, MEMBER: false, GUEST: false } },
   { action: 'Register Event', roles: { PLATFORM_ADMIN: true, PRESIDENT: false, VP: false, GS: false, TREASURER: false, MEDIA: false, VERIFIER: true, MEMBER: true, GUEST: false } },
   { action: 'Approve Member', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: true, GS: true, TREASURER: false, MEDIA: false, VERIFIER: true, MEMBER: false, GUEST: false } },
+  { action: 'Certificate Authority', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: true, GS: true, TREASURER: false, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
+  { action: 'Publish Announcement', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: true, GS: true, TREASURER: false, MEDIA: true, VERIFIER: false, MEMBER: false, GUEST: false } },
+  { action: 'View Audit Logs', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: true, GS: true, TREASURER: false, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
   { action: 'View Finance', roles: { PLATFORM_ADMIN: true, PRESIDENT: true, VP: false, GS: true, TREASURER: true, MEDIA: false, VERIFIER: false, MEMBER: false, GUEST: false } },
 ];
 

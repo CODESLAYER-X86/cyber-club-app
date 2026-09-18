@@ -16,11 +16,11 @@ export async function PATCH(
   try {
     const { code: certificateId } = await params;
 
-    // Validate authority: Only PRESIDENT or PLATFORM_ADMIN can approve
-    const caller = await getSupabaseUser(["PRESIDENT", "PLATFORM_ADMIN"]);
+    // Validate authority: Only PRESIDENT, VP, or PLATFORM_ADMIN can approve
+    const caller = await getSupabaseUser(["PRESIDENT", "VP", "PLATFORM_ADMIN"]);
     if (!caller) {
       return forbiddenResponse(
-        "Only the President or Platform Admin can approve certificates"
+        "Only the President, Vice President, or Platform Admin can approve certificates"
       );
     }
     const performedBy = caller.userId;

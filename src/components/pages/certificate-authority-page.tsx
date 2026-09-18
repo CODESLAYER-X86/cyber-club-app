@@ -163,12 +163,13 @@ export function CertificateAuthorityPage() {
 
   const isGS = role === 'GS';
   const isPresident = role === 'PRESIDENT';
+  const isVP = role === 'VP';
   const isAdmin = role === 'PLATFORM_ADMIN';
 
   // Determine default tab based on role
   const getDefaultTab = () => {
     if (isGS) return 'issue';
-    if (isPresident) return 'pending-approval';
+    if (isPresident || isVP) return 'pending-approval';
     if (isAdmin) return 'audit';
     return 'audit';
   };
@@ -373,13 +374,13 @@ export function CertificateAuthorityPage() {
   }, [fetchStats]);
 
   useEffect(() => {
-    if ((isGS && activeTab === 'issue') || (isPresident && activeTab === 'pending-approval')) {
+    if (((isGS || isPresident || isVP || isAdmin) && activeTab === 'issue') || ((isPresident || isVP) && activeTab === 'pending-approval')) {
       const t = setTimeout(() => {
         fetchCompletedEvents();
       }, 0);
       return () => clearTimeout(t);
     }
-  }, [isGS, isPresident, activeTab, fetchCompletedEvents]);
+  }, [isGS, isPresident, isVP, isAdmin, activeTab, fetchCompletedEvents]);
 
   // When selectedPresidentEventId changes, load its certificates
   useEffect(() => {
@@ -395,13 +396,13 @@ export function CertificateAuthorityPage() {
   }, [selectedPresidentEventId, fetchPresidentCerts]);
 
   useEffect(() => {
-    if (isPresident && activeTab === 'pending-approval') {
+    if ((isPresident || isVP) && activeTab === 'pending-approval') {
       const t = setTimeout(() => {
         fetchPendingCerts();
       }, 0);
       return () => clearTimeout(t);
     }
-  }, [isPresident, activeTab, fetchPendingCerts]);
+  }, [isPresident, isVP, activeTab, fetchPendingCerts]);
 
   useEffect(() => {
     if (activeTab === 'audit') {
@@ -713,7 +714,7 @@ export function CertificateAuthorityPage() {
         className="space-y-4"
       >
         <TabsList className="bg-white/5 border border-white/10 flex-wrap h-auto p-1 gap-1">
-          {isGS && (
+          {(isGS || isPresident || isVP || isAdmin) && (
             <TabsTrigger
               value="issue"
               className="data-[state=active]:bg-emerald-500/20 data-[state=active]:text-emerald-400"
@@ -722,7 +723,7 @@ export function CertificateAuthorityPage() {
               Issue Certificate
             </TabsTrigger>
           )}
-          {isPresident && (
+          {(isPresident || isVP) && (
             <TabsTrigger
               value="pending-approval"
               className="data-[state=active]:bg-amber-500/20 data-[state=active]:text-amber-400 gap-2 px-3 py-1.5"
@@ -736,7 +737,7 @@ export function CertificateAuthorityPage() {
               )}
             </TabsTrigger>
           )}
-          {(isPresident || isAdmin) && (
+          {(isPresident || isVP || isAdmin) && (
             <TabsTrigger
               value="revoke"
               className="data-[state=active]:bg-red-500/20 data-[state=active]:text-red-400"
@@ -745,7 +746,7 @@ export function CertificateAuthorityPage() {
               Revoke Certificate
             </TabsTrigger>
           )}
-          {(isGS || isPresident || isAdmin) && (
+          {(isGS || isPresident || isVP || isAdmin) && (
             <TabsTrigger
               value="audit"
               className="data-[state=active]:bg-cyan-500/20 data-[state=active]:text-cyan-400"
@@ -757,7 +758,7 @@ export function CertificateAuthorityPage() {
         </TabsList>
 
         {/* ─── Tab 1: Issue Certificate ─────────── */}
-        {isGS && (
+        {(isGS || isPresident || isVP || isAdmin) && (
           <TabsContent value="issue">
             <motion.div
               variants={container}
@@ -1040,7 +1041,7 @@ export function CertificateAuthorityPage() {
         )}
 
         {/* ─── Tab 2: Pending Approval ──────────── */}
-        {isPresident && (
+        {(isPresident || isVP) && (
           <TabsContent value="pending-approval">
             <motion.div
               variants={container}
@@ -1504,7 +1505,7 @@ export function CertificateAuthorityPage() {
         )}
 
         {/* ─── Tab 3: Revoke Certificate ────────── */}
-        {(isPresident || isAdmin) && (
+        {(isPresident || isVP || isAdmin) && (
           <TabsContent value="revoke">
             <div className="space-y-4">
               {/* Search */}
@@ -1809,7 +1810,7 @@ export function CertificateAuthorityPage() {
         )}
 
         {/* ─── Tab 4: Audit Trail ──────────────── */}
-        {(isGS || isPresident || isAdmin) && (
+        {(isGS || isPresident || isVP || isAdmin) && (
           <TabsContent value="audit">
             <div className="space-y-4">
               {/* Filter */}

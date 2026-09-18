@@ -100,7 +100,7 @@ export function AnnouncementsPage() {
   const [showPreview, setShowPreview] = useState(false);
   const [deletingId, setDeletingId] = useState<string | null>(null);
 
-  const canCreate = currentUser && ['PRESIDENT', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const canCreate = currentUser && ['PRESIDENT', 'VP', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
   useEffect(() => {
     const load = async () => {

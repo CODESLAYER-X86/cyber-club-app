@@ -129,6 +129,9 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
     case 'VP':
       return [
         'member-approval',
+        'certificate-authority',
+        'certificate-designer',
+        'audit-logs',
         'roles',
         'analytics',
         'members',

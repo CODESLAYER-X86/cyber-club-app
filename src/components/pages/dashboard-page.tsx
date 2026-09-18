@@ -425,7 +425,7 @@ export function DashboardPage() {
               </Button>
             )}
 
-            {['PRESIDENT', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(role) && (
+            {['PRESIDENT', 'VP', 'GS', 'MEDIA', 'PLATFORM_ADMIN'].includes(role) && (
               <Button
                 size="sm"
                 onClick={() => setCurrentView('announcements')}

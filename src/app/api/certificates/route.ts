@@ -9,7 +9,7 @@ import { NextRequest } from "next/server";
 import { v4 as uuidv4 } from "uuid";
 import { getSupabaseUser } from "@/lib/supabase-server";
 
-const AUTHORIZED_ROLES = ["GS", "PRESIDENT", "PLATFORM_ADMIN"];
+const AUTHORIZED_ROLES = ["GS", "PRESIDENT", "VP", "PLATFORM_ADMIN"];
 
 export async function GET(request: NextRequest) {
   try {
@@ -296,7 +296,7 @@ export async function POST(request: NextRequest) {
     const caller = await getSupabaseUser(AUTHORIZED_ROLES);
     if (!caller) {
       return forbiddenResponse(
-        "Only GS, President, or Platform Admin can issue certificates"
+        "Only GS, President, VP, or Platform Admin can issue certificates"
       );
     }
     const issuedBy = caller.userId;

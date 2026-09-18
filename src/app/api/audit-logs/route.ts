@@ -5,10 +5,10 @@ import { getSupabaseUser } from "@/lib/supabase-server";
 
 export async function GET(request: NextRequest) {
   try {
-    const ALLOWED_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "GS"];
+    const ALLOWED_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "GS", "VP"];
     const caller = await getSupabaseUser(ALLOWED_ROLES);
     if (!caller) {
-      return forbiddenResponse("Only President, GS, and Platform Admin can view audit logs");
+      return forbiddenResponse("Only President, VP, GS, and Platform Admin can view audit logs");
     }
 
     const searchParams = request.nextUrl.searchParams;
