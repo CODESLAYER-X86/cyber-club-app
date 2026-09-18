@@ -913,27 +913,14 @@ function CommitteePageContent() {
               </Button>
             )}
           </div>
-        ) : advisoryMembers.length === 1 ? (
-          <div className="my-6 mx-auto w-full max-w-[420px]">
-            <CommitteeMemberCard
-              member={advisoryMembers[0]}
-              canManage={canManage}
-              onEdit={openEditDialog}
-              onDelete={(m) => {
-                setDeletingMemberId(m.id);
-                setDeletingMemberName(m.name);
-                setDeleteDialogOpen(true);
-              }}
-            />
-          </div>
         ) : (
-          <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 justify-items-center mt-6">
+          <div className="flex flex-wrap justify-center gap-6 md:gap-8 mt-6">
             {advisoryMembers.map((member, i) => (
               <motion.div
                 key={member.id}
                 {...stagger}
                 transition={{ duration: 0.4, delay: i * 0.08 }}
-                className="w-full max-w-[420px] mx-auto"
+                className="w-full max-w-[420px]"
               >
                 <CommitteeMemberCard
                   member={member}
@@ -1032,13 +1019,13 @@ function CommitteePageContent() {
             )}
           </div>
         ) : (
-          <div className="grid gap-6 md:gap-8 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 justify-items-center mt-6">
+          <div className="flex flex-wrap justify-center gap-6 md:gap-8 mt-6">
             {committeeMembers.map((member, i) => (
               <motion.div
                 key={member.id}
                 {...stagger}
                 transition={{ duration: 0.4, delay: i * 0.08 }}
-                className="w-full max-w-[420px] mx-auto"
+                className="w-full max-w-[420px]"
               >
                 <CommitteeMemberCard
                   member={member}

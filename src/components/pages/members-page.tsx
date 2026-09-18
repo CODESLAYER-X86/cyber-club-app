@@ -146,7 +146,7 @@ export function MembersPage() {
   const [userToKick, setUserToKick] = useState<User | null>(null);
   const [kickLoading, setKickLoading] = useState(false);
 
-  const canApprove = currentUser && ['PRESIDENT', 'GS', 'VERIFIER', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const canApprove = currentUser && ['PRESIDENT', 'VP', 'GS', 'VERIFIER', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
   const handleKick = async () => {
     if (!userToKick) return;

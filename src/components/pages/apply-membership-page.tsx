@@ -72,11 +72,11 @@ interface MembershipPaymentSettings {
 export function ApplyMembershipPage() {
   const { currentUser, updateCurrentUser, setCurrentView } = useAppStore();
   const [form, setForm] = useState({
-    studentId: '',
-    rollNumber: '',
-    batch: '',
-    department: '',
-    phone: '',
+    studentId: currentUser?.studentId || '',
+    rollNumber: currentUser?.rollNumber || '',
+    batch: currentUser?.batch || '',
+    department: currentUser?.department || '',
+    phone: currentUser?.phone || '',
     transactionId: '',
     paymentMethod: 'BKASH',
   });
@@ -305,6 +305,21 @@ export function ApplyMembershipPage() {
           Complete your academic registration and submit your membership fee to receive your official 3D Digital Member Identifier.
         </p>
       </div>
+
+      {/* Reapplication Notice Banner */}
+      {currentUser?.membershipStatus === 'REJECTED' && (
+        <div className="rounded-xl border border-amber-500/30 bg-amber-500/10 p-4 flex items-start gap-3">
+          <AlertCircle className="h-5 w-5 text-amber-400 shrink-0 mt-0.5" />
+          <div className="space-y-1">
+            <h3 className="text-sm font-bold text-amber-300 font-mono">
+              APPLICATION REVISED SUBMISSION
+            </h3>
+            <p className="text-xs text-amber-200/90 leading-relaxed">
+              Your previous membership application was not approved. You can review and update your academic details, provide your updated transaction details, and resubmit for executive approval.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* 1. PRESIDENT CONFIGURED PAYMENT INSTRUCTIONS & NUMBERS CARD */}
       <Card className="border-emerald-500/30 bg-gradient-to-br from-slate-950 via-[#071224] to-black backdrop-blur-xl shadow-xl overflow-hidden">

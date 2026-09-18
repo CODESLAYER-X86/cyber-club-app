@@ -414,7 +414,7 @@ export function DashboardPage() {
               </Button>
             )}
 
-            {['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role) && (
+            {['PRESIDENT', 'VP', 'GS', 'PLATFORM_ADMIN'].includes(role) && (
               <Button
                 size="sm"
                 onClick={() => setCurrentView('member-approval')}

@@ -24,8 +24,8 @@ export async function POST(req: NextRequest) {
       return errorResponse("User not found", 404);
     }
 
-    if (user.membershipStatus !== "NON_MEMBER") {
-      return errorResponse("User has already applied or is already a member", 400);
+    if (user.membershipStatus !== "NON_MEMBER" && user.membershipStatus !== "REJECTED") {
+      return errorResponse("User has already applied or is already an active member", 400);
     }
 
     // Update user
@@ -67,7 +67,9 @@ export async function POST(req: NextRequest) {
       data: {
         userId,
         action: "MEMBERSHIP_APPLICATION",
-        details: `User submitted membership application`,
+        details: user.membershipStatus === "REJECTED"
+          ? "User re-submitted membership application after prior rejection"
+          : "User submitted membership application",
       },
     });
 

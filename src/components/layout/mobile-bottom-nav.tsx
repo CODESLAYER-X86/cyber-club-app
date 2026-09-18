@@ -28,6 +28,7 @@ export function MobileBottomNav() {
     const role = currentUser.role as UserRole;
     switch (role) {
       case 'PRESIDENT':
+      case 'VP':
       case 'GS':
         return { label: 'Approvals', view: 'member-approval', icon: UserCheck };
       case 'TREASURER':

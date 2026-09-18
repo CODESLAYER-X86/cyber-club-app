@@ -123,10 +123,13 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
         'expenses',
         'analytics',
         'finance',
+        'roles',
       ].includes(view);
 
     case 'VP':
       return [
+        'member-approval',
+        'roles',
         'analytics',
         'members',
         'finance',
