@@ -281,30 +281,58 @@ export function MembersPage() {
                 variant="outline"
                 className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
                 disabled={exporting}
-                onClick={() => {
+                onClick={async () => {
                   setExporting(true);
-                  setTimeout(() => {
-                    exportToCSV(
-                      users.map(u => ({
-                        Name: u.name,
-                        Email: u.email,
-                        Role: ROLE_LABELS[u.role] || u.role,
-                        Department: u.department || 'N/A',
-                        Status: MEMBERSHIP_STATUS_LABELS[u.membershipStatus] || u.membershipStatus,
-                        Joined: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
-                      })),
-                      'members-export',
-                      [
-                        { key: 'Name', label: 'Name' },
-                        { key: 'Email', label: 'Email' },
-                        { key: 'Role', label: 'Role' },
-                        { key: 'Department', label: 'Department' },
-                        { key: 'Status', label: 'Status' },
-                        { key: 'Joined', label: 'Joined' },
-                      ]
-                    );
-                    setExporting(false);
-                  }, 300);
+                  try {
+                    // Try full server-side export first (includes certificates and verify links)
+                    const res = await fetch('/api/export?type=members');
+                    if (res.ok) {
+                      const blob = await res.blob();
+                      const url = window.URL.createObjectURL(blob);
+                      const a = document.createElement('a');
+                      a.href = url;
+                      a.download = `members-export-${new Date().toISOString().slice(0, 10)}.csv`;
+                      document.body.appendChild(a);
+                      a.click();
+                      document.body.removeChild(a);
+                      window.URL.revokeObjectURL(url);
+                      toast({ title: 'Export Successful', description: 'Member roster exported with verification links.' });
+                      setExporting(false);
+                      return;
+                    }
+                  } catch (err) {
+                    console.error('Server export failed, falling back to local dataset', err);
+                  }
+
+                  // Fallback to client-side dataset
+                  exportToCSV(
+                    users.map(u => ({
+                      Name: u.name,
+                      'Student ID': u.studentId || 'N/A',
+                      Email: u.email,
+                      Phone: u.phone || 'N/A',
+                      Role: ROLE_LABELS[u.role] || u.role,
+                      Department: u.department || 'N/A',
+                      Batch: u.batch || 'N/A',
+                      'Roll No': u.rollNumber || 'N/A',
+                      Status: MEMBERSHIP_STATUS_LABELS[u.membershipStatus] || u.membershipStatus,
+                      Joined: u.createdAt ? new Date(u.createdAt).toLocaleDateString() : 'N/A',
+                    })),
+                    'members-export',
+                    [
+                      { key: 'Name', label: 'Name' },
+                      { key: 'Student ID', label: 'Student ID' },
+                      { key: 'Email', label: 'Email' },
+                      { key: 'Phone', label: 'Phone' },
+                      { key: 'Role', label: 'Role' },
+                      { key: 'Department', label: 'Department' },
+                      { key: 'Batch', label: 'Batch' },
+                      { key: 'Roll No', label: 'Roll No' },
+                      { key: 'Status', label: 'Status' },
+                      { key: 'Joined', label: 'Joined' },
+                    ]
+                  );
+                  setExporting(false);
                 }}
               >
                 {exporting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4" />}

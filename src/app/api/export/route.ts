@@ -3,7 +3,7 @@ import { errorResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 
-const ALLOWED_ROLES = ["PRESIDENT", "TREASURER", "PLATFORM_ADMIN"];
+const ALLOWED_ROLES = ["PRESIDENT", "VP", "GS", "TREASURER", "PLATFORM_ADMIN"];
 
 function escapeCSV(value: unknown): string {
   const str = value === null || value === undefined ? "" : String(value);
@@ -29,7 +29,7 @@ export async function GET(request: NextRequest) {
     // Cryptographic RBAC session check
     const caller = await getSupabaseUser(ALLOWED_ROLES);
     if (!caller) {
-      return forbiddenResponse("Only President, Treasurer, and Platform Admin can export data");
+      return forbiddenResponse("Only President, VP, General Secretary, Treasurer, and Platform Admin can export data");
     }
 
     let csv: string;
@@ -40,24 +40,62 @@ export async function GET(request: NextRequest) {
         const members = await prisma.user.findMany({
           select: {
             name: true,
+            studentId: true,
             email: true,
-            role: true,
+            phone: true,
             department: true,
+            batch: true,
+            rollNumber: true,
+            role: true,
             membershipStatus: true,
             createdAt: true,
+            certificates: {
+              where: { status: { not: "REVOKED" } },
+              select: { certificateCode: true },
+            },
           },
           orderBy: { createdAt: "desc" },
         });
 
-        const headers = ["Name", "Email", "Role", "Department", "Membership Status", "Created At"];
-        const rows = members.map(m => [
-          escapeCSV(m.name),
-          escapeCSV(m.email),
-          escapeCSV(m.role),
-          escapeCSV(m.department || "N/A"),
-          escapeCSV(m.membershipStatus),
-          escapeCSV(new Date(m.createdAt).toLocaleDateString()),
-        ]);
+        const baseUrl =
+          process.env.NEXT_PUBLIC_APP_URL?.replace(/\/$/, "") || "https://cybersecdiu.club";
+
+        const headers = [
+          "Name",
+          "Student ID",
+          "Email",
+          "Phone",
+          "Department",
+          "Batch",
+          "Roll Number",
+          "Role",
+          "Membership Status",
+          "Created At",
+          "Certificates Count",
+          "Certificate Codes",
+          "Verification URLs",
+        ];
+        const rows = members.map(m => {
+          const certCodes = m.certificates.map(c => c.certificateCode).join(", ");
+          const certUrls = m.certificates
+            .map(c => `${baseUrl}/verify/${c.certificateCode}`)
+            .join(", ");
+          return [
+            escapeCSV(m.name),
+            escapeCSV(m.studentId || "N/A"),
+            escapeCSV(m.email),
+            escapeCSV(m.phone || "N/A"),
+            escapeCSV(m.department || "N/A"),
+            escapeCSV(m.batch || "N/A"),
+            escapeCSV(m.rollNumber || "N/A"),
+            escapeCSV(m.role),
+            escapeCSV(m.membershipStatus),
+            escapeCSV(new Date(m.createdAt).toLocaleDateString()),
+            escapeCSV(m.certificates.length.toString()),
+            escapeCSV(certCodes || "None"),
+            escapeCSV(certUrls || "None"),
+          ];
+        });
 
         csv = toCSV(headers, rows);
         filename = `members-export-${new Date().toISOString().slice(0, 10)}.csv`;
