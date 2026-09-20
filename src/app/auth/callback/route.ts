@@ -79,25 +79,29 @@ export async function GET(request: NextRequest) {
     // Find or create the user in our Prisma DB
     const existing = await prisma.user.findUnique({ where: { email } });
     if (!existing) {
+      const initialRole = adminRole ?? 'GUEST';
       await prisma.user.create({
         data: {
           email,
           name,
           password: '', // Google users have no password
           avatar,
-          role: adminRole ?? 'GUEST',
-          membershipStatus: 'NON_MEMBER',
+          role: initialRole,
+          membershipStatus: initialRole === 'GUEST' ? 'NON_MEMBER' : 'ACTIVE',
         },
       });
     } else {
       // Enforce platform admin role on every sign-in (handles env var changes)
       const expectedRole = adminRole ?? (existing.role === 'PLATFORM_ADMIN' ? 'MEMBER' : existing.role);
-      if (existing.role !== expectedRole) {
-        await prisma.user.update({ where: { email }, data: { role: expectedRole } });
-      }
-      // Always refresh avatar from Google
-      if (avatar && existing.avatar !== avatar) {
-        await prisma.user.update({ where: { email }, data: { avatar } });
+      const expectedStatus = expectedRole === 'GUEST' ? existing.membershipStatus : 'ACTIVE';
+      const updateData: Record<string, string> = {};
+
+      if (existing.role !== expectedRole) updateData.role = expectedRole;
+      if (existing.membershipStatus !== expectedStatus) updateData.membershipStatus = expectedStatus;
+      if (avatar && existing.avatar !== avatar) updateData.avatar = avatar;
+
+      if (Object.keys(updateData).length > 0) {
+        await prisma.user.update({ where: { email }, data: updateData });
       }
     }
   } catch (e) {

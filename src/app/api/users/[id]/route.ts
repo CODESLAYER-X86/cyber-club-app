@@ -124,7 +124,17 @@ export async function GET(
       return notFoundResponse("User not found");
     }
 
-    return successResponse({ user });
+    // Auto-heal: If user has a non-GUEST role (PRESIDENT, VP, GS, MEMBER, etc.) but membershipStatus is NON_MEMBER, heal it to ACTIVE
+    const userData = user as any;
+    if (userData.role && userData.role !== "GUEST" && userData.membershipStatus === "NON_MEMBER") {
+      await prisma.user.update({
+        where: { id },
+        data: { membershipStatus: "ACTIVE" },
+      });
+      userData.membershipStatus = "ACTIVE";
+    }
+
+    return successResponse({ user: userData });
   } catch {
     return serverErrorResponse();
   }

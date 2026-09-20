@@ -28,6 +28,17 @@ export async function GET(request: NextRequest) {
       ];
     }
 
+    // Auto-heal any non-GUEST users (PRESIDENT, VP, GS, MEMBER, etc.) who still have NON_MEMBER status
+    await prisma.user.updateMany({
+      where: {
+        role: { not: "GUEST" },
+        membershipStatus: "NON_MEMBER",
+      },
+      data: {
+        membershipStatus: "ACTIVE",
+      },
+    });
+
     const users = await prisma.user.findMany({
       where,
       select: {

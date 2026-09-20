@@ -63,10 +63,26 @@ export async function GET() {
     ? 'MEMBER' // demote if email removed from env
     : dbUser.role;
 
-  // Sync role to DB if it drifted
-  if (resolvedRole !== dbUser.role) {
-    await prisma.user.update({ where: { id: dbUser.id }, data: { role: resolvedRole } });
+  // Auto-sync: Any non-GUEST role (PRESIDENT, VP, GS, MEMBER, etc.) must have ACTIVE membership status
+  const resolvedMembershipStatus =
+    resolvedRole === 'GUEST' ? dbUser.membershipStatus : 'ACTIVE';
+
+  const updateData: Record<string, string> = {};
+  if (resolvedRole !== dbUser.role) updateData.role = resolvedRole;
+  if (resolvedMembershipStatus !== dbUser.membershipStatus) updateData.membershipStatus = resolvedMembershipStatus;
+
+  if (Object.keys(updateData).length > 0) {
+    await prisma.user.update({ where: { id: dbUser.id }, data: updateData });
   }
 
-  return NextResponse.json({ success: true, data: { user: { ...dbUser, role: resolvedRole } } });
+  return NextResponse.json({
+    success: true,
+    data: {
+      user: {
+        ...dbUser,
+        role: resolvedRole,
+        membershipStatus: resolvedMembershipStatus,
+      },
+    },
+  });
 }
