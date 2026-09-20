@@ -220,8 +220,21 @@ export function MembersPage() {
     if (!currentUser) return;
     try {
       const r = await fetch(`/api/users/${userId}/role`, { method: 'PATCH', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ role, updatedBy: currentUser.id }) });
-      const d = await r.json(); if (d.success) setUsers(prev => prev.map(u => u.id === userId ? { ...u, role } : u));
-    } catch (e) { console.error(e); }
+      const d = await r.json();
+      if (d.success) {
+        const newMembershipStatus = role === 'GUEST' ? 'NON_MEMBER' : 'ACTIVE';
+        setUsers(prev => prev.map(u => u.id === userId ? { ...u, role, membershipStatus: newMembershipStatus } : u));
+        toast({
+          title: 'Role Updated',
+          description: `User role changed to ${role} (Status: ${newMembershipStatus})`,
+        });
+      } else {
+        toast({ title: 'Error', description: d.error || 'Failed to update role', variant: 'destructive' });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    }
   };
 
   const handleViewProfile = (userId: string) => {

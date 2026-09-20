@@ -90,9 +90,16 @@ export async function PATCH(
       }
     }
 
+    // When demoting to GUEST, membershipStatus becomes NON_MEMBER (can re-apply)
+    // For all other roles, membershipStatus becomes ACTIVE
+    const newMembershipStatus = role === "GUEST" ? "NON_MEMBER" : "ACTIVE";
+
     const updatedUser = await prisma.user.update({
       where: { id },
-      data: { role },
+      data: {
+        role,
+        membershipStatus: newMembershipStatus,
+      },
     });
 
     // Log to audit log
@@ -100,7 +107,7 @@ export async function PATCH(
       data: {
         userId: updater.userId,
         action: "ROLE_UPDATE",
-        details: `Changed role of ${targetUser.name} (${targetUser.email}) from ${targetUser.role} to ${role}`,
+        details: `Changed role of ${targetUser.name} (${targetUser.email}) from ${targetUser.role} to ${role} (Membership Status: ${newMembershipStatus})`,
       },
     });
 
@@ -109,7 +116,10 @@ export async function PATCH(
       data: {
         userId: id,
         title: "Role Updated",
-        message: `Your role has been updated to ${role}.`,
+        message:
+          role === "GUEST"
+            ? "Your role has been updated to GUEST and your membership status is now NON_MEMBER. You may apply for membership at any time."
+            : `Your role has been updated to ${role} and your membership is ACTIVE.`,
         type: "INFO",
       },
     });
