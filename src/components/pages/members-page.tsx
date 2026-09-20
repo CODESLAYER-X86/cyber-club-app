@@ -5,8 +5,9 @@ import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users, Search, Shield, CheckCircle, XCircle, Clock, UserPlus,
   UserCheck, UserX, Hourglass, Download, Loader2, LayoutGrid, List,
-  Eye, UserCog, GraduationCap, Calendar,
+  Eye, UserCog, GraduationCap, Calendar, ZoomIn,
 } from 'lucide-react';
+import { ImagePreviewModal } from '@/components/shared/image-preview-modal';
 import { useAppStore } from '@/store/use-app-store';
 import type { User, UserRole, MembershipStatus } from '@/types';
 import { ROLE_LABELS, MEMBERSHIP_STATUS_LABELS } from '@/types';
@@ -145,6 +146,16 @@ export function MembersPage() {
   const [kickDialogOpen, setKickDialogOpen] = useState(false);
   const [userToKick, setUserToKick] = useState<User | null>(null);
   const [kickLoading, setKickLoading] = useState(false);
+
+  // Photo preview lightbox state
+  const [previewImage, setPreviewImage] = useState<{
+    isOpen: boolean;
+    src?: string | null;
+    name?: string;
+    role?: string;
+    department?: string;
+    studentId?: string;
+  }>({ isOpen: false });
 
   const canApprove = currentUser && ['PRESIDENT', 'VP', 'GS', 'VERIFIER', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
@@ -398,9 +409,36 @@ export function MembersPage() {
               <motion.div key={user.id} variants={item} layout whileHover={{ y: -2, transition: { duration: 0.15 } }}>
                 <Card className="border-white/5 bg-[#111]/60 backdrop-blur transition-all hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 group">
                   <CardContent className="flex items-center gap-4 py-4 px-5">
-                    {/* Gradient avatar with initials */}
-                    <div className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-gradient-to-br ${avatarColor} text-sm font-bold`}>
-                      {initials}
+                    {/* Clickable Avatar with photo/initials and zoom on hover */}
+                    <div
+                      className="relative group cursor-pointer shrink-0"
+                      onClick={() =>
+                        setPreviewImage({
+                          isOpen: true,
+                          src: user.avatar,
+                          name: user.name,
+                          role: user.role,
+                          department: user.department,
+                          studentId: user.studentId,
+                        })
+                      }
+                      title="Click to view full photo"
+                    >
+                      {user.avatar ? (
+                        <div className="relative h-11 w-11 rounded-full overflow-hidden border border-white/10 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
+                          <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <ZoomIn className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-gradient-to-br ${avatarColor} text-sm font-bold group-hover:ring-2 group-hover:ring-emerald-400 transition-all`}>
+                          {initials}
+                          <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <ZoomIn className="h-3.5 w-3.5 text-white" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2">
@@ -504,9 +542,36 @@ export function MembersPage() {
               <motion.div key={user.id} variants={gridItem} layout>
                 <Card className="border-white/5 bg-[#111]/60 backdrop-blur transition-all hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 group h-full">
                   <CardContent className="flex flex-col items-center py-6 px-5 text-center">
-                    {/* Gradient avatar with initials */}
-                    <div className={`flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 bg-gradient-to-br ${avatarColor} text-xl font-bold mb-3`}>
-                      {initials}
+                    {/* Clickable Avatar with photo/initials and zoom on hover */}
+                    <div
+                      className="relative group cursor-pointer mb-3 shrink-0"
+                      onClick={() =>
+                        setPreviewImage({
+                          isOpen: true,
+                          src: user.avatar,
+                          name: user.name,
+                          role: user.role,
+                          department: user.department,
+                          studentId: user.studentId,
+                        })
+                      }
+                      title="Click to view full photo"
+                    >
+                      {user.avatar ? (
+                        <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-white/10 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
+                          <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <ZoomIn className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                      ) : (
+                        <div className={`relative flex h-16 w-16 shrink-0 items-center justify-center rounded-full border-2 bg-gradient-to-br ${avatarColor} text-xl font-bold group-hover:ring-2 group-hover:ring-emerald-400 transition-all`}>
+                          {initials}
+                          <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                            <ZoomIn className="h-4 w-4 text-white" />
+                          </div>
+                        </div>
+                      )}
                     </div>
                     <div className="flex items-center gap-2 mb-1">
                       <p className="font-semibold text-white">{user.name}</p>
@@ -608,6 +673,17 @@ export function MembersPage() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {/* Image Preview Lightbox Modal */}
+      <ImagePreviewModal
+        isOpen={previewImage.isOpen}
+        onClose={() => setPreviewImage({ isOpen: false })}
+        src={previewImage.src}
+        name={previewImage.name}
+        role={previewImage.role}
+        department={previewImage.department}
+        studentId={previewImage.studentId}
+      />
     </div>
   );
 }

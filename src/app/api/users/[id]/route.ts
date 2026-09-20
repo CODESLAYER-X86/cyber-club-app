@@ -107,6 +107,9 @@ export async function GET(
       selectFields.department = true;
       selectFields.transactionId = true;
       selectFields.paymentProof = true;
+      selectFields.paymentMethod = true;
+      selectFields.paymentDate = true;
+      selectFields.rejectionReason = true;
       selectFields.payments = {
         orderBy: { createdAt: "desc" },
       };

@@ -2,7 +2,27 @@
 
 import { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { UserCheck, UserX, Search, Clock, Mail, Building2, Hash, CheckCircle, XCircle, Loader2, Shield, AlertTriangle } from 'lucide-react';
+import {
+  UserCheck,
+  UserX,
+  Search,
+  Clock,
+  Mail,
+  Building2,
+  Hash,
+  CheckCircle,
+  XCircle,
+  Loader2,
+  Shield,
+  AlertTriangle,
+  Phone,
+  Layers,
+  CreditCard,
+  Eye,
+  FileText,
+  ExternalLink,
+  ZoomIn,
+} from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { User } from '@/types';
 import { MembershipBadge } from '@/components/shared/status-badge';
@@ -21,7 +41,16 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from '@/components/ui/alert-dialog';
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+  DialogFooter,
+} from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
+import { ImagePreviewModal } from '@/components/shared/image-preview-modal';
 
 function timeAgo(date: string): string {
   const now = new Date();
@@ -38,7 +67,7 @@ function timeAgo(date: string): string {
 }
 
 export function MemberApprovalPage() {
-  const { currentUser } = useAppStore();
+  const { currentUser, setSelectedMemberId, setCurrentView } = useAppStore();
   const { toast } = useToast();
   const [pendingUsers, setPendingUsers] = useState<User[]>([]);
   const [loading, setLoading] = useState(true);
@@ -46,6 +75,18 @@ export function MemberApprovalPage() {
   const [processing, setProcessing] = useState<string | null>(null);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [batchProcessing, setBatchProcessing] = useState(false);
+
+  // Lightbox and Dossier inspection modal states
+  const [previewImage, setPreviewImage] = useState<{
+    isOpen: boolean;
+    src?: string | null;
+    name?: string;
+    role?: string;
+    department?: string;
+    studentId?: string;
+  }>({ isOpen: false });
+
+  const [dossierUser, setDossierUser] = useState<User | null>(null);
 
   const loadPending = async () => {
     setLoading(true);
@@ -298,21 +339,48 @@ export function MemberApprovalPage() {
               >
                 <Card className={`border-white/5 bg-[#111]/60 backdrop-blur transition-all hover:border-white/10 ${isSelected ? 'ring-1 ring-amber-500/30 border-amber-500/20' : ''}`}>
                   <CardContent className="pt-6 pb-5">
-                    <div className="flex items-start gap-4">
-                      {/* Checkbox + Avatar */}
-                      <div className="flex flex-col items-center gap-2">
+                    <div className="flex flex-col md:flex-row items-start md:items-center gap-4">
+                      {/* Checkbox + Clickable Avatar */}
+                      <div className="flex items-center gap-3">
                         <input
                           type="checkbox"
                           checked={isSelected}
                           onChange={() => toggleSelect(user.id)}
                           className="h-4 w-4 rounded border-white/20 bg-white/5 text-amber-500 focus:ring-amber-500/30 cursor-pointer"
                         />
-                        <div className="flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 border border-amber-500/20 text-amber-400 text-lg font-bold">
-                          {initials}
+                        <div
+                          className="relative group cursor-pointer shrink-0"
+                          onClick={() =>
+                            setPreviewImage({
+                              isOpen: true,
+                              src: user.avatar,
+                              name: user.name,
+                              role: user.role,
+                              department: user.department || undefined,
+                              studentId: user.studentId || undefined,
+                            })
+                          }
+                          title="Click to view full photo"
+                        >
+                          {user.avatar ? (
+                            <div className="relative h-14 w-14 rounded-2xl overflow-hidden border border-amber-500/30 group-hover:ring-2 group-hover:ring-amber-400 transition-all">
+                              <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                              <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <ZoomIn className="h-4 w-4 text-white" />
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="relative flex h-14 w-14 shrink-0 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 border border-amber-500/20 text-amber-400 text-lg font-bold group-hover:border-amber-400 group-hover:scale-105 transition-all">
+                              {initials}
+                              <div className="absolute inset-0 rounded-2xl bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                                <ZoomIn className="h-4 w-4 text-amber-300" />
+                              </div>
+                            </div>
+                          )}
                         </div>
                       </div>
 
-                      <div className="flex-1 min-w-0">
+                      <div className="flex-1 min-w-0 w-full">
                         {/* Name + Badges Row */}
                         <div className="flex items-center gap-2 mb-2 flex-wrap">
                           <h3 className="text-lg font-semibold text-white">{user.name}</h3>
@@ -325,22 +393,40 @@ export function MemberApprovalPage() {
                           )}
                         </div>
 
-                        {/* Details Grid */}
-                        <div className="grid gap-2 sm:grid-cols-2">
+                        {/* Details Grid - Full Applicant Data */}
+                        <div className="grid gap-2 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
                           <div className="flex items-center gap-2 text-sm text-gray-400">
                             <Mail className="h-3.5 w-3.5 text-gray-600 shrink-0" />
                             <span className="truncate">{user.email}</span>
                           </div>
+                          {user.phone && (
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <Phone className="h-3.5 w-3.5 text-gray-600 shrink-0" />
+                              <span className="font-mono">{user.phone}</span>
+                            </div>
+                          )}
                           {user.department && (
                             <div className="flex items-center gap-2 text-sm text-gray-400">
                               <Building2 className="h-3.5 w-3.5 text-gray-600 shrink-0" />
-                              <span>{user.department}</span>
+                              <span className="truncate">{user.department}</span>
                             </div>
                           )}
                           {user.studentId && (
                             <div className="flex items-center gap-2 text-sm text-gray-400">
                               <Hash className="h-3.5 w-3.5 text-gray-600 shrink-0" />
-                              <span className="font-mono">{user.studentId}</span>
+                              <span className="font-mono">ID: {user.studentId}</span>
+                            </div>
+                          )}
+                          {user.rollNumber && (
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <UserCheck className="h-3.5 w-3.5 text-gray-600 shrink-0" />
+                              <span className="font-mono">Roll: {user.rollNumber}</span>
+                            </div>
+                          )}
+                          {user.batch && (
+                            <div className="flex items-center gap-2 text-sm text-gray-400">
+                              <Layers className="h-3.5 w-3.5 text-gray-600 shrink-0" />
+                              <span>Batch: {user.batch}</span>
                             </div>
                           )}
                           <div className="flex items-center gap-2 text-sm text-gray-400">
@@ -349,17 +435,36 @@ export function MemberApprovalPage() {
                           </div>
                         </div>
 
-                        {/* Transaction ID */}
-                        {user.transactionId && (
-                          <div className="mt-3 inline-flex items-center gap-2 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-3 py-1.5 text-xs">
-                            <span className="text-gray-500">Transaction:</span>
-                            <span className="font-mono text-emerald-400">{user.transactionId}</span>
-                          </div>
-                        )}
+                        {/* Transaction ID & Payment Method Badges */}
+                        <div className="mt-3 flex flex-wrap items-center gap-2">
+                          {user.transactionId && (
+                            <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-xs">
+                              <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+                              <span className="text-gray-500">Transaction:</span>
+                              <span className="font-mono text-emerald-400 font-semibold">{user.transactionId}</span>
+                            </div>
+                          )}
+                          {user.paymentMethod && (
+                            <Badge variant="outline" className="text-xs border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+                              Method: {user.paymentMethod}
+                            </Badge>
+                          )}
+                        </div>
                       </div>
 
                       {/* Action Buttons */}
-                      <div className="flex shrink-0 gap-2">
+                      <div className="flex shrink-0 gap-2 w-full md:w-auto justify-end mt-3 md:mt-0 pt-3 md:pt-0 border-t md:border-t-0 border-white/5">
+                        {/* View Dossier Button */}
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          className="border-white/10 text-gray-300 hover:text-white hover:bg-white/10 h-10 gap-1.5"
+                          onClick={() => setDossierUser(user)}
+                        >
+                          <FileText className="h-4 w-4 text-amber-400" />
+                          <span>Dossier</span>
+                        </Button>
+
                         <AlertDialog>
                           <AlertDialogTrigger asChild>
                             <Button
@@ -423,6 +528,212 @@ export function MemberApprovalPage() {
           })}
         </div>
       )}
+
+      {/* Dossier Application Review Dialog */}
+      <Dialog open={!!dossierUser} onOpenChange={(open) => !open && setDossierUser(null)}>
+        <DialogContent className="max-w-2xl border-white/10 bg-[#0d1117] text-white max-h-[90vh] overflow-y-auto">
+          {dossierUser && (
+            <>
+              <DialogHeader>
+                <div className="flex items-center justify-between">
+                  <DialogTitle className="text-xl font-bold flex items-center gap-2 text-white">
+                    <FileText className="h-5 w-5 text-amber-400" />
+                    Membership Application Dossier
+                  </DialogTitle>
+                </div>
+                <DialogDescription className="text-gray-400">
+                  Full details submitted by the applicant for review and verification.
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-6 pt-2">
+                {/* Applicant Summary Header */}
+                <div className="flex items-center gap-4 rounded-xl border border-white/5 bg-white/[0.02] p-4">
+                  <div
+                    className="relative group cursor-pointer shrink-0"
+                    onClick={() => {
+                      setPreviewImage({
+                        isOpen: true,
+                        src: dossierUser.avatar,
+                        name: dossierUser.name,
+                        role: dossierUser.role,
+                        department: dossierUser.department || undefined,
+                        studentId: dossierUser.studentId || undefined,
+                      });
+                    }}
+                    title="Click to view full photo"
+                  >
+                    {dossierUser.avatar ? (
+                      <div className="relative h-16 w-16 rounded-2xl overflow-hidden border-2 border-emerald-500/30 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
+                        <img src={dossierUser.avatar} alt={dossierUser.name} className="h-full w-full object-cover" />
+                        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <ZoomIn className="h-5 w-5 text-white" />
+                        </div>
+                      </div>
+                    ) : (
+                      <div className="relative flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-br from-amber-500/30 to-orange-500/20 border border-amber-500/30 text-amber-400 text-2xl font-bold group-hover:scale-105 transition-all">
+                        {dossierUser.name?.charAt(0)?.toUpperCase() || '?'}
+                        <div className="absolute inset-0 rounded-2xl bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                          <ZoomIn className="h-5 w-5 text-amber-300" />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <h4 className="text-lg font-bold text-white">{dossierUser.name}</h4>
+                      <MembershipBadge status={dossierUser.membershipStatus} />
+                    </div>
+                    <p className="text-xs text-gray-400">{dossierUser.email}</p>
+                    <p className="text-[11px] text-gray-500 font-mono mt-1">
+                      Applied on {new Date(dossierUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}
+                    </p>
+                  </div>
+                </div>
+
+                {/* Academic Information Section */}
+                <div className="space-y-3">
+                  <h5 className="text-xs font-mono font-bold uppercase tracking-wider text-emerald-400 flex items-center gap-1.5">
+                    <Building2 className="h-3.5 w-3.5" />
+                    Academic Credentials
+                  </h5>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Department</span>
+                      <p className="text-sm font-semibold text-white mt-0.5">{dossierUser.department || 'Not Provided'}</p>
+                    </div>
+                    <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Student / Registration ID</span>
+                      <p className="text-sm font-mono font-semibold text-white mt-0.5">{dossierUser.studentId || 'Not Provided'}</p>
+                    </div>
+                    <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Roll Number</span>
+                      <p className="text-sm font-mono font-semibold text-white mt-0.5">{dossierUser.rollNumber || 'Not Provided'}</p>
+                    </div>
+                    <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Batch</span>
+                      <p className="text-sm font-semibold text-white mt-0.5">{dossierUser.batch || 'Not Provided'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Contact Information Section */}
+                <div className="space-y-3">
+                  <h5 className="text-xs font-mono font-bold uppercase tracking-wider text-cyan-400 flex items-center gap-1.5">
+                    <Phone className="h-3.5 w-3.5" />
+                    Contact Details
+                  </h5>
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Email Address</span>
+                      <p className="text-sm text-white mt-0.5 truncate">{dossierUser.email}</p>
+                    </div>
+                    <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Phone Number</span>
+                      <p className="text-sm font-mono text-white mt-0.5">{dossierUser.phone || 'Not Provided'}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Payment Verification Section */}
+                <div className="space-y-3">
+                  <h5 className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                    <CreditCard className="h-3.5 w-3.5" />
+                    Payment Information
+                  </h5>
+                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-xs text-gray-400 font-mono">Transaction ID:</span>
+                      <span className="font-mono text-sm font-bold text-amber-400">{dossierUser.transactionId || 'N/A'}</span>
+                    </div>
+                    <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                      <span className="text-xs text-gray-400 font-mono">Payment Method:</span>
+                      <span className="text-xs font-medium text-white">{dossierUser.paymentMethod || 'bKash'}</span>
+                    </div>
+                    {dossierUser.paymentProof && (
+                      <div className="border-t border-white/5 pt-2">
+                        <span className="text-xs text-gray-400 font-mono block mb-1">Payment Proof:</span>
+                        <a
+                          href={dossierUser.paymentProof}
+                          target="_blank"
+                          rel="noopener noreferrer"
+                          className="text-xs text-emerald-400 underline hover:text-emerald-300 flex items-center gap-1"
+                        >
+                          <ExternalLink className="h-3 w-3" />
+                          View Uploaded Payment Proof
+                        </a>
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                {/* Bio (if provided) */}
+                {dossierUser.bio && (
+                  <div className="space-y-2">
+                    <span className="text-xs font-mono font-bold uppercase tracking-wider text-gray-400">Applicant Bio / Statement</span>
+                    <p className="text-xs text-gray-300 bg-white/[0.02] border border-white/5 p-3 rounded-lg leading-relaxed">
+                      {dossierUser.bio}
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <DialogFooter className="flex flex-col sm:flex-row gap-2 border-t border-white/10 pt-4 mt-6">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="border-white/10 text-gray-300 hover:text-white"
+                  onClick={() => {
+                    setSelectedMemberId(dossierUser.id);
+                    setCurrentView('profile');
+                    setDossierUser(null);
+                  }}
+                >
+                  <ExternalLink className="h-3.5 w-3.5 mr-1.5" />
+                  Open Full Profile
+                </Button>
+                <div className="flex-1" />
+                <Button
+                  variant="destructive"
+                  size="sm"
+                  disabled={processing === dossierUser.id}
+                  onClick={() => {
+                    handleAction(dossierUser.id, 'REJECTED');
+                    setDossierUser(null);
+                  }}
+                >
+                  <UserX className="h-3.5 w-3.5 mr-1.5" />
+                  Reject Application
+                </Button>
+                <Button
+                  size="sm"
+                  className="bg-emerald-600 hover:bg-emerald-500 text-white"
+                  disabled={processing === dossierUser.id}
+                  onClick={() => {
+                    handleAction(dossierUser.id, 'APPROVED');
+                    setDossierUser(null);
+                  }}
+                >
+                  <UserCheck className="h-3.5 w-3.5 mr-1.5" />
+                  Approve Member
+                </Button>
+              </DialogFooter>
+            </>
+          )}
+        </DialogContent>
+      </Dialog>
+
+      {/* Image Preview Modal */}
+      <ImagePreviewModal
+        isOpen={previewImage.isOpen}
+        onClose={() => setPreviewImage({ isOpen: false })}
+        src={previewImage.src}
+        name={previewImage.name}
+        role={previewImage.role}
+        department={previewImage.department}
+        studentId={previewImage.studentId}
+      />
     </div>
   );
 }

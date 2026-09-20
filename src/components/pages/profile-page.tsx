@@ -6,8 +6,10 @@ import {
   Mail, Hash, Building2, Phone, Edit3, Save, Calendar,
   Award, CreditCard, Clock, Camera, Activity,
   XCircle, Loader2, ShieldCheck, UserCheck, Layers, BookOpen,
-  ArrowRight, ArrowLeft, ExternalLink, Download, Copy, CheckCircle, Eye, Share2, MapPin, Tag, Star
+  ArrowRight, ArrowLeft, ExternalLink, Download, Copy, CheckCircle, Eye, Share2, MapPin, Tag, Star,
+  UserX, ZoomIn
 } from 'lucide-react';
+import { ImagePreviewModal } from '@/components/shared/image-preview-modal';
 import { useAppStore } from '@/store/use-app-store';
 import {
   ROLE_LABELS,
@@ -99,6 +101,19 @@ export function ProfilePage() {
   const [stats, setStats] = useState<ProfileStats>({ eventsAttended: 0, certificates: 0, payments: 0 });
   const [statsLoading, setStatsLoading] = useState(true);
 
+  // Lightbox photo preview state
+  const [previewImage, setPreviewImage] = useState<{
+    isOpen: boolean;
+    src?: string | null;
+    name?: string;
+    role?: string;
+    department?: string;
+    studentId?: string;
+  }>({ isOpen: false });
+
+  // Direct approval action from profile page
+  const [processingApproval, setProcessingApproval] = useState<string | null>(null);
+
   const isViewingSelf = !selectedMemberId || selectedMemberId === currentUser?.id;
   const userToShow = profileUser || (isViewingSelf ? currentUser : null);
   const isMember = userToShow?.membershipStatus === 'ACTIVE' || ['PLATFORM_ADMIN', 'PRESIDENT', 'SECRETARY', 'TREASURER', 'EXECUTIVE_MEMBER'].includes(userToShow?.role || '');
@@ -146,6 +161,36 @@ export function ProfilePage() {
   useEffect(() => {
     fetchProfileUser();
   }, [fetchProfileUser]);
+
+  const handleApprovalAction = async (action: 'APPROVED' | 'REJECTED') => {
+    if (!userToShow || !currentUser) return;
+    setProcessingApproval(action);
+    try {
+      const r = await fetch('/api/users/approval', {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ userId: userToShow.id, action, approverId: currentUser.id }),
+      });
+      const d = await r.json();
+      if (d.success) {
+        toast({
+          title: action === 'APPROVED' ? 'Member Approved' : 'Application Rejected',
+          description:
+            action === 'APPROVED'
+              ? 'The member has been approved successfully.'
+              : 'The application has been rejected.',
+        });
+        fetchProfileUser();
+      } else {
+        toast({ title: 'Error', description: d.error || 'Failed to process approval', variant: 'destructive' });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({ title: 'Error', description: 'Network error', variant: 'destructive' });
+    } finally {
+      setProcessingApproval(null);
+    }
+  };
 
   const handleSave = async () => {
     if (!currentUser) return;
@@ -365,6 +410,53 @@ export function ProfilePage() {
         </div>
       </div>
 
+      {/* Executive Application Review Banner (President / GS / VP / Admin) */}
+      {!isViewingSelf && canInspectOtherRecords && userToShow.membershipStatus === 'PENDING' && (
+        <motion.div
+          initial={{ opacity: 0, y: -8 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-amber-500/30 bg-amber-500/10 backdrop-blur"
+        >
+          <div className="flex items-center gap-3">
+            <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-amber-500/20 text-amber-400 border border-amber-500/30 shrink-0">
+              <Clock className="h-5 w-5" />
+            </div>
+            <div>
+              <h4 className="text-sm font-bold text-white flex items-center gap-2">
+                Pending Membership Application
+                <Badge variant="outline" className="text-[10px] border-amber-500/30 bg-amber-500/20 text-amber-300">
+                  Review Required
+                </Badge>
+              </h4>
+              <p className="text-xs text-gray-400">
+                This operative has submitted their application details and is waiting for leadership verification.
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+            <Button
+              variant="destructive"
+              size="sm"
+              disabled={!!processingApproval}
+              onClick={() => handleApprovalAction('REJECTED')}
+              className="h-9"
+            >
+              {processingApproval === 'REJECTED' ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <UserX className="mr-1.5 h-3.5 w-3.5" />}
+              Reject Application
+            </Button>
+            <Button
+              size="sm"
+              disabled={!!processingApproval}
+              onClick={() => handleApprovalAction('APPROVED')}
+              className="bg-emerald-600 hover:bg-emerald-500 text-white h-9"
+            >
+              {processingApproval === 'APPROVED' ? <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" /> : <UserCheck className="mr-1.5 h-3.5 w-3.5" />}
+              Approve Member
+            </Button>
+          </div>
+        </motion.div>
+      )}
+
       {/* Main Profile Info Card */}
       <motion.div variants={item}>
         <Card className="overflow-hidden border-white/5 bg-[#111]/60 backdrop-blur">
@@ -375,8 +467,21 @@ export function ProfilePage() {
           <CardContent className="relative pt-0 pb-6">
             {/* Avatar & Header */}
             <div className="flex items-end gap-6 -mt-14">
-              <div className="relative group">
-                <div className="rounded-full p-[3px] bg-gradient-to-br from-emerald-400 via-cyan-400 to-emerald-500">
+              <div
+                className="relative group cursor-pointer"
+                onClick={() =>
+                  setPreviewImage({
+                    isOpen: true,
+                    src: userToShow.avatar,
+                    name: userToShow.name,
+                    role: userToShow.role,
+                    department: userToShow.department,
+                    studentId: userToShow.studentId,
+                  })
+                }
+                title="Click to view full photo"
+              >
+                <div className="rounded-full p-[3px] bg-gradient-to-br from-emerald-400 via-cyan-400 to-emerald-500 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
                   {userToShow.avatar ? (
                     <img
                       src={userToShow.avatar}
@@ -388,6 +493,9 @@ export function ProfilePage() {
                       {userToShow.name?.charAt(0)?.toUpperCase() || '?'}
                     </div>
                   )}
+                </div>
+                <div className="absolute inset-0 rounded-full bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                  <ZoomIn className="h-6 w-6 text-white" />
                 </div>
                 <div className="absolute bottom-1 right-1 h-5 w-5 rounded-full bg-emerald-500 border-[3px] border-[#111]">
                   <div className="h-full w-full rounded-full bg-emerald-500 animate-pulse" />
@@ -492,8 +600,8 @@ export function ProfilePage() {
                   </div>
                 </div>
 
-                {/* Member Academic Credentials */}
-                {isMember && (
+                {/* Member Academic Credentials - Visible to active members or to leadership */}
+                {(isMember || canInspectOtherRecords) && (
                   <>
                     <div className="flex items-center gap-3 rounded-lg p-3 bg-white/[0.02] border border-white/5">
                       <div className="flex h-9 w-9 items-center justify-center rounded-lg bg-emerald-500/10">
@@ -572,6 +680,56 @@ export function ProfilePage() {
                         )}
                       </div>
                     </div>
+
+                    {/* Membership Application & Payment Record Section (Visible to Leadership or Self) */}
+                    {(canInspectOtherRecords || isViewingSelf) && (userToShow.transactionId || userToShow.paymentMethod || userToShow.membershipStatus === 'PENDING' || userToShow.membershipStatus === 'REJECTED') && (
+                      <div className="sm:col-span-2 lg:col-span-3 rounded-xl border border-amber-500/20 bg-amber-500/5 p-4 mt-2 space-y-3">
+                        <h5 className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
+                          <CreditCard className="h-4 w-4" />
+                          Membership Application & Payment Record
+                        </h5>
+                        <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+                          {userToShow.transactionId && (
+                            <div className="rounded-lg border border-white/5 bg-black/20 p-2.5">
+                              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Transaction ID</span>
+                              <p className="text-sm font-mono font-semibold text-emerald-400 mt-0.5">{userToShow.transactionId}</p>
+                            </div>
+                          )}
+                          {userToShow.paymentMethod && (
+                            <div className="rounded-lg border border-white/5 bg-black/20 p-2.5">
+                              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Payment Method</span>
+                              <p className="text-sm font-semibold text-white mt-0.5">{userToShow.paymentMethod}</p>
+                            </div>
+                          )}
+                          {userToShow.paymentDate && (
+                            <div className="rounded-lg border border-white/5 bg-black/20 p-2.5">
+                              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Payment Date</span>
+                              <p className="text-sm font-semibold text-white mt-0.5">{userToShow.paymentDate}</p>
+                            </div>
+                          )}
+                          {userToShow.paymentProof && (
+                            <div className="rounded-lg border border-white/5 bg-black/20 p-2.5 sm:col-span-2 lg:col-span-3">
+                              <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Payment Proof</span>
+                              <a
+                                href={userToShow.paymentProof}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="text-xs text-emerald-400 hover:text-emerald-300 underline flex items-center gap-1 mt-0.5"
+                              >
+                                <ExternalLink className="h-3.5 w-3.5" />
+                                View Submitted Payment Proof
+                              </a>
+                            </div>
+                          )}
+                          {userToShow.rejectionReason && (
+                            <div className="rounded-lg border border-red-500/20 bg-red-500/10 p-2.5 sm:col-span-2 lg:col-span-3">
+                              <span className="text-[10px] text-red-400 uppercase tracking-wider font-mono">Rejection Reason</span>
+                              <p className="text-xs text-red-300 mt-0.5">{userToShow.rejectionReason}</p>
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </>
                 )}
               </div>
@@ -1144,6 +1302,17 @@ export function ProfilePage() {
           )}
         </DialogContent>
       </Dialog>
+
+      {/* Image Preview Lightbox Modal */}
+      <ImagePreviewModal
+        isOpen={previewImage.isOpen}
+        onClose={() => setPreviewImage({ isOpen: false })}
+        src={previewImage.src}
+        name={previewImage.name}
+        role={previewImage.role}
+        department={previewImage.department}
+        studentId={previewImage.studentId}
+      />
     </motion.div>
   );
 }
