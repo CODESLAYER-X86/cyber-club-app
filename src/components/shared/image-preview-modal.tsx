@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, ZoomIn, ZoomOut, Download, ExternalLink, User as UserIcon, Shield } from 'lucide-react';
+import { X, ZoomIn, ZoomOut, Download, ExternalLink, Shield, RotateCcw } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { ROLE_LABELS, UserRole } from '@/types';
@@ -16,6 +16,15 @@ interface ImagePreviewModalProps {
   role?: string;
   department?: string;
   studentId?: string;
+}
+
+function getHighResImageUrl(url?: string | null): string | undefined {
+  if (!url) return undefined;
+  // If it's a Google user content profile photo, request high-resolution (800px) instead of 96px thumbnail
+  if (url.includes('googleusercontent.com')) {
+    return url.replace(/=s\d+(-c)?$/, '=s800-c');
+  }
+  return url;
 }
 
 export function ImagePreviewModal({
@@ -33,22 +42,51 @@ export function ImagePreviewModal({
   // Reset zoom on open
   useEffect(() => {
     if (isOpen) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setScale(1);
     }
   }, [isOpen]);
 
-  // Handle ESC key
+  const handleZoomIn = useCallback(() => {
+    setScale((s) => Math.min(Number((s + 0.25).toFixed(2)), 3.5));
+  }, []);
+
+  const handleZoomOut = useCallback(() => {
+    setScale((s) => Math.max(Number((s - 0.25).toFixed(2)), 0.5));
+  }, []);
+
+  const handleResetZoom = useCallback(() => {
+    setScale(1);
+  }, []);
+
+  // Handle keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') {
         onClose();
+      } else if (e.key === '+' || e.key === '=') {
+        handleZoomIn();
+      } else if (e.key === '-' || e.key === '_') {
+        handleZoomOut();
+      } else if (e.key === '0') {
+        handleResetZoom();
       }
     };
     if (isOpen) {
       window.addEventListener('keydown', handleKeyDown);
     }
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [isOpen, onClose]);
+  }, [isOpen, onClose, handleZoomIn, handleZoomOut, handleResetZoom]);
+
+  // Handle mouse wheel zoom
+  const handleWheel = (e: React.WheelEvent) => {
+    e.stopPropagation();
+    if (e.deltaY < 0) {
+      handleZoomIn();
+    } else {
+      handleZoomOut();
+    }
+  };
 
   const initials = name
     ?.split(' ')
@@ -57,10 +95,12 @@ export function ImagePreviewModal({
     .toUpperCase()
     .slice(0, 2) || '?';
 
+  const displaySrc = getHighResImageUrl(src);
+
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 sm:p-6 md:p-8">
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-6 md:p-8">
           {/* Backdrop */}
           <motion.div
             initial={{ opacity: 0 }}
@@ -73,11 +113,11 @@ export function ImagePreviewModal({
 
           {/* Modal Content */}
           <motion.div
-            initial={{ opacity: 0, scale: 0.92, y: 15 }}
+            initial={{ opacity: 0, scale: 0.94, y: 15 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.92, y: 15 }}
+            exit={{ opacity: 0, scale: 0.94, y: 15 }}
             transition={{ type: 'spring', stiffness: 350, damping: 25 }}
-            className="relative z-10 flex flex-col max-h-[90vh] max-w-2xl w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0d1117] shadow-2xl shadow-emerald-500/10"
+            className="relative z-10 flex flex-col max-h-[92vh] max-w-2xl w-full overflow-hidden rounded-2xl border border-white/10 bg-[#0d1117] shadow-2xl shadow-emerald-500/10"
             onClick={(e) => e.stopPropagation()}
           >
             {/* Header bar */}
@@ -105,14 +145,14 @@ export function ImagePreviewModal({
 
               {/* Action Tools */}
               <div className="flex items-center gap-1.5 shrink-0">
-                {src && (
+                {displaySrc && (
                   <>
                     <Button
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10"
-                      onClick={() => setScale((s) => Math.min(s + 0.25, 2.5))}
-                      title="Zoom In"
+                      onClick={handleZoomIn}
+                      title="Zoom In (+)"
                     >
                       <ZoomIn className="h-4 w-4" />
                     </Button>
@@ -120,13 +160,24 @@ export function ImagePreviewModal({
                       variant="ghost"
                       size="icon"
                       className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10"
-                      onClick={() => setScale((s) => Math.max(s - 0.25, 0.75))}
-                      title="Zoom Out"
+                      onClick={handleZoomOut}
+                      title="Zoom Out (-)"
                     >
                       <ZoomOut className="h-4 w-4" />
                     </Button>
+                    {scale !== 1 && (
+                      <Button
+                        variant="ghost"
+                        size="icon"
+                        className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10"
+                        onClick={handleResetZoom}
+                        title="Reset Zoom (0)"
+                      >
+                        <RotateCcw className="h-3.5 w-3.5" />
+                      </Button>
+                    )}
                     <a
-                      href={src}
+                      href={displaySrc}
                       target="_blank"
                       rel="noopener noreferrer"
                       className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
@@ -135,7 +186,7 @@ export function ImagePreviewModal({
                       <ExternalLink className="h-4 w-4" />
                     </a>
                     <a
-                      href={src}
+                      href={displaySrc}
                       download={`${name.replace(/\s+/g, '_')}_photo`}
                       className="flex h-8 w-8 items-center justify-center rounded-md text-gray-400 hover:text-white hover:bg-white/10 transition-colors"
                       title="Download Photo"
@@ -156,19 +207,34 @@ export function ImagePreviewModal({
               </div>
             </div>
 
-            {/* Content Body */}
-            <div className="flex flex-1 items-center justify-center overflow-auto p-6 bg-black/40 min-h-[320px] max-h-[70vh]">
-              {src ? (
-                <div className="relative overflow-hidden rounded-xl border border-white/5 shadow-2xl flex items-center justify-center">
-                  <motion.img
-                    src={src}
+            {/* Content Body / Interactive Viewport */}
+            <div
+              className={`relative flex flex-1 items-center justify-center overflow-hidden p-6 bg-black/60 min-h-[340px] max-h-[70vh] select-none ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+              onWheel={handleWheel}
+            >
+              {displaySrc ? (
+                <motion.div
+                  drag={scale > 1}
+                  dragConstraints={{
+                    left: -200 * (scale - 1),
+                    right: 200 * (scale - 1),
+                    top: -200 * (scale - 1),
+                    bottom: 200 * (scale - 1),
+                  }}
+                  dragElastic={0.1}
+                  animate={{ scale }}
+                  transition={{ type: 'spring', stiffness: 300, damping: 25 }}
+                  className="flex items-center justify-center will-change-transform"
+                  onDoubleClick={() => setScale((s) => (s > 1.2 ? 1 : 2))}
+                  title={scale > 1 ? 'Drag to pan · Double click to reset' : 'Double click to zoom 2x'}
+                >
+                  <img
+                    src={displaySrc}
                     alt={alt}
-                    animate={{ scale }}
-                    transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-                    className="max-h-[60vh] max-w-full object-contain rounded-xl select-none"
+                    className="max-h-[55vh] max-w-[85vw] sm:max-h-[50vh] sm:max-w-[480px] w-auto h-auto min-w-[260px] min-h-[260px] sm:min-w-[320px] sm:min-h-[320px] object-cover sm:object-contain rounded-2xl border border-white/10 shadow-2xl select-none pointer-events-none"
                     draggable={false}
                   />
-                </div>
+                </motion.div>
               ) : (
                 <div className="flex flex-col items-center justify-center p-8 text-center space-y-4">
                   <div className="flex h-36 w-36 items-center justify-center rounded-full bg-gradient-to-br from-emerald-500/30 via-cyan-500/20 to-emerald-500/10 border-2 border-emerald-500/30 text-emerald-400 text-5xl font-bold shadow-xl shadow-emerald-500/10">
@@ -184,9 +250,20 @@ export function ImagePreviewModal({
 
             {/* Footer */}
             <div className="border-t border-white/10 px-5 py-3 bg-white/[0.01] flex items-center justify-between text-xs text-gray-400">
-              <span className="font-mono">
-                {src ? `Zoom: ${Math.round(scale * 100)}%` : 'Default Operative Avatar'}
-              </span>
+              <div className="flex items-center gap-2">
+                <span
+                  onClick={handleResetZoom}
+                  className={`font-mono transition-colors ${displaySrc ? 'cursor-pointer hover:text-emerald-400' : ''}`}
+                  title={displaySrc ? 'Click to reset zoom (100%)' : undefined}
+                >
+                  {displaySrc ? `Zoom: ${Math.round(scale * 100)}%` : 'Default Operative Avatar'}
+                </span>
+                {scale > 1 && (
+                  <span className="text-[10px] text-gray-500 hidden sm:inline">
+                    (Drag to pan · Double-click to reset)
+                  </span>
+                )}
+              </div>
               <Button
                 variant="outline"
                 size="sm"

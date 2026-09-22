@@ -16,19 +16,35 @@ export async function GET(request: NextRequest) {
     const type = searchParams.get("type");
     const requestedUserId = searchParams.get("userId");
 
-    const isFinancialStaff = ["TREASURER", "PRESIDENT", "GS", "PLATFORM_ADMIN", "VERIFIER"].includes(caller.role);
+    const isFinancialAdmin = ["TREASURER", "PRESIDENT", "GS", "PLATFORM_ADMIN"].includes(caller.role);
+    const isEventVerifier = caller.role === "VERIFIER";
 
-    if (requestedUserId && requestedUserId !== caller.userId && !isFinancialStaff) {
+    if (requestedUserId && requestedUserId !== caller.userId && !isFinancialAdmin && !isEventVerifier) {
       return forbiddenResponse("You do not have permission to view other users' payment records");
     }
 
     const where: Record<string, unknown> = {};
 
-    if (!isFinancialStaff) {
-      // Non-staff can ONLY query their own payments
+    if (isFinancialAdmin) {
+      // Financial leadership has full access across all types and users
+      if (requestedUserId) {
+        where.userId = requestedUserId;
+      }
+      if (type) {
+        where.type = type;
+      }
+    } else if (isEventVerifier) {
+      // Event Verifiers can ONLY inspect event-related payments
+      where.type = "EVENT";
+      if (requestedUserId) {
+        where.userId = requestedUserId;
+      }
+    } else {
+      // General members and guests can ONLY query their own payments
       where.userId = caller.userId;
-    } else if (requestedUserId) {
-      where.userId = requestedUserId;
+      if (type) {
+        where.type = type;
+      }
     }
 
     if (status) {
@@ -37,10 +53,6 @@ export async function GET(request: NextRequest) {
       } else {
         where.status = status;
       }
-    }
-
-    if (type) {
-      where.type = type;
     }
 
     const payments = await prisma.payment.findMany({
@@ -66,7 +78,7 @@ export async function GET(request: NextRequest) {
           select: {
             id: true,
             name: true,
-            email: true,
+            // email is omitted to prevent staff PII leakage to clients / interceptors
           },
         },
       },
