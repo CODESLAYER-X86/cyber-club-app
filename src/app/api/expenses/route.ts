@@ -7,9 +7,9 @@ import { isSafeUrl } from '@/lib/utils';
 // ─── GET /api/expenses ─── List all expenses (with items, creator, approvers)
 export async function GET(request: NextRequest) {
   try {
-    const caller = await getSupabaseUser(['PLATFORM_ADMIN', 'PRESIDENT', 'TREASURER', 'GS']);
-    if (!caller) {
-      return forbiddenResponse('Only financial leadership (President, General Secretary, Treasurer, Admin) can view expenses');
+    const caller = await getSupabaseUser();
+    if (!caller || caller.role === 'GUEST') {
+      return forbiddenResponse('Guests cannot view expenses');
     }
 
     const { searchParams } = new URL(request.url);
