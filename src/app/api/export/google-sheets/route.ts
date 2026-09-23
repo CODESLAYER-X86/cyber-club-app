@@ -37,8 +37,9 @@ export async function GET(request: NextRequest) {
 
     // 2. Check Session Cookie (for in-browser executive direct access)
     let hasValidSession = false;
+    let caller: { userId: string; email: string; role: string } | null = null;
     if (!hasValidToken) {
-      const caller = await getSupabaseUser(ALLOWED_ROLES);
+      caller = await getSupabaseUser(ALLOWED_ROLES);
       if (caller) {
         hasValidSession = true;
       }
@@ -126,6 +127,21 @@ export async function GET(request: NextRequest) {
 
     // Check if CSV format is explicitly requested
     const { searchParams } = new URL(request.url);
+    if (caller) {
+      try {
+        const format = searchParams.get("format") || "json";
+        await prisma.auditLog.create({
+          data: {
+            userId: caller.userId,
+            action: "DATA_EXPORTED",
+            details: `Exported member sync data via Google Sheets feed (${format.toUpperCase()})`,
+          },
+        });
+      } catch (auditErr) {
+        console.error("Audit log error on sheets sync:", auditErr);
+      }
+    }
+
     if (searchParams.get("format") === "csv") {
       const csvContent = [
         headers.map(escapeCSV).join(","),

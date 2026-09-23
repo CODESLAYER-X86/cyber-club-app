@@ -64,6 +64,19 @@ export async function POST(
       },
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "ACHIEVEMENT_APPROVED",
+          details: `Approved achievement "${achievement.title}" (ID: ${id}) submitted by ${updatedAchievement.submitter?.name || "Member"}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on achievement approval:", auditErr);
+    }
+
     return successResponse({ achievement: updatedAchievement });
   } catch {
     return serverErrorResponse();

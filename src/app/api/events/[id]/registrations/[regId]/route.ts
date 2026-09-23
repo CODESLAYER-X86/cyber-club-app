@@ -78,7 +78,7 @@ export async function PATCH(
     // If registration is approved, also update the associated payment to APPROVED status (not VERIFIED)
     if (status === "APPROVED") {
       const payment = await prisma.payment.findFirst({
-        where: { userId: registration.userId, eventId, status: "PENDING" },
+        where: { userId: registration.userId, eventId, status: { in: ["PENDING", "REJECTED"] } },
       });
       if (payment) {
         await prisma.payment.update({
@@ -89,10 +89,18 @@ export async function PATCH(
     }
 
     // If registration is cancelled/rejected, decrement current seats
-    if ((status === "CANCELLED" || status === "REJECTED") && registration.status === "APPROVED") {
+    if ((status === "CANCELLED" || status === "REJECTED") && (registration.status === "APPROVED" || registration.status === "PENDING")) {
       await prisma.event.update({
         where: { id: eventId },
         data: { currentSeats: { decrement: 1 } },
+      });
+    }
+
+    // If registration is re-approved from REJECTED/CANCELLED, increment current seats
+    if (status === "APPROVED" && (registration.status === "REJECTED" || registration.status === "CANCELLED")) {
+      await prisma.event.update({
+        where: { id: eventId },
+        data: { currentSeats: { increment: 1 } },
       });
     }
 

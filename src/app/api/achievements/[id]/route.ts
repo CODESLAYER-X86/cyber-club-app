@@ -84,6 +84,19 @@ export async function DELETE(
       return notFoundResponse("Achievement not found");
     }
 
+    // Log to audit log before delete
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "ACHIEVEMENT_DELETED",
+          details: `Deleted achievement "${achievement.title}" (Category: ${achievement.category}). ID: ${id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on achievement delete:", auditErr);
+    }
+
     await prisma.achievement.delete({
       where: { id },
     });

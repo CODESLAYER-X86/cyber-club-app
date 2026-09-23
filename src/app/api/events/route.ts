@@ -250,6 +250,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "EVENT_CREATED",
+          details: `Created event "${event.title}" (${event.type}, ${event.category}). Event ID: ${event.id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on event creation:", auditErr);
+    }
+
     return successResponse({ event }, 201);
   } catch (error) {
     console.error("POST events error:", error);

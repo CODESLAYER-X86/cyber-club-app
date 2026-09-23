@@ -66,6 +66,19 @@ export async function PATCH(
       data,
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "COMMITTEE_MEMBER_UPDATED",
+          details: `Updated committee member "${updatedMember.name}" (${updatedMember.role}). Fields: ${Object.keys(data).join(", ") || "none"}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on committee update:", auditErr);
+    }
+
     return successResponse({ member: updatedMember });
   } catch {
     return serverErrorResponse();
@@ -91,6 +104,19 @@ export async function DELETE(
 
     if (!member) {
       return notFoundResponse("Committee member not found");
+    }
+
+    // Log to audit log before delete
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "COMMITTEE_MEMBER_REMOVED",
+          details: `Removed committee member "${member.name}" (${member.role}). ID: ${id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on committee delete:", auditErr);
     }
 
     await prisma.committeeMember.delete({

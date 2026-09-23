@@ -95,6 +95,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "ACHIEVEMENT_SUBMITTED",
+          details: `Submitted achievement "${title}" (${category || "COMPETITION"}). ID: ${achievement.id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on achievement submission:", auditErr);
+    }
+
     return successResponse({ achievement }, 201);
   } catch {
     return serverErrorResponse();

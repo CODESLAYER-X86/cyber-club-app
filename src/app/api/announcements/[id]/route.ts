@@ -25,6 +25,19 @@ export async function DELETE(
       return notFoundResponse("Announcement not found");
     }
 
+    // Log in audit log before deletion
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "ANNOUNCEMENT_DELETED",
+          details: `Deleted announcement "${announcement.title}" (Type: ${announcement.type}). ID: ${id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on announcement delete:", auditErr);
+    }
+
     // Delete the announcement
     await prisma.announcement.delete({
       where: { id },

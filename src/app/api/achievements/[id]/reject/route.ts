@@ -62,6 +62,19 @@ export async function PATCH(
       },
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "ACHIEVEMENT_REJECTED",
+          details: `Rejected achievement "${achievement.title}" (ID: ${id})`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on achievement rejection:", auditErr);
+    }
+
     return successResponse({ achievement: updated });
   } catch {
     return serverErrorResponse();

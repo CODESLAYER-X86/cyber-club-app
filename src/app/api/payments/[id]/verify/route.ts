@@ -38,16 +38,27 @@ export async function PATCH(
     // Role-specific checks:
     // If VERIFIER:
     // 1. Can only verify/reject EVENT payments.
-    // 2. Can only verify PENDING payments (to APPROVED).
+    // 2. Can verify PENDING or re-verify REJECTED payments (to APPROVED).
+    // 3. Can reject PENDING or revoke APPROVED payments.
+    // 4. Cannot modify payments that have already been reconciled/VERIFIED by the Treasurer.
     if (caller.role === "VERIFIER") {
       if (payment.type !== "EVENT") {
         return forbiddenResponse("Event Verifiers can only verify event payments");
       }
-      if (payment.status !== "PENDING") {
-        return errorResponse("Payment is not in PENDING status");
+      if (payment.status === "VERIFIED") {
+        return errorResponse("This payment has already been verified and reconciled by the Treasurer and cannot be modified.");
+      }
+      if (action === "VERIFY") {
+        if (!["PENDING", "REJECTED"].includes(payment.status)) {
+          return errorResponse(`Payment is already ${payment.status.toLowerCase()}`);
+        }
+      } else if (action === "REJECT") {
+        if (!["PENDING", "APPROVED"].includes(payment.status)) {
+          return errorResponse(`Payment is already ${payment.status.toLowerCase()}`);
+        }
       }
     } else {
-      // Treasurer/Admin can verify, re-evaluate, or reject payments in any status to correct mistakes
+      // Treasurer/Admin/President/GS can verify, re-evaluate, or reject payments in any status to correct mistakes
       if (!["PENDING", "APPROVED", "REJECTED", "VERIFIED"].includes(payment.status)) {
         return errorResponse("Invalid payment status");
       }
@@ -63,6 +74,26 @@ export async function PATCH(
       }
     } else {
       newStatus = "REJECTED";
+    }
+
+    // Pre-check capacity if re-verifying a previously rejected event registration
+    let existingRegistration: { id: string; status: string } | null = null;
+    if (payment.type === "EVENT" && payment.eventId) {
+      existingRegistration = await prisma.eventRegistration.findFirst({
+        where: { userId: payment.userId, eventId: payment.eventId },
+        select: { id: true, status: true },
+      });
+
+      const isReapproving = (newStatus === "APPROVED" || newStatus === "VERIFIED") && existingRegistration?.status === "REJECTED";
+      if (isReapproving) {
+        const event = await prisma.event.findUnique({
+          where: { id: payment.eventId },
+          select: { maxSeats: true, currentSeats: true },
+        });
+        if (event && event.maxSeats && event.maxSeats > 0 && event.currentSeats >= event.maxSeats) {
+          return errorResponse("Event is fully booked. Cannot re-approve registration.", 409);
+        }
+      }
     }
 
     const updatedPayment = await prisma.payment.update({
@@ -88,27 +119,29 @@ export async function PATCH(
       },
     });
 
-    // If payment is for an event, we need to update the corresponding event registration status
-    if (payment.type === "EVENT" && payment.eventId) {
+    // If payment is for an event, sync event registration status and handle seat count
+    if (payment.type === "EVENT" && payment.eventId && existingRegistration) {
       const regStatus = newStatus === "APPROVED" || newStatus === "VERIFIED" ? "APPROVED" : "REJECTED";
-      // Find and update registration
-      const registration = await prisma.eventRegistration.findFirst({
-        where: { userId: payment.userId, eventId: payment.eventId },
-      });
-      if (registration) {
-        await prisma.eventRegistration.update({
-          where: { id: registration.id },
-          data: { status: regStatus },
-        });
 
-        // If registration is rejected, and it was approved previously, handle seat count
-        if (regStatus === "REJECTED" && registration.status === "APPROVED") {
-          await prisma.event.update({
-            where: { id: payment.eventId },
-            data: { currentSeats: { decrement: 1 } },
-          });
-        }
+      // If registration is becoming REJECTED from PENDING or APPROVED, release the seat
+      if (regStatus === "REJECTED" && (existingRegistration.status === "APPROVED" || existingRegistration.status === "PENDING")) {
+        await prisma.event.update({
+          where: { id: payment.eventId },
+          data: { currentSeats: { decrement: 1 } },
+        });
       }
+      // If registration was REJECTED and is now APPROVED (re-verified), reclaim the seat
+      else if (regStatus === "APPROVED" && existingRegistration.status === "REJECTED") {
+        await prisma.event.update({
+          where: { id: payment.eventId },
+          data: { currentSeats: { increment: 1 } },
+        });
+      }
+
+      await prisma.eventRegistration.update({
+        where: { id: existingRegistration.id },
+        data: { status: regStatus },
+      });
     }
 
     // Create notification

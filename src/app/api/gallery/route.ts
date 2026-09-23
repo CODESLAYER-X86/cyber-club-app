@@ -99,6 +99,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "GALLERY_PHOTO_ADDED",
+          details: `Uploaded gallery photo "${title}" (Category: ${category || "EVENT"}). ID: ${galleryImage.id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on gallery upload:", auditErr);
+    }
+
     return successResponse({ galleryImage }, 201);
   } catch {
     return serverErrorResponse();

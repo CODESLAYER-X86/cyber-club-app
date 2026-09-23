@@ -71,6 +71,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "COMMITTEE_MEMBER_ADDED",
+          details: `Appointed "${name}" as committee member (${role}${department ? `, ${department}` : ""}). ID: ${member.id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on committee add:", auditErr);
+    }
+
     return successResponse({ member }, 201);
   } catch {
     return serverErrorResponse();

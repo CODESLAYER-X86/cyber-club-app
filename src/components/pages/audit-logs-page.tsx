@@ -5,7 +5,8 @@ import { motion } from 'framer-motion';
 import {
   FileText, Search, CheckCircle, UserCheck, UserX, UserPlus, Wallet,
   XCircle, Plus, Activity, Users, Clock, Shield, ShieldAlert,
-  CreditCard, Ban, ArrowRight, Eye, RefreshCw, Layers
+  CreditCard, Ban, ArrowRight, Eye, RefreshCw, Layers,
+  Download, Megaphone, Trophy, Image as ImageIcon, Globe,
 } from 'lucide-react';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -184,12 +185,160 @@ const ACTION_MAP: Record<string, ActionMeta> = {
     badgeClass: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10',
     category: 'SYSTEM',
   },
+  EVENT_UPDATED: {
+    label: 'Event Updated',
+    icon: RefreshCw,
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    borderColor: 'border-l-amber-400',
+    badgeClass: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+    category: 'SYSTEM',
+  },
+  EVENT_DELETED: {
+    label: 'Event Deleted',
+    icon: XCircle,
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    borderColor: 'border-l-rose-400',
+    badgeClass: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
+    category: 'SYSTEM',
+  },
   CONFIG_UPDATED: {
     label: 'Config Changed',
     icon: Shield,
     color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
     borderColor: 'border-l-amber-400',
     badgeClass: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+    category: 'SYSTEM',
+  },
+
+  // Data Export Events
+  DATA_EXPORTED: {
+    label: 'Data Exported',
+    icon: Download,
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    borderColor: 'border-l-amber-400',
+    badgeClass: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+    category: 'SYSTEM',
+  },
+
+  // Announcement Events
+  ANNOUNCEMENT_CREATED: {
+    label: 'Announcement Published',
+    icon: Megaphone,
+    color: 'text-sky-400 bg-sky-500/10 border-sky-500/20',
+    borderColor: 'border-l-sky-400',
+    badgeClass: 'border-sky-500/30 text-sky-400 bg-sky-500/10',
+    category: 'SYSTEM',
+  },
+  ANNOUNCEMENT_DELETED: {
+    label: 'Announcement Deleted',
+    icon: XCircle,
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    borderColor: 'border-l-rose-400',
+    badgeClass: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
+    category: 'SYSTEM',
+  },
+
+  // Committee Events (category: ROLES)
+  COMMITTEE_MEMBER_ADDED: {
+    label: 'Committee Appointed',
+    icon: UserPlus,
+    color: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
+    borderColor: 'border-l-teal-400',
+    badgeClass: 'border-teal-500/30 text-teal-400 bg-teal-500/10',
+    category: 'ROLES',
+  },
+  COMMITTEE_MEMBER_UPDATED: {
+    label: 'Committee Updated',
+    icon: RefreshCw,
+    color: 'text-teal-400 bg-teal-500/10 border-teal-500/20',
+    borderColor: 'border-l-teal-400',
+    badgeClass: 'border-teal-500/30 text-teal-400 bg-teal-500/10',
+    category: 'ROLES',
+  },
+  COMMITTEE_MEMBER_REMOVED: {
+    label: 'Committee Removed',
+    icon: UserX,
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    borderColor: 'border-l-rose-400',
+    badgeClass: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
+    category: 'ROLES',
+  },
+
+  // Achievement Events
+  ACHIEVEMENT_SUBMITTED: {
+    label: 'Achievement Submitted',
+    icon: Trophy,
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    borderColor: 'border-l-amber-400',
+    badgeClass: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+    category: 'SYSTEM',
+  },
+  ACHIEVEMENT_APPROVED: {
+    label: 'Achievement Approved',
+    icon: CheckCircle,
+    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    borderColor: 'border-l-emerald-400',
+    badgeClass: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
+    category: 'SYSTEM',
+  },
+  ACHIEVEMENT_REJECTED: {
+    label: 'Achievement Rejected',
+    icon: XCircle,
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    borderColor: 'border-l-rose-400',
+    badgeClass: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
+    category: 'SYSTEM',
+  },
+  ACHIEVEMENT_DELETED: {
+    label: 'Achievement Deleted',
+    icon: XCircle,
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    borderColor: 'border-l-rose-400',
+    badgeClass: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
+    category: 'SYSTEM',
+  },
+
+  // Gallery Events
+  GALLERY_PHOTO_ADDED: {
+    label: 'Gallery Photo Added',
+    icon: ImageIcon,
+    color: 'text-cyan-400 bg-cyan-500/10 border-cyan-500/20',
+    borderColor: 'border-l-cyan-400',
+    badgeClass: 'border-cyan-500/30 text-cyan-400 bg-cyan-500/10',
+    category: 'SYSTEM',
+  },
+  GALLERY_PHOTO_DELETED: {
+    label: 'Gallery Photo Deleted',
+    icon: XCircle,
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    borderColor: 'border-l-rose-400',
+    badgeClass: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
+    category: 'SYSTEM',
+  },
+
+  // Sponsor Events
+  SPONSOR_CREATED: {
+    label: 'Sponsor Added',
+    icon: Globe,
+    color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
+    borderColor: 'border-l-emerald-400',
+    badgeClass: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
+    category: 'SYSTEM',
+  },
+  SPONSOR_UPDATED: {
+    label: 'Sponsor Updated',
+    icon: RefreshCw,
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    borderColor: 'border-l-amber-400',
+    badgeClass: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
+    category: 'SYSTEM',
+  },
+  SPONSOR_DELETED: {
+    label: 'Sponsor Deleted',
+    icon: XCircle,
+    color: 'text-rose-400 bg-rose-500/10 border-rose-500/20',
+    borderColor: 'border-l-rose-400',
+    badgeClass: 'border-rose-500/30 text-rose-400 bg-rose-500/10',
     category: 'SYSTEM',
   },
 };

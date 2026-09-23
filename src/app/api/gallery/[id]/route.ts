@@ -52,6 +52,19 @@ export async function DELETE(
       // File might not exist on disk, continue with DB deletion
     }
 
+    // Log to audit log before delete
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "GALLERY_PHOTO_DELETED",
+          details: `Deleted gallery photo "${galleryImage.title}" (Category: ${galleryImage.category}). ID: ${id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on gallery delete:", auditErr);
+    }
+
     // Delete from database
     await prisma.galleryImage.delete({
       where: { id },

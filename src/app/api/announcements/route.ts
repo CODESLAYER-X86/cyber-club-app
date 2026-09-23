@@ -65,6 +65,19 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Log in audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "ANNOUNCEMENT_CREATED",
+          details: `Published announcement "${title}" (Type: ${type}). ID: ${announcement.id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on announcement create:", auditErr);
+    }
+
     // Notify all active members
     const activeMembers = await prisma.user.findMany({
       where: { membershipStatus: "ACTIVE" },

@@ -196,6 +196,19 @@ export async function GET(request: NextRequest) {
         return errorResponse("Invalid export type");
     }
 
+    // Log export event in audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "DATA_EXPORTED",
+          details: `Exported ${type} records to CSV (${filename})`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on export:", auditErr);
+    }
+
     return new Response(csv, {
       status: 200,
       headers: {

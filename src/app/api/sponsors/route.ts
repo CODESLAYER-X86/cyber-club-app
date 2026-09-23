@@ -59,6 +59,19 @@ export async function POST(request: NextRequest) {
       }
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "SPONSOR_CREATED",
+          details: `Added official club sponsor "${name}". ID: ${newSponsor.id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on sponsor create:", auditErr);
+    }
+
     return successResponse(newSponsor, 201);
   } catch (error) {
     console.error("Create Sponsor Error:", error);

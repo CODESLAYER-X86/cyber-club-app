@@ -4,7 +4,8 @@ import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 import { isSafeUrl } from "@/lib/utils";
 
-const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "MEDIA", "VP", "GS"];
+const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "VP", "GS"];
+const MODIFY_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "MEDIA", "VP", "GS"];
 
 export async function DELETE(
   request: NextRequest,
@@ -14,12 +15,25 @@ export async function DELETE(
     const { id } = await params;
     const caller = await getSupabaseUser(DELETE_ROLES);
     if (!caller) {
-      return forbiddenResponse("You do not have permission to delete events");
+      return forbiddenResponse("Only President, VP, General Secretary, and Platform Admin can delete events");
     }
 
     const event = await prisma.event.findUnique({ where: { id } });
     if (!event) {
       return notFoundResponse("Event not found");
+    }
+
+    // Log to audit log before cascading delete
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "EVENT_DELETED",
+          details: `Deleted event "${event.title}" (${event.type}, ${event.category}). Event ID: ${id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on event deletion:", auditErr);
     }
 
     // Delete related records first (in correct dependency order)
@@ -266,9 +280,9 @@ export async function PATCH(
     const { id } = await params;
     const body = await request.json();
 
-    const caller = await getSupabaseUser(DELETE_ROLES);
+    const caller = await getSupabaseUser(MODIFY_ROLES);
     if (!caller) {
-      return forbiddenResponse("You do not have permission to modify events");
+      return forbiddenResponse("Only President, VP, General Secretary, Media, and Platform Admin can modify events");
     }
 
     const event = await prisma.event.findUnique({ where: { id } });
@@ -423,6 +437,20 @@ export async function PATCH(
           });
         }
       }
+    }
+
+    // Log to audit log
+    try {
+      const changedFields = Object.keys(data).join(", ");
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "EVENT_UPDATED",
+          details: `Updated event "${updatedEvent.title}" (Fields modified: ${changedFields || "none"}). Event ID: ${id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on event update:", auditErr);
     }
 
     return successResponse({ event: updatedEvent });

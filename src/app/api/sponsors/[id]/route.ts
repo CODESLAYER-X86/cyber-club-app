@@ -36,6 +36,19 @@ export async function PUT(request: NextRequest, { params }: { params: Promise<{ 
       }
     });
 
+    // Log to audit log
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "SPONSOR_UPDATED",
+          details: `Updated sponsor "${updated.name}" (Priority: ${updated.priority}, Active: ${updated.isActive}). ID: ${id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on sponsor update:", auditErr);
+    }
+
     return successResponse(updated);
   } catch (error) {
     console.error("Update Sponsor Error:", error);
@@ -51,6 +64,19 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     const { id } = await params;
     const existing = await prisma.clubSponsor.findUnique({ where: { id } });
     if (!existing) return errorResponse("Sponsor not found", 404);
+
+    // Log to audit log before delete
+    try {
+      await prisma.auditLog.create({
+        data: {
+          userId: caller.userId,
+          action: "SPONSOR_DELETED",
+          details: `Deleted sponsor "${existing.name}". ID: ${id}`,
+        },
+      });
+    } catch (auditErr) {
+      console.error("Audit log error on sponsor delete:", auditErr);
+    }
 
     await prisma.clubSponsor.delete({ where: { id } });
     return successResponse("Sponsor deleted successfully");
