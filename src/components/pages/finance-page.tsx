@@ -31,12 +31,13 @@ const STATUS_CONFIG: Record<string, { color: string; dotColor: string; bg: strin
 };
 
 const DEPOSIT_SOURCE_LABELS: Record<string, string> = {
-  UNIVERSITY_FUND: 'University Fund',
-  SPONSOR: 'Sponsor',
-  EVENT_REGISTRATION: 'Event Registration',
+  MEMBERSHIP_REGISTRATION: 'Membership Registration',
   MEMBERSHIP_FEE: 'Membership Fee',
-  DONATION: 'Donation',
-  OTHER: 'Other',
+  EVENT_REGISTRATION: 'Event Registration',
+  UNIVERSITY_FUND: 'University Allocation',
+  SPONSOR: 'Corporate Sponsorship',
+  DONATION: 'Donation / Gift',
+  OTHER: 'General Deposit',
 };
 
 /* ─── Activity Feed Item ─── */
@@ -97,21 +98,30 @@ export function FinancePage() {
 
   // Merge activity with full underlying raw details
   const allActivities: ActivityItem[] = [
-    ...recentDeposits.map((d: any) => ({
-      id: d.id,
-      type: 'deposit' as const,
-      description: `${DEPOSIT_SOURCE_LABELS[d.source] || d.source} deposit`,
-      amount: d.amount,
-      status: d.status,
-      createdAt: d.createdAt,
-      source: d.source,
-      note: d.note,
-      raw: d,
-    })),
+    ...recentDeposits.map((d: any) => {
+      const sourceLabel = DEPOSIT_SOURCE_LABELS[d.source] || d.source?.replace(/_/g, ' ') || 'Deposit';
+      let title = sourceLabel;
+      if (d.source === 'MEMBERSHIP_REGISTRATION') {
+        title = d.note ? `Membership: ${d.note}` : 'Membership Registration';
+      } else if (d.note) {
+        title = d.note;
+      }
+      return {
+        id: d.id,
+        type: 'deposit' as const,
+        description: title,
+        amount: d.amount,
+        status: d.status,
+        createdAt: d.createdAt,
+        source: d.source,
+        note: d.note,
+        raw: d,
+      };
+    }),
     ...recentExpenses.map((e: any) => ({
       id: e.id,
       type: 'expense' as const,
-      description: e.note || 'Expense',
+      description: e.note || e.category || 'Expense Voucher',
       amount: e.amount,
       status: e.status,
       createdAt: e.createdAt,
@@ -273,12 +283,12 @@ export function FinancePage() {
               </CardTitle>
               <span className="text-xs text-gray-400">Click any transaction to expand and inspect purchased items & details</span>
             </div>
-            <div className="flex items-center gap-1.5 bg-black/40 p-1 rounded-lg border border-white/5 self-start sm:self-auto">
+            <div className="grid grid-cols-3 sm:flex items-center gap-1.5 bg-black/40 p-1 rounded-lg border border-white/5 w-full sm:w-auto">
               <Button
                 variant={activityFilter === 'all' ? 'secondary' : 'ghost'}
                 size="sm"
                 onClick={() => setActivityFilter('all')}
-                className={`h-7 px-2.5 text-xs ${activityFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
+                className={`h-7 px-2 sm:px-2.5 text-xs ${activityFilter === 'all' ? 'bg-white/10 text-white' : 'text-gray-400 hover:text-white'}`}
               >
                 All ({allActivities.length})
               </Button>
@@ -286,7 +296,7 @@ export function FinancePage() {
                 variant={activityFilter === 'expense' ? 'secondary' : 'ghost'}
                 size="sm"
                 onClick={() => setActivityFilter('expense')}
-                className={`h-7 px-2.5 text-xs ${activityFilter === 'expense' ? 'bg-amber-500/20 text-amber-300' : 'text-gray-400 hover:text-amber-400'}`}
+                className={`h-7 px-2 sm:px-2.5 text-xs ${activityFilter === 'expense' ? 'bg-amber-500/20 text-amber-300' : 'text-gray-400 hover:text-amber-400'}`}
               >
                 Expenses ({allActivities.filter((a) => a.type === 'expense').length})
               </Button>
@@ -294,7 +304,7 @@ export function FinancePage() {
                 variant={activityFilter === 'deposit' ? 'secondary' : 'ghost'}
                 size="sm"
                 onClick={() => setActivityFilter('deposit')}
-                className={`h-7 px-2.5 text-xs ${activityFilter === 'deposit' ? 'bg-emerald-500/20 text-emerald-300' : 'text-gray-400 hover:text-emerald-400'}`}
+                className={`h-7 px-2 sm:px-2.5 text-xs ${activityFilter === 'deposit' ? 'bg-emerald-500/20 text-emerald-300' : 'text-gray-400 hover:text-emerald-400'}`}
               >
                 Deposits ({allActivities.filter((a) => a.type === 'deposit').length})
               </Button>
@@ -316,37 +326,73 @@ export function FinancePage() {
                     >
                       <div
                         onClick={() => setExpandedActivityId(isExpanded ? null : item.id)}
-                        className="group flex items-center justify-between p-3.5 cursor-pointer hover:bg-white/[0.03] transition-all"
+                        className="group flex items-center justify-between gap-3 p-3 sm:p-3.5 cursor-pointer hover:bg-white/[0.03] transition-all select-none"
                       >
-                        <div className="flex items-center gap-3">
-                          <div className={`flex h-9 w-9 items-center justify-center rounded-lg transition-transform group-hover:scale-105 ${isDeposit ? 'bg-emerald-500/15 text-emerald-400' : 'bg-amber-500/15 text-amber-400'}`}>
-                            {isDeposit ? <ArrowUpRight className="h-4.5 w-4.5" /> : <ArrowDownRight className="h-4.5 w-4.5" />}
+                        {/* Left: Icon + Info */}
+                        <div className="flex items-center gap-3 min-w-0 flex-1">
+                          <div
+                            className={`flex h-10 w-10 shrink-0 items-center justify-center rounded-xl transition-transform group-hover:scale-105 ${
+                              isDeposit
+                                ? 'bg-emerald-500/15 text-emerald-400 border border-emerald-500/20'
+                                : 'bg-amber-500/15 text-amber-400 border border-amber-500/20'
+                            }`}
+                          >
+                            {isDeposit ? <ArrowUpRight className="h-5 w-5" /> : <ArrowDownRight className="h-5 w-5" />}
                           </div>
-                          <div>
-                            <p className="text-sm font-medium text-white group-hover:text-emerald-300 transition-colors">
+                          <div className="min-w-0 flex-1">
+                            <p className="text-sm font-semibold text-white group-hover:text-emerald-300 transition-colors truncate">
                               {item.description}
                             </p>
-                            <p className="text-xs text-gray-500 flex items-center gap-2">
-                              <span>{new Date(item.createdAt).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}</span>
+                            <div className="text-xs text-gray-400 flex flex-wrap items-center gap-x-2 gap-y-0.5 mt-0.5">
+                              <span className="font-medium text-gray-300">
+                                {new Date(item.createdAt).toLocaleDateString('en-US', {
+                                  month: 'short',
+                                  day: 'numeric',
+                                  year: 'numeric',
+                                })}
+                              </span>
+                              <span className="text-gray-600">•</span>
+                              <span className="capitalize text-gray-400">
+                                {isDeposit ? 'Deposit' : 'Expense'}
+                              </span>
                               {item.type === 'expense' && item.raw?.purchasedBy && (
-                                <span>• By {item.raw.purchasedBy}</span>
+                                <>
+                                  <span className="text-gray-600">•</span>
+                                  <span className="truncate max-w-[120px] text-gray-300">By {item.raw.purchasedBy}</span>
+                                </>
                               )}
                               {item.type === 'expense' && Array.isArray(item.raw?.items) && item.raw.items.length > 0 && (
-                                <span className="text-[11px] text-amber-400/80 font-mono">({item.raw.items.length} item{item.raw.items.length > 1 ? 's' : ''})</span>
+                                <>
+                                  <span className="text-gray-600">•</span>
+                                  <span className="text-[11px] text-amber-400/90 font-mono font-medium">
+                                    {item.raw.items.length} item{item.raw.items.length > 1 ? 's' : ''}
+                                  </span>
+                                </>
                               )}
-                            </p>
+                            </div>
                           </div>
                         </div>
 
-                        <div className="flex items-center gap-3">
-                          <span className={`text-sm font-semibold font-mono ${isDeposit ? 'text-emerald-400' : 'text-amber-400'}`}>
-                            {isDeposit ? '+' : '−'}৳{item.amount.toLocaleString()}
-                          </span>
-                          <div className="flex items-center gap-1.5">
-                            <div className={`h-2 w-2 rounded-full ${statusConf.dotColor}`} />
-                            <span className={`text-xs ${statusConf.color}`}>{statusConf.label}</span>
+                        {/* Right: Amount & Status Badge */}
+                        <div className="shrink-0 flex items-center gap-2 sm:gap-3">
+                          <div className="flex flex-col items-end text-right">
+                            <span
+                              className={`text-sm sm:text-base font-bold font-mono tracking-tight ${
+                                isDeposit ? 'text-emerald-400' : 'text-amber-400'
+                              }`}
+                            >
+                              {isDeposit ? '+' : '−'}৳{item.amount.toLocaleString()}
+                            </span>
+                            <div className="mt-1">
+                              <span
+                                className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[10px] font-semibold border ${statusConf.bg} ${statusConf.color}`}
+                              >
+                                <span className={`h-1.5 w-1.5 rounded-full ${statusConf.dotColor}`} />
+                                {statusConf.label}
+                              </span>
+                            </div>
                           </div>
-                          <div className="text-gray-500 group-hover:text-emerald-400 transition-colors p-1">
+                          <div className="text-gray-500 group-hover:text-emerald-400 transition-colors p-1 shrink-0">
                             {isExpanded ? <ChevronUp className="h-4 w-4" /> : <ChevronDown className="h-4 w-4" />}
                           </div>
                         </div>
@@ -354,17 +400,37 @@ export function FinancePage() {
 
                       {/* Dropdown Accordion Section */}
                       {isExpanded && (
-                        <div className="border-t border-white/5 p-4 space-y-3.5 bg-black/35 text-xs">
+                        <div className="border-t border-white/5 p-3.5 sm:p-4 space-y-3.5 bg-black/35 text-xs">
                           {/* Purchased Products Breakdown */}
                           {item.type === 'expense' && Array.isArray(item.raw.items) && item.raw.items.length > 0 ? (
-                            <div className="space-y-1.5">
+                            <div className="space-y-2">
                               <div className="flex items-center justify-between text-xs font-semibold text-amber-300">
                                 <span className="flex items-center gap-1.5">
-                                  <Package className="h-3.5 w-3.5" /> Purchased Products & Items ({item.raw.items.length}):
+                                  <Package className="h-3.5 w-3.5" /> Purchased Items ({item.raw.items.length}):
                                 </span>
                                 <span className="text-[11px] font-mono text-gray-400">Total: ৳{item.amount.toLocaleString()}</span>
                               </div>
-                              <div className="rounded-md border border-white/10 bg-black/40 overflow-hidden">
+
+                              {/* Mobile Item Breakdown Card List */}
+                              <div className="space-y-2 sm:hidden">
+                                {item.raw.items.map((it: any, idx: number) => (
+                                  <div key={idx} className="p-2.5 rounded-lg bg-white/[0.03] border border-white/5 space-y-1">
+                                    <div className="flex items-center justify-between gap-2">
+                                      <span className="font-semibold text-white text-xs truncate">{it.itemName}</span>
+                                      <span className="font-mono font-bold text-amber-300 text-xs shrink-0">
+                                        ৳{(it.quantity * it.price).toLocaleString()}
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center justify-between text-[11px] text-gray-400 pt-0.5">
+                                      <span>Qty: {it.quantity} {it.unit}</span>
+                                      <span className="font-mono">৳{Number(it.price).toLocaleString()} / unit</span>
+                                    </div>
+                                  </div>
+                                ))}
+                              </div>
+
+                              {/* Desktop Table Breakdown */}
+                              <div className="hidden sm:block rounded-md border border-white/10 bg-black/40 overflow-hidden">
                                 <table className="w-full text-left border-collapse">
                                   <thead className="bg-white/5 text-gray-400 font-medium text-[11px]">
                                     <tr>
@@ -434,7 +500,7 @@ export function FinancePage() {
                           </div>
 
                           {/* Attachment Link & Modal trigger */}
-                          <div className="flex items-center justify-between pt-1">
+                          <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
                             {item.raw.attachmentUrl ? (
                               <a
                                 href={sanitizeUrl(item.raw.attachmentUrl)}
@@ -470,7 +536,7 @@ export function FinancePage() {
 
       {/* Transparent Transaction Detail Dialog */}
       <Dialog open={!!selectedItem} onOpenChange={(open) => !open && setSelectedItem(null)}>
-        <DialogContent className="border-white/10 bg-[#0f1715] text-white max-w-lg p-6">
+        <DialogContent className="border-white/10 bg-[#0f1715] text-white w-[94vw] sm:max-w-lg p-4 sm:p-6 max-h-[90vh] overflow-y-auto">
           {selectedItem && (
             <div className="space-y-5">
               <DialogHeader>
@@ -558,7 +624,25 @@ export function FinancePage() {
               {selectedItem.type === 'expense' && Array.isArray(selectedItem.raw.items) && selectedItem.raw.items.length > 0 && (
                 <div className="space-y-2">
                   <span className="text-xs text-gray-400 font-semibold block">Itemized Breakdown:</span>
-                  <div className="border border-white/5 rounded-lg overflow-hidden text-xs">
+
+                  {/* Mobile Item Cards */}
+                  <div className="space-y-1.5 sm:hidden">
+                    {selectedItem.raw.items.map((it: any, idx: number) => (
+                      <div key={idx} className="p-2.5 rounded-lg bg-white/[0.03] border border-white/5 text-xs space-y-1">
+                        <div className="flex items-center justify-between">
+                          <span className="font-medium text-white">{it.itemName}</span>
+                          <span className="font-mono font-bold text-amber-300">৳{(it.quantity * it.price).toLocaleString()}</span>
+                        </div>
+                        <div className="flex items-center justify-between text-[11px] text-gray-400">
+                          <span>Qty: {it.quantity} {it.unit}</span>
+                          <span className="font-mono">৳{Number(it.price).toLocaleString()} / unit</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+
+                  {/* Desktop Grid */}
+                  <div className="hidden sm:block border border-white/5 rounded-lg overflow-hidden text-xs">
                     <div className="bg-white/5 p-2 grid grid-cols-12 text-gray-400 font-semibold">
                       <span className="col-span-6">Item</span>
                       <span className="col-span-3 text-right">Qty & Unit</span>
