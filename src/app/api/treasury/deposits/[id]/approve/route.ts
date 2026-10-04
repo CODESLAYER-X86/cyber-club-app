@@ -37,8 +37,8 @@ export async function PATCH(
     let auditAction = '';
 
     if (action === 'VOID') {
-      if (!['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only President, GS, or Platform Admin can void a deposit', 403);
+      if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
+        return errorResponse('Only President or Platform Admin can void a deposit', 403);
       }
       if (!body.reason || !body.reason.trim()) {
         return errorResponse('A mandatory reason is required to void a deposit', 400);

@@ -227,16 +227,14 @@ export async function GET(request: NextRequest) {
     const verifiedPayments = allPayments.filter((p) => ["VERIFIED", "APPROVED"].includes(p.status));
     const pendingPayments = allPayments.filter((p) => p.status === "PENDING");
 
-    const totalVerifiedAmount = verifiedPayments.reduce((s, p) => s + p.amount, 0);
-    const totalPendingAmount = pendingPayments.reduce((s, p) => s + p.amount, 0);
-
     const membershipVerifiedAmount = verifiedPayments
       .filter((p) => p.type === "MEMBERSHIP")
       .reduce((s, p) => s + p.amount, 0);
 
-    const eventVerifiedAmount = verifiedPayments
-      .filter((p) => p.type === "EVENT")
-      .reduce((s, p) => s + p.amount, 0);
+    // Event revenues strictly aggregated from valid events
+    const eventVerifiedAmount = processedEvents.reduce((s, ev) => s + ev.totalCollected, 0);
+    const totalVerifiedAmount = membershipVerifiedAmount + eventVerifiedAmount;
+    const totalPendingAmount = pendingPayments.reduce((s, p) => s + p.amount, 0);
 
     return successResponse({
       summary: {

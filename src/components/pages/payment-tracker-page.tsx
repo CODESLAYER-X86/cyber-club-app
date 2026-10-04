@@ -174,7 +174,7 @@ export function PaymentTrackerPage() {
 
   const canManagePayments =
     currentUser &&
-    ['TREASURER', 'PRESIDENT', 'GS', 'VP', 'PLATFORM_ADMIN'].includes(currentUser.role);
+    ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
   const loadData = async (showSkeleton = true) => {
     if (!isAuthorized) return;

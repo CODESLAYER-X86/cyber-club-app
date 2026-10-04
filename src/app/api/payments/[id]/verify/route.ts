@@ -21,9 +21,9 @@ export async function PATCH(
     }
 
     // Authenticate and authorize the caller
-    const caller = await getSupabaseUser(["TREASURER", "PRESIDENT", "GS", "PLATFORM_ADMIN", "VERIFIER"]);
+    const caller = await getSupabaseUser(["TREASURER", "PRESIDENT", "PLATFORM_ADMIN", "VERIFIER"]);
     if (!caller) {
-      return forbiddenResponse("Only Treasurer, President, General Secretary, Platform Admin, and Event Verifiers can verify payments");
+      return forbiddenResponse("Only Treasurer, President, Platform Admin, and Event Verifiers can verify payments");
     }
 
     const payment = await prisma.payment.findUnique({

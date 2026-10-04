@@ -302,7 +302,7 @@ export function DepositsPage() {
             const mayGsApprove = isPending && deposit.gsStatus === 'PENDING' && deposit.presidentStatus === 'APPROVED' && canGsApprove;
             const mayPresReject = isPending && deposit.presidentStatus === 'PENDING' && canPresidentApprove;
             const mayGsReject = isPending && deposit.gsStatus === 'PENDING' && canGsApprove;
-            const canVoidDeposit = isApproved && (canPresidentApprove || canGsApprove);
+            const canVoidDeposit = isApproved && canPresidentApprove;
 
             return (
               <motion.div key={deposit.id} variants={item}>
