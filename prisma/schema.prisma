@@ -30,6 +30,8 @@ model User {
   paymentMethod    String?
   paymentDate      String?
   rejectionReason  String?
+  gender           String?  // MALE, FEMALE
+  sentToNumber     String?  // Target phone/account number or booth name money was sent to
   createdAt        DateTime @default(now())
   updatedAt        DateTime @updatedAt
 
@@ -123,6 +125,8 @@ model Payment {
   transactionId String
   paymentMethod String   @default("BKASH") // BKASH, NAGAD, BANK, CASH
   proofUrl      String?
+  receiverName  String?  // Name or role of receiver (e.g. Treasurer, President, Cash Booth)
+  sentToNumber  String?  // Target phone/account number money was sent to
   eventId       String?
   verifiedBy    String?
   createdAt     DateTime @default(now())

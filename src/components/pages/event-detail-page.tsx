@@ -40,6 +40,8 @@ export function EventDetailPage() {
   const [registering, setRegistering] = useState(false);
   const [transactionId, setTransactionId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('BKASH');
+  const [sentToNumber, setSentToNumber] = useState('');
+  const [receiverName, setReceiverName] = useState('');
   const [message, setMessage] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
   const [userRegistration, setUserRegistration] = useState<EventRegistration | null>(null);
   const [showRegistrants, setShowRegistrants] = useState(false);
@@ -236,6 +238,8 @@ export function EventDetailPage() {
           userId: currentUser.id,
           transactionId: event.fee > 0 ? transactionId : undefined,
           paymentMethod: event.fee > 0 ? paymentMethod : undefined,
+          sentToNumber: event.fee > 0 ? (sentToNumber || paymentConfig?.contactPersonPhone || undefined) : undefined,
+          receiverName: event.fee > 0 ? (receiverName || paymentConfig?.contactPersonName || undefined) : undefined,
         }),
       });
       const data = await res.json();
@@ -724,7 +728,16 @@ export function EventDetailPage() {
                             className="col-span-2 border-white/10 bg-white/5 text-white placeholder:text-gray-600"
                           />
                         </div>
-                        <p className="text-xs text-gray-500">Pay ৳{paymentFee} via the method shown above and then submit your transaction ID.</p>
+                        <div className="space-y-1 pt-1">
+                          <label className="text-[11px] font-mono text-gray-400">Recipient / Sent-To Number (Account that received fee)</label>
+                          <Input
+                            value={sentToNumber}
+                            onChange={(e) => setSentToNumber(e.target.value)}
+                            placeholder={paymentConfig?.contactPersonPhone ? `e.g. ${paymentConfig.contactPersonPhone}` : "e.g. 01XXXXXXXXX"}
+                            className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 h-9 text-xs font-mono"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500">Pay ৳{paymentFee} via the method shown above and submit your transaction ID and recipient number.</p>
                       </div>
                     </div>
                   )}

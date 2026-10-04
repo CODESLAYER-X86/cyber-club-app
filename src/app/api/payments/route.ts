@@ -66,6 +66,13 @@ export async function GET(request: NextRequest) {
             avatar: true,
             role: true,
             membershipStatus: true,
+            studentId: true,
+            rollNumber: true,
+            batch: true,
+            department: true,
+            phone: true,
+            gender: true,
+            sentToNumber: true,
           },
         },
         event: {
@@ -100,13 +107,23 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { userId, amount, type = "MEMBERSHIP", transactionId, paymentMethod = "BKASH", proofUrl, eventId } = body;
+    const {
+      userId,
+      amount,
+      type = "MEMBERSHIP",
+      transactionId,
+      paymentMethod = "BKASH",
+      proofUrl,
+      eventId,
+      receiverName,
+      sentToNumber,
+    } = body;
 
     if (!userId || !amount || !transactionId) {
       return errorResponse("userId, amount, and transactionId are required");
     }
 
-    const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH"];
+    const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH", "PREVIOUS_MEMBER"];
     if (!VALID_METHODS.includes(paymentMethod)) {
       return errorResponse(`Invalid paymentMethod. Must be one of: ${VALID_METHODS.join(", ")}`);
     }
@@ -134,6 +151,8 @@ export async function POST(request: NextRequest) {
         paymentMethod,
         proofUrl,
         eventId,
+        receiverName: receiverName ? String(receiverName).trim() : null,
+        sentToNumber: sentToNumber ? String(sentToNumber).trim() : null,
         status: "PENDING",
       },
       include: {

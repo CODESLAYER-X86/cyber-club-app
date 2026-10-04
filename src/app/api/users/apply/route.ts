@@ -12,15 +12,40 @@ export async function POST(req: NextRequest) {
     const userId = caller.userId;
     
     const body = await req.json();
-    const { studentId, rollNumber, batch, department, phone, transactionId, paymentMethod = "BKASH" } = body;
+    const {
+      studentId,
+      rollNumber,
+      batch,
+      department,
+      phone,
+      transactionId,
+      paymentMethod = "BKASH",
+      gender,
+      sentToNumber,
+      receiverName: requestedReceiverName,
+    } = body;
 
     const VALID_METHODS = ["BKASH", "NAGAD", "ROCKET", "BANK", "CASH", "PREVIOUS_MEMBER"];
     const validatedMethod = VALID_METHODS.includes(paymentMethod) ? paymentMethod : "BKASH";
     const isPreviousMember = validatedMethod === "PREVIOUS_MEMBER";
 
+    const normalizedGender = gender === "FEMALE" ? "FEMALE" : gender === "MALE" ? "MALE" : null;
+
     const effectiveTrxId = isPreviousMember
       ? (transactionId?.trim() || "Previous Member")
       : transactionId?.trim();
+
+    const effectiveSentToNumber = isPreviousMember
+      ? "None (Previous Member)"
+      : validatedMethod === "CASH"
+        ? (sentToNumber?.trim() || "Physical Cash Desk / University Booth")
+        : (sentToNumber?.trim() || "Club Official Account");
+
+    const effectiveReceiverName = isPreviousMember
+      ? "Previous Member Archive"
+      : validatedMethod === "CASH"
+        ? (requestedReceiverName?.trim() || "Campus Cash Booth")
+        : (requestedReceiverName?.trim() || "Treasurer / Club MFS");
 
     if (!studentId || !rollNumber || !batch || !department || !phone || !effectiveTrxId) {
       return errorResponse("All academic and verification fields are required", 400);
@@ -47,6 +72,8 @@ export async function POST(req: NextRequest) {
         phone: phone.trim(),
         transactionId: effectiveTrxId,
         paymentMethod: validatedMethod,
+        gender: normalizedGender,
+        sentToNumber: effectiveSentToNumber,
         membershipStatus: "PENDING",
       },
     });
@@ -67,6 +94,8 @@ export async function POST(req: NextRequest) {
         status: "PENDING",
         transactionId: effectiveTrxId,
         paymentMethod: validatedMethod,
+        sentToNumber: effectiveSentToNumber,
+        receiverName: effectiveReceiverName,
       },
     });
 

@@ -76,7 +76,10 @@ export function ApplyMembershipPage() {
     rollNumber: currentUser?.rollNumber || '',
     batch: currentUser?.batch || '',
     department: currentUser?.department || '',
+    gender: currentUser?.gender || '',
     phone: currentUser?.phone || '',
+    sentToNumber: '',
+    receiverName: '',
     transactionId: '',
     paymentMethod: 'BKASH',
   });
@@ -141,17 +144,29 @@ export function ApplyMembershipPage() {
   const handlePaymentMethodChange = (method: string) => {
     setForm((prev) => {
       let nextTrxId = prev.transactionId;
+      let nextSentTo = prev.sentToNumber;
+
       if (method === 'PREVIOUS_MEMBER') {
         if (!nextTrxId || nextTrxId.startsWith('BK') || nextTrxId.startsWith('NG') || nextTrxId.startsWith('RC')) {
           nextTrxId = 'Previous Member';
         }
-      } else if (prev.paymentMethod === 'PREVIOUS_MEMBER' && nextTrxId.startsWith('Previous Member')) {
-        nextTrxId = '';
+        nextSentTo = 'None (Previous Member)';
+      } else if (method === 'CASH') {
+        nextSentTo = 'Physical Cash Desk / University Booth';
+        if (prev.paymentMethod === 'PREVIOUS_MEMBER') nextTrxId = '';
+      } else {
+        if (prev.paymentMethod === 'PREVIOUS_MEMBER' && nextTrxId.startsWith('Previous Member')) {
+          nextTrxId = '';
+        }
+        if (nextSentTo === 'None (Previous Member)' || nextSentTo === 'Physical Cash Desk / University Booth') {
+          nextSentTo = '';
+        }
       }
       return {
         ...prev,
         paymentMethod: method,
         transactionId: nextTrxId,
+        sentToNumber: nextSentTo,
       };
     });
   };
@@ -161,6 +176,7 @@ export function ApplyMembershipPage() {
     if (!form.rollNumber.trim()) return 'Roll Number is required';
     if (!form.batch.trim()) return 'Batch is required';
     if (!form.department.trim()) return 'Department is required';
+    if (!form.gender) return 'Please select your Gender (Male or Female)';
     if (!form.phone.trim()) return 'Phone number is required';
     if (!isValidPhone(form.phone)) {
       return 'Please enter a valid phone number (digits only, e.g. 01XXXXXXXXX or +8801XXXXXXXXX)';
@@ -169,8 +185,10 @@ export function ApplyMembershipPage() {
       if (!form.transactionId.trim()) {
         form.transactionId = 'Previous Member';
       }
+      form.sentToNumber = 'None (Previous Member)';
     } else if (form.paymentMethod === 'CASH') {
       if (!form.transactionId.trim()) return 'Please enter the name of the person who received your cash';
+      if (!form.sentToNumber.trim()) form.sentToNumber = 'Physical Cash Desk / University Booth';
     } else {
       if (!form.transactionId.trim()) return 'Transaction ID is required';
     }
@@ -189,10 +207,20 @@ export function ApplyMembershipPage() {
 
     setLoading(true);
     try {
+      const submissionPayload = {
+        ...form,
+        sentToNumber:
+          form.paymentMethod === 'PREVIOUS_MEMBER'
+            ? 'None (Previous Member)'
+            : form.paymentMethod === 'CASH'
+              ? (form.sentToNumber.trim() || 'Physical Cash Desk / University Booth')
+              : (form.sentToNumber.trim() || activeMethodNumber || 'Club Official Account'),
+      };
+
       const res = await fetch('/api/users/apply', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(form),
+        body: JSON.stringify(submissionPayload),
       });
       const data = await res.json();
       if (data.success && data.data?.user) {
@@ -560,21 +588,41 @@ export function ApplyMembershipPage() {
               </div>
             </div>
 
-            {/* Phone Number */}
-            <div className="space-y-1.5">
-              <label className="text-xs font-medium text-gray-400 font-mono">Personal Contact Number (Phone) *</label>
-              <div className="relative">
-                <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-                <Input
-                  value={form.phone}
-                  onChange={(e) => update('phone', sanitizePhone(e.target.value))}
-                  placeholder="01XXXXXXXXX"
-                  className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm"
-                />
+            {/* Gender & Phone Number */}
+            <div className="grid gap-6 sm:grid-cols-2">
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-400 font-mono">Gender *</label>
+                <Select value={form.gender} onValueChange={(v) => update('gender', v)}>
+                  <SelectTrigger className="w-full border-white/10 bg-white/5 text-white focus:ring-emerald-500/20 text-sm">
+                    <User className="mr-2 h-4 w-4 text-gray-500" />
+                    <SelectValue placeholder="Select gender" />
+                  </SelectTrigger>
+                  <SelectContent className="border-white/10 bg-[#111] text-white">
+                    <SelectItem value="MALE" className="text-white focus:bg-emerald-500/10 focus:text-emerald-400 text-sm">
+                      Male
+                    </SelectItem>
+                    <SelectItem value="FEMALE" className="text-white focus:bg-emerald-500/10 focus:text-emerald-400 text-sm">
+                      Female
+                    </SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+
+              <div className="space-y-1.5">
+                <label className="text-xs font-medium text-gray-400 font-mono">Personal Contact Number (Phone) *</label>
+                <div className="relative">
+                  <Phone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Input
+                    value={form.phone}
+                    onChange={(e) => update('phone', sanitizePhone(e.target.value))}
+                    placeholder="01XXXXXXXXX"
+                    className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm"
+                  />
+                </div>
               </div>
             </div>
 
-            {/* Payment Method & Transaction ID */}
+            {/* Payment Method & Transaction ID & Sent-To Number */}
             <div className={`rounded-xl border p-4 space-y-4 transition-all ${
               form.paymentMethod === 'PREVIOUS_MEMBER'
                 ? 'border-sky-500/30 bg-sky-500/5'
@@ -659,6 +707,57 @@ export function ApplyMembershipPage() {
                     />
                   </div>
                 </div>
+              </div>
+
+              {/* Sent-To Number / Target Account Input Section */}
+              <div className="pt-2 border-t border-white/5 space-y-1.5">
+                <div className="flex items-center justify-between">
+                  <label className="text-[10px] font-mono text-gray-400">
+                    {form.paymentMethod === 'PREVIOUS_MEMBER'
+                      ? 'Payment Destination Status'
+                      : form.paymentMethod === 'CASH'
+                        ? 'Physical Collection Point / Booth *'
+                        : 'Number / Account Money Sent To (Recipient Number) *'}
+                  </label>
+                  {form.paymentMethod !== 'PREVIOUS_MEMBER' && form.paymentMethod !== 'CASH' && activeMethodNumber && (
+                    <button
+                      type="button"
+                      onClick={() => update('sentToNumber', activeMethodNumber)}
+                      className="text-[10px] font-mono text-emerald-400 hover:text-emerald-300 underline"
+                    >
+                      Fill Configured: {activeMethodNumber}
+                    </button>
+                  )}
+                </div>
+                <div className="relative">
+                  <Smartphone className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
+                  <Input
+                    value={
+                      form.paymentMethod === 'PREVIOUS_MEMBER'
+                        ? 'None (Previous Member)'
+                        : form.sentToNumber
+                    }
+                    disabled={form.paymentMethod === 'PREVIOUS_MEMBER'}
+                    onChange={(e) => update('sentToNumber', e.target.value)}
+                    placeholder={
+                      form.paymentMethod === 'PREVIOUS_MEMBER'
+                        ? 'None (Previous Member)'
+                        : form.paymentMethod === 'CASH'
+                          ? 'Physical Cash Desk / University Booth'
+                          : activeMethodNumber
+                            ? `e.g. ${activeMethodNumber}`
+                            : 'e.g. 01XXXXXXXXX (Club number you sent money to)'
+                    }
+                    className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm disabled:opacity-60 disabled:cursor-not-allowed"
+                  />
+                </div>
+                <p className="text-[11px] text-gray-500">
+                  {form.paymentMethod === 'PREVIOUS_MEMBER'
+                    ? 'No transfer required. Previous membership verified via archive records.'
+                    : form.paymentMethod === 'CASH'
+                      ? 'Specify the booth location or club desk where physical cash was handed over.'
+                      : 'Enter the club executive bKash/Nagad number or university bank account that received this transfer.'}
+                </p>
               </div>
             </div>
 

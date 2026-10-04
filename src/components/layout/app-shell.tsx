@@ -45,6 +45,7 @@ const CertificateDesigner = lazy(() => import('@/components/pages/certificate-de
 const CommitteePage = lazy(() => import('@/components/pages/committee-page').then(m => ({ default: m.CommitteePage })));
 const SponsorsPage = lazy(() => import('@/components/pages/sponsors-page').then(m => ({ default: m.SponsorsPage })));
 const ResourcesPage = lazy(() => import('@/components/pages/resources-page').then(m => ({ default: m.ResourcesPage })));
+const PaymentTrackerPage = lazy(() => import('@/components/pages/payment-tracker-page').then(m => ({ default: m.PaymentTrackerPage })));
 
 const PAGE_MAP: Record<AppView, ComponentType> = {
   landing: LandingPage,
@@ -61,7 +62,8 @@ const PAGE_MAP: Record<AppView, ComponentType> = {
   finance: FinancePage,
   deposits: DepositsPage,
   expenses: ExpensesPage,
-  'verify-payments': VerifyPaymentsPage,
+  'verify-payments': PaymentTrackerPage,
+  'payment-tracker': PaymentTrackerPage,
   certificates: CertificatesPage,
   'certificate-verify': CertificateVerifyPage,
   'certificate-public': CertificatePublicPage,

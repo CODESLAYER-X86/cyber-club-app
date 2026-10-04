@@ -23,6 +23,7 @@ import {
   ExternalLink,
   ZoomIn,
   Award,
+  User as UserIcon,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { User } from '@/types';
@@ -97,8 +98,8 @@ export function MemberApprovalPage() {
 
   const handleAction = async (userId: string, action: 'APPROVED' | 'REJECTED') => {
     if (!currentUser) return;
-    if (!['PRESIDENT', 'VP', 'GS', 'VERIFIER', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
-      toast({ title: 'Forbidden', description: 'You do not have permission to process member approvals.', variant: 'destructive' });
+    if (!['PRESIDENT', 'VP', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+      toast({ title: 'Forbidden', description: 'Only the President, Vice President, and General Secretary can process member approvals.', variant: 'destructive' });
       return;
     }
     setProcessing(userId);
@@ -130,8 +131,8 @@ export function MemberApprovalPage() {
 
   const handleBatchAction = async (action: 'APPROVED' | 'REJECTED') => {
     if (!currentUser || selectedIds.size === 0) return;
-    if (!['PRESIDENT', 'VP', 'GS', 'VERIFIER', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
-      toast({ title: 'Forbidden', description: 'You do not have permission to process member approvals.', variant: 'destructive' });
+    if (!['PRESIDENT', 'VP', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role)) {
+      toast({ title: 'Forbidden', description: 'Only the President, Vice President, and General Secretary can process member approvals.', variant: 'destructive' });
       return;
     }
     setBatchProcessing(true);
@@ -431,6 +432,10 @@ export function MemberApprovalPage() {
                             </div>
                           )}
                           <div className="flex items-center gap-2 text-sm text-gray-400">
+                            <UserIcon className="h-3.5 w-3.5 text-gray-600 shrink-0" />
+                            <span>Gender: <strong className="text-gray-200">{user.gender === 'MALE' ? 'Male' : user.gender === 'FEMALE' ? 'Female' : 'Not Specified'}</strong></span>
+                          </div>
+                          <div className="flex items-center gap-2 text-sm text-gray-400">
                             <Clock className="h-3.5 w-3.5 text-gray-600 shrink-0" />
                             <span>Applied {timeAgo(user.createdAt)}</span>
                           </div>
@@ -464,6 +469,11 @@ export function MemberApprovalPage() {
                               {user.paymentMethod && (
                                 <Badge variant="outline" className="text-xs border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
                                   Method: {user.paymentMethod}
+                                </Badge>
+                              )}
+                              {user.sentToNumber && (
+                                <Badge variant="outline" className="text-xs border-white/10 bg-white/5 text-gray-300 font-mono">
+                                  Sent To: {user.sentToNumber}
                                 </Badge>
                               )}
                             </>
@@ -634,6 +644,12 @@ export function MemberApprovalPage() {
                       <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Batch</span>
                       <p className="text-sm font-semibold text-white mt-0.5">{dossierUser.batch || 'Not Provided'}</p>
                     </div>
+                    <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 sm:col-span-2">
+                      <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Gender</span>
+                      <p className="text-sm font-semibold text-white mt-0.5">
+                        {dossierUser.gender === 'MALE' ? 'Male' : dossierUser.gender === 'FEMALE' ? 'Female' : 'Not Specified (Legacy Applicant)'}
+                      </p>
+                    </div>
                   </div>
                 </div>
 
@@ -690,6 +706,10 @@ export function MemberApprovalPage() {
                       <div className="flex items-center justify-between border-t border-white/5 pt-2">
                         <span className="text-xs text-gray-400 font-mono">Payment Method:</span>
                         <span className="text-xs font-medium text-white">{dossierUser.paymentMethod || 'bKash'}</span>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                        <span className="text-xs text-gray-400 font-mono">Sent-To Number / Recipient:</span>
+                        <span className="font-mono text-xs text-emerald-300 font-semibold">{dossierUser.sentToNumber || 'Club Official Account (Legacy)'}</span>
                       </div>
                       {dossierUser.paymentProof && (
                         <div className="border-t border-white/5 pt-2">

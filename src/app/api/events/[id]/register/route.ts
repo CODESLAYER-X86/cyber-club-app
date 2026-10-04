@@ -12,7 +12,13 @@ export async function POST(
   try {
     const { id } = await params;
     const body = await request.json();
-    const { userId: requestedUserId, transactionId, paymentMethod = "BKASH" } = body;
+    const {
+      userId: requestedUserId,
+      transactionId,
+      paymentMethod = "BKASH",
+      sentToNumber,
+      receiverName,
+    } = body;
 
     // Caller session verification
     const caller = await getSupabaseUser();
@@ -127,6 +133,8 @@ export async function POST(
             status: "PENDING",
             transactionId,
             paymentMethod: validatedMethod,
+            sentToNumber: sentToNumber ? String(sentToNumber).trim() : null,
+            receiverName: receiverName ? String(receiverName).trim() : null,
             eventId: id,
           },
         });

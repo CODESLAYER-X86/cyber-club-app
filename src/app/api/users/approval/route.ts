@@ -6,9 +6,9 @@ import { getSupabaseUser } from "@/lib/supabase-server";
 // GET pending member approval requests
 export async function GET() {
   try {
-    const approver = await getSupabaseUser(["PRESIDENT", "VP", "GS", "VERIFIER", "PLATFORM_ADMIN"]);
+    const approver = await getSupabaseUser(["PRESIDENT", "VP", "GS", "PLATFORM_ADMIN"]);
     if (!approver) {
-      return forbiddenResponse("Unauthorized: Only executives and verifiers can view pending applications");
+      return forbiddenResponse("Unauthorized: Only the President, Vice President, and General Secretary can view pending member applications");
     }
 
     const pendingUsers = await prisma.user.findMany({
@@ -22,7 +22,9 @@ export async function GET() {
         rollNumber: true,
         batch: true,
         department: true,
+        gender: true,
         phone: true,
+        sentToNumber: true,
         bio: true,
         transactionId: true,
         paymentProof: true,
@@ -43,9 +45,9 @@ export async function GET() {
 // PATCH approve or reject a member
 export async function PATCH(request: NextRequest) {
   try {
-    const approver = await getSupabaseUser(["PRESIDENT", "VP", "GS", "VERIFIER", "PLATFORM_ADMIN"]);
+    const approver = await getSupabaseUser(["PRESIDENT", "VP", "GS", "PLATFORM_ADMIN"]);
     if (!approver) {
-      return errorResponse("Only the President, Vice President, General Secretary, Event Verifier, and Platform Admin can approve members", 403);
+      return errorResponse("Only the President, Vice President, and General Secretary can approve members", 403);
     }
 
     const body = await request.json();

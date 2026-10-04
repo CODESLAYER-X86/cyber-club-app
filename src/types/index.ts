@@ -75,6 +75,8 @@ export interface User {
   paymentMethod?: string;
   paymentDate?: string;
   rejectionReason?: string;
+  gender?: string;
+  sentToNumber?: string;
   createdAt: string;
   updatedAt: string;
   eventRegistrations?: EventRegistration[];
@@ -153,6 +155,8 @@ export interface Payment {
   transactionId: string;
   paymentMethod?: string;
   proofUrl?: string;
+  receiverName?: string;
+  sentToNumber?: string;
   eventId?: string;
   verifiedBy?: string;
   createdAt: string;
@@ -385,6 +389,7 @@ export type AppView =
   | "deposits"
   | "expenses"
   | "verify-payments"
+  | "payment-tracker"
   | "certificates"
   | "certificate-verify"
   | "certificate-public"
