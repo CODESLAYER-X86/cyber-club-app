@@ -16,7 +16,7 @@ export type EventCategory = "WORKSHOP" | "SEMINAR" | "TRAINING" | "CTF" | "MEETU
 export type EventStatus = "UPCOMING" | "ONGOING" | "COMPLETED" | "CANCELLED";
 
 export type PaymentType = "MEMBERSHIP" | "EVENT" | "OTHER";
-export type PaymentStatus = "PENDING" | "VERIFIED" | "REJECTED";
+export type PaymentStatus = "PENDING" | "APPROVED" | "VERIFIED" | "REJECTED";
 
 export type RegistrationStatus = "PENDING" | "APPROVED" | "REJECTED" | "CANCELLED";
 

@@ -25,6 +25,7 @@ const PAYMENT_TYPE_BADGE: Record<string, { label: string; badgeClass: string }> 
 
 const STATUS_BORDER: Record<string, string> = {
   PENDING: 'border-l-amber-400',
+  APPROVED: 'border-l-emerald-400',
   VERIFIED: 'border-l-emerald-400',
   REJECTED: 'border-l-red-400',
 };
@@ -69,49 +70,28 @@ export function VerifyPaymentsPage() {
   const [statusFilter, setStatusFilter] = useState<string>('ALL');
   const [search, setSearch] = useState('');
 
-  const [reconcilingPayment, setReconcilingPayment] = useState<Payment | null>(null);
-  const [targetWallet, setTargetWallet] = useState('BKASH_PERSONAL');
-  const [reconcileDesc, setReconcileDesc] = useState('');
-  const [posting, setPosting] = useState(false);
-
   const isAuthorized = currentUser && ['TREASURER', 'PRESIDENT', 'GS', 'PLATFORM_ADMIN', 'VERIFIER'].includes(currentUser.role);
-
-  const handleReconcile = async () => {
-    if (!reconcilingPayment) return;
-    setPosting(true);
-    try {
-      const res = await fetch(`/api/payments/${reconcilingPayment.id}/reconcile`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ wallet: targetWallet, description: reconcileDesc }),
-      });
-      const data = await res.json();
-      if (data.success) {
-        toast({ title: 'Posted to Ledger', description: 'Transaction has been successfully reconciled.' });
-        setReconcilingPayment(null);
-        loadPayments(false);
-      } else {
-        toast({ title: 'Reconciliation failed', description: data.error || 'Failed to reconcile payment', variant: 'destructive' });
-      }
-    } catch {
-      toast({ title: 'Reconciliation failed', description: 'Network error', variant: 'destructive' });
-    } finally {
-      setPosting(false);
-    }
-  };
 
   const loadPayments = async (showSkeleton = true) => {
     if (!isAuthorized) return;
     if (showSkeleton) setLoading(true);
     try {
       const params = new URLSearchParams();
+      const statusParam =
+        statusFilter === 'ALL'
+          ? 'PENDING,APPROVED,VERIFIED,REJECTED'
+          : statusFilter === 'VERIFIED'
+          ? 'VERIFIED,APPROVED'
+          : statusFilter;
+
+      params.set('status', statusParam);
+
       if (currentUser?.role === 'VERIFIER') {
-        params.set('status', statusFilter === 'ALL' ? 'PENDING,APPROVED,VERIFIED,REJECTED' : statusFilter);
         params.set('type', 'EVENT');
-      } else {
-        params.set('status', statusFilter === 'ALL' ? 'PENDING,APPROVED,VERIFIED,REJECTED' : statusFilter);
-        if (typeFilter !== 'all') params.set('type', typeFilter);
+      } else if (typeFilter !== 'all') {
+        params.set('type', typeFilter);
       }
+
       const r = await fetch(`/api/payments?${params}`);
       const d = await r.json();
       if (d.success) setPayments(d.data.payments || []);
@@ -139,10 +119,11 @@ export function VerifyPaymentsPage() {
     if (!currentUser) return;
 
     // Optimistic in-place update
-    setPayments(prev => prev.map(p => p.id === id ? { ...p, status: action } : p));
+    const targetStatus = action === 'VERIFIED' ? (currentUser.role === 'VERIFIER' ? 'APPROVED' : 'VERIFIED') : 'REJECTED';
+    setPayments(prev => prev.map(p => p.id === id ? { ...p, status: targetStatus } : p));
 
     try {
-      // API expects 'action' field with 'VERIFY' or 'REJECT' (not 'VERIFIED'/'REJECTED')
+      // API expects 'action' field with 'VERIFY' or 'REJECT'
       const apiAction = action === 'VERIFIED' ? 'VERIFY' : 'REJECT';
       const r = await fetch(`/api/payments/${id}/verify`, {
         method: 'PATCH',
@@ -152,7 +133,8 @@ export function VerifyPaymentsPage() {
       const d = await r.json();
       if (d.success) {
         loadPayments(false);
-        toast({ title: 'Payment updated', description: `Payment has been ${action.toLowerCase()} successfully.` });
+        const actionLabel = action === 'VERIFIED' ? (currentUser.role === 'VERIFIER' ? 'approved' : 'verified') : 'rejected';
+        toast({ title: 'Payment updated', description: `Payment has been ${actionLabel} successfully.` });
       } else {
         loadPayments(false);
         toast({ title: 'Update failed', description: d.error || 'Could not update payment', variant: 'destructive' });
@@ -166,7 +148,9 @@ export function VerifyPaymentsPage() {
 
   const filtered = payments.filter(p => {
     const matchesSearch = !search || p.transactionId.toLowerCase().includes(search.toLowerCase()) || p.user?.name?.toLowerCase().includes(search.toLowerCase());
-    const matchesStatus = statusFilter === 'ALL' || p.status === statusFilter;
+    const matchesStatus =
+      statusFilter === 'ALL' ||
+      (statusFilter === 'VERIFIED' ? (p.status === 'VERIFIED' || p.status === 'APPROVED') : p.status === statusFilter);
     return matchesSearch && matchesStatus;
   });
 
@@ -176,7 +160,7 @@ export function VerifyPaymentsPage() {
   const verifiedToday = payments.filter(p => {
     const d = new Date(p.createdAt);
     const now = new Date();
-    return p.status === 'VERIFIED' && d.toDateString() === now.toDateString();
+    return (p.status === 'VERIFIED' || p.status === 'APPROVED') && d.toDateString() === now.toDateString();
   }).length;
 
   return (
@@ -217,7 +201,7 @@ export function VerifyPaymentsPage() {
           {[
             { key: 'ALL', label: 'All' },
             { key: 'PENDING', label: 'Pending' },
-            { key: 'VERIFIED', label: 'Verified' },
+            { key: 'VERIFIED', label: 'Verified / Approved' },
             { key: 'REJECTED', label: 'Rejected' },
           ].map((tab) => (
             <button
@@ -312,39 +296,36 @@ export function VerifyPaymentsPage() {
                         </>
                       ) : payment.status === 'VERIFIED' ? (
                         <div className="flex items-center gap-2">
-                          {payment.reconciled ? (
-                            <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-1 flex items-center gap-1 select-none font-mono">
-                              <CheckCircle className="h-3 w-3" /> Reconciled
-                            </Badge>
-                          ) : (
-                            currentUser && ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role) && (
-                              <Button
-                                size="sm"
-                                onClick={() => {
-                                  setReconcilingPayment(payment);
-                                  setTargetWallet(
-                                    payment.paymentMethod === 'NAGAD' ? 'NAGAD_PERSONAL' :
-                                    payment.paymentMethod === 'BANK' ? 'CLUB_BANK_ACCOUNT' :
-                                    payment.paymentMethod === 'CASH' ? 'CASH_IN_HAND' : 'BKASH_PERSONAL'
-                                  );
-                                  setReconcileDesc(`Reconciled membership/event fee from ${payment.user?.name || 'user'}`);
-                                }}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 font-medium"
-                              >
-                                Post to Ledger
-                              </Button>
-                            )
-                          )}
-                          {/* Mistake correction button for Verified payments */}
+                          <Badge className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs px-2.5 py-1 flex items-center gap-1 select-none font-mono">
+                            <CheckCircle className="h-3 w-3" /> Verified
+                          </Badge>
                           {currentUser && ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role) && (
                             <Button
                               size="sm"
                               variant="outline"
                               onClick={() => handleVerify(payment.id, 'REJECTED')}
-                              className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs h-8"
-                              title="Revoke and reject if verified by mistake"
+                              className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs h-8"
+                              title="Reject if verified by mistake"
                             >
-                              <XCircle className="mr-1 h-3 w-3" /> Revoke
+                              <XCircle className="mr-1 h-3.5 w-3.5" /> Reject
+                            </Button>
+                          )}
+                        </div>
+                      ) : payment.status === 'APPROVED' ? (
+                        /* APPROVED Payment (verified by Event Verifier) */
+                        <div className="flex items-center gap-2">
+                          <Badge className="bg-emerald-500/15 text-emerald-400 border border-emerald-500/30 text-xs px-2.5 py-1 flex items-center gap-1 select-none font-mono">
+                            <CheckCircle className="h-3 w-3" /> Approved
+                          </Badge>
+                          {currentUser && ['TREASURER', 'PRESIDENT', 'PLATFORM_ADMIN', 'GS', 'VERIFIER'].includes(currentUser.role) && (
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              onClick={() => handleVerify(payment.id, 'REJECTED')}
+                              className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-xs h-8"
+                              title="Reject if approved by mistake"
+                            >
+                              <XCircle className="mr-1 h-3.5 w-3.5" /> Reject
                             </Button>
                           )}
                         </div>
@@ -359,10 +340,10 @@ export function VerifyPaymentsPage() {
                               size="sm"
                               variant="outline"
                               onClick={() => handleVerify(payment.id, 'VERIFIED')}
-                              className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs h-8 font-medium"
+                              className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 hover:text-emerald-300 text-xs h-8 font-medium"
                               title="Re-verify if rejected by mistake"
                             >
-                              <CheckCircle className="mr-1 h-3.5 w-3.5" /> Re-Verify
+                              <CheckCircle className="mr-1 h-3.5 w-3.5" /> Re-verify
                             </Button>
                           )}
                         </div>
@@ -375,60 +356,7 @@ export function VerifyPaymentsPage() {
           })}
         </motion.div>
       )}
-
-      {/* Reconciliation Modal */}
-      {reconcilingPayment && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-          <motion.div
-            initial={{ opacity: 0, scale: 0.95 }}
-            animate={{ opacity: 1, scale: 1 }}
-            className="w-full max-w-md overflow-hidden rounded-xl border border-white/10 bg-[#111] p-6 shadow-2xl space-y-4"
-          >
-            <div>
-              <h3 className="text-lg font-bold text-white">Post to General Ledger</h3>
-              <p className="text-xs text-gray-500 mt-1">
-                Reconcile payment of <strong>৳{reconcilingPayment.amount.toLocaleString()}</strong> from <strong>{reconcilingPayment.user?.name || 'user'}</strong>. Choose the target asset wallet.
-              </p>
-            </div>
-
-            <div className="space-y-4">
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-400">Target Asset Wallet</label>
-                <select
-                  value={targetWallet}
-                  onChange={(e) => setTargetWallet(e.target.value)}
-                  className="w-full h-10 px-3 rounded-md border border-white/10 bg-[#0a0a0a] text-white text-sm focus:border-emerald-500/50 focus:outline-none"
-                >
-                  <option value="BKASH_PERSONAL">bKash Personal</option>
-                  <option value="NAGAD_PERSONAL">Nagad Personal</option>
-                  <option value="CLUB_BANK_ACCOUNT">Club Bank Account</option>
-                  <option value="CASH_IN_HAND">Cash in Hand Box</option>
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
-                <label className="text-xs font-semibold text-gray-400">Reconciliation Note</label>
-                <Input
-                  value={reconcileDesc}
-                  onChange={(e) => setReconcileDesc(e.target.value)}
-                  placeholder="e.g. Received bKash fee for CTF registration"
-                  className="border-white/10 bg-[#0a0a0a] text-white focus:border-emerald-500/50"
-                />
-              </div>
-
-              <div className="flex justify-end gap-2 pt-2">
-                <Button variant="ghost" size="sm" onClick={() => setReconcilingPayment(null)} disabled={posting} className="text-gray-400 hover:text-white hover:bg-white/5">
-                  Cancel
-                </Button>
-                <Button size="sm" onClick={handleReconcile} disabled={posting} className="bg-emerald-600 hover:bg-emerald-500 text-white font-medium">
-                  {posting && <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />}
-                  Confirm Post
-                </Button>
-              </div>
-            </div>
-          </motion.div>
-        </div>
-      )}
     </div>
   );
 }
+

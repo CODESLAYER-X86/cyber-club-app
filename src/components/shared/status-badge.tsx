@@ -25,6 +25,7 @@ const MEMBERSHIP_COLORS: Record<MembershipStatus, string> = {
 
 const PAYMENT_COLORS: Record<PaymentStatus, string> = {
   PENDING: 'bg-amber-500/15 text-amber-400 border-amber-500/20 hover:bg-amber-500/20',
+  APPROVED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
   VERIFIED: 'bg-emerald-500/15 text-emerald-400 border-emerald-500/20 hover:bg-emerald-500/20',
   REJECTED: 'bg-red-500/15 text-red-400 border-red-500/20 hover:bg-red-500/20',
 };

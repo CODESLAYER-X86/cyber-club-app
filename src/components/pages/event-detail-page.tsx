@@ -939,68 +939,138 @@ export function EventDetailPage() {
                                 );
                               })()
                             )}
-                            {reg.status === 'PENDING' && canApproveReg && (
+                            {canApproveReg && (
                               <>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-[10px] border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 px-2"
-                                  disabled={updatingRegId === reg.id}
-                                  onClick={async () => {
-                                    setUpdatingRegId(reg.id);
-                                    try {
-                                      const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
-                                        method: 'PATCH',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ status: 'APPROVED', role: currentUser?.role }),
-                                      });
-                                      const d = await r.json();
-                                      if (d.success) {
-                                        toast({ title: 'Approved', description: `${reg.user?.name} has been approved.` });
-                                        loadEvent();
-                                      } else {
-                                        toast({ title: 'Failed', description: d.error || 'Could not approve', variant: 'destructive' });
+                                {reg.status === 'PENDING' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-[10px] border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 px-2"
+                                      disabled={updatingRegId === reg.id}
+                                      onClick={async () => {
+                                        setUpdatingRegId(reg.id);
+                                        try {
+                                          const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ status: 'APPROVED', role: currentUser?.role }),
+                                          });
+                                          const d = await r.json();
+                                          if (d.success) {
+                                            toast({ title: 'Approved', description: `${reg.user?.name} has been approved.` });
+                                            loadEvent();
+                                          } else {
+                                            toast({ title: 'Failed', description: d.error || 'Could not approve', variant: 'destructive' });
+                                          }
+                                        } catch {
+                                          toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+                                        } finally {
+                                          setUpdatingRegId(null);
+                                        }
+                                      }}
+                                    >
+                                      {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                      Approve
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      className="h-7 text-[10px] border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 px-2"
+                                      disabled={updatingRegId === reg.id}
+                                      onClick={async () => {
+                                        setUpdatingRegId(reg.id);
+                                        try {
+                                          const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
+                                            method: 'PATCH',
+                                            headers: { 'Content-Type': 'application/json' },
+                                            body: JSON.stringify({ status: 'REJECTED', role: currentUser?.role }),
+                                          });
+                                          const d = await r.json();
+                                          if (d.success) {
+                                            toast({ title: 'Rejected', description: `${reg.user?.name} has been rejected.` });
+                                            loadEvent();
+                                          } else {
+                                            toast({ title: 'Failed', description: d.error || 'Could not reject', variant: 'destructive' });
+                                          }
+                                        } catch {
+                                          toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+                                        } finally {
+                                          setUpdatingRegId(null);
+                                        }
+                                      }}
+                                    >
+                                      {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                                {reg.status === 'APPROVED' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[10px] border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 px-2"
+                                    disabled={updatingRegId === reg.id}
+                                    title="Reject if approved by mistake"
+                                    onClick={async () => {
+                                      setUpdatingRegId(reg.id);
+                                      try {
+                                        const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ status: 'REJECTED', role: currentUser?.role }),
+                                        });
+                                        const d = await r.json();
+                                        if (d.success) {
+                                          toast({ title: 'Rejected', description: `${reg.user?.name}'s registration has been rejected.` });
+                                          loadEvent();
+                                        } else {
+                                          toast({ title: 'Failed', description: d.error || 'Could not reject', variant: 'destructive' });
+                                        }
+                                      } catch {
+                                        toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+                                      } finally {
+                                        setUpdatingRegId(null);
                                       }
-                                    } catch {
-                                      toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
-                                    } finally {
-                                      setUpdatingRegId(null);
-                                    }
-                                  }}
-                                >
-                                  {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
-                                  Approve
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  className="h-7 text-[10px] border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 hover:text-red-300 px-2"
-                                  disabled={updatingRegId === reg.id}
-                                  onClick={async () => {
-                                    setUpdatingRegId(reg.id);
-                                    try {
-                                      const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
-                                        method: 'PATCH',
-                                        headers: { 'Content-Type': 'application/json' },
-                                        body: JSON.stringify({ status: 'REJECTED', role: currentUser?.role }),
-                                      });
-                                      const d = await r.json();
-                                      if (d.success) {
-                                        toast({ title: 'Rejected', description: `${reg.user?.name} has been rejected.` });
-                                        loadEvent();
-                                      } else {
-                                        toast({ title: 'Failed', description: d.error || 'Could not reject', variant: 'destructive' });
+                                    }}
+                                  >
+                                    {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
+                                    Reject
+                                  </Button>
+                                )}
+                                {reg.status === 'REJECTED' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="h-7 text-[10px] border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-emerald-300 px-2"
+                                    disabled={updatingRegId === reg.id}
+                                    title="Re-verify if rejected by mistake"
+                                    onClick={async () => {
+                                      setUpdatingRegId(reg.id);
+                                      try {
+                                        const r = await fetch(`/api/events/${event.id}/registrations/${reg.id}`, {
+                                          method: 'PATCH',
+                                          headers: { 'Content-Type': 'application/json' },
+                                          body: JSON.stringify({ status: 'APPROVED', role: currentUser?.role }),
+                                        });
+                                        const d = await r.json();
+                                        if (d.success) {
+                                          toast({ title: 'Re-verified', description: `${reg.user?.name} has been re-verified and approved.` });
+                                          loadEvent();
+                                        } else {
+                                          toast({ title: 'Failed', description: d.error || 'Could not approve', variant: 'destructive' });
+                                        }
+                                      } catch {
+                                        toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
+                                      } finally {
+                                        setUpdatingRegId(null);
                                       }
-                                    } catch {
-                                      toast({ title: 'Failed', description: 'Network error', variant: 'destructive' });
-                                    } finally {
-                                      setUpdatingRegId(null);
-                                    }
-                                  }}
-                                >
-                                  {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <XCircle className="h-3 w-3" />}
-                                  Reject
-                                </Button>
+                                    }}
+                                  >
+                                    {updatingRegId === reg.id ? <Loader2 className="h-3 w-3 animate-spin" /> : <CheckCircle className="h-3 w-3" />}
+                                    Re-verify
+                                  </Button>
+                                )}
                               </>
                             )}
                           </div>

@@ -232,65 +232,65 @@ export function LandingPage() {
       <div className="pointer-events-none absolute inset-0 bg-[linear-gradient(to_right,#091a2415_1px,transparent_1px),linear-gradient(to_bottom,#091a2415_1px,transparent_1px)] bg-[size:4rem_4rem] [mask-image:radial-gradient(ellipse_60%_50%_at_50%_0%,#000_70%,transparent_100%)]" />
 
       {/* 2. HERO SECTION WITH CLEAR VALUE PROP & INTERACTIVE TERMINAL */}
-      <section className="relative z-10 mx-auto max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1536px] px-4 pt-12 pb-20 sm:px-6 lg:px-8">
-        <div className="grid gap-8 lg:gap-12 lg:grid-cols-12 lg:items-center">
+      <section className="relative z-10 mx-auto max-w-7xl xl:max-w-[1440px] 2xl:max-w-[1536px] px-4 pt-6 sm:pt-8 lg:pt-10 pb-16 sm:px-6 lg:px-8">
+        <div className="grid gap-8 lg:gap-10 lg:grid-cols-12 lg:items-center">
           {/* Left Column: Clear Mission & Call-to-Actions */}
-          <div className="space-y-6 lg:col-span-6 min-w-0 max-w-full">
-            {/* Club Brand Emblem & University Affiliation */}
-            <div className="flex flex-col items-center sm:items-start gap-4 max-w-full">
-              {/* 4x Scaled Cyber Emblem Container */}
-              <div className="relative group">
+          <div className="space-y-4 sm:space-y-5 lg:col-span-6 min-w-0 max-w-full">
+            {/* Club Brand Emblem & University Affiliation Lockup */}
+            <div className="flex flex-col sm:flex-row items-center sm:items-center gap-3.5 sm:gap-4 max-w-full">
+              {/* Scaled Cyber Emblem Container */}
+              <div className="relative group shrink-0">
                 {/* Ambient Cyber Glow */}
-                <div className="absolute -inset-1.5 rounded-[2rem] bg-gradient-to-r from-emerald-500/30 via-cyan-500/20 to-teal-500/30 blur-xl opacity-75 group-hover:opacity-100 transition-all duration-500 pointer-events-none" />
+                <div className="absolute -inset-1 rounded-2xl bg-gradient-to-r from-emerald-500/30 via-cyan-500/20 to-teal-500/30 blur-md opacity-75 group-hover:opacity-100 transition-all duration-500 pointer-events-none" />
 
-                <div className="relative flex h-48 w-48 min-[400px]:h-56 min-[400px]:w-56 sm:h-64 sm:w-64 shrink-0 items-center justify-center rounded-[2rem] border-2 border-emerald-500/40 bg-slate-950/95 p-3.5 sm:p-5 shadow-2xl shadow-emerald-500/20 ring-1 ring-emerald-500/30 backdrop-blur-xl transition-all duration-300 group-hover:border-emerald-400/70 group-hover:shadow-emerald-500/35">
+                <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 lg:h-24 lg:w-24 shrink-0 items-center justify-center rounded-2xl border-2 border-emerald-500/40 bg-slate-950/95 p-2 sm:p-2.5 shadow-xl shadow-emerald-500/20 ring-1 ring-emerald-500/30 backdrop-blur-xl transition-all duration-300 group-hover:border-emerald-400/70 group-hover:shadow-emerald-500/35">
                   <img
                     src="/logo.png"
                     alt="DIU Cyber Security Club Logo"
-                    className="h-full w-full object-contain rounded-2xl filter drop-shadow-[0_0_18px_rgba(16,185,129,0.35)] transition-transform duration-300 group-hover:scale-[1.02]"
-                    width={256}
-                    height={256}
+                    className="h-full w-full object-contain rounded-xl filter drop-shadow-[0_0_12px_rgba(16,185,129,0.35)] transition-transform duration-300 group-hover:scale-[1.02]"
+                    width={96}
+                    height={96}
                   />
                   {/* Subtle Tech Corner Accents */}
-                  <div className="absolute top-2.5 left-2.5 h-3 w-3 border-t-2 border-l-2 border-emerald-400/60 rounded-tl pointer-events-none" />
-                  <div className="absolute top-2.5 right-2.5 h-3 w-3 border-t-2 border-r-2 border-emerald-400/60 rounded-tr pointer-events-none" />
-                  <div className="absolute bottom-2.5 left-2.5 h-3 w-3 border-b-2 border-l-2 border-emerald-400/60 rounded-bl pointer-events-none" />
-                  <div className="absolute bottom-2.5 right-2.5 h-3 w-3 border-b-2 border-r-2 border-emerald-400/60 rounded-br pointer-events-none" />
+                  <div className="absolute top-1.5 left-1.5 h-2 w-2 border-t-2 border-l-2 border-emerald-400/60 rounded-tl pointer-events-none" />
+                  <div className="absolute top-1.5 right-1.5 h-2 w-2 border-t-2 border-r-2 border-emerald-400/60 rounded-tr pointer-events-none" />
+                  <div className="absolute bottom-1.5 left-1.5 h-2 w-2 border-b-2 border-l-2 border-emerald-400/60 rounded-bl pointer-events-none" />
+                  <div className="absolute bottom-1.5 right-1.5 h-2 w-2 border-b-2 border-r-2 border-emerald-400/60 rounded-br pointer-events-none" />
                 </div>
               </div>
 
-              {/* Affiliation Badges Stacked Under Logo */}
-              <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-1.5 min-w-0 max-w-full">
+              {/* Affiliation Badges Aligned Next to Logo */}
+              <div className="flex flex-col items-center sm:items-start text-center sm:text-left space-y-1 min-w-0 max-w-full">
                 <Badge
                   variant="outline"
-                  className="border-emerald-500/40 bg-emerald-500/10 px-3.5 py-1 font-mono text-xs sm:text-sm tracking-wider text-emerald-300 max-w-full whitespace-normal text-center sm:text-left inline-flex items-center gap-1.5 shadow-sm shadow-emerald-500/10"
+                  className="border-emerald-500/40 bg-emerald-500/10 px-3 py-0.5 font-mono text-xs tracking-wider text-emerald-300 max-w-full whitespace-normal text-center sm:text-left inline-flex items-center gap-1.5 shadow-sm shadow-emerald-500/10"
                 >
-                  <Radio className="mr-1.5 h-3.5 w-3.5 shrink-0 animate-pulse text-emerald-400" />
+                  <Radio className="mr-1 h-3 w-3 shrink-0 animate-pulse text-emerald-400" />
                   <span>DHAKA INTERNATIONAL UNIVERSITY</span>
                 </Badge>
-                <div className="font-mono text-xs sm:text-sm text-gray-300 font-medium tracking-wide">
+                <div className="font-mono text-xs text-gray-300 font-medium tracking-wide">
                   Department of CSE • Cyber Security Club
                 </div>
               </div>
             </div>
 
-            <h1 className="text-2xl xs:text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-black tracking-tight text-white font-mono leading-tight break-words max-w-full">
+            <h1 className="text-2xl sm:text-3xl lg:text-4xl xl:text-[42px] font-black tracking-tight text-white font-mono leading-tight break-words max-w-full">
               EMPOWERING THE NEXT GENERATION OF{' '}
               <span className="bg-gradient-to-r from-emerald-400 via-cyan-400 to-teal-300 bg-clip-text text-transparent inline-block">
                 CYBER DEFENDERS.
               </span>
             </h1>
 
-            <p className="text-sm sm:text-base text-gray-300 leading-relaxed max-w-2xl font-sans">
+            <p className="text-xs sm:text-sm lg:text-base text-gray-300 leading-relaxed max-w-2xl font-sans">
               The premier student community for hands-on ethical hacking education, defensive security architecture,
               competitive CTF preparation, and professional career readiness at Dhaka International University.
             </p>
 
-            <div className="flex flex-wrap items-center gap-3 sm:gap-4 pt-2">
+            <div className="flex flex-wrap items-center gap-3 pt-1">
               <Button
                 size="lg"
                 onClick={() => setCurrentView(isAuthenticated ? 'apply-membership' : 'login')}
-                className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono tracking-wide shadow-lg shadow-emerald-500/20 text-sm px-6 h-11 sm:h-12"
+                className="w-full sm:w-auto bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono tracking-wide shadow-lg shadow-emerald-500/20 text-xs sm:text-sm px-5 h-10 sm:h-11"
               >
                 Apply for Membership
                 <ArrowRight className="ml-2 h-4 w-4" />
@@ -299,7 +299,7 @@ export function LandingPage() {
                 size="lg"
                 variant="outline"
                 onClick={() => setCurrentView('events')}
-                className="w-full sm:w-auto border-emerald-500/30 bg-slate-950/60 font-mono text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/60 text-sm px-6 h-11 sm:h-12"
+                className="w-full sm:w-auto border-emerald-500/30 bg-slate-950/60 font-mono text-emerald-300 hover:bg-emerald-500/10 hover:border-emerald-500/60 text-xs sm:text-sm px-5 h-10 sm:h-11"
               >
                 <Calendar className="mr-2 h-4 w-4" />
                 Workshops & Events
@@ -308,9 +308,9 @@ export function LandingPage() {
                 size="lg"
                 variant="ghost"
                 onClick={() => setCurrentView('certificate-verify')}
-                className="w-full sm:w-auto text-gray-300 hover:text-emerald-400 font-mono text-xs h-10"
+                className="w-full sm:w-auto text-gray-300 hover:text-emerald-400 font-mono text-xs h-9 sm:h-10"
               >
-                <FileCheck className="mr-1.5 h-4 w-4" />
+                <FileCheck className="mr-1.5 h-3.5 w-3.5" />
                 Verify a Certificate
               </Button>
             </div>
@@ -318,9 +318,9 @@ export function LandingPage() {
 
           {/* Right Column: Wide Landscape Rectangular Interactive Terminal */}
           <div className="w-full min-w-0 max-w-full lg:col-span-6">
-            <div className="relative group rounded-2xl border border-emerald-500/30 bg-[#070e18]/95 shadow-2xl shadow-emerald-500/10 backdrop-blur-xl overflow-hidden font-mono min-h-[360px] sm:min-h-[420px] lg:min-h-[480px] max-w-full flex flex-col justify-between transition-all duration-300 hover:border-emerald-500/50 hover:shadow-emerald-500/25">
+            <div className="relative group rounded-2xl border border-emerald-500/30 bg-[#070e18]/95 shadow-2xl shadow-emerald-500/10 backdrop-blur-xl overflow-hidden font-mono min-h-[320px] sm:min-h-[360px] lg:min-h-[390px] max-w-full flex flex-col justify-between transition-all duration-300 hover:border-emerald-500/50 hover:shadow-emerald-500/25">
               {/* Terminal Window Header */}
-              <div className="flex items-center justify-between border-b border-emerald-500/20 bg-slate-950/90 px-4 py-2.5 sm:py-3 shrink-0">
+              <div className="flex items-center justify-between border-b border-emerald-500/20 bg-slate-950/90 px-4 py-2 sm:py-2.5 shrink-0">
                 <div className="flex items-center gap-2">
                   <div className="h-3 w-3 rounded-full bg-red-500/80 shadow-sm shadow-red-500/50" />
                   <div className="h-3 w-3 rounded-full bg-amber-500/80 shadow-sm shadow-amber-500/50" />
@@ -338,8 +338,8 @@ export function LandingPage() {
                 </div>
               </div>
 
-              {/* Terminal Output Area (Landscape Rectangular Proportions with Increased Height) */}
-              <div className="h-64 sm:h-72 lg:h-[380px] xl:h-[400px] overflow-y-auto p-4 sm:p-5 space-y-2.5 text-xs sm:text-[13px] leading-relaxed break-words flex-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
+              {/* Terminal Output Area */}
+              <div className="h-56 sm:h-64 lg:h-[280px] xl:h-[300px] overflow-y-auto p-4 sm:p-5 space-y-2.5 text-xs sm:text-[13px] leading-relaxed break-words flex-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
                 {terminalHistory.map((item) => (
                   <div
                     key={item.id}

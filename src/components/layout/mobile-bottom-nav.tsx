@@ -17,7 +17,7 @@ import type { AppView, UserRole } from '@/types';
 import { cn } from '@/lib/utils';
 
 export function MobileBottomNav() {
-  const { currentView, setCurrentView, currentUser, isAuthenticated, setSidebarOpen } = useAppStore();
+  const { currentView, setCurrentView, currentUser, isAuthenticated, setSidebarOpen, sidebarOpen } = useAppStore();
 
   // Determine role-specific primary action tab
   const primaryTab = useMemo<{ label: string; view: AppView; icon: React.ElementType }>(() => {
@@ -78,7 +78,12 @@ export function MobileBottomNav() {
   ];
 
   return (
-    <div className="fixed bottom-0 left-0 right-0 z-50 block md:hidden border-t border-white/10 bg-[#09110d]/95 backdrop-blur-2xl px-2 py-1.5 shadow-[0_-8px_30px_rgba(0,0,0,0.8)]">
+    <div
+      className={cn(
+        'fixed bottom-0 left-0 right-0 z-50 block md:hidden border-t border-white/10 bg-[#09110d]/95 backdrop-blur-2xl px-2 py-1.5 shadow-[0_-8px_30px_rgba(0,0,0,0.8)] transition-transform duration-300 ease-out',
+        sidebarOpen && 'translate-y-full pointer-events-none'
+      )}
+    >
       <div className="flex items-center justify-around">
         {navItems.map((item, idx) => {
           const Icon = item.icon;

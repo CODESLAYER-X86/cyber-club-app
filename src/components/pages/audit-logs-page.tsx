@@ -468,12 +468,18 @@ function renderHumanNarrative(action: string, details: string, user?: AuditLogEn
   const rejectMatch = details.match(/Rejected membership for user (.*?) \((.*?)\)/i);
   if (rejectMatch) {
     const [, targetName, targetEmail] = rejectMatch;
+    const studentIdMatch = details.match(/\[Student ID:\s*([A-Za-z0-9_-]+)\]/i)?.[1];
     return (
       <div className="text-xs text-gray-300 flex items-center gap-1.5 flex-wrap">
         <span className="text-rose-400 font-medium">Declined membership</span>
         <span>for applicant</span>
         <span className="font-semibold text-white bg-rose-500/10 px-1.5 py-0.5 rounded border border-rose-500/20 text-rose-200">{targetName}</span>
         <span className="text-gray-500 text-[11px]">({targetEmail})</span>
+        {studentIdMatch && (
+          <span className="font-mono text-[10px] text-gray-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
+            ID: {studentIdMatch}
+          </span>
+        )}
       </div>
     );
   }
@@ -483,12 +489,25 @@ function renderHumanNarrative(action: string, details: string, user?: AuditLogEn
   const approveMatch = details.match(/Approved membership for user (.*?) \((.*?)\)/i);
   if (approveMatch) {
     const [, targetName, targetEmail] = approveMatch;
+    const studentIdMatch = details.match(/\[Student ID:\s*([A-Za-z0-9_-]+)\]/i)?.[1];
+    const trxIdMatch = details.match(/\[Trx ID:\s*([A-Za-z0-9_-]+)\]/i)?.[1];
     return (
       <div className="text-xs text-gray-300 flex items-center gap-1.5 flex-wrap">
         <span className="text-emerald-400 font-medium">Granted membership</span>
         <span>to</span>
         <span className="font-semibold text-white bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20 text-emerald-200">{targetName}</span>
         <span className="text-gray-500 text-[11px]">({targetEmail})</span>
+        {studentIdMatch && (
+          <span className="font-mono text-[10px] text-gray-400 bg-white/5 px-1.5 py-0.5 rounded border border-white/10">
+            ID: {studentIdMatch}
+          </span>
+        )}
+        {trxIdMatch && (
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+            <CreditCard className="h-2.5 w-2.5" />
+            Trx: {trxIdMatch}
+          </span>
+        )}
       </div>
     );
   }
@@ -498,7 +517,7 @@ function renderHumanNarrative(action: string, details: string, user?: AuditLogEn
     const isReapply = details.toLowerCase().includes('re-submitted') || details.toLowerCase().includes('prior rejection');
     
     // Extract transaction ID from details string or fallback to user.transactionId
-    const trxMatch = details.match(/Trx ID:\s*([A-Za-z0-9_-]+)/i);
+    const trxMatch = details.match(/(?:Trx ID|Ref\/Trx|Transaction ID):\s*([A-Za-z0-9_-]+)/i);
     const trxId = trxMatch ? trxMatch[1] : user?.transactionId;
 
     return (
@@ -517,6 +536,29 @@ function renderHumanNarrative(action: string, details: string, user?: AuditLogEn
           <span className="inline-flex items-center gap-1 font-mono text-[11px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20 shadow-sm">
             <CreditCard className="h-3 w-3 text-emerald-400" />
             Trx ID: <span className="font-bold text-white tracking-wider">{trxId}</span>
+          </span>
+        )}
+      </div>
+    );
+  }
+
+  // Case 5: Payment verification / approval
+  const paymentMatch = details.match(/(Verified|Approved|Rejected) payment of ([^ ]+) from (.*?) \((.*?)\)(?:\.\s*Transaction ID:\s*([A-Za-z0-9_-]+))?/i);
+  if (paymentMatch) {
+    const [, statusWord, amount, targetName, targetEmail, trxId] = paymentMatch;
+    const isApproved = statusWord.toLowerCase() === 'verified' || statusWord.toLowerCase() === 'approved';
+    return (
+      <div className="text-xs text-gray-300 flex items-center gap-1.5 flex-wrap">
+        <span className={isApproved ? "text-emerald-400 font-medium" : "text-rose-400 font-medium"}>
+          {statusWord} payment of ৳{amount}
+        </span>
+        <span>from</span>
+        <span className="font-semibold text-white bg-white/5 px-1.5 py-0.5 rounded border border-white/5">{targetName}</span>
+        <span className="text-gray-500 text-[11px]">({targetEmail})</span>
+        {trxId && (
+          <span className="inline-flex items-center gap-1 font-mono text-[10px] text-emerald-400 bg-emerald-500/10 px-1.5 py-0.5 rounded border border-emerald-500/20">
+            <CreditCard className="h-2.5 w-2.5" />
+            TxID: {trxId}
           </span>
         )}
       </div>
@@ -842,91 +884,162 @@ export function AuditLogsPage() {
             </DialogDescription>
           </DialogHeader>
 
-          {selectedLog && (
-            <div className="space-y-4 pt-2 text-xs">
-              {/* Performed By Section */}
-              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
-                <span className="text-[11px] uppercase tracking-wider text-gray-500 font-mono">Authorized Actor</span>
-                <div className="flex items-center justify-between">
+          {selectedLog && (() => {
+            const isApplicantSelfAction = ['MEMBERSHIP_APPLICATION', 'EVENT_REGISTRATION', 'PAYMENT_SUBMIT'].includes(selectedLog.action);
+
+            // Extract potential target subject details from details string
+            const targetUserMatch = selectedLog.details.match(/(?:membership for user|payment of [^from]*from|role of|deleted user|demoted)\s+([^(\n]+?)\s+\(([^)\n]+)\)/i);
+            const targetName = targetUserMatch?.[1]?.trim();
+            const targetEmail = targetUserMatch?.[2]?.trim();
+
+            const targetStudentId = selectedLog.details.match(/(?:\[Student ID:\s*|Student ID:\s*)([A-Za-z0-9_-]+)\]?/i)?.[1];
+            const targetTrxId = selectedLog.details.match(/(?:\[Trx ID:\s*|Trx ID:\s*|Ref\/Trx:\s*|Transaction ID:\s*)([A-Za-z0-9_-]+)\]?/i)?.[1];
+            const targetPhone = selectedLog.details.match(/(?:\[Phone:\s*|Phone:\s*)([A-Za-z0-9_+-]+)\]?/i)?.[1];
+
+            // For applicant self actions, actor IS the applicant
+            const applicantTrxId = selectedLog.details.match(/(?:Trx ID|Ref\/Trx|Transaction ID):\s*([A-Za-z0-9_-]+)/i)?.[1] || selectedLog.user?.transactionId;
+            const applicantStudentId = selectedLog.user?.studentId;
+            const applicantPhone = selectedLog.user?.phone;
+
+            return (
+              <div className="space-y-4 pt-2 text-xs">
+                {/* Authorized Actor / Performed By Section */}
+                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
+                  <div className="flex items-center justify-between">
+                    <span className="text-[11px] uppercase tracking-wider text-gray-500 font-mono">
+                      {isApplicantSelfAction ? 'Applicant / Initiator' : 'Authorized Actor'}
+                    </span>
+                    <Badge variant="outline" className={ROLE_BADGE_STYLES[selectedLog.user?.role || 'SYSTEM']}>
+                      {selectedLog.user?.role || 'SYSTEM'}
+                    </Badge>
+                  </div>
                   <div>
                     <p className="font-semibold text-white text-sm">{selectedLog.user?.name || 'System Engine'}</p>
                     <p className="text-gray-400 text-xs">{selectedLog.user?.email || 'automated@cybersecdiu.club'}</p>
                   </div>
-                  <Badge variant="outline" className={ROLE_BADGE_STYLES[selectedLog.user?.role || 'SYSTEM']}>
-                    {selectedLog.user?.role || 'SYSTEM'}
-                  </Badge>
                 </div>
-              </div>
 
-              {/* Payment & Student Credentials Section */}
-              {(selectedLog.user?.transactionId || selectedLog.user?.studentId || selectedLog.details.includes('Trx ID:')) && (
-                <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] uppercase tracking-wider text-emerald-400 font-mono font-semibold flex items-center gap-1.5">
-                      <CreditCard className="h-3.5 w-3.5" />
-                      Payment & Student Reference
+                {/* Candidate Credentials Section (Only for applicant self actions) */}
+                {isApplicantSelfAction && (applicantTrxId || applicantStudentId || applicantPhone) && (
+                  <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] uppercase tracking-wider text-emerald-400 font-mono font-semibold flex items-center gap-1.5">
+                        <CreditCard className="h-3.5 w-3.5" />
+                        Payment & Student Reference
+                      </span>
+                      <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-[10px]">
+                        Application Record
+                      </Badge>
+                    </div>
+                    <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                      {applicantTrxId && (
+                        <div className="bg-black/40 rounded p-2 border border-white/5">
+                          <span className="text-gray-400 text-[10px] uppercase font-mono block">Transaction ID</span>
+                          <span className="font-mono text-emerald-400 font-bold text-xs select-all">
+                            {applicantTrxId}
+                          </span>
+                        </div>
+                      )}
+                      {applicantStudentId && (
+                        <div className="bg-black/40 rounded p-2 border border-white/5">
+                          <span className="text-gray-400 text-[10px] uppercase font-mono block">Student ID</span>
+                          <span className="font-mono text-gray-200 text-xs select-all">
+                            {applicantStudentId}
+                          </span>
+                        </div>
+                      )}
+                      {applicantPhone && (
+                        <div className="bg-black/40 rounded p-2 border border-white/5">
+                          <span className="text-gray-400 text-[10px] uppercase font-mono block">Phone</span>
+                          <span className="font-mono text-gray-200 text-xs">
+                            {applicantPhone}
+                          </span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Target Subject / Member Record (For administrative actions) */}
+                {!isApplicantSelfAction && (targetName || targetEmail || targetTrxId || targetStudentId || targetPhone) && (
+                  <div className="rounded-lg border border-sky-500/20 bg-sky-500/5 p-3 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] uppercase tracking-wider text-sky-400 font-mono font-semibold flex items-center gap-1.5">
+                        <Users className="h-3.5 w-3.5" />
+                        Target Member / Subject Record
+                      </span>
+                      <Badge variant="outline" className="border-sky-500/30 bg-sky-500/10 text-sky-300 font-mono text-[10px]">
+                        Subject
+                      </Badge>
+                    </div>
+                    {targetName && (
+                      <div className="bg-black/40 rounded p-2 border border-white/5 flex items-center justify-between">
+                        <div>
+                          <p className="font-semibold text-white text-xs">{targetName}</p>
+                          {targetEmail && <p className="text-gray-400 text-[11px] font-mono">{targetEmail}</p>}
+                        </div>
+                      </div>
+                    )}
+                    {(targetTrxId || targetStudentId || targetPhone) && (
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
+                        {targetTrxId && (
+                          <div className="bg-black/40 rounded p-2 border border-white/5">
+                            <span className="text-gray-400 text-[10px] uppercase font-mono block">Transaction ID</span>
+                            <span className="font-mono text-emerald-400 font-bold text-xs select-all">
+                              {targetTrxId}
+                            </span>
+                          </div>
+                        )}
+                        {targetStudentId && (
+                          <div className="bg-black/40 rounded p-2 border border-white/5">
+                            <span className="text-gray-400 text-[10px] uppercase font-mono block">Student ID</span>
+                            <span className="font-mono text-gray-200 text-xs select-all">
+                              {targetStudentId}
+                            </span>
+                          </div>
+                        )}
+                        {targetPhone && (
+                          <div className="bg-black/40 rounded p-2 border border-white/5">
+                            <span className="text-gray-400 text-[10px] uppercase font-mono block">Phone</span>
+                            <span className="font-mono text-gray-200 text-xs">
+                              {targetPhone}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Event Description */}
+                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
+                  <span className="text-[11px] uppercase tracking-wider text-gray-500 font-mono">Action Story</span>
+                  <div className="py-1">
+                    {renderHumanNarrative(selectedLog.action, selectedLog.details, selectedLog.user)}
+                  </div>
+                  <div className="pt-2 border-t border-white/5 text-[11px] text-gray-500 font-mono break-all">
+                    Raw Details: {selectedLog.details}
+                  </div>
+                </div>
+
+                {/* Timestamp & Metadata */}
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-mono block mb-1">Exact Time</span>
+                    <span className="text-gray-200 font-mono text-[11px] block">{formatFullDate(selectedLog.createdAt)}</span>
+                    <span className="text-gray-500 text-[10px]">({timeAgo(selectedLog.createdAt)})</span>
+                  </div>
+                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
+                    <span className="text-[10px] uppercase tracking-wider text-gray-500 font-mono block mb-1">Audit Record ID</span>
+                    <span className="text-gray-400 font-mono text-[10px] block truncate">{selectedLog.id}</span>
+                    <span className="text-emerald-400 text-[10px] flex items-center gap-1 mt-0.5">
+                      <CheckCircle className="h-3 w-3" /> Verified Immutable
                     </span>
-                    <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-300 font-mono text-[10px]">
-                      Application Record
-                    </Badge>
-                  </div>
-                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 pt-1">
-                    {(selectedLog.user?.transactionId || selectedLog.details.match(/Trx ID:\s*([A-Za-z0-9_-]+)/i)?.[1]) && (
-                      <div className="bg-black/40 rounded p-2 border border-white/5">
-                        <span className="text-gray-400 text-[10px] uppercase font-mono block">Transaction ID</span>
-                        <span className="font-mono text-emerald-400 font-bold text-xs select-all">
-                          {selectedLog.user?.transactionId || selectedLog.details.match(/Trx ID:\s*([A-Za-z0-9_-]+)/i)?.[1]}
-                        </span>
-                      </div>
-                    )}
-                    {selectedLog.user?.studentId && (
-                      <div className="bg-black/40 rounded p-2 border border-white/5">
-                        <span className="text-gray-400 text-[10px] uppercase font-mono block">Student ID</span>
-                        <span className="font-mono text-gray-200 text-xs select-all">
-                          {selectedLog.user.studentId}
-                        </span>
-                      </div>
-                    )}
-                    {selectedLog.user?.phone && (
-                      <div className="bg-black/40 rounded p-2 border border-white/5">
-                        <span className="text-gray-400 text-[10px] uppercase font-mono block">Phone</span>
-                        <span className="font-mono text-gray-200 text-xs">
-                          {selectedLog.user.phone}
-                        </span>
-                      </div>
-                    )}
                   </div>
                 </div>
-              )}
-
-              {/* Event Description */}
-              <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 space-y-1.5">
-                <span className="text-[11px] uppercase tracking-wider text-gray-500 font-mono">Action Story</span>
-                <div className="py-1">
-                  {renderHumanNarrative(selectedLog.action, selectedLog.details, selectedLog.user)}
-                </div>
-                <div className="pt-2 border-t border-white/5 text-[11px] text-gray-500 font-mono break-all">
-                  Raw Details: {selectedLog.details}
-                </div>
               </div>
-
-              {/* Timestamp & Metadata */}
-              <div className="grid grid-cols-2 gap-3">
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                  <span className="text-[10px] uppercase tracking-wider text-gray-500 font-mono block mb-1">Exact Time</span>
-                  <span className="text-gray-200 font-mono text-[11px] block">{formatFullDate(selectedLog.createdAt)}</span>
-                  <span className="text-gray-500 text-[10px]">({timeAgo(selectedLog.createdAt)})</span>
-                </div>
-                <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3">
-                  <span className="text-[10px] uppercase tracking-wider text-gray-500 font-mono block mb-1">Audit Record ID</span>
-                  <span className="text-gray-400 font-mono text-[10px] block truncate">{selectedLog.id}</span>
-                  <span className="text-emerald-400 text-[10px] flex items-center gap-1 mt-0.5">
-                    <CheckCircle className="h-3 w-3" /> Verified Immutable
-                  </span>
-                </div>
-              </div>
-            </div>
-          )}
+            );
+          })()}
         </DialogContent>
       </Dialog>
     </div>

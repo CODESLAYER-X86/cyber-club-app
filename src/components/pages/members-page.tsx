@@ -413,7 +413,7 @@ export function MembersPage() {
         <div className="space-y-3">{[1,2,3,4].map(i => <div key={i} className="h-16 animate-pulse rounded-lg bg-white/5" />)}</div>
       ) : viewMode === 'list' ? (
         /* LIST VIEW */
-        <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
+        <motion.div variants={container} initial="hidden" animate="show" className="space-y-3 pb-24 md:pb-8">
           {users.map((user) => {
             const avatarColor = ROLE_AVATAR_COLORS[user.role] || ROLE_AVATAR_COLORS.MEMBER;
             const deptColor = DEPARTMENT_COLORS[user.department || 'Other'] || DEPARTMENT_COLORS['Other'];
@@ -421,114 +421,122 @@ export function MembersPage() {
             return (
               <motion.div key={user.id} variants={item} layout whileHover={{ y: -2, transition: { duration: 0.15 } }}>
                 <Card className="border-white/5 bg-[#111]/60 backdrop-blur transition-all hover:border-emerald-500/20 hover:shadow-lg hover:shadow-emerald-500/5 group">
-                  <CardContent className="flex items-center gap-4 py-4 px-5">
-                    {/* Clickable Avatar with photo/initials and zoom on hover */}
-                    <div
-                      className="relative group cursor-pointer shrink-0"
-                      onClick={() =>
-                        setPreviewImage({
-                          isOpen: true,
-                          src: user.avatar,
-                          name: user.name,
-                          role: user.role,
-                          department: user.department,
-                          studentId: user.studentId,
-                        })
-                      }
-                      title="Click to view full photo"
-                    >
-                      {user.avatar ? (
-                        <div className="relative h-11 w-11 rounded-full overflow-hidden border border-white/10 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
-                          <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
-                          <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                            <ZoomIn className="h-3.5 w-3.5 text-white" />
+                  <CardContent className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4 py-3.5 sm:py-4 px-4 sm:px-5">
+                    {/* User Info Section */}
+                    <div className="flex items-start sm:items-center gap-3.5 min-w-0 flex-1">
+                      {/* Clickable Avatar with photo/initials and zoom on hover */}
+                      <div
+                        className="relative group cursor-pointer shrink-0 mt-0.5 sm:mt-0"
+                        onClick={() =>
+                          setPreviewImage({
+                            isOpen: true,
+                            src: user.avatar,
+                            name: user.name,
+                            role: user.role,
+                            department: user.department,
+                            studentId: user.studentId,
+                          })
+                        }
+                        title="Click to view full photo"
+                      >
+                        {user.avatar ? (
+                          <div className="relative h-11 w-11 rounded-full overflow-hidden border border-white/10 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
+                            <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                            <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <ZoomIn className="h-3.5 w-3.5 text-white" />
+                            </div>
                           </div>
-                        </div>
-                      ) : (
-                        <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-gradient-to-br ${avatarColor} text-sm font-bold group-hover:ring-2 group-hover:ring-emerald-400 transition-all`}>
-                          {initials}
-                          <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
-                            <ZoomIn className="h-3.5 w-3.5 text-white" />
+                        ) : (
+                          <div className={`relative flex h-11 w-11 shrink-0 items-center justify-center rounded-full border bg-gradient-to-br ${avatarColor} text-sm font-bold group-hover:ring-2 group-hover:ring-emerald-400 transition-all`}>
+                            {initials}
+                            <div className="absolute inset-0 rounded-full bg-black/30 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
+                              <ZoomIn className="h-3.5 w-3.5 text-white" />
+                            </div>
                           </div>
-                        </div>
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-white">{user.name}</p>
-                        <MembershipBadge status={user.membershipStatus} />
-                      </div>
-                      <div className="flex items-center gap-2 mt-0.5">
-                        <p className="text-xs text-gray-500">{user.email}</p>
-                        {/* Department badge */}
-                        {user.department && (
-                          <Badge variant="outline" className={`text-[9px] border ${deptColor}`}>
-                            {user.department}
-                          </Badge>
                         )}
                       </div>
-                      {/* Member since date */}
-                      {user.createdAt && (
-                        <div className="flex items-center gap-1.5 mt-1">
-                          <Calendar className="h-3 w-3 text-gray-600" />
-                          <p className="text-[10px] text-gray-600">Member since {formatDate(user.createdAt)} &middot; {timeAgo(user.createdAt)}</p>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-2">
+                          <p className="font-medium text-white truncate text-sm sm:text-base">{user.name}</p>
+                          <MembershipBadge status={user.membershipStatus} />
+                          {/* Department badge */}
+                          {user.department && (
+                            <Badge variant="outline" className={`text-[9px] border ${deptColor}`}>
+                              {user.department}
+                            </Badge>
+                          )}
                         </div>
-                      )}
+                        <p className="text-xs text-gray-400 truncate mt-0.5">{user.email}</p>
+                        {/* Member since date */}
+                        {user.createdAt && (
+                          <div className="flex items-center gap-1.5 mt-1 text-gray-500">
+                            <Calendar className="h-3 w-3 text-emerald-500/70 shrink-0" />
+                            <span className="text-[10px] text-gray-400">Member since {formatDate(user.createdAt)} &bull; {timeAgo(user.createdAt)}</span>
+                          </div>
+                        )}
+                      </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      {/* Quick action: View Profile */}
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="h-8 px-2 text-gray-500 hover:text-cyan-400 hover:bg-cyan-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
-                        onClick={() => handleViewProfile(user.id)}
-                      >
-                        <Eye className="h-3.5 w-3.5 mr-1" />
-                        <span className="hidden sm:inline text-xs">Profile</span>
-                      </Button>
-                      {/* Quick action: Assign Role (admin only) */}
-                      {canChangeRole && (
+
+                    {/* Actions & Role Select */}
+                    <div className="flex items-center justify-between sm:justify-end gap-2 pt-2.5 sm:pt-0 border-t border-white/5 sm:border-0 w-full sm:w-auto">
+                      <div className="flex items-center gap-1">
+                        {/* Quick action: View Profile */}
                         <Button
                           variant="ghost"
                           size="sm"
-                          className="h-8 px-2 text-gray-500 hover:text-amber-400 hover:bg-amber-500/10 opacity-0 group-hover:opacity-100 transition-opacity"
+                          className="h-8 px-2 text-gray-400 hover:text-cyan-400 hover:bg-cyan-500/10 text-xs transition-colors"
                           onClick={() => handleViewProfile(user.id)}
                         >
-                          <UserCog className="h-3.5 w-3.5 mr-1" />
-                          <span className="hidden sm:inline text-xs">Role</span>
+                          <Eye className="h-3.5 w-3.5 mr-1" />
+                          <span className="text-xs">Profile</span>
                         </Button>
-                      )}
-                      {canEditUserRole(currentUser, user) ? (
-                        <Select value={user.role} onValueChange={(v) => handleRoleChange(user.id, v as UserRole)}>
-                          <SelectTrigger className="h-8 w-[140px] border-white/10 bg-white/5 text-xs text-white"><SelectValue /></SelectTrigger>
-                          <SelectContent className="border-white/10 bg-[#1a1a2e]">
-                            {getAssignableRoles(currentUser).map(([k, v]) => (
-                              <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
-                            ))}
-                          </SelectContent>
-                        </Select>
-                      ) : (
-                        <Badge variant="outline" className="border-white/10 text-xs text-gray-400">{ROLE_LABELS[user.role]}</Badge>
-                      )}
-                      {canApprove && user.membershipStatus === 'PENDING' && (
-                        <div className="flex gap-1">
-                          <Button size="sm" onClick={() => handleApprove(user.id, 'APPROVED')} className="bg-emerald-600 text-white h-7 text-xs px-2"><CheckCircle className="h-3 w-3" /></Button>
-                          <Button size="sm" onClick={() => handleApprove(user.id, 'REJECTED')} variant="destructive" className="h-7 text-xs px-2"><XCircle className="h-3 w-3" /></Button>
-                        </div>
-                      )}
-                      {canKickUser(currentUser, user) && (
-                        <Button
-                          variant="ghost"
-                          size="icon"
-                          className="h-8 w-8 text-gray-500 hover:text-red-400 hover:bg-red-500/10 opacity-0 group-hover:opacity-100 transition-opacity animate-fade-in"
-                          onClick={() => {
-                            setUserToKick(user);
-                            setKickDialogOpen(true);
-                          }}
-                        >
-                          <UserX className="h-4 w-4" />
-                        </Button>
-                      )}
+                        {/* Quick action: Assign Role (admin only) */}
+                        {canChangeRole && (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-8 px-2 text-gray-400 hover:text-amber-400 hover:bg-amber-500/10 text-xs transition-colors"
+                            onClick={() => handleViewProfile(user.id)}
+                          >
+                            <UserCog className="h-3.5 w-3.5 mr-1" />
+                            <span className="text-xs">Role</span>
+                          </Button>
+                        )}
+                      </div>
+
+                      <div className="flex items-center gap-2">
+                        {canEditUserRole(currentUser, user) ? (
+                          <Select value={user.role} onValueChange={(v) => handleRoleChange(user.id, v as UserRole)}>
+                            <SelectTrigger className="h-8 w-[130px] border-white/10 bg-white/5 text-xs text-white"><SelectValue /></SelectTrigger>
+                            <SelectContent className="border-white/10 bg-[#1a1a2e]">
+                              {getAssignableRoles(currentUser).map(([k, v]) => (
+                                <SelectItem key={k} value={k} className="text-xs">{v}</SelectItem>
+                              ))}
+                            </SelectContent>
+                          </Select>
+                        ) : (
+                          <Badge variant="outline" className="border-white/10 text-xs text-gray-400">{ROLE_LABELS[user.role]}</Badge>
+                        )}
+                        {canApprove && user.membershipStatus === 'PENDING' && (
+                          <div className="flex gap-1">
+                            <Button size="sm" onClick={() => handleApprove(user.id, 'APPROVED')} className="bg-emerald-600 text-white h-8 text-xs px-2"><CheckCircle className="h-3.5 w-3.5" /></Button>
+                            <Button size="sm" onClick={() => handleApprove(user.id, 'REJECTED')} variant="destructive" className="h-8 text-xs px-2"><XCircle className="h-3.5 w-3.5" /></Button>
+                          </div>
+                        )}
+                        {canKickUser(currentUser, user) && (
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-gray-500 hover:text-red-400 hover:bg-red-500/10 transition-colors"
+                            onClick={() => {
+                              setUserToKick(user);
+                              setKickDialogOpen(true);
+                            }}
+                          >
+                            <UserX className="h-4 w-4" />
+                          </Button>
+                        )}
+                      </div>
                     </div>
                   </CardContent>
                 </Card>
@@ -546,7 +554,7 @@ export function MembersPage() {
         </motion.div>
       ) : (
         /* GRID VIEW */
-        <motion.div variants={gridContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+        <motion.div variants={gridContainer} initial="hidden" animate="show" className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pb-24 md:pb-8">
           {users.map((user) => {
             const avatarColor = ROLE_AVATAR_COLORS[user.role] || ROLE_AVATAR_COLORS.MEMBER;
             const deptColor = DEPARTMENT_COLORS[user.department || 'Other'] || DEPARTMENT_COLORS['Other'];

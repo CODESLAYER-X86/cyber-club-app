@@ -5,6 +5,7 @@ import { motion } from 'framer-motion';
 import {
   ArrowUpRight, Plus, Loader2, CheckCircle, XCircle,
   Eye, Landmark, Upload, Shield, ShieldCheck,
+  ChevronDown, ChevronUp, ExternalLink,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { TreasuryDeposit, TreasuryDepositSource } from '@/types';
@@ -18,6 +19,7 @@ import { Textarea } from '@/components/ui/textarea';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
+import { cn } from '@/lib/utils';
 
 /* ─── Constants ─── */
 const DEPOSIT_SOURCE_LABELS: Record<string, string> = {
@@ -50,6 +52,7 @@ export function DepositsPage() {
   const [voiding, setVoiding] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<string>('ALL');
+  const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Form state
   const [form, setForm] = useState({
@@ -229,7 +232,7 @@ export function DepositsPage() {
       </div>
 
       {/* Filter Tabs */}
-      <div className="flex gap-2 flex-wrap">
+      <div className="flex gap-2 overflow-x-auto pb-2 pt-1 no-scrollbar sm:flex-wrap">
         {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'VOIDED'].map((f) => {
           const count = f === 'ALL' ? deposits.length : deposits.filter((d) => d.status === f).length;
           return (
@@ -237,7 +240,10 @@ export function DepositsPage() {
               key={f}
               size="sm"
               variant={filter === f ? 'default' : 'outline'}
-              className={filter === f ? 'bg-emerald-600 text-white' : 'border-white/10 text-gray-400 hover:text-white'}
+              className={cn(
+                'shrink-0 text-xs sm:text-sm',
+                filter === f ? 'bg-emerald-600 text-white' : 'border-white/10 text-gray-400 hover:text-white'
+              )}
               onClick={() => setFilter(f)}
             >
               {f === 'ALL' ? 'All' : STATUS_CONFIG[f]?.label || f} ({count})
@@ -246,24 +252,24 @@ export function DepositsPage() {
         })}
       </div>
 
-      {/* Void Confirmation Dialog */}
+      {/* Void / Fallback Confirmation Dialog */}
       <Dialog open={voidDialogOpen} onOpenChange={setVoidDialogOpen}>
         <DialogContent className="border-white/10 bg-[#14141e] text-white w-[92vw] max-w-md">
           <DialogHeader>
             <DialogTitle className="text-rose-400 flex items-center gap-2">
-              <XCircle className="h-5 w-5" /> Void Approved Deposit
+              <XCircle className="h-5 w-5" /> Revoke / Reject from Treasury
             </DialogTitle>
           </DialogHeader>
           <div className="space-y-3 py-2">
             <p className="text-xs text-gray-400">
-              Voiding will reverse this deposit and subtract the amount from the live treasury balance. An audit entry will be recorded.
+              Revoking will reverse this deposit and subtract the amount from the live treasury balance. An audit entry and notification will be recorded.
             </p>
             <div className="space-y-1.5">
               <Label className="text-xs text-gray-300 font-semibold">Mandatory Reason / Note *</Label>
               <Textarea
                 value={voidReason}
                 onChange={(e) => setVoidReason(e.target.value)}
-                placeholder="e.g. Treasurer typo in amount (entered 50000 instead of 5000)"
+                placeholder="e.g. Inadvertent duplicate voucher or incorrect amount deposited"
                 className="border-white/10 bg-white/5 min-h-[70px] text-xs text-white"
               />
             </div>
@@ -274,130 +280,179 @@ export function DepositsPage() {
             </Button>
             <Button size="sm" onClick={handleConfirmVoid} disabled={voiding || !voidReason.trim()} className="bg-rose-600 hover:bg-rose-500 text-white text-xs font-semibold">
               {voiding ? <Loader2 className="h-3 w-3 animate-spin mr-1" /> : null}
-              Confirm Void
+              Confirm Revocation
             </Button>
           </div>
         </DialogContent>
       </Dialog>
 
-      {/* Deposit History Table */}
-      <Card className="border-white/5 bg-[#111]/60 backdrop-blur">
-        <CardHeader className="pb-3">
-          <CardTitle className="text-lg text-white">Deposit History</CardTitle>
-        </CardHeader>
-        <CardContent>
-          {loading ? (
-            <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-emerald-400" /></div>
-          ) : filtered.length === 0 ? (
-            <p className="text-center text-sm text-gray-500 py-8">No deposits found</p>
-          ) : (
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-white/5">
-                    <th className="pb-3 text-left font-medium text-gray-400">Date</th>
-                    <th className="pb-3 text-left font-medium text-gray-400">Source</th>
-                    <th className="pb-3 text-right font-medium text-gray-400">Amount</th>
-                    <th className="pb-3 text-left font-medium text-gray-400">Submitted By</th>
-                    <th className="pb-3 text-center font-medium text-gray-400">Status</th>
-                    {canApprove && <th className="pb-3 text-center font-medium text-gray-400">Actions</th>}
-                  </tr>
-                </thead>
-                <tbody>
-                  {filtered.map((deposit) => {
-                    const sc = STATUS_CONFIG[deposit.status] || STATUS_CONFIG.PENDING;
-                    const isPending = deposit.status === 'PENDING';
-                    const isApproved = deposit.status === 'APPROVED';
-                    const mayPresApprove = isPending && deposit.presidentStatus === 'PENDING' && canPresidentApprove;
-                    const mayGsApprove = isPending && deposit.gsStatus === 'PENDING' && deposit.presidentStatus === 'APPROVED' && canGsApprove;
-                    const mayPresReject = isPending && deposit.presidentStatus === 'PENDING' && canPresidentApprove;
-                    const mayGsReject = isPending && deposit.gsStatus === 'PENDING' && canGsApprove;
+      {/* Deposit History */}
+      <motion.div variants={container} initial="hidden" animate="show" className="space-y-3">
+        {loading ? (
+          <div className="flex justify-center py-12"><Loader2 className="h-6 w-6 animate-spin text-emerald-400" /></div>
+        ) : filtered.length === 0 ? (
+          <p className="text-center text-sm text-gray-500 py-8">No deposits found</p>
+        ) : (
+          filtered.map((deposit) => {
+            const sc = STATUS_CONFIG[deposit.status] || STATUS_CONFIG.PENDING;
+            const isPending = deposit.status === 'PENDING';
+            const isApproved = deposit.status === 'APPROVED';
+            const isExpanded = expandedId === deposit.id;
+            const mayPresApprove = isPending && deposit.presidentStatus === 'PENDING' && canPresidentApprove;
+            const mayGsApprove = isPending && deposit.gsStatus === 'PENDING' && deposit.presidentStatus === 'APPROVED' && canGsApprove;
+            const mayPresReject = isPending && deposit.presidentStatus === 'PENDING' && canPresidentApprove;
+            const mayGsReject = isPending && deposit.gsStatus === 'PENDING' && canGsApprove;
+            const canVoidDeposit = isApproved && (canPresidentApprove || canGsApprove);
 
-                    return (
-                      <tr key={deposit.id} className="border-b border-white/[0.03] hover:bg-white/[0.02]">
-                        <td className="py-3 text-gray-300">
-                          {new Date(deposit.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
-                        </td>
-                        <td className="py-3">
-                          <Badge variant="outline" className="text-xs bg-cyan-500/10 text-cyan-400 border-cyan-500/20">
-                            {DEPOSIT_SOURCE_LABELS[deposit.source] || deposit.source}
-                          </Badge>
-                          {deposit.note && (
-                            <p className="text-[10px] text-gray-500 max-w-xs truncate mt-0.5">{deposit.note}</p>
-                          )}
-                        </td>
-                        <td className={`py-3 text-right font-semibold ${deposit.status === 'VOIDED' ? 'text-gray-500 line-through' : 'text-emerald-400'}`}>
-                          ৳{deposit.amount.toLocaleString()}
-                        </td>
-                        <td className="py-3 text-gray-300">{deposit.submitter?.name || '—'}</td>
-                        <td className="py-3 text-center">
-                          <div className="flex items-center justify-center gap-1.5">
-                            <div className={`h-2 w-2 rounded-full ${sc.dotColor}`} />
-                            <span className={`text-xs ${sc.color}`}>{sc.label}</span>
+            return (
+              <motion.div key={deposit.id} variants={item}>
+                <Card className={`border-white/5 border-l-2 ${deposit.status === 'APPROVED' ? 'border-l-emerald-400' : deposit.status === 'VOIDED' ? 'border-l-rose-400' : deposit.status === 'REJECTED' ? 'border-l-red-400' : 'border-l-amber-400'} bg-[#111]/60 backdrop-blur transition-all hover:border-white/10`}>
+                  <CardContent className="p-4">
+                    <div
+                      className="flex items-center justify-between cursor-pointer select-none"
+                      onClick={() => setExpandedId(isExpanded ? null : deposit.id)}
+                    >
+                      <div className="flex items-center gap-3 min-w-0">
+                        <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-emerald-500/10 border border-emerald-500/20">
+                          <Landmark className="h-4 w-4 text-emerald-400" />
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <Badge variant="outline" className="text-[11px] bg-cyan-500/10 text-cyan-400 border-cyan-500/20 px-2 py-0.5">
+                              {DEPOSIT_SOURCE_LABELS[deposit.source] || deposit.source}
+                            </Badge>
+                            {deposit.note && (
+                              <p className="text-sm font-medium text-white truncate max-w-xs sm:max-w-md hidden sm:block">
+                                {deposit.note}
+                              </p>
+                            )}
                           </div>
-                          {/* Show partial approval status */}
-                          {deposit.status === 'PENDING' && (
-                            <div className="flex items-center justify-center gap-2 mt-1 text-[10px] text-gray-500">
-                              <span className={deposit.presidentStatus === 'APPROVED' ? 'text-emerald-400' : ''}>
-                                P: {deposit.presidentStatus === 'APPROVED' ? '✓' : '—'}
-                              </span>
-                              <span className={deposit.gsStatus === 'APPROVED' ? 'text-emerald-400' : ''}>
-                                GS: {deposit.gsStatus === 'APPROVED' ? '✓' : '—'}
-                              </span>
-                            </div>
-                          )}
-                        </td>
+                          <p className="text-xs text-gray-500 mt-0.5">
+                            {new Date(deposit.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })}
+                            {deposit.submitter?.name && ` · By: ${deposit.submitter.name}`}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+                        <span className={`text-sm sm:text-base font-semibold font-mono ${deposit.status === 'VOIDED' ? 'text-gray-500 line-through' : 'text-emerald-400'}`}>
+                          ৳{deposit.amount.toLocaleString()}
+                        </span>
+                        <div className="flex items-center gap-1.5 px-2 py-0.5 rounded-full bg-white/[0.04] border border-white/5">
+                          <div className={`h-1.5 w-1.5 rounded-full ${sc.dotColor}`} />
+                          <span className={`text-xs ${sc.color}`}>{sc.label}</span>
+                        </div>
+                        {isExpanded ? <ChevronUp className="h-4 w-4 text-gray-500" /> : <ChevronDown className="h-4 w-4 text-gray-500" />}
+                      </div>
+                    </div>
+
+                    {/* Expanded Details */}
+                    {isExpanded && (
+                      <div className="mt-4 space-y-3 border-t border-white/5 pt-3">
+                        {/* Note / Memo */}
+                        {deposit.note && (
+                          <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 text-xs text-gray-300">
+                            <span className="block mb-1 text-[10px] font-semibold uppercase tracking-wider text-gray-400">Deposit Purpose / Description:</span>
+                            <p className="leading-relaxed break-words">{deposit.note}</p>
+                          </div>
+                        )}
+
+                        {/* Metadata & Sign-off Details */}
+                        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 text-xs text-gray-400 bg-white/[0.02] border border-white/5 p-3 rounded-lg">
+                          <div>
+                            <span className="text-gray-500 block text-[11px]">Submitted By:</span>
+                            <span className="text-gray-200 font-medium">
+                              {deposit.submitter?.name || 'Treasurer'} {deposit.submitter?.role ? `(${deposit.submitter.role})` : ''}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 block text-[11px]">President Review:</span>
+                            <span className={deposit.presidentStatus === 'APPROVED' ? 'text-emerald-400 font-medium' : deposit.presidentStatus === 'REJECTED' ? 'text-red-400 font-medium' : 'text-amber-400 font-medium'}>
+                              {deposit.presidentStatus} {deposit.presidentApprover ? `(${deposit.presidentApprover.name})` : ''}
+                            </span>
+                          </div>
+                          <div>
+                            <span className="text-gray-500 block text-[11px]">General Secretary Review:</span>
+                            <span className={deposit.gsStatus === 'APPROVED' ? 'text-emerald-400 font-medium' : deposit.gsStatus === 'REJECTED' ? 'text-red-400 font-medium' : 'text-amber-400 font-medium'}>
+                              {deposit.gsStatus} {deposit.gsApprover ? `(${deposit.gsApprover.name})` : ''}
+                            </span>
+                          </div>
+                        </div>
+
+                        {/* Deposit Voucher Attachment Link */}
+                        {deposit.attachmentUrl && (
+                          <div className="pt-0.5">
+                            <a
+                              href={deposit.attachmentUrl}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              className="inline-flex items-center gap-1.5 text-xs text-emerald-400 hover:text-emerald-300 hover:underline bg-emerald-500/10 border border-emerald-500/20 px-3 py-1.5 rounded-md font-medium"
+                            >
+                              <ExternalLink className="h-3.5 w-3.5" /> View Bank Deposit Slip / Voucher
+                            </a>
+                          </div>
+                        )}
+
+                        {/* Voided Details if VOIDED */}
+                        {deposit.status === 'VOIDED' && (
+                          <div className="rounded-lg border border-rose-500/20 bg-rose-500/10 p-2.5 text-xs text-rose-300">
+                            <span className="font-semibold text-rose-400 block mb-0.5">Voided Audit Record:</span>
+                            Reversed by Executive Board & deducted from treasury balance.
+                          </div>
+                        )}
+
+                        {/* Approval Actions */}
                         {canApprove && (
-                          <td className="py-3 text-center">
-                            {isPending && (mayPresApprove || mayGsApprove || mayPresReject || mayGsReject) && (
-                              <div className="flex items-center justify-center gap-1">
+                          <div className="flex flex-wrap items-center gap-2 pt-2 border-t border-white/5">
+                            {isPending && (
+                              <>
                                 {mayPresApprove && (
-                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10" onClick={() => handleApproval(deposit.id, 'PRESIDENT_APPROVE')}>
-                                    <Shield className="h-3 w-3 mr-1" />P ✓
+                                  <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-500 text-xs font-medium" onClick={() => handleApproval(deposit.id, 'PRESIDENT_APPROVE')}>
+                                    <Shield className="h-3.5 w-3.5 mr-1.5" />President Approve
                                   </Button>
                                 )}
                                 {mayGsApprove && (
-                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10" onClick={() => handleApproval(deposit.id, 'GS_APPROVE')}>
-                                    <ShieldCheck className="h-3 w-3 mr-1" />GS ✓
+                                  <Button size="sm" className="h-8 bg-emerald-600 text-white hover:bg-emerald-500 text-xs font-medium" onClick={() => handleApproval(deposit.id, 'GS_APPROVE')}>
+                                    <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />GS Approve
                                   </Button>
                                 )}
                                 {mayPresReject && (
-                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleApproval(deposit.id, 'PRESIDENT_REJECT')}>
-                                    <XCircle className="h-3 w-3 mr-1" />P ✗
+                                  <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium" onClick={() => handleApproval(deposit.id, 'PRESIDENT_REJECT')}>
+                                    <XCircle className="h-3.5 w-3.5 mr-1.5" />President Reject
                                   </Button>
                                 )}
                                 {mayGsReject && (
-                                  <Button size="sm" variant="ghost" className="h-7 px-2 text-red-400 hover:text-red-300 hover:bg-red-500/10" onClick={() => handleApproval(deposit.id, 'GS_REJECT')}>
-                                    <XCircle className="h-3 w-3 mr-1" />GS ✗
+                                  <Button size="sm" variant="outline" className="h-8 border-red-500/30 text-red-400 hover:bg-red-500/10 text-xs font-medium" onClick={() => handleApproval(deposit.id, 'GS_REJECT')}>
+                                    <XCircle className="h-3.5 w-3.5 mr-1.5" />GS Reject
                                   </Button>
                                 )}
-                              </div>
+                              </>
                             )}
-                            {isApproved && canPresidentApprove && (
+                            {canVoidDeposit && (
                               <Button
                                 size="sm"
-                                variant="ghost"
-                                className="h-7 px-2 text-rose-400 hover:text-rose-300 hover:bg-rose-500/10 text-xs font-mono"
+                                variant="outline"
+                                className="h-8 border-rose-500/30 text-rose-400 hover:bg-rose-500/10 text-xs font-mono"
                                 onClick={() => {
                                   setSelectedVoidId(deposit.id);
                                   setVoidReason('');
                                   setVoidDialogOpen(true);
                                 }}
                               >
-                                <XCircle className="h-3.5 w-3.5 mr-1" /> Void
+                                <XCircle className="h-3.5 w-3.5 mr-1.5" /> Revoke / Reject from Treasury
                               </Button>
                             )}
-                          </td>
+                          </div>
                         )}
-                      </tr>
-                    );
-                  })}
-                </tbody>
-              </table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </motion.div>
+            );
+          })
+        )}
+      </motion.div>
     </div>
   );
 }

@@ -698,27 +698,57 @@ export function PaymentTrackerPage() {
                             </div>
 
                             {/* Right: Quick Verification Actions */}
-                            {canManagePayments && p.status === 'PENDING' && (
+                            {canManagePayments && (
                               <div className="flex items-center gap-2">
-                                <Button
-                                  size="sm"
-                                  disabled={actionProcessingId === p.id}
-                                  onClick={() => handleVerifyPayment(p.id, 'VERIFY')}
-                                  className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-3"
-                                >
-                                  {actionProcessingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
-                                  Verify
-                                </Button>
-                                <Button
-                                  size="sm"
-                                  variant="outline"
-                                  disabled={actionProcessingId === p.id}
-                                  onClick={() => handleVerifyPayment(p.id, 'REJECT')}
-                                  className="border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs h-8 px-3"
-                                >
-                                  <XCircle className="h-3.5 w-3.5 mr-1" />
-                                  Reject
-                                </Button>
+                                {p.status === 'PENDING' && (
+                                  <>
+                                    <Button
+                                      size="sm"
+                                      disabled={actionProcessingId === p.id}
+                                      onClick={() => handleVerifyPayment(p.id, 'VERIFY')}
+                                      className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 px-3"
+                                    >
+                                      {actionProcessingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
+                                      Verify
+                                    </Button>
+                                    <Button
+                                      size="sm"
+                                      variant="outline"
+                                      disabled={actionProcessingId === p.id}
+                                      onClick={() => handleVerifyPayment(p.id, 'REJECT')}
+                                      className="border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs h-8 px-3"
+                                    >
+                                      <XCircle className="h-3.5 w-3.5 mr-1" />
+                                      Reject
+                                    </Button>
+                                  </>
+                                )}
+                                {(p.status === 'APPROVED' || p.status === 'VERIFIED') && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={actionProcessingId === p.id}
+                                    onClick={() => handleVerifyPayment(p.id, 'REJECT')}
+                                    className="border-red-500/30 bg-red-500/10 hover:bg-red-500/20 text-red-400 text-xs h-8 px-3"
+                                    title="Reject if approved by mistake"
+                                  >
+                                    {actionProcessingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <XCircle className="h-3.5 w-3.5 mr-1" />}
+                                    Reject
+                                  </Button>
+                                )}
+                                {p.status === 'REJECTED' && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={actionProcessingId === p.id}
+                                    onClick={() => handleVerifyPayment(p.id, 'VERIFY')}
+                                    className="border-emerald-500/30 bg-emerald-500/10 hover:bg-emerald-500/20 text-emerald-400 text-xs h-8 px-3"
+                                    title="Re-verify if rejected by mistake"
+                                  >
+                                    {actionProcessingId === p.id ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <CheckCircle className="h-3.5 w-3.5 mr-1" />}
+                                    Re-verify
+                                  </Button>
+                                )}
                               </div>
                             )}
                           </div>
@@ -910,8 +940,8 @@ export function PaymentTrackerPage() {
                                           </div>
                                         </div>
 
-                                        {/* Payment Details */}
-                                        <div className="flex items-center gap-3 text-xs font-mono bg-white/[0.02] p-2 rounded-lg border border-white/5">
+                                        {/* Payment Details & Quick Actions */}
+                                        <div className="flex items-center gap-3 text-xs font-mono bg-white/[0.02] p-2 rounded-lg border border-white/5 flex-wrap">
                                           <div>
                                             <span className="text-[10px] text-gray-500 block">Method</span>
                                             <span className="text-white">{payment?.paymentMethod || (isFree ? 'Free' : 'Unpaid')}</span>
@@ -935,6 +965,57 @@ export function PaymentTrackerPage() {
                                               <span className="text-gray-500">N/A</span>
                                             )}
                                           </div>
+
+                                          {/* Mistake correction actions for event payments */}
+                                          {canManagePayments && payment && (
+                                            <div className="flex items-center gap-1.5 sm:border-l sm:border-white/10 sm:pl-2">
+                                              {payment.status === 'PENDING' && (
+                                                <>
+                                                  <Button
+                                                    size="sm"
+                                                    disabled={actionProcessingId === payment.id}
+                                                    onClick={() => handleVerifyPayment(payment.id, 'VERIFY')}
+                                                    className="bg-emerald-600 hover:bg-emerald-500 text-white text-[10px] h-7 px-2"
+                                                  >
+                                                    Verify
+                                                  </Button>
+                                                  <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={actionProcessingId === payment.id}
+                                                    onClick={() => handleVerifyPayment(payment.id, 'REJECT')}
+                                                    className="border-red-500/30 text-red-400 hover:bg-red-500/10 text-[10px] h-7 px-2"
+                                                  >
+                                                    Reject
+                                                  </Button>
+                                                </>
+                                              )}
+                                              {(payment.status === 'APPROVED' || payment.status === 'VERIFIED') && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  disabled={actionProcessingId === payment.id}
+                                                  onClick={() => handleVerifyPayment(payment.id, 'REJECT')}
+                                                  className="border-red-500/30 text-red-400 hover:bg-red-500/10 hover:text-red-300 text-[10px] h-7 px-2"
+                                                  title="Reject if approved by mistake"
+                                                >
+                                                  Reject
+                                                </Button>
+                                              )}
+                                              {payment.status === 'REJECTED' && (
+                                                <Button
+                                                  size="sm"
+                                                  variant="outline"
+                                                  disabled={actionProcessingId === payment.id}
+                                                  onClick={() => handleVerifyPayment(payment.id, 'VERIFY')}
+                                                  className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-[10px] h-7 px-2"
+                                                  title="Re-verify if rejected by mistake"
+                                                >
+                                                  Re-verify
+                                                </Button>
+                                              )}
+                                            </div>
+                                          )}
                                         </div>
                                       </div>
                                     );

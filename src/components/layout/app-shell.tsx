@@ -197,7 +197,7 @@ export function AppShell() {
               exit={{ opacity: 0 }}
               transition={transitionConfig}
               onClick={() => setSidebarOpen(false)}
-              className="fixed inset-0 z-40 bg-black/60 backdrop-blur-sm md:hidden"
+              className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm md:hidden"
             />
           </AnimatePresence>
         )}
@@ -205,7 +205,7 @@ export function AppShell() {
         <Sidebar />
         <div className="flex flex-1 flex-col min-w-0 overflow-hidden">
           <Header />
-          <main className="flex-1 overflow-y-auto p-2 sm:p-4 md:p-6">
+          <main className="flex-1 overflow-y-auto p-2 pb-24 sm:p-4 sm:pb-24 md:p-6 md:pb-6">
             <AnimatePresence mode="popLayout">
               <motion.div
                 key={currentView}

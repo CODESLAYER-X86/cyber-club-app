@@ -37,8 +37,8 @@ export async function PATCH(
     let auditAction = '';
 
     if (action === 'VOID') {
-      if (!['PRESIDENT', 'PLATFORM_ADMIN'].includes(role)) {
-        return errorResponse('Only President or Platform Admin can void a deposit', 403);
+      if (!['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(role)) {
+        return errorResponse('Only President, GS, or Platform Admin can void a deposit', 403);
       }
       if (!body.reason || !body.reason.trim()) {
         return errorResponse('A mandatory reason is required to void a deposit', 400);
@@ -139,6 +139,15 @@ export async function PATCH(
           title: 'Deposit Rejected',
           message: `Your deposit of ৳${deposit.amount.toLocaleString()} from ${deposit.source} has been rejected.`,
           type: 'ERROR',
+        },
+      });
+    } else if (updateData.status === 'VOIDED') {
+      await prisma.notification.create({
+        data: {
+          userId: deposit.submittedBy,
+          title: 'Deposit Voided / Revoked',
+          message: `Your deposit of ৳${deposit.amount.toLocaleString()} from ${deposit.source} has been voided and removed from the Treasury by ${caller.role}. Reason: ${body.reason.trim()}`,
+          type: 'WARNING',
         },
       });
     }

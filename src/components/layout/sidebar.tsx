@@ -32,6 +32,7 @@ import {
   Trophy,
   Globe,
   Megaphone,
+  X,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
@@ -307,13 +308,14 @@ export function Sidebar({ className }: SidebarProps = {}) {
   return (
     <>
       {/* Mobile overlay */}
+      {/* Mobile backdrop */}
       <AnimatePresence>
         {sidebarOpen && (
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
-            className="fixed inset-0 z-40 bg-black/60 md:hidden"
+            className="fixed inset-0 z-[60] bg-black/70 backdrop-blur-sm md:hidden"
             onClick={() => setSidebarOpen(false)}
           />
         )}
@@ -328,8 +330,8 @@ export function Sidebar({ className }: SidebarProps = {}) {
         }}
         className={cn(
           'shrink-0 flex h-screen flex-col border-r border-white/5 bg-[#0a0a0a]',
-          // Mobile: fixed overlay positioned sidebar
-          'fixed left-0 top-0 z-50 md:static md:z-auto',
+          // Mobile: fixed overlay positioned sidebar above bottom nav
+          'fixed left-0 top-0 z-[70] md:static md:z-auto',
           // Mobile: hide when closed
           !sidebarOpen && 'max-md:-translate-x-full max-md:w-[260px]',
           // Smooth transition on all sizes
@@ -346,33 +348,45 @@ export function Sidebar({ className }: SidebarProps = {}) {
           />
         </div>
 
-        {/* Logo area */}
-        <button
-          onClick={() => setCurrentView('landing')}
-          className="relative z-20 flex h-16 items-center gap-3 border-b border-white/5 px-4 cursor-pointer hover:bg-white/[0.02] transition-colors duration-200 text-left w-full focus:outline-none"
-        >
-          <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
-            <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
-          </div>
-          <AnimatePresence>
-            {sidebarOpen && (
-              <motion.div
-                initial={{ opacity: 0, x: -10 }}
-                animate={{ opacity: 1, x: 0 }}
-                exit={{ opacity: 0, x: -10 }}
-                transition={transitionConfig}
-                className="flex flex-col overflow-hidden"
-              >
-                <span className="text-sm font-bold tracking-wide text-white whitespace-nowrap">
-                  Cyber Security Club
-                </span>
-                <span className="text-[10px] tracking-widest text-emerald-400/70 uppercase whitespace-nowrap">
-                  Security Platform
-                </span>
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </button>
+        {/* Logo area with mobile close button */}
+        <div className="relative z-20 flex h-16 items-center justify-between border-b border-white/5 px-4">
+          <button
+            onClick={() => setCurrentView('landing')}
+            className="flex items-center gap-3 cursor-pointer hover:bg-white/[0.02] transition-colors duration-200 text-left flex-1 min-w-0 focus:outline-none"
+          >
+            <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-full overflow-hidden border border-emerald-500/20">
+              <img src="/logo.png" alt="Cyber Security Club Logo" className="h-full w-full object-cover rounded-full" />
+            </div>
+            <AnimatePresence>
+              {sidebarOpen && (
+                <motion.div
+                  initial={{ opacity: 0, x: -10 }}
+                  animate={{ opacity: 1, x: 0 }}
+                  exit={{ opacity: 0, x: -10 }}
+                  transition={transitionConfig}
+                  className="flex flex-col overflow-hidden"
+                >
+                  <span className="text-sm font-bold tracking-wide text-white whitespace-nowrap">
+                    Cyber Security Club
+                  </span>
+                  <span className="text-[10px] tracking-widest text-emerald-400/70 uppercase whitespace-nowrap">
+                    Security Platform
+                  </span>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </button>
+          {sidebarOpen && (
+            <Button
+              variant="ghost"
+              size="icon"
+              className="h-8 w-8 text-gray-400 hover:text-white hover:bg-white/10 md:hidden shrink-0 ml-2"
+              onClick={() => setSidebarOpen(false)}
+            >
+              <X className="h-4 w-4" />
+            </Button>
+          )}
+        </div>
 
         {/* Role badge with glow */}
         <AnimatePresence>
@@ -400,7 +414,7 @@ export function Sidebar({ className }: SidebarProps = {}) {
 
         {/* Navigation */}
         <ScrollArea className="relative z-20 flex-1 px-3 py-3">
-          <nav className="flex flex-col gap-1">
+          <nav className="flex flex-col gap-1 pb-16 md:pb-2">
             {navItems.map((item) => {
               const Icon = ICON_MAP[item.icon] ?? Home;
               const isActive = currentView === item.view;
@@ -472,8 +486,8 @@ export function Sidebar({ className }: SidebarProps = {}) {
                 </button>
               );
 
-              // When sidebar is collapsed, use tooltip component for descriptions
-              if (!sidebarOpen) {
+              // On desktop when collapsed, use tooltip component for descriptions
+              if (!sidebarOpen && !isMobile) {
                 return (
                   <Tooltip key={item.view} delayDuration={200}>
                     <TooltipTrigger asChild>
@@ -487,19 +501,9 @@ export function Sidebar({ className }: SidebarProps = {}) {
                 );
               }
 
-              // When sidebar is expanded, show tooltip on hover with description
-              return (
-                <Tooltip key={item.view} delayDuration={500}>
-                  <TooltipTrigger asChild>
-                    {navButton}
-                  </TooltipTrigger>
-                  {description && (
-                    <TooltipContent side="right" className="border-white/10 bg-[#1a1a2e] text-gray-300">
-                      <p className="text-xs">{description}</p>
-                    </TooltipContent>
-                  )}
-                </Tooltip>
-              );
+              // When sidebar is expanded or on mobile, render directly without tooltip
+              // to prevent sticky tooltip badges on touch devices
+              return <div key={item.view}>{navButton}</div>;
             })}
           </nav>
         </ScrollArea>

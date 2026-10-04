@@ -116,7 +116,7 @@ export async function PATCH(request: NextRequest) {
       data: {
         userId: approver.userId,
         action: `MEMBER_${normalizedAction}`,
-        details: `${normalizedAction === "APPROVE" ? "Approved" : "Rejected"} membership for user ${user.name} (${user.email})`,
+        details: `${normalizedAction === "APPROVE" ? "Approved" : "Rejected"} membership for user ${user.name} (${user.email})${user.studentId ? ` [Student ID: ${user.studentId}]` : ''}${user.transactionId ? ` [Trx ID: ${user.transactionId}]` : ''}${user.phone ? ` [Phone: ${user.phone}]` : ''}`,
       },
     });
 
