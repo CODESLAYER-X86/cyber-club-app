@@ -138,6 +138,24 @@ export function ApplyMembershipPage() {
 
   const update = (field: string, value: string) => setForm((prev) => ({ ...prev, [field]: value }));
 
+  const handlePaymentMethodChange = (method: string) => {
+    setForm((prev) => {
+      let nextTrxId = prev.transactionId;
+      if (method === 'PREVIOUS_MEMBER') {
+        if (!nextTrxId || nextTrxId.startsWith('BK') || nextTrxId.startsWith('NG') || nextTrxId.startsWith('RC')) {
+          nextTrxId = 'Previous Member';
+        }
+      } else if (prev.paymentMethod === 'PREVIOUS_MEMBER' && nextTrxId.startsWith('Previous Member')) {
+        nextTrxId = '';
+      }
+      return {
+        ...prev,
+        paymentMethod: method,
+        transactionId: nextTrxId,
+      };
+    });
+  };
+
   const validate = (): string | null => {
     if (!form.studentId.trim()) return 'Registration ID / Student ID is required';
     if (!form.rollNumber.trim()) return 'Roll Number is required';
@@ -147,7 +165,11 @@ export function ApplyMembershipPage() {
     if (!isValidPhone(form.phone)) {
       return 'Please enter a valid phone number (digits only, e.g. 01XXXXXXXXX or +8801XXXXXXXXX)';
     }
-    if (form.paymentMethod === 'CASH') {
+    if (form.paymentMethod === 'PREVIOUS_MEMBER') {
+      if (!form.transactionId.trim()) {
+        form.transactionId = 'Previous Member';
+      }
+    } else if (form.paymentMethod === 'CASH') {
       if (!form.transactionId.trim()) return 'Please enter the name of the person who received your cash';
     } else {
       if (!form.transactionId.trim()) return 'Transaction ID is required';
@@ -302,7 +324,7 @@ export function ApplyMembershipPage() {
           Enlist as Club Member
         </h1>
         <p className="mt-1 text-sm text-gray-400">
-          Complete your academic registration and submit your membership fee to receive your official 3D Digital Member Identifier.
+          Complete your academic registration and submit your membership fee to receive your official 3D Digital Member Identifier. If you were already a club member before this website was launched, select &ldquo;Previous Member&rdquo; under payment method.
         </p>
       </div>
 
@@ -553,22 +575,46 @@ export function ApplyMembershipPage() {
             </div>
 
             {/* Payment Method & Transaction ID */}
-            <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/5 p-4 space-y-4">
+            <div className={`rounded-xl border p-4 space-y-4 transition-all ${
+              form.paymentMethod === 'PREVIOUS_MEMBER'
+                ? 'border-sky-500/30 bg-sky-500/5'
+                : 'border-emerald-500/20 bg-emerald-500/5'
+            }`}>
               <div className="flex items-center justify-between">
-                <span className="font-mono text-xs font-bold text-emerald-400">Payment Verification Detail</span>
-                {activeMethodNumber && (
-                  <span className="font-mono text-[11px] text-gray-300">
-                    Send ৳{membershipFee} to: <strong className="text-emerald-300">{activeMethodNumber}</strong>
+                <span className={`font-mono text-xs font-bold ${
+                  form.paymentMethod === 'PREVIOUS_MEMBER' ? 'text-sky-400' : 'text-emerald-400'
+                }`}>
+                  {form.paymentMethod === 'PREVIOUS_MEMBER' ? 'Previous Member Verification' : 'Payment Verification Detail'}
+                </span>
+                {form.paymentMethod === 'PREVIOUS_MEMBER' ? (
+                  <span className="font-mono text-[11px] text-emerald-400 font-semibold">
+                    Fee: ৳0 (Fee settled offline prior to app)
                   </span>
+                ) : (
+                  activeMethodNumber && (
+                    <span className="font-mono text-[11px] text-gray-300">
+                      Send ৳{membershipFee} to: <strong className="text-emerald-300">{activeMethodNumber}</strong>
+                    </span>
+                  )
                 )}
               </div>
 
-              <div className="grid grid-cols-3 gap-3">
+              {form.paymentMethod === 'PREVIOUS_MEMBER' && (
+                <div className="rounded-lg border border-sky-500/20 bg-sky-500/10 p-3 text-xs text-sky-200 flex items-start gap-2.5">
+                  <Info className="h-4 w-4 text-sky-400 shrink-0 mt-0.5" />
+                  <p className="leading-relaxed">
+                    You are applying as an existing club member who joined prior to this website. No payment transfer is required (fee is ৳0).
+                    Transaction ID defaults to <strong>&ldquo;Previous Member&rdquo;</strong> (you may append details such as batch or year). Executive leadership will manually verify your student record against previous club archives.
+                  </p>
+                </div>
+              )}
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
                 <div className="col-span-1">
-                  <label className="text-[10px] font-mono text-gray-400 block mb-1">Method</label>
+                  <label className="text-[10px] font-mono text-gray-400 block mb-1">Method *</label>
                   <select
                     value={form.paymentMethod}
-                    onChange={(e) => update('paymentMethod', e.target.value)}
+                    onChange={(e) => handlePaymentMethodChange(e.target.value)}
                     className="w-full h-10 px-2.5 rounded-md border border-white/10 bg-[#111] text-white focus:border-emerald-500/50 focus:ring-emerald-500/20 text-xs font-mono focus:outline-none"
                   >
                     <option value="BKASH">bKash</option>
@@ -576,19 +622,39 @@ export function ApplyMembershipPage() {
                     <option value="ROCKET">Rocket</option>
                     <option value="BANK">Bank Transfer</option>
                     <option value="CASH">Cash</option>
+                    <option value="PREVIOUS_MEMBER">Previous Member (Joined before app)</option>
                   </select>
                 </div>
 
-                <div className="col-span-2 space-y-1">
+                <div className="col-span-1 sm:col-span-2 space-y-1">
                   <label className="text-[10px] font-mono text-gray-400 block mb-1">
-                    {form.paymentMethod === 'CASH' ? 'Cash Received By (Person Name) *' : 'Transaction ID (TrxID) *'}
+                    {form.paymentMethod === 'PREVIOUS_MEMBER'
+                      ? 'Verification ID / Note (Defaults to "Previous Member") *'
+                      : form.paymentMethod === 'CASH'
+                        ? 'Cash Received By (Person Name) *'
+                        : 'Transaction ID (TrxID) *'}
                   </label>
                   <div className="relative">
                     <CreditCard className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
                     <Input
                       value={form.transactionId}
-                      onChange={(e) => update('transactionId', form.paymentMethod === 'CASH' ? e.target.value.slice(0, 50) : sanitizeTransactionId(e.target.value))}
-                      placeholder={form.paymentMethod === 'CASH' ? 'e.g. OMAR / Handed to Executive' : 'e.g. BKX92849102'}
+                      onChange={(e) => {
+                        const val = e.target.value;
+                        if (form.paymentMethod === 'PREVIOUS_MEMBER') {
+                          update('transactionId', val.slice(0, 80));
+                        } else if (form.paymentMethod === 'CASH') {
+                          update('transactionId', val.slice(0, 50));
+                        } else {
+                          update('transactionId', sanitizeTransactionId(val));
+                        }
+                      }}
+                      placeholder={
+                        form.paymentMethod === 'PREVIOUS_MEMBER'
+                          ? 'Previous Member (e.g. Previous Member - Batch 54)'
+                          : form.paymentMethod === 'CASH'
+                            ? 'e.g. OMAR / Handed to Executive'
+                            : 'e.g. BKX92849102'
+                      }
                       className="border-white/10 bg-white/5 pl-10 text-white placeholder:text-gray-600 focus:border-emerald-500/50 focus:ring-emerald-500/20 font-mono text-sm"
                     />
                   </div>

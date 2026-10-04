@@ -14,8 +14,16 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     const { studentId, rollNumber, batch, department, phone, transactionId, paymentMethod = "BKASH" } = body;
 
-    if (!studentId || !rollNumber || !batch || !department || !phone || !transactionId) {
-      return errorResponse("All fields are required", 400);
+    const VALID_METHODS = ["BKASH", "NAGAD", "ROCKET", "BANK", "CASH", "PREVIOUS_MEMBER"];
+    const validatedMethod = VALID_METHODS.includes(paymentMethod) ? paymentMethod : "BKASH";
+    const isPreviousMember = validatedMethod === "PREVIOUS_MEMBER";
+
+    const effectiveTrxId = isPreviousMember
+      ? (transactionId?.trim() || "Previous Member")
+      : transactionId?.trim();
+
+    if (!studentId || !rollNumber || !batch || !department || !phone || !effectiveTrxId) {
+      return errorResponse("All academic and verification fields are required", 400);
     }
 
     const user = await prisma.user.findUnique({ where: { id: userId } });
@@ -32,12 +40,13 @@ export async function POST(req: NextRequest) {
     const updatedUser = await prisma.user.update({
       where: { id: userId },
       data: {
-        studentId,
-        rollNumber,
-        batch,
-        department,
-        phone,
-        transactionId,
+        studentId: studentId.trim(),
+        rollNumber: rollNumber.trim(),
+        batch: batch.trim(),
+        department: department.trim(),
+        phone: phone.trim(),
+        transactionId: effectiveTrxId,
+        paymentMethod: validatedMethod,
         membershipStatus: "PENDING",
       },
     });
@@ -46,18 +55,17 @@ export async function POST(req: NextRequest) {
     const feeConfig = await prisma.systemConfig.findUnique({
       where: { key: "membership_fee" },
     });
-    const membershipFee = feeConfig ? parseFloat(feeConfig.value) : 100;
+    const standardFee = feeConfig ? parseFloat(feeConfig.value) : 100;
+    const paymentAmount = isPreviousMember ? 0 : standardFee;
 
     // Create a payment record for the membership fee
-    const VALID_METHODS = ["BKASH", "NAGAD", "BANK", "CASH"];
-    const validatedMethod = VALID_METHODS.includes(paymentMethod) ? paymentMethod : "BKASH";
     await prisma.payment.create({
       data: {
         userId,
-        amount: membershipFee,
+        amount: paymentAmount,
         type: "MEMBERSHIP",
         status: "PENDING",
-        transactionId,
+        transactionId: effectiveTrxId,
         paymentMethod: validatedMethod,
       },
     });
@@ -67,9 +75,11 @@ export async function POST(req: NextRequest) {
       data: {
         userId,
         action: "MEMBERSHIP_APPLICATION",
-        details: user.membershipStatus === "REJECTED"
-          ? `User re-submitted membership application after prior rejection (Trx ID: ${transactionId}, Method: ${validatedMethod})`
-          : `User submitted membership application (Trx ID: ${transactionId}, Method: ${validatedMethod})`,
+        details: isPreviousMember
+          ? `User submitted previous membership claim (Ref/Trx: ${effectiveTrxId}, Method: PREVIOUS_MEMBER)`
+          : user.membershipStatus === "REJECTED"
+            ? `User re-submitted membership application after prior rejection (Trx ID: ${effectiveTrxId}, Method: ${validatedMethod})`
+            : `User submitted membership application (Trx ID: ${effectiveTrxId}, Method: ${validatedMethod})`,
       },
     });
 

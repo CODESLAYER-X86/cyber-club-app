@@ -295,7 +295,7 @@ export function VerifyPaymentsPage() {
                           {typeConfig.label}
                         </Badge>
                       </div>
-                      <p className="text-xs text-gray-500">৳{payment.amount.toLocaleString()} • TXN: <span className="text-white font-mono">{payment.transactionId}</span> • Method: {payment.paymentMethod || 'bKash'}{payment.event ? ` • Event: ${payment.event.title}` : ''}</p>
+                      <p className="text-xs text-gray-500">৳{payment.amount.toLocaleString()} • TXN: <span className="text-white font-mono">{payment.transactionId}</span> • Method: {payment.paymentMethod === 'PREVIOUS_MEMBER' ? 'Previous Member' : (payment.paymentMethod || 'bKash')}{payment.event ? ` • Event: ${payment.event.title}` : ''}</p>
                       <p className="text-[10px] text-gray-600 mt-0.5 flex items-center gap-1">
                         <Clock className="h-3 w-3" /> {timeAgo(payment.createdAt)}
                       </p>

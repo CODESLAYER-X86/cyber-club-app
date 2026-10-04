@@ -698,7 +698,9 @@ export function ProfilePage() {
                           {userToShow.paymentMethod && (
                             <div className="rounded-lg border border-white/5 bg-black/20 p-2.5">
                               <span className="text-[10px] text-gray-500 uppercase tracking-wider font-mono">Payment Method</span>
-                              <p className="text-sm font-semibold text-white mt-0.5">{userToShow.paymentMethod}</p>
+                              <p className="text-sm font-semibold text-white mt-0.5">
+                                {userToShow.paymentMethod === 'PREVIOUS_MEMBER' ? 'Previous Member' : userToShow.paymentMethod}
+                              </p>
                             </div>
                           )}
                           {userToShow.paymentDate && (
@@ -1154,7 +1156,9 @@ export function ProfilePage() {
                   >
                     <div className="space-y-1">
                       <div className="flex items-center gap-2">
-                        <span className="font-mono text-xs font-bold text-white">{p.paymentMethod}</span>
+                        <span className="font-mono text-xs font-bold text-white">
+                          {p.paymentMethod === 'PREVIOUS_MEMBER' ? 'Previous Member' : p.paymentMethod}
+                        </span>
                         <span className="font-mono text-xs text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">
                           TxID: {p.transactionId}
                         </span>

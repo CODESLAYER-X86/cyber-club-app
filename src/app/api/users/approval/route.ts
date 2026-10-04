@@ -83,6 +83,19 @@ export async function PATCH(request: NextRequest) {
       data: updateData,
     });
 
+    // Sync pending membership payment status
+    if (normalizedAction === "APPROVE") {
+      await prisma.payment.updateMany({
+        where: { userId, type: "MEMBERSHIP", status: "PENDING" },
+        data: { status: "VERIFIED", verifiedBy: approver.userId },
+      });
+    } else if (normalizedAction === "REJECT") {
+      await prisma.payment.updateMany({
+        where: { userId, type: "MEMBERSHIP", status: "PENDING" },
+        data: { status: "REJECTED" },
+      });
+    }
+
     // Create notification for the user
     await prisma.notification.create({
       data: {

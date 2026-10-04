@@ -22,6 +22,7 @@ import {
   FileText,
   ExternalLink,
   ZoomIn,
+  Award,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { User } from '@/types';
@@ -437,17 +438,35 @@ export function MemberApprovalPage() {
 
                         {/* Transaction ID & Payment Method Badges */}
                         <div className="mt-3 flex flex-wrap items-center gap-2">
-                          {user.transactionId && (
-                            <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-xs">
-                              <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
-                              <span className="text-gray-500">Transaction:</span>
-                              <span className="font-mono text-emerald-400 font-semibold">{user.transactionId}</span>
-                            </div>
-                          )}
-                          {user.paymentMethod && (
-                            <Badge variant="outline" className="text-xs border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
-                              Method: {user.paymentMethod}
-                            </Badge>
+                          {user.paymentMethod === 'PREVIOUS_MEMBER' ? (
+                            <>
+                              <div className="inline-flex items-center gap-1.5 rounded-lg border border-sky-500/30 bg-sky-500/10 px-2.5 py-1 text-xs">
+                                <Award className="h-3.5 w-3.5 text-sky-400" />
+                                <span className="text-sky-300 font-semibold font-mono">Previous Member Claim</span>
+                              </div>
+                              <div className="inline-flex items-center gap-1.5 rounded-lg border border-white/10 bg-white/5 px-2.5 py-1 text-xs font-mono text-gray-300">
+                                <span className="text-gray-500">Ref:</span>
+                                <span>{user.transactionId || 'Previous Member'}</span>
+                              </div>
+                              <Badge variant="outline" className="text-xs border-emerald-500/30 bg-emerald-500/10 text-emerald-400 font-mono">
+                                Fee: ৳0 (Pre-cleared)
+                              </Badge>
+                            </>
+                          ) : (
+                            <>
+                              {user.transactionId && (
+                                <div className="inline-flex items-center gap-1.5 rounded-lg border border-emerald-500/20 bg-emerald-500/5 px-2.5 py-1 text-xs">
+                                  <CreditCard className="h-3.5 w-3.5 text-emerald-400" />
+                                  <span className="text-gray-500">Transaction:</span>
+                                  <span className="font-mono text-emerald-400 font-semibold">{user.transactionId}</span>
+                                </div>
+                              )}
+                              {user.paymentMethod && (
+                                <Badge variant="outline" className="text-xs border-cyan-500/30 bg-cyan-500/10 text-cyan-400">
+                                  Method: {user.paymentMethod}
+                                </Badge>
+                              )}
+                            </>
                           )}
                         </div>
                       </div>
@@ -640,32 +659,54 @@ export function MemberApprovalPage() {
                 <div className="space-y-3">
                   <h5 className="text-xs font-mono font-bold uppercase tracking-wider text-amber-400 flex items-center gap-1.5">
                     <CreditCard className="h-3.5 w-3.5" />
-                    Payment Information
+                    Payment & Membership Verification
                   </h5>
-                  <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-xs text-gray-400 font-mono">Transaction ID:</span>
-                      <span className="font-mono text-sm font-bold text-amber-400">{dossierUser.transactionId || 'N/A'}</span>
-                    </div>
-                    <div className="flex items-center justify-between border-t border-white/5 pt-2">
-                      <span className="text-xs text-gray-400 font-mono">Payment Method:</span>
-                      <span className="text-xs font-medium text-white">{dossierUser.paymentMethod || 'bKash'}</span>
-                    </div>
-                    {dossierUser.paymentProof && (
-                      <div className="border-t border-white/5 pt-2">
-                        <span className="text-xs text-gray-400 font-mono block mb-1">Payment Proof:</span>
-                        <a
-                          href={dossierUser.paymentProof}
-                          target="_blank"
-                          rel="noopener noreferrer"
-                          className="text-xs text-emerald-400 underline hover:text-emerald-300 flex items-center gap-1"
-                        >
-                          <ExternalLink className="h-3 w-3" />
-                          View Uploaded Payment Proof
-                        </a>
+                  {dossierUser.paymentMethod === 'PREVIOUS_MEMBER' ? (
+                    <div className="rounded-lg border border-sky-500/30 bg-sky-950/20 p-4 space-y-2.5">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400 font-mono">Application Classification:</span>
+                        <Badge className="border-sky-500/40 bg-sky-500/15 text-sky-300 font-mono text-xs">
+                          🏛️ Existing / Previous Member
+                        </Badge>
                       </div>
-                    )}
-                  </div>
+                      <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                        <span className="text-xs text-gray-400 font-mono">Verification Reference / Note:</span>
+                        <span className="font-mono text-sm font-bold text-white">{dossierUser.transactionId || 'Previous Member'}</span>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                        <span className="text-xs text-gray-400 font-mono">Assessed Fee:</span>
+                        <span className="text-xs font-mono font-bold text-emerald-400">৳0 (Pre-cleared prior to web app)</span>
+                      </div>
+                      <p className="text-[11px] text-gray-400 pt-2 border-t border-white/5 leading-relaxed">
+                        ℹ️ This applicant was already a member before this portal was launched. Please cross-check their Student ID and name against the club&apos;s previous member registry or committee records before approving.
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="rounded-lg border border-amber-500/20 bg-amber-500/5 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <span className="text-xs text-gray-400 font-mono">Transaction ID:</span>
+                        <span className="font-mono text-sm font-bold text-amber-400">{dossierUser.transactionId || 'N/A'}</span>
+                      </div>
+                      <div className="flex items-center justify-between border-t border-white/5 pt-2">
+                        <span className="text-xs text-gray-400 font-mono">Payment Method:</span>
+                        <span className="text-xs font-medium text-white">{dossierUser.paymentMethod || 'bKash'}</span>
+                      </div>
+                      {dossierUser.paymentProof && (
+                        <div className="border-t border-white/5 pt-2">
+                          <span className="text-xs text-gray-400 font-mono block mb-1">Payment Proof:</span>
+                          <a
+                            href={dossierUser.paymentProof}
+                            target="_blank"
+                            rel="noopener noreferrer"
+                            className="text-xs text-emerald-400 underline hover:text-emerald-300 flex items-center gap-1"
+                          >
+                            <ExternalLink className="h-3 w-3" />
+                            View Uploaded Payment Proof
+                          </a>
+                        </div>
+                      )}
+                    </div>
+                  )}
                 </div>
 
                 {/* Bio (if provided) */}
