@@ -93,7 +93,13 @@ export async function GET(request: NextRequest) {
     } else {
       // Enforce platform admin role on every sign-in (handles env var changes)
       const expectedRole = adminRole ?? (existing.role === 'PLATFORM_ADMIN' ? 'MEMBER' : existing.role);
-      const expectedStatus = expectedRole === 'GUEST' ? existing.membershipStatus : 'ACTIVE';
+      let expectedStatus = expectedRole === 'GUEST' ? existing.membershipStatus : 'ACTIVE';
+
+      // Auto-heal: GUEST users should not have ACTIVE membership status
+      if (expectedRole === 'GUEST' && expectedStatus === 'ACTIVE') {
+        expectedStatus = 'NON_MEMBER';
+      }
+
       const updateData: Record<string, string> = {};
 
       if (existing.role !== expectedRole) updateData.role = expectedRole;

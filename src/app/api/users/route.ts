@@ -39,6 +39,17 @@ export async function GET(request: NextRequest) {
       },
     });
 
+    // Auto-heal any GUEST users who have ACTIVE status
+    await prisma.user.updateMany({
+      where: {
+        role: "GUEST",
+        membershipStatus: "ACTIVE",
+      },
+      data: {
+        membershipStatus: "NON_MEMBER",
+      },
+    });
+
     const users = await prisma.user.findMany({
       where,
       select: {
