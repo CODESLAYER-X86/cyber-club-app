@@ -238,8 +238,8 @@ export function Header() {
             </span>
           </button>
 
-          {/* Desktop Navigation */}
-          <nav className="hidden md:flex items-center gap-1 ml-4">
+          {/* Desktop Navigation (Visible on xl screens where all 8 items fit comfortably) */}
+          <nav className="hidden xl:flex items-center gap-0.5 2xl:gap-1 ml-3 2xl:ml-6">
             {PUBLIC_NAV_LINKS.map((link) => {
               const isActive = currentView === link.view;
               return (
@@ -247,7 +247,7 @@ export function Header() {
                   key={link.view}
                   onClick={() => setCurrentView(link.view)}
                   className={cn(
-                    'relative px-3 py-1.5 rounded-lg text-sm font-medium transition-all duration-200',
+                    'relative px-2.5 2xl:px-3 py-1.5 rounded-lg text-xs 2xl:text-sm font-medium transition-all duration-200',
                     isActive
                       ? 'text-emerald-400 bg-emerald-500/10'
                       : 'text-gray-400 hover:text-gray-200 hover:bg-white/5'
@@ -268,17 +268,6 @@ export function Header() {
               );
             })}
           </nav>
-
-          {/* Mobile nav toggle */}
-          <Button
-            variant="ghost"
-            size="icon"
-            onClick={() => setMobileNavOpen(!mobileNavOpen)}
-            className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 md:hidden ml-auto"
-            aria-label="Toggle navigation menu"
-          >
-            {mobileNavOpen ? <X className="h-5 w-5" /> : <Menu className="h-5 w-5" />}
-          </Button>
         </>
       ) : (
         <>
@@ -318,13 +307,11 @@ export function Header() {
 
       {/* Real-time Clock */}
       {currentTime && (
-        <div className="hidden items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 lg:flex">
+        <div className="hidden items-center gap-1.5 rounded-lg border border-white/5 bg-white/[0.02] px-2.5 py-1.5 2xl:flex">
           <Clock className="h-3.5 w-3.5 text-emerald-400" />
           <span className="text-xs font-mono tabular-nums text-gray-400">{timeString}</span>
         </div>
       )}
-
-
 
       {/* Notifications with animated bell */}
       {isAuthenticated && (
@@ -332,7 +319,7 @@ export function Header() {
           variant="ghost"
           size="icon"
           onClick={() => setCurrentView('notifications')}
-          className="relative h-9 w-9 text-gray-400 hover:bg-white/5 hover:text-gray-200"
+          className="relative h-9 w-9 text-gray-400 hover:bg-white/5 hover:text-gray-200 shrink-0"
         >
           <motion.div
             animate={unreadCount > 0 ? {
@@ -373,13 +360,14 @@ export function Header() {
           )}
         </Button>
       )}
+
       {/* Quick Public Site / Dashboard Switcher */}
       {isAuthenticated && (
         <Button
           variant="outline"
           size="sm"
           onClick={() => setCurrentView(currentView === 'landing' ? 'dashboard' : 'landing')}
-          className="hidden lg:inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-mono border-emerald-500/25 bg-emerald-500/5 text-emerald-300 hover:bg-emerald-500/15"
+          className="hidden md:inline-flex items-center gap-1.5 h-8 px-2.5 text-xs font-mono border-emerald-500/25 bg-emerald-500/5 text-emerald-300 hover:bg-emerald-500/15 shrink-0"
         >
           {currentView === 'landing' ? (
             <>
@@ -399,7 +387,7 @@ export function Header() {
       {isAuthenticated && currentUser ? (
         <DropdownMenu>
           <DropdownMenuTrigger asChild>
-            <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5">
+            <button className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-white/5 shrink-0">
               <div className="relative">
                 <Avatar className="h-8 w-8 border border-emerald-500/30">
                   {currentUser.avatar && (
@@ -415,7 +403,7 @@ export function Header() {
                   <span className="relative h-2.5 w-2.5 rounded-full border-2 border-[#0a0a0a] bg-emerald-500" />
                 </span>
               </div>
-              <span className="hidden text-sm font-medium text-gray-300 md:block">
+              <span className="hidden text-sm font-medium text-gray-300 2xl:block">
                 {currentUser.name}
               </span>
             </button>
@@ -469,7 +457,7 @@ export function Header() {
           </DropdownMenuContent>
         </DropdownMenu>
       ) : (
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2 shrink-0">
           <Button
             onClick={() => setCurrentView('register')}
             variant="outline"
@@ -487,18 +475,41 @@ export function Header() {
           </Button>
         </div>
       )}
+
+      {/* Mobile/Tablet nav toggle for public portal */}
+      {isFullPageMode && (
+        <Button
+          variant="ghost"
+          size="icon"
+          onClick={() => setMobileNavOpen(!mobileNavOpen)}
+          className="shrink-0 text-gray-400 hover:bg-white/5 hover:text-gray-200 xl:hidden ml-1"
+          aria-label="Toggle navigation menu"
+        >
+          {mobileNavOpen ? <X className="h-5 w-5 text-emerald-400" /> : <Menu className="h-5 w-5" />}
+        </Button>
+      )}
     </motion.header>
 
-    {/* Mobile navigation dropdown for public pages */}
+    {/* Mobile/Tablet navigation dropdown for public pages */}
     <AnimatePresence>
       {isFullPageMode && mobileNavOpen && (
-        <motion.div
-          initial={{ opacity: 0, height: 0 }}
-          animate={{ opacity: 1, height: 'auto' }}
-          exit={{ opacity: 0, height: 0 }}
-          transition={{ duration: 0.2 }}
-          className="fixed top-16 left-0 right-0 z-20 border-b border-white/5 bg-[#0a0a0a] md:hidden"
-        >
+        <>
+          {/* Backdrop */}
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.15 }}
+            onClick={() => setMobileNavOpen(false)}
+            className="fixed inset-0 top-16 z-20 bg-black/60 backdrop-blur-sm xl:hidden"
+          />
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            transition={{ duration: 0.2 }}
+            className="fixed top-16 left-0 right-0 z-30 border-b border-white/10 bg-[#0a0a0a]/95 backdrop-blur-xl xl:hidden max-h-[calc(100vh-4rem)] overflow-y-auto shadow-2xl"
+          >
           <nav className="flex flex-col gap-1 p-4">
             {PUBLIC_NAV_LINKS.map((link) => {
               const isActive = currentView === link.view;
@@ -574,6 +585,7 @@ export function Header() {
             </div>
           </nav>
         </motion.div>
+        </>
       )}
     </AnimatePresence>
     </>
