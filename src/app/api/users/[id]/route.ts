@@ -134,6 +134,15 @@ export async function GET(
       userData.membershipStatus = "ACTIVE";
     }
 
+    // Auto-heal: If user has a GUEST role but membershipStatus is ACTIVE, heal it to NON_MEMBER
+    if (userData.role === "GUEST" && userData.membershipStatus === "ACTIVE") {
+      await prisma.user.update({
+        where: { id },
+        data: { membershipStatus: "NON_MEMBER" },
+      });
+      userData.membershipStatus = "NON_MEMBER";
+    }
+
     return successResponse({ user: userData });
   } catch {
     return serverErrorResponse();

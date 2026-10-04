@@ -64,8 +64,13 @@ export async function GET() {
     : dbUser.role;
 
   // Auto-sync: Any non-GUEST role (PRESIDENT, VP, GS, MEMBER, etc.) must have ACTIVE membership status
-  const resolvedMembershipStatus =
+  let resolvedMembershipStatus =
     resolvedRole === 'GUEST' ? dbUser.membershipStatus : 'ACTIVE';
+
+  // Auto-heal: GUEST users should not have ACTIVE membership status
+  if (resolvedRole === 'GUEST' && resolvedMembershipStatus === 'ACTIVE') {
+    resolvedMembershipStatus = 'NON_MEMBER';
+  }
 
   const updateData: Record<string, string> = {};
   if (resolvedRole !== dbUser.role) updateData.role = resolvedRole;
