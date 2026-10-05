@@ -377,7 +377,7 @@ export function EventDetailPage() {
     event.createdBy === currentUser.id
   );
   const canEdit = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS', 'MEDIA'].includes(currentUser.role);
-  const canDelete = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role);
+  const canDelete = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT'].includes(currentUser.role);
   const registrationCount = event._count?.registrations ?? event.registrations?.length ?? event.currentSeats;
   const paymentConfig = parsePaymentConfig(event.paymentConfig);
   const paymentFee = paymentConfig?.feeAmount ?? event.fee ?? 0;

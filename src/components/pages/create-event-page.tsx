@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
-import { ArrowLeft, Plus, Loader2, Calendar, MapPin, Users, FileText, ClipboardCheck, Info, Check, Pencil } from 'lucide-react';
+import { ArrowLeft, Plus, Loader2, Calendar, MapPin, Users, FileText, ClipboardCheck, Info, Check, Pencil, ShieldAlert, AlertTriangle } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventType, EventCategory } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, normalizeEventType } from '@/types';
@@ -48,6 +48,8 @@ function parsePaymentConfig(paymentConfig?: string | null) {
 export function CreateEventPage() {
   const { currentUser, setCurrentView, editingEventId, setEditingEventId, editingEventData, setEditingEventData } = useAppStore();
   const isEditing = !!editingEventId;
+  const canCreateEvent = Boolean(currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role));
+  const canManagePayment = Boolean(currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role));
 
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -153,20 +155,26 @@ export function CreateEventPage() {
         paymentConfig,
       };
 
+      const payloadToSend: any = { ...payload };
+      if (isEditing && !canManagePayment) {
+        delete payloadToSend.paymentConfig;
+        delete payloadToSend.fee;
+      }
+
       let res: Response;
       if (isEditing && editingEventId) {
         // PATCH for editing
         res = await fetch(`/api/events/${editingEventId}`, {
           method: 'PATCH',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(payloadToSend),
         });
       } else {
         // POST for creating
         res = await fetch('/api/events', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(payloadToSend),
         });
       }
       const data = await res.json();
@@ -178,6 +186,23 @@ export function CreateEventPage() {
       }
     } catch { setError('Network error'); } finally { setLoading(false); }
   };
+
+  if (!isEditing && !canCreateEvent) {
+    return (
+      <div className="py-16 text-center space-y-4">
+        <div className="flex h-16 w-16 mx-auto items-center justify-center rounded-2xl bg-rose-500/10 border border-rose-500/20">
+          <AlertTriangle className="h-8 w-8 text-rose-400" />
+        </div>
+        <h2 className="text-xl font-bold text-white">Access Restricted</h2>
+        <p className="text-sm text-gray-400 max-w-md mx-auto">
+          Event creation is restricted to the President, General Secretary, and Platform Admin.
+        </p>
+        <Button onClick={() => setCurrentView('events')} className="bg-emerald-600 text-white hover:bg-emerald-500">
+          Back to Events
+        </Button>
+      </div>
+    );
+  }
 
   if (success) {
     return (
@@ -327,14 +352,22 @@ export function CreateEventPage() {
                 {/* Section 3: Capacity & Pricing */}
                 <div>
                   <SectionHeader icon={Users} title="Capacity & Pricing" description="Seat limits and registration fees" />
+                  
+                  {!canManagePayment && (
+                    <div className="mb-4 rounded-xl border border-amber-500/30 bg-amber-500/10 p-3.5 flex items-center gap-3 text-xs text-amber-300 font-mono">
+                      <ShieldAlert className="h-4 w-4 shrink-0 text-amber-400" />
+                      <span>Payment channels and fee amounts are locked. Only the President and General Secretary can configure financial details.</span>
+                    </div>
+                  )}
+
                   <div className="grid gap-4 sm:grid-cols-2 pl-11">
                     <div className="space-y-1.5">
                       <Label className="text-gray-400">Max Seats</Label>
                       <Input type="number" value={form.maxSeats} onChange={(e) => update('maxSeats', e.target.value)} placeholder="Leave empty for unlimited" className="border-white/10 bg-white/5 text-white" />
                     </div>
                     <div className="space-y-1.5">
-                      <Label className="text-gray-400">Fee (৳)</Label>
-                      <Input type="number" value={form.fee} onChange={(e) => update('fee', e.target.value)} min="0" className="border-white/10 bg-white/5 text-white" />
+                      <Label className="text-gray-400">Fee (৳) {!canManagePayment && '(Locked)'}</Label>
+                      <Input type="number" value={form.fee} onChange={(e) => update('fee', e.target.value)} min="0" disabled={!canManagePayment} className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                     </div>
                   </div>
 
@@ -344,41 +377,41 @@ export function CreateEventPage() {
                         <p className="text-sm font-semibold text-white">Payment Information</p>
                         <p className="text-[11px] text-gray-500">Configure the payment workflow for this event</p>
                       </div>
-                      <Switch checked={form.paymentRequired} onCheckedChange={(value) => update('paymentRequired', value)} />
+                      <Switch checked={form.paymentRequired} onCheckedChange={(value) => update('paymentRequired', value)} disabled={!canManagePayment} />
                     </div>
 
                     <div className="grid gap-4 sm:grid-cols-2">
                       <div className="space-y-1.5">
                         <Label className="text-gray-400">bKash Number</Label>
-                        <Input value={form.bkashNumber} onChange={(e) => update('bkashNumber', e.target.value)} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white" />
+                        <Input value={form.bkashNumber} onChange={(e) => update('bkashNumber', e.target.value)} disabled={!canManagePayment} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-gray-400">Nagad Number</Label>
-                        <Input value={form.nagadNumber} onChange={(e) => update('nagadNumber', e.target.value)} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white" />
+                        <Input value={form.nagadNumber} onChange={(e) => update('nagadNumber', e.target.value)} disabled={!canManagePayment} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-gray-400">Rocket Number (Optional)</Label>
-                        <Input value={form.rocketNumber} onChange={(e) => update('rocketNumber', e.target.value)} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white" />
+                        <Input value={form.rocketNumber} onChange={(e) => update('rocketNumber', e.target.value)} disabled={!canManagePayment} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-gray-400">Bank Account (Optional)</Label>
-                        <Input value={form.bankAccount} onChange={(e) => update('bankAccount', e.target.value)} placeholder="Account name / account no / branch" className="border-white/10 bg-white/5 text-white" />
+                        <Input value={form.bankAccount} onChange={(e) => update('bankAccount', e.target.value)} disabled={!canManagePayment} placeholder="Account name / account no / branch" className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-gray-400">Contact Person Name</Label>
-                        <Input value={form.contactPersonName} onChange={(e) => update('contactPersonName', e.target.value)} placeholder="Treasurer / Event Lead" className="border-white/10 bg-white/5 text-white" />
+                        <Input value={form.contactPersonName} onChange={(e) => update('contactPersonName', e.target.value)} disabled={!canManagePayment} placeholder="Treasurer / Event Lead" className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                       </div>
                       <div className="space-y-1.5">
                         <Label className="text-gray-400">Contact Person Phone</Label>
-                        <Input value={form.contactPersonPhone} onChange={(e) => update('contactPersonPhone', e.target.value)} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white" />
+                        <Input value={form.contactPersonPhone} onChange={(e) => update('contactPersonPhone', e.target.value)} disabled={!canManagePayment} placeholder="01XXXXXXXXX" className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                       </div>
                       <div className="space-y-1.5 sm:col-span-2">
                         <Label className="text-gray-400">Payment Deadline</Label>
-                        <Input type="datetime-local" value={form.paymentDeadline} onChange={(e) => update('paymentDeadline', e.target.value)} className="border-white/10 bg-white/5 text-white" />
+                        <Input type="datetime-local" value={form.paymentDeadline} onChange={(e) => update('paymentDeadline', e.target.value)} disabled={!canManagePayment} className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                       </div>
                       <div className="space-y-1.5 sm:col-span-2">
                         <Label className="text-gray-400">Payment Instructions</Label>
-                        <Textarea value={form.paymentInstructions} onChange={(e) => update('paymentInstructions', e.target.value)} rows={3} placeholder="Send payment via bKash, share the transaction ID, and then complete registration..." className="border-white/10 bg-white/5 text-white" />
+                        <Textarea value={form.paymentInstructions} onChange={(e) => update('paymentInstructions', e.target.value)} disabled={!canManagePayment} rows={3} placeholder="Send payment via bKash, share the transaction ID, and then complete registration..." className="border-white/10 bg-white/5 text-white disabled:opacity-50" />
                       </div>
                     </div>
                   </div>

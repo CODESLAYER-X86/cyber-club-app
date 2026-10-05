@@ -46,8 +46,8 @@ export function EventsPage() {
   const [deleteTarget, setDeleteTarget] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState(false);
 
-  const canCreate = currentUser && ['MEDIA', 'PRESIDENT', 'PLATFORM_ADMIN', 'GS', 'VP'].includes(currentUser.role);
-  const canDelete = currentUser && ['PRESIDENT', 'PLATFORM_ADMIN', 'VP', 'GS'].includes(currentUser.role);
+  const canCreate = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
+  const canDelete = currentUser && ['PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role);
 
   const handleDeleteEvent = async () => {
     if (!deleteTarget || !currentUser) return;

@@ -156,7 +156,6 @@ export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: st
 
     case 'MEDIA':
       return [
-        'create-event',
         'analytics',
       ].includes(view);
 

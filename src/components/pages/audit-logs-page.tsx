@@ -21,6 +21,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import { cn } from '@/lib/utils';
 
 interface AuditLogEntry {
   id: string;
@@ -174,6 +175,14 @@ const ACTION_MAP: Record<string, ActionMeta> = {
     color: 'text-emerald-400 bg-emerald-500/10 border-emerald-500/20',
     borderColor: 'border-l-emerald-400',
     badgeClass: 'border-emerald-500/30 text-emerald-400 bg-emerald-500/10',
+    category: 'FINANCE',
+  },
+  EVENT_PAYMENT_CONFIG_CHANGED: {
+    label: 'Event Payment Changed',
+    icon: CreditCard,
+    color: 'text-amber-400 bg-amber-500/10 border-amber-500/20',
+    borderColor: 'border-l-amber-400',
+    badgeClass: 'border-amber-500/30 text-amber-400 bg-amber-500/10',
     category: 'FINANCE',
   },
 
@@ -562,6 +571,61 @@ function renderHumanNarrative(action: string, details: string, user?: AuditLogEn
             TxID: {trxId}
           </span>
         )}
+      </div>
+    );
+  }
+
+  // Case 6: Event Payment Config Changed or Granular Event Diff
+  if (action === 'EVENT_PAYMENT_CONFIG_CHANGED' || (details.includes('[DIFF_DATA]:') && action === 'EVENT_UPDATED')) {
+    const isPayment = action === 'EVENT_PAYMENT_CONFIG_CHANGED';
+    let diffPayload: any = null;
+    const diffMatch = details.match(/\[DIFF_DATA\]:\s*(\{.*\})/);
+    if (diffMatch) {
+      try {
+        diffPayload = JSON.parse(diffMatch[1]);
+      } catch {}
+    }
+
+    const cleanNarrative = details.split('[DIFF_DATA]:')[0].trim();
+
+    return (
+      <div className="space-y-1.5 text-xs">
+        <p className={cn("font-sans leading-relaxed", isPayment ? "text-amber-200/90 font-medium" : "text-gray-300")}>
+          {cleanNarrative}
+        </p>
+        {diffPayload?.diffs && Array.isArray(diffPayload.diffs) && (
+          <div className="flex flex-wrap gap-1.5 pt-0.5">
+            {diffPayload.diffs.map((d: any, idx: number) => (
+              <span
+                key={idx}
+                className={cn(
+                  "inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded border shadow-sm",
+                  isPayment
+                    ? "border-amber-500/40 bg-amber-950/30 text-amber-300"
+                    : "border-cyan-500/30 bg-cyan-950/30 text-cyan-300"
+                )}
+              >
+                <span className="font-semibold text-white/90">{d.field}:</span>
+                <span className="text-gray-400 line-through">{d.oldValue}</span>
+                <span className="text-emerald-400 font-bold">➔</span>
+                <span className="text-emerald-300 font-semibold">{d.newValue}</span>
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
+    );
+  }
+
+  // Case 7: Event Deleted with Full Forensic Snapshot
+  if (action === 'EVENT_DELETED' && details.includes('[SNAPSHOT]:')) {
+    const cleanNarrative = details.split('[SNAPSHOT]:')[0].trim();
+    return (
+      <div className="space-y-1 text-xs">
+        <p className="text-rose-300 font-sans leading-relaxed font-medium">{cleanNarrative}</p>
+        <span className="inline-flex items-center gap-1 font-mono text-[10px] px-2 py-0.5 rounded border border-rose-500/30 bg-rose-500/10 text-rose-300">
+          <Database className="h-2.5 w-2.5" /> Full Forensic Snapshot Preserved
+        </span>
       </div>
     );
   }
@@ -1395,6 +1459,67 @@ export function AuditLogsPage() {
                     Raw Details: {selectedLog.details}
                   </div>
                 </div>
+
+                {/* Diff Inspector Modal Card */}
+                {(() => {
+                  const diffMatch = selectedLog.details.match(/\[DIFF_DATA\]:\s*(\{.*\})/);
+                  if (!diffMatch) return null;
+                  try {
+                    const parsed = JSON.parse(diffMatch[1]);
+                    if (!parsed.diffs || !Array.isArray(parsed.diffs)) return null;
+                    return (
+                      <div className="rounded-lg border border-amber-500/25 bg-amber-500/5 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] uppercase tracking-wider text-amber-400 font-mono flex items-center gap-1.5 font-bold">
+                            <CreditCard className="h-3.5 w-3.5" /> Granular Field Diffs
+                          </span>
+                          <span className="text-[10px] font-mono text-gray-400 bg-white/5 px-2 py-0.5 rounded border border-white/5">
+                            {parsed.diffs.length} {parsed.diffs.length === 1 ? 'change' : 'changes'}
+                          </span>
+                        </div>
+                        <div className="space-y-1.5">
+                          {parsed.diffs.map((d: any, idx: number) => (
+                            <div key={idx} className="grid grid-cols-3 gap-2 bg-black/40 rounded p-2 border border-white/5 text-xs font-mono">
+                              <span className="text-gray-400 font-semibold truncate">{d.field}</span>
+                              <span className="text-rose-400 line-through truncate">{d.oldValue}</span>
+                              <span className="text-emerald-400 font-bold truncate flex items-center gap-1">
+                                ➔ {d.newValue}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
+
+                {/* Snapshot Inspector Modal Card */}
+                {(() => {
+                  const snapshotMatch = selectedLog.details.match(/\[SNAPSHOT\]:\s*(\{.*\})/);
+                  if (!snapshotMatch) return null;
+                  try {
+                    const parsed = JSON.parse(snapshotMatch[1]);
+                    return (
+                      <div className="rounded-lg border border-rose-500/25 bg-rose-500/5 p-3 space-y-2">
+                        <div className="flex items-center justify-between">
+                          <span className="text-[11px] uppercase tracking-wider text-rose-400 font-mono flex items-center gap-1.5 font-bold">
+                            <Database className="h-3.5 w-3.5" /> Preserved Event Snapshot
+                          </span>
+                          <span className="text-[10px] font-mono text-rose-400/80 bg-rose-500/10 px-2 py-0.5 rounded border border-rose-500/20">
+                            Archived at Deletion
+                          </span>
+                        </div>
+                        <div className="bg-black/60 rounded p-2.5 border border-white/5 max-h-48 overflow-y-auto font-mono text-[11px] text-gray-300 whitespace-pre-wrap">
+                          {JSON.stringify(parsed, null, 2)}
+                        </div>
+                      </div>
+                    );
+                  } catch {
+                    return null;
+                  }
+                })()}
 
                 {/* Timestamp & Metadata */}
                 <div className="grid grid-cols-2 gap-3">

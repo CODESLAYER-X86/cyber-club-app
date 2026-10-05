@@ -4,8 +4,9 @@ import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 import { isSafeUrl } from "@/lib/utils";
 
-const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "VP", "GS"];
+const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN"];
 const MODIFY_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "MEDIA", "VP", "GS"];
+const FINANCIAL_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
 
 export async function DELETE(
   request: NextRequest,
@@ -15,7 +16,7 @@ export async function DELETE(
     const { id } = await params;
     const caller = await getSupabaseUser(DELETE_ROLES);
     if (!caller) {
-      return forbiddenResponse("Only President, VP, General Secretary, and Platform Admin can delete events");
+      return forbiddenResponse("Only President and Platform Admin can delete events");
     }
 
     const event = await prisma.event.findUnique({ where: { id } });
@@ -23,13 +24,40 @@ export async function DELETE(
       return notFoundResponse("Event not found");
     }
 
-    // Log to audit log before cascading delete
+    // Capture complete snapshot before deleting for forensic recovery
     try {
+      let parsedPaymentConfig: any = null;
+      if (event.paymentConfig) {
+        try {
+          parsedPaymentConfig = JSON.parse(event.paymentConfig);
+        } catch {
+          parsedPaymentConfig = event.paymentConfig;
+        }
+      }
+
+      const eventSnapshot = {
+        id: event.id,
+        title: event.title,
+        description: event.description,
+        type: event.type,
+        category: event.category,
+        startDate: event.startDate,
+        endDate: event.endDate,
+        venue: event.venue,
+        fee: event.fee,
+        maxSeats: event.maxSeats,
+        currentSeats: event.currentSeats,
+        status: event.status,
+        poster: event.poster,
+        paymentConfig: parsedPaymentConfig,
+        createdBy: event.createdBy,
+      };
+
       await prisma.auditLog.create({
         data: {
           userId: caller.userId,
           action: "EVENT_DELETED",
-          details: `Deleted event "${event.title}" (${event.type}, ${event.category}). Event ID: ${id}`,
+          details: `Deleted event "${event.title}" (${event.type}, ${event.category}, Fee: ৳${event.fee}). Event ID: ${id} | Deleted by ${caller.role}. [SNAPSHOT]: ${JSON.stringify(eventSnapshot)}`,
         },
       });
     } catch (auditErr) {
@@ -290,6 +318,37 @@ export async function PATCH(
       return notFoundResponse("Event not found");
     }
 
+    // Role guard: Only President, GS, and Platform Admin can alter paymentConfig or fees
+    const isFinancialAdmin = FINANCIAL_ROLES.includes(caller.role);
+    if (!isFinancialAdmin) {
+      if (body.fee !== undefined && Number(body.fee) !== Number(event.fee)) {
+        return forbiddenResponse("Only President, General Secretary, and Platform Admin can modify event fee");
+      }
+      if (body.paymentConfig !== undefined) {
+        let incomingNormalized: string | null = null;
+        if (body.paymentConfig !== null) {
+          try {
+            incomingNormalized = typeof body.paymentConfig === "string"
+              ? JSON.stringify(JSON.parse(body.paymentConfig))
+              : JSON.stringify(body.paymentConfig);
+          } catch {
+            return errorResponse("Invalid paymentConfig JSON payload", 400);
+          }
+        }
+        let existingNormalized: string | null = null;
+        if (event.paymentConfig !== null) {
+          try {
+            existingNormalized = JSON.stringify(JSON.parse(event.paymentConfig));
+          } catch {
+            existingNormalized = event.paymentConfig;
+          }
+        }
+        if (incomingNormalized !== existingNormalized) {
+          return forbiddenResponse("Only President, General Secretary, and Platform Admin can modify event payment configuration");
+        }
+      }
+    }
+
     const allowedFields = [
       "title",
       "description",
@@ -439,16 +498,174 @@ export async function PATCH(
       }
     }
 
-    // Log to audit log
+    // Log to audit log with granular field diffs
     try {
-      const changedFields = Object.keys(data).join(", ");
-      await prisma.auditLog.create({
-        data: {
-          userId: caller.userId,
-          action: "EVENT_UPDATED",
-          details: `Updated event "${updatedEvent.title}" (Fields modified: ${changedFields || "none"}). Event ID: ${id}`,
-        },
-      });
+      interface FieldDiff {
+        field: string;
+        oldValue: string;
+        newValue: string;
+      }
+      const generalDiffs: FieldDiff[] = [];
+      const paymentDiffs: FieldDiff[] = [];
+
+      // Diff scalar fields
+      if (data.title !== undefined && data.title !== event.title) {
+        generalDiffs.push({ field: "Title", oldValue: event.title, newValue: String(data.title) });
+      }
+      if (data.description !== undefined && data.description !== event.description) {
+        generalDiffs.push({ field: "Description", oldValue: "(old description)", newValue: "(updated description)" });
+      }
+      if (data.type !== undefined && data.type !== event.type) {
+        generalDiffs.push({ field: "Type", oldValue: event.type, newValue: String(data.type) });
+      }
+      if (data.category !== undefined && data.category !== event.category) {
+        generalDiffs.push({ field: "Category", oldValue: event.category, newValue: String(data.category) });
+      }
+      if (data.venue !== undefined && data.venue !== event.venue) {
+        generalDiffs.push({ field: "Venue", oldValue: event.venue, newValue: String(data.venue) });
+      }
+      if (data.fee !== undefined && Number(data.fee) !== Number(event.fee)) {
+        paymentDiffs.push({ field: "Event Fee", oldValue: `৳${event.fee}`, newValue: `৳${data.fee}` });
+      }
+      if (data.maxSeats !== undefined && data.maxSeats !== event.maxSeats) {
+        generalDiffs.push({
+          field: "Max Seats",
+          oldValue: event.maxSeats !== null ? String(event.maxSeats) : "Unlimited",
+          newValue: data.maxSeats !== null ? String(data.maxSeats) : "Unlimited",
+        });
+      }
+      if (data.status !== undefined && data.status !== event.status) {
+        generalDiffs.push({ field: "Status", oldValue: event.status, newValue: String(data.status) });
+      }
+      if (data.poster !== undefined && data.poster !== event.poster) {
+        generalDiffs.push({ field: "Poster", oldValue: event.poster ? "Attached" : "None", newValue: data.poster ? "Updated" : "Removed" });
+      }
+      if (data.startDate !== undefined) {
+        const oldTime = new Date(event.startDate).getTime();
+        const newTime = new Date(data.startDate as Date).getTime();
+        if (oldTime !== newTime) {
+          generalDiffs.push({
+            field: "Start Date",
+            oldValue: new Date(event.startDate).toLocaleString(),
+            newValue: new Date(data.startDate as Date).toLocaleString(),
+          });
+        }
+      }
+      if (data.endDate !== undefined) {
+        const oldTime = new Date(event.endDate).getTime();
+        const newTime = new Date(data.endDate as Date).getTime();
+        if (oldTime !== newTime) {
+          generalDiffs.push({
+            field: "End Date",
+            oldValue: new Date(event.endDate).toLocaleString(),
+            newValue: new Date(data.endDate as Date).toLocaleString(),
+          });
+        }
+      }
+
+      // Diff paymentConfig sub-properties
+      if (data.paymentConfig !== undefined) {
+        let oldPc: Record<string, any> = {};
+        let newPc: Record<string, any> = {};
+        try {
+          if (event.paymentConfig) oldPc = typeof event.paymentConfig === "string" ? JSON.parse(event.paymentConfig) : event.paymentConfig;
+        } catch {}
+        try {
+          if (data.paymentConfig) newPc = typeof data.paymentConfig === "string" ? JSON.parse(data.paymentConfig as string) : (data.paymentConfig as Record<string, any>);
+        } catch {}
+
+        const checkSubField = (key: string, label: string, isCurrency = false) => {
+          const oldVal = (oldPc[key] ?? "").toString().trim();
+          const newVal = (newPc[key] ?? "").toString().trim();
+          if (oldVal !== newVal) {
+            paymentDiffs.push({
+              field: label,
+              oldValue: oldVal ? (isCurrency ? `৳${oldVal}` : oldVal) : "[Not set / Empty]",
+              newValue: newVal ? (isCurrency ? `৳${newVal}` : newVal) : "[Cleared / Deleted]",
+            });
+          }
+        };
+
+        checkSubField("bkashNumber", "bKash Number");
+        checkSubField("nagadNumber", "Nagad Number");
+        checkSubField("rocketNumber", "Rocket Number");
+        checkSubField("bankAccount", "Bank Account");
+        checkSubField("feeAmount", "Payment Config Fee", true);
+        checkSubField("paymentInstructions", "Payment Instructions");
+        checkSubField("contactPersonName", "Contact Person Name");
+        checkSubField("contactPersonPhone", "Contact Person Phone");
+        checkSubField("paymentDeadline", "Payment Deadline");
+        if (Boolean(oldPc.paymentRequired) !== Boolean(newPc.paymentRequired)) {
+          paymentDiffs.push({
+            field: "Payment Required",
+            oldValue: oldPc.paymentRequired ? "Yes" : "No",
+            newValue: newPc.paymentRequired ? "Yes" : "No",
+          });
+        }
+      }
+
+      // If financial details or payment numbers were modified:
+      if (paymentDiffs.length > 0) {
+        const paymentSummary = paymentDiffs.map(d => `${d.field}: ${d.oldValue} ➔ ${d.newValue}`).join("; ");
+        const auditDetails = `Payment configuration modified for event "${updatedEvent.title}" (Event ID: ${id}): ${paymentSummary} | Modified by ${caller.role}. [DIFF_DATA]: ${JSON.stringify({ eventId: id, eventTitle: updatedEvent.title, category: "FINANCE", diffs: paymentDiffs })}`;
+
+        await prisma.auditLog.create({
+          data: {
+            userId: caller.userId,
+            action: "EVENT_PAYMENT_CONFIG_CHANGED",
+            details: auditDetails,
+          },
+        });
+
+        // Trigger real-time notifications to President and Treasurer
+        try {
+          const recipients = await prisma.user.findMany({
+            where: {
+              role: { in: ["PRESIDENT", "TREASURER"] },
+              id: { not: caller.userId },
+            },
+            select: { id: true },
+          });
+
+          if (recipients.length > 0) {
+            const shortSummary = paymentDiffs.map(d => `${d.field} (${d.oldValue} ➔ ${d.newValue})`).join(", ");
+            await prisma.notification.createMany({
+              data: recipients.map((r) => ({
+                userId: r.id,
+                title: "⚠️ Event Payment Routing Modified",
+                message: `${caller.role} modified payment channels/fees on "${updatedEvent.title}": ${shortSummary}`,
+                type: "WARNING",
+              })),
+            });
+          }
+        } catch (notifErr) {
+          console.error("Failed to notify leadership about payment config change:", notifErr);
+        }
+      }
+
+      // If non-financial general fields were modified:
+      if (generalDiffs.length > 0) {
+        const generalSummary = generalDiffs.map(d => `${d.field}: ${d.oldValue} ➔ ${d.newValue}`).join("; ");
+        const auditDetails = `Updated event "${updatedEvent.title}" (Event ID: ${id}): ${generalSummary} | Modified by ${caller.role}. [DIFF_DATA]: ${JSON.stringify({ eventId: id, eventTitle: updatedEvent.title, category: "SYSTEM", diffs: generalDiffs })}`;
+
+        await prisma.auditLog.create({
+          data: {
+            userId: caller.userId,
+            action: "EVENT_UPDATED",
+            details: auditDetails,
+          },
+        });
+      } else if (paymentDiffs.length === 0) {
+        // Fallback for unchanged or un-diffed fields
+        const changedFields = Object.keys(data).join(", ");
+        await prisma.auditLog.create({
+          data: {
+            userId: caller.userId,
+            action: "EVENT_UPDATED",
+            details: `Updated event "${updatedEvent.title}" (Fields modified: ${changedFields || "none"}). Event ID: ${id}`,
+          },
+        });
+      }
     } catch (auditErr) {
       console.error("Audit log error on event update:", auditErr);
     }

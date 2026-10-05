@@ -191,10 +191,10 @@ export async function POST(request: NextRequest) {
       return errorResponse("Invalid or unsafe poster URL");
     }
 
-    const EVENT_CREATOR_ROLES = ["PRESIDENT", "VP", "GS", "PLATFORM_ADMIN", "MEDIA"];
+    const EVENT_CREATOR_ROLES = ["PRESIDENT", "GS", "PLATFORM_ADMIN"];
     const caller = await getSupabaseUser(EVENT_CREATOR_ROLES);
     if (!caller) {
-      return forbiddenResponse("Only President, VP, GS, Media, or Platform Admin can create events");
+      return forbiddenResponse("Only President, General Secretary, and Platform Admin can create events");
     }
     const createdBy = caller.userId;
 
