@@ -48,6 +48,42 @@ export async function GET(request: NextRequest) {
       });
     }
 
+    const startDate = searchParams.get("startDate");
+    const endDate = searchParams.get("endDate");
+    const timeframe = searchParams.get("timeframe");
+
+    if (startDate || endDate) {
+      const dateFilter: Prisma.DateTimeFilter = {};
+      if (startDate) {
+        const start = new Date(startDate);
+        start.setHours(0, 0, 0, 0);
+        dateFilter.gte = start;
+      }
+      if (endDate) {
+        const end = new Date(endDate);
+        end.setHours(23, 59, 59, 999);
+        dateFilter.lte = end;
+      }
+      conditions.push({ createdAt: dateFilter });
+    } else if (timeframe && timeframe !== "all") {
+      const now = new Date();
+      const cutoff = new Date();
+      if (timeframe === "2d") {
+        cutoff.setDate(now.getDate() - 2);
+        cutoff.setHours(0, 0, 0, 0);
+      } else if (timeframe === "1d") {
+        cutoff.setDate(now.getDate() - 1);
+        cutoff.setHours(0, 0, 0, 0);
+      } else if (timeframe === "7d") {
+        cutoff.setDate(now.getDate() - 7);
+        cutoff.setHours(0, 0, 0, 0);
+      } else if (timeframe === "30d" || timeframe === "1m") {
+        cutoff.setDate(now.getDate() - 30);
+        cutoff.setHours(0, 0, 0, 0);
+      }
+      conditions.push({ createdAt: { gte: cutoff } });
+    }
+
     const where: Prisma.AuditLogWhereInput = conditions.length > 0 ? { AND: conditions } : {};
 
     const todayStart = new Date();

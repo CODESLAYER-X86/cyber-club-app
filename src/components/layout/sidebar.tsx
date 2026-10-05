@@ -38,7 +38,6 @@ import { useAppStore } from '@/store/use-app-store';
 import { useMobileOptimized } from '@/hooks/use-mobile-optimized';
 import type { UserRole, AppView, NavItem } from '@/types';
 import { ROLE_LABELS } from '@/types';
-import { ScrollArea } from '@/components/ui/scroll-area';
 import { Separator } from '@/components/ui/separator';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -331,7 +330,7 @@ export function Sidebar({ className }: SidebarProps = {}) {
         className={cn(
           'shrink-0 flex h-screen h-[100dvh] max-h-screen max-h-[100dvh] flex-col overflow-hidden border-r border-white/5 bg-[#0a0a0a]',
           // Mobile: fixed overlay positioned sidebar above bottom nav
-          'fixed left-0 top-0 z-[70] md:static md:z-auto',
+          'fixed inset-y-0 left-0 z-[70] md:static md:z-auto',
           // Mobile: hide when closed
           !sidebarOpen && 'max-md:-translate-x-full max-md:w-[260px]',
           // Smooth transition on all sizes
@@ -413,8 +412,8 @@ export function Sidebar({ className }: SidebarProps = {}) {
         </AnimatePresence>
 
         {/* Navigation */}
-        <ScrollArea className="relative z-20 flex-1 min-h-0 px-3 py-3">
-          <nav className="flex flex-col gap-1 pb-6 md:pb-2">
+        <div className="relative z-20 flex-1 min-h-0 overflow-y-auto overscroll-contain touch-pan-y px-3 py-3 scrollbar-thin scrollbar-thumb-white/10 [scrollbar-width:thin] [scrollbar-color:rgba(255,255,255,0.15)_transparent]">
+          <nav className="flex flex-col gap-1 pb-8 md:pb-2">
             {navItems.map((item) => {
               const Icon = ICON_MAP[item.icon] ?? Home;
               const isActive = currentView === item.view;
@@ -506,7 +505,7 @@ export function Sidebar({ className }: SidebarProps = {}) {
               return <div key={item.view}>{navButton}</div>;
             })}
           </nav>
-        </ScrollArea>
+        </div>
 
         <Separator className="relative z-20 shrink-0 bg-white/5" />
 

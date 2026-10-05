@@ -7,7 +7,7 @@ import {
   XCircle, Plus, Activity, Users, Clock, Shield, ShieldAlert,
   CreditCard, Ban, ArrowRight, Eye, RefreshCw, Layers,
   Download, Megaphone, Trophy, Image as ImageIcon, Globe,
-  Calendar, Database, Sparkles, Loader2,
+  Calendar, Database, Sparkles, Loader2, X,
 } from 'lucide-react';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -583,12 +583,20 @@ function getDateGroupKey(dateString: string): string {
 
   if (diffDays === 0) return 'Today';
   if (diffDays === 1) return 'Yesterday';
+  if (diffDays === 2) return '2 Days Ago';
 
   if (now.getFullYear() === date.getFullYear()) {
     return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
   }
 
   return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+function toISODateInput(d: Date): string {
+  const year = d.getFullYear();
+  const month = String(d.getMonth() + 1).padStart(2, '0');
+  const day = String(d.getDate()).padStart(2, '0');
+  return `${year}-${month}-${day}`;
 }
 
 const PAGE_SIZE = 50;
@@ -602,6 +610,10 @@ export function AuditLogsPage() {
   const [search, setSearch] = useState('');
   const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
+  const [timeframe, setTimeframe] = useState<'2d' | '1d' | '7d' | '30d' | 'all' | 'custom'>('all');
+  const [startDate, setStartDate] = useState<string>('');
+  const [endDate, setEndDate] = useState<string>('');
+  const [showDatePicker, setShowDatePicker] = useState<boolean>(false);
   const [nextCursor, setNextCursor] = useState<string | null>(null);
   const [hasMore, setHasMore] = useState(false);
   const [totalCount, setTotalCount] = useState(0);
@@ -637,6 +649,15 @@ export function AuditLogsPage() {
       if (debouncedSearch.trim()) {
         params.set('q', debouncedSearch.trim());
       }
+      if (startDate) {
+        params.set('startDate', startDate);
+      }
+      if (endDate) {
+        params.set('endDate', endDate);
+      }
+      if (timeframe && timeframe !== 'all' && timeframe !== 'custom') {
+        params.set('timeframe', timeframe);
+      }
       if (cursorToUse) {
         params.set('cursor', cursorToUse);
       }
@@ -667,7 +688,24 @@ export function AuditLogsPage() {
 
   useEffect(() => {
     fetchLogs();
-  }, [activeFilter, debouncedSearch]);
+  }, [activeFilter, debouncedSearch, timeframe, startDate, endDate]);
+
+  const handleSelectTimeframe = (tf: '2d' | '1d' | '7d' | '30d' | 'all') => {
+    setTimeframe(tf);
+    setStartDate('');
+    setEndDate('');
+    setShowDatePicker(false);
+  };
+
+  const handleSelectLast2Days = () => {
+    const end = new Date();
+    const start = new Date();
+    start.setDate(end.getDate() - 2);
+    setStartDate(toISODateInput(start));
+    setEndDate(toISODateInput(end));
+    setTimeframe('2d');
+    setShowDatePicker(false);
+  };
 
   const handlePruneLogs = async () => {
     if (!confirm('Run 100k FIFO maintenance check now? Any logs older than the 100,000th newest record will be purged to protect Supabase free tier storage.')) {
@@ -817,6 +855,206 @@ export function AuditLogsPage() {
             </button>
           );
         })}
+      </div>
+
+      {/* Timeline Calendar & Date Presets Filter */}
+      <div className="flex flex-col gap-2.5 bg-[#0a0f16] border border-white/5 rounded-xl p-3 shadow-inner">
+        <div className="flex flex-wrap items-center justify-between gap-2.5">
+          <div className="flex items-center gap-1.5 flex-wrap">
+            <div className="flex items-center gap-1.5 text-xs text-gray-400 font-mono pr-2.5 border-r border-white/10">
+              <Calendar className="h-3.5 w-3.5 text-emerald-400" />
+              <span className="font-semibold text-gray-300">Timeline:</span>
+            </div>
+
+            {/* Quick 2-Day Preset */}
+            <button
+              onClick={handleSelectLast2Days}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border flex items-center gap-1.5 ${
+                timeframe === '2d'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm shadow-emerald-500/20 ring-1 ring-emerald-500/50'
+                  : 'bg-white/[0.03] text-gray-400 border-white/5 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              <Sparkles className="h-3 w-3 text-emerald-400" />
+              <span>Last 2 Days</span>
+              <Badge variant="outline" className="text-[9px] px-1 py-0 border-emerald-500/30 text-emerald-300">
+                48h
+              </Badge>
+            </button>
+
+            {/* Today Preset */}
+            <button
+              onClick={() => handleSelectTimeframe('1d')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border ${
+                timeframe === '1d'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                  : 'bg-white/[0.03] text-gray-400 border-white/5 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              Today
+            </button>
+
+            {/* 7 Days Preset */}
+            <button
+              onClick={() => handleSelectTimeframe('7d')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border ${
+                timeframe === '7d'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                  : 'bg-white/[0.03] text-gray-400 border-white/5 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              Last 7 Days
+            </button>
+
+            {/* 30 Days Preset */}
+            <button
+              onClick={() => handleSelectTimeframe('30d')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border ${
+                timeframe === '30d'
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                  : 'bg-white/[0.03] text-gray-400 border-white/5 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              Last 30 Days
+            </button>
+
+            {/* All Time Preset */}
+            <button
+              onClick={() => handleSelectTimeframe('all')}
+              className={`px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all border ${
+                timeframe === 'all' && !startDate && !endDate
+                  ? 'bg-emerald-500/20 text-emerald-300 border-emerald-500/40 shadow-sm'
+                  : 'bg-white/[0.03] text-gray-400 border-white/5 hover:bg-white/10 hover:text-white'
+              }`}
+            >
+              All Time
+            </button>
+          </div>
+
+          {/* Calendar Picker Toggle Button */}
+          <div className="flex items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setShowDatePicker(prev => !prev)}
+              className={`text-xs font-mono border transition-all h-8 ${
+                showDatePicker || startDate || endDate
+                  ? 'bg-cyan-500/15 border-cyan-500/30 text-cyan-300'
+                  : 'bg-white/5 border-white/10 text-gray-300 hover:bg-white/10'
+              }`}
+            >
+              <Calendar className="mr-1.5 h-3.5 w-3.5 text-cyan-400" />
+              {startDate && endDate ? `${startDate} to ${endDate}` : 'Pick Calendar Dates'}
+            </Button>
+
+            {(timeframe !== 'all' || startDate || endDate) && (
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  setTimeframe('all');
+                  setStartDate('');
+                  setEndDate('');
+                  setShowDatePicker(false);
+                }}
+                className="text-[11px] text-gray-400 hover:text-white font-mono h-8 px-2"
+              >
+                <X className="mr-1 h-3 w-3 text-rose-400" />
+                Reset Timeline
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Expandable Custom Calendar Date Range Picker */}
+        {showDatePicker && (
+          <motion.div
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="rounded-lg border border-cyan-500/25 bg-[#080d14] p-3.5 space-y-3 pt-2"
+          >
+            <div className="flex items-center justify-between border-b border-white/5 pb-2">
+              <span className="text-xs font-bold text-white font-mono flex items-center gap-1.5">
+                <Calendar className="h-3.5 w-3.5 text-cyan-400" />
+                Select Timeline Date Range
+              </span>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleSelectLast2Days}
+                className="text-xs font-mono text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 h-6 px-2"
+              >
+                <Sparkles className="mr-1 h-3 w-3" />
+                Quick Set: Last 2 Days
+              </Button>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-3 items-end">
+              <div>
+                <label className="text-[11px] text-gray-400 font-mono block mb-1">From Date (Start):</label>
+                <Input
+                  type="date"
+                  value={startDate}
+                  onChange={e => setStartDate(e.target.value)}
+                  className="bg-black/40 border-white/10 text-white text-xs font-mono focus-visible:ring-cyan-500/40 h-8"
+                />
+              </div>
+
+              <div>
+                <label className="text-[11px] text-gray-400 font-mono block mb-1">To Date (End):</label>
+                <Input
+                  type="date"
+                  value={endDate}
+                  onChange={e => setEndDate(e.target.value)}
+                  className="bg-black/40 border-white/10 text-white text-xs font-mono focus-visible:ring-cyan-500/40 h-8"
+                />
+              </div>
+
+              <div className="flex items-center gap-2">
+                <Button
+                  size="sm"
+                  onClick={() => {
+                    if (startDate || endDate) {
+                      setTimeframe('custom');
+                      setShowDatePicker(false);
+                    }
+                  }}
+                  disabled={!startDate && !endDate}
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white text-xs font-mono flex-1 h-8"
+                >
+                  Apply Calendar Range
+                </Button>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setStartDate('');
+                    setEndDate('');
+                    setTimeframe('all');
+                    setShowDatePicker(false);
+                  }}
+                  className="border-white/10 bg-white/5 text-gray-400 hover:text-white text-xs font-mono h-8"
+                >
+                  Clear
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Active Range Summary Pill */}
+        {(timeframe !== 'all' || startDate || endDate) && (
+          <div className="flex items-center justify-between text-[11px] font-mono bg-emerald-500/10 border border-emerald-500/20 px-2.5 py-1 rounded text-emerald-300">
+            <span className="flex items-center gap-1.5">
+              <Calendar className="h-3 w-3 text-emerald-400" />
+              Active Timeline Filter: {timeframe === '2d' ? 'Last 2 Days (Past 48 Hours)' : timeframe === '1d' ? 'Today (Past 24 Hours)' : timeframe === '7d' ? 'Last 7 Days' : timeframe === '30d' ? 'Last 30 Days' : `${startDate || 'Beginning'} to ${endDate || 'Now'}`}
+            </span>
+            <span className="text-gray-400">
+              Showing matching logs from database
+            </span>
+          </div>
+        )}
       </div>
 
       {/* Search Input */}
