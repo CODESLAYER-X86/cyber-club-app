@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag, FileDown } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag, FileDown, Copy, Check, CreditCard, Smartphone } from 'lucide-react';
+import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventRegistration, User as UserType, EventType } from '@/types';
 import { EVENT_TYPE_LABELS, EVENT_CATEGORY_LABELS, ROLE_LABELS, CERTIFICATE_TYPE_LABELS, CertificateType } from '@/types';
@@ -59,6 +60,28 @@ export function EventDetailPage() {
   const [savingName, setSavingName] = useState(false);
   const [certificateStatus, setCertificateStatus] = useState<string>('REGISTERED');
   const [updatingAttendanceId, setUpdatingAttendanceId] = useState<string | null>(null);
+  const [copiedKey, setCopiedKey] = useState<string | null>(null);
+
+  const handleCopyPaymentNumber = (number: string, label: string, key: string) => {
+    if (!number) return;
+    navigator.clipboard.writeText(number);
+    setCopiedKey(key);
+    setSentToNumber(number);
+
+    if (key === 'bkashNumber') setPaymentMethod('BKASH');
+    else if (key === 'nagadNumber') setPaymentMethod('NAGAD');
+    else if (key === 'rocketNumber') setPaymentMethod('ROCKET');
+    else if (key === 'bankAccount') setPaymentMethod('BANK');
+
+    toast({
+      title: `${label} Number Copied`,
+      description: `${number} copied to clipboard & auto-filled in recipient number.`,
+    });
+
+    setTimeout(() => {
+      setCopiedKey((prev) => (prev === key ? null : prev));
+    }, 2000);
+  };
 
   const loadEvent = useCallback(async (showSkeleton = true) => {
     let eventId = selectedEventId;
@@ -683,28 +706,115 @@ export function EventDetailPage() {
                 <div className="space-y-4">
                   {paymentFee > 0 && (
                     <div className="space-y-3">
-                      <div className="rounded-lg border border-emerald-500/20 bg-emerald-500/5 p-3 space-y-2">
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-semibold text-emerald-300">Payment Details</span>
-                          <span className="text-xs text-emerald-400">Fee: ৳{paymentFee}</span>
+                      <div className="rounded-xl border border-emerald-500/25 bg-emerald-500/5 p-3.5 space-y-3 shadow-lg">
+                        <div className="flex items-center justify-between gap-2 border-b border-white/5 pb-2">
+                          <span className="text-xs font-semibold text-emerald-300 flex items-center gap-1.5 font-mono">
+                            <CreditCard className="h-3.5 w-3.5" /> Official Payment Channels
+                          </span>
+                          <span className="text-xs font-mono font-bold text-emerald-400 bg-emerald-500/10 border border-emerald-500/20 px-2 py-0.5 rounded">
+                            Fee: ৳{paymentFee}
+                          </span>
                         </div>
+
                         {paymentMethods.length > 0 && (
                           <div className="grid gap-2">
-                            {paymentMethods.map((method) => (
-                              <div key={method.key} className="rounded-md border border-white/10 bg-black/20 px-3 py-2 text-xs text-gray-300">
-                                <span className="font-semibold text-white">{method.label}:</span> {method.value}
-                              </div>
-                            ))}
+                            {paymentMethods.map((method) => {
+                              const isBkash = method.key === 'bkashNumber';
+                              const isNagad = method.key === 'nagadNumber';
+                              const isRocket = method.key === 'rocketNumber';
+                              const isCopied = copiedKey === method.key;
+
+                              return (
+                                <div
+                                  key={method.key}
+                                  className={cn(
+                                    "flex items-center justify-between gap-2 rounded-lg border p-2.5 sm:px-3 sm:py-2 text-xs transition-all",
+                                    isBkash
+                                      ? "border-pink-500/30 bg-pink-950/20 hover:border-pink-500/50"
+                                      : isNagad
+                                      ? "border-orange-500/30 bg-orange-950/20 hover:border-orange-500/50"
+                                      : isRocket
+                                      ? "border-indigo-500/30 bg-indigo-950/20 hover:border-indigo-500/50"
+                                      : "border-cyan-500/30 bg-cyan-950/20 hover:border-cyan-500/50"
+                                  )}
+                                >
+                                  <div className="flex items-center gap-2 min-w-0">
+                                    <span
+                                      className={cn(
+                                        "font-semibold font-mono text-[10px] sm:text-[11px] shrink-0 px-1.5 py-0.5 rounded border",
+                                        isBkash
+                                          ? "text-pink-300 border-pink-500/40 bg-pink-500/15"
+                                          : isNagad
+                                          ? "text-orange-300 border-orange-500/40 bg-orange-500/15"
+                                          : isRocket
+                                          ? "text-indigo-300 border-indigo-500/40 bg-indigo-500/15"
+                                          : "text-cyan-300 border-cyan-500/40 bg-cyan-500/15"
+                                      )}
+                                    >
+                                      {method.label}
+                                    </span>
+                                    <span className="font-mono font-bold text-white tracking-wider text-xs sm:text-sm truncate select-all">
+                                      {method.value}
+                                    </span>
+                                  </div>
+
+                                  <button
+                                    type="button"
+                                    onClick={() => handleCopyPaymentNumber(method.value!, method.label, method.key)}
+                                    className={cn(
+                                      "flex items-center gap-1.5 shrink-0 rounded-md px-2.5 py-1 text-[11px] font-mono font-medium transition-all shadow-sm active:scale-95",
+                                      isCopied
+                                        ? "bg-emerald-500 text-slate-950 font-bold"
+                                        : "bg-white/10 hover:bg-white/20 text-gray-200 border border-white/10"
+                                    )}
+                                    title={`Copy ${method.label} number`}
+                                  >
+                                    {isCopied ? (
+                                      <>
+                                        <Check className="h-3.5 w-3.5" />
+                                        <span>Copied!</span>
+                                      </>
+                                    ) : (
+                                      <>
+                                        <Copy className="h-3.5 w-3.5" />
+                                        <span>Copy</span>
+                                      </>
+                                    )}
+                                  </button>
+                                </div>
+                              );
+                            })}
                           </div>
                         )}
+
                         {paymentConfig?.paymentInstructions && (
-                          <p className="text-xs text-gray-400">{paymentConfig.paymentInstructions}</p>
+                          <p className="text-xs text-gray-400 leading-relaxed pt-1">{paymentConfig.paymentInstructions}</p>
                         )}
                         {paymentConfig?.contactPersonName && (
-                          <p className="text-xs text-gray-400">Contact: {paymentConfig.contactPersonName}{paymentConfig.contactPersonPhone ? ` • ${paymentConfig.contactPersonPhone}` : ''}</p>
+                          <div className="flex items-center justify-between text-xs text-gray-400 pt-1.5 border-t border-white/5">
+                            <span className="truncate">
+                              Contact: {paymentConfig.contactPersonName}
+                              {paymentConfig.contactPersonPhone ? ` • ${paymentConfig.contactPersonPhone}` : ''}
+                            </span>
+                            {paymentConfig.contactPersonPhone && (
+                              <button
+                                type="button"
+                                onClick={() => handleCopyPaymentNumber(paymentConfig.contactPersonPhone, 'Contact', 'contactPhone')}
+                                className={cn(
+                                  "flex items-center gap-1 text-[11px] font-mono shrink-0 px-2 py-0.5 rounded transition-all",
+                                  copiedKey === 'contactPhone'
+                                    ? "text-emerald-400 font-bold bg-emerald-500/10"
+                                    : "text-gray-400 hover:text-white bg-white/5"
+                                )}
+                              >
+                                {copiedKey === 'contactPhone' ? <Check className="h-3 w-3" /> : <Copy className="h-3 w-3" />}
+                                <span>{copiedKey === 'contactPhone' ? 'Copied' : 'Copy'}</span>
+                              </button>
+                            )}
+                          </div>
                         )}
                         {paymentConfig?.paymentDeadline && (
-                          <p className="text-xs text-amber-300">Payment deadline: {new Date(paymentConfig.paymentDeadline).toLocaleString()}</p>
+                          <p className="text-xs text-amber-300 font-mono">Payment deadline: {new Date(paymentConfig.paymentDeadline).toLocaleString()}</p>
                         )}
                       </div>
 
@@ -718,6 +828,7 @@ export function EventDetailPage() {
                           >
                             <option value="BKASH">bKash</option>
                             <option value="NAGAD">Nagad</option>
+                            <option value="ROCKET">Rocket</option>
                             <option value="BANK">Bank</option>
                             <option value="CASH">Cash</option>
                           </select>
@@ -729,7 +840,18 @@ export function EventDetailPage() {
                           />
                         </div>
                         <div className="space-y-1 pt-1">
-                          <label className="text-[11px] font-mono text-gray-400">Recipient / Sent-To Number (Account that received fee)</label>
+                          <div className="flex items-center justify-between">
+                            <label className="text-[11px] font-mono text-gray-400">Recipient / Sent-To Number (Account that received fee)</label>
+                            {sentToNumber && (
+                              <button
+                                type="button"
+                                onClick={() => setSentToNumber('')}
+                                className="text-[10px] font-mono text-gray-500 hover:text-gray-300"
+                              >
+                                Clear
+                              </button>
+                            )}
+                          </div>
                           <Input
                             value={sentToNumber}
                             onChange={(e) => setSentToNumber(e.target.value)}
