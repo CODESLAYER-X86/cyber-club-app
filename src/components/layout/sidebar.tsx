@@ -329,7 +329,7 @@ export function Sidebar({ className }: SidebarProps = {}) {
           transition: { duration: isMobile ? 0.2 : 0.3, ease: 'easeOut' }
         }}
         className={cn(
-          'shrink-0 flex h-screen flex-col border-r border-white/5 bg-[#0a0a0a]',
+          'shrink-0 flex h-screen h-[100dvh] max-h-screen max-h-[100dvh] flex-col overflow-hidden border-r border-white/5 bg-[#0a0a0a]',
           // Mobile: fixed overlay positioned sidebar above bottom nav
           'fixed left-0 top-0 z-[70] md:static md:z-auto',
           // Mobile: hide when closed
@@ -349,7 +349,7 @@ export function Sidebar({ className }: SidebarProps = {}) {
         </div>
 
         {/* Logo area with mobile close button */}
-        <div className="relative z-20 flex h-16 items-center justify-between border-b border-white/5 px-4">
+        <div className="relative z-20 flex h-16 shrink-0 items-center justify-between border-b border-white/5 px-4">
           <button
             onClick={() => setCurrentView('landing')}
             className="flex items-center gap-3 cursor-pointer hover:bg-white/[0.02] transition-colors duration-200 text-left flex-1 min-w-0 focus:outline-none"
@@ -396,7 +396,7 @@ export function Sidebar({ className }: SidebarProps = {}) {
               animate={{ opacity: 1, height: 'auto' }}
               exit={{ opacity: 0, height: 0 }}
               transition={transitionConfig}
-              className="px-3 pt-3"
+              className="px-3 pt-3 shrink-0"
             >
               <div
                 className={cn(
@@ -413,8 +413,8 @@ export function Sidebar({ className }: SidebarProps = {}) {
         </AnimatePresence>
 
         {/* Navigation */}
-        <ScrollArea className="relative z-20 flex-1 px-3 py-3">
-          <nav className="flex flex-col gap-1 pb-16 md:pb-2">
+        <ScrollArea className="relative z-20 flex-1 min-h-0 px-3 py-3">
+          <nav className="flex flex-col gap-1 pb-6 md:pb-2">
             {navItems.map((item) => {
               const Icon = ICON_MAP[item.icon] ?? Home;
               const isActive = currentView === item.view;
@@ -508,10 +508,10 @@ export function Sidebar({ className }: SidebarProps = {}) {
           </nav>
         </ScrollArea>
 
-        <Separator className="relative z-20 bg-white/5" />
+        <Separator className="relative z-20 shrink-0 bg-white/5" />
 
         {/* View Public Site Quick Switcher */}
-        <div className="relative z-20 px-3 pt-2">
+        <div className="relative z-20 shrink-0 px-3 pt-2">
           {sidebarOpen ? (
             <button
               type="button"
@@ -543,7 +543,7 @@ export function Sidebar({ className }: SidebarProps = {}) {
         </div>
 
         {/* Version and collapse toggle */}
-        <div className="relative z-20 flex items-center justify-between p-3">
+        <div className="relative z-20 shrink-0 flex items-center justify-between p-3">
           {sidebarOpen && (
             <motion.span
               initial={{ opacity: 0 }}

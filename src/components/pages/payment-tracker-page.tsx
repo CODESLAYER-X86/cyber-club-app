@@ -36,6 +36,13 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import {
+  TimelineFilter,
+  type TimeframeOption,
+  filterByTimeframe,
+  isDateWithinTimeframe,
+  getTimeframeLabel,
+} from '@/components/shared/timeline-filter';
 
 interface UserDossier {
   id: string;
@@ -162,6 +169,7 @@ export function PaymentTrackerPage() {
   const [membershipStatusFilter, setMembershipStatusFilter] = useState<string>('ALL');
   const [eventStatusFilter, setEventStatusFilter] = useState<'ALL' | 'COMPLETED' | 'ACTIVE'>('ALL');
   const [paidEventsOnly, setPaidEventsOnly] = useState(true);
+  const [timeline, setTimeline] = useState<TimeframeOption>('all');
   const [expandedEventIds, setExpandedEventIds] = useState<Set<string>>(new Set());
 
   // Copy helper
@@ -344,10 +352,157 @@ export function PaymentTrackerPage() {
     document.body.removeChild(link);
   };
 
+  // Timeframe filtered membership payments
+  const timeframeMemberPayments = useMemo(() => {
+    if (!data?.membershipPayments) return [];
+    return filterByTimeframe(data.membershipPayments, timeline);
+  }, [data?.membershipPayments, timeline]);
+
+  // Timeframe filtered events & event registrations
+  const timeframeEvents = useMemo(() => {
+    if (!data?.events) return [];
+    if (timeline === 'all') return data.events;
+    return data.events.map((ev) => {
+      const filteredRegs = ev.registrations.filter((r) => {
+        const d = r.payment?.createdAt || r.registeredAt || ev.startDate;
+        return isDateWithinTimeframe(d, timeline);
+      });
+      const totalCollected = filteredRegs
+        .filter((r) => r.payment?.status === 'VERIFIED')
+        .reduce((sum, r) => sum + (r.payment?.amount ?? ev.fee), 0);
+      const pendingCollected = filteredRegs
+        .filter((r) => r.payment?.status === 'PENDING')
+        .reduce((sum, r) => sum + (r.payment?.amount ?? ev.fee), 0);
+      const paidCount = filteredRegs.filter((r) => r.payment?.status === 'VERIFIED').length;
+      const pendingCount = filteredRegs.filter((r) => r.payment?.status === 'PENDING').length;
+
+      return {
+        ...ev,
+        registrations: filteredRegs,
+        registrationsCount: filteredRegs.length,
+        totalCollected,
+        pendingCollected,
+        paidCount,
+        pendingCount,
+      };
+    });
+  }, [data?.events, timeline]);
+
+  // Dynamic period metrics for StatCards
+  const periodMetrics = useMemo(() => {
+    if (!data) {
+      return {
+        totalVerified: 0,
+        totalPending: 0,
+        pendingCount: 0,
+        membershipVerified: 0,
+        eventVerified: 0,
+      };
+    }
+    if (timeline === 'all') {
+      return {
+        totalVerified: data.summary.totalVerifiedAmount,
+        totalPending: data.summary.totalPendingAmount,
+        pendingCount: data.summary.totalPendingCount,
+        membershipVerified: data.summary.membershipVerifiedAmount,
+        eventVerified: data.summary.eventVerifiedAmount,
+      };
+    }
+
+    const memVerified = timeframeMemberPayments
+      .filter((p) => p.status === 'VERIFIED' || p.status === 'APPROVED')
+      .reduce((sum, p) => sum + (p.paymentMethod === 'PREVIOUS_MEMBER' ? 0 : p.amount), 0);
+    const memPending = timeframeMemberPayments
+      .filter((p) => p.status === 'PENDING')
+      .reduce((sum, p) => sum + p.amount, 0);
+    const memPendingCount = timeframeMemberPayments.filter((p) => p.status === 'PENDING').length;
+
+    let evVerified = 0;
+    let evPending = 0;
+    let evPendingCount = 0;
+
+    timeframeEvents.forEach((ev) => {
+      ev.registrations.forEach((r) => {
+        if (r.payment?.status === 'VERIFIED') {
+          evVerified += r.payment.amount ?? ev.fee;
+        } else if (r.payment?.status === 'PENDING') {
+          evPending += r.payment.amount ?? ev.fee;
+          evPendingCount++;
+        }
+      });
+    });
+
+    return {
+      totalVerified: memVerified + evVerified,
+      totalPending: memPending + evPending,
+      pendingCount: memPendingCount + evPendingCount,
+      membershipVerified: memVerified,
+      eventVerified: evVerified,
+    };
+  }, [data, timeline, timeframeMemberPayments, timeframeEvents]);
+
+  // Dynamic period receivers summary
+  const periodReceiversSummary = useMemo(() => {
+    if (!data?.receiversSummary) return [];
+    if (timeline === 'all') return data.receiversSummary;
+
+    const map = new Map<string, ReceiverSummary>();
+
+    timeframeMemberPayments.forEach((p) => {
+      const rawKey = p.sentToNumber || 'CLUB_CENTRAL';
+      const name = p.receiverName || (p.sentToNumber ? `Account: ${p.sentToNumber}` : 'Club Official Account');
+      const existing = map.get(rawKey) || {
+        receiverKey: rawKey,
+        receiverName: name,
+        sentToNumber: p.sentToNumber || 'Official Gateway',
+        totalAmount: 0,
+        verifiedAmount: 0,
+        pendingAmount: 0,
+        totalTransactions: 0,
+      };
+      existing.totalTransactions++;
+      const amt = p.amount || 0;
+      existing.totalAmount += amt;
+      if (p.status === 'VERIFIED' || p.status === 'APPROVED') {
+        existing.verifiedAmount += amt;
+      } else if (p.status === 'PENDING') {
+        existing.pendingAmount += amt;
+      }
+      map.set(rawKey, existing);
+    });
+
+    timeframeEvents.forEach((ev) => {
+      ev.registrations.forEach((r) => {
+        if (!r.payment) return;
+        const rawKey = r.payment.sentToNumber || r.payment.receiverName || 'EVENT_GATEWAY';
+        const name = r.payment.receiverName || (r.payment.sentToNumber ? `Account: ${r.payment.sentToNumber}` : 'Event Gateway');
+        const existing = map.get(rawKey) || {
+          receiverKey: rawKey,
+          receiverName: name,
+          sentToNumber: r.payment.sentToNumber || 'Official Gateway',
+          totalAmount: 0,
+          verifiedAmount: 0,
+          pendingAmount: 0,
+          totalTransactions: 0,
+        };
+        existing.totalTransactions++;
+        const amt = r.payment.amount ?? ev.fee;
+        existing.totalAmount += amt;
+        if (r.payment.status === 'VERIFIED') {
+          existing.verifiedAmount += amt;
+        } else if (r.payment.status === 'PENDING') {
+          existing.pendingAmount += amt;
+        }
+        map.set(rawKey, existing);
+      });
+    });
+
+    return Array.from(map.values()).sort((a, b) => b.totalAmount - a.totalAmount);
+  }, [data?.receiversSummary, timeline, timeframeMemberPayments, timeframeEvents]);
+
   // Filtered Member Payments
   const filteredMemberPayments = useMemo(() => {
-    if (!data?.membershipPayments) return [];
-    return data.membershipPayments.filter((p) => {
+    return timeframeMemberPayments.filter((p) => {
       const q = search.toLowerCase();
       const matchesSearch =
         !search ||
@@ -367,14 +522,13 @@ export function PaymentTrackerPage() {
 
       return matchesSearch && matchesStatus;
     });
-  }, [data?.membershipPayments, search, membershipStatusFilter]);
+  }, [timeframeMemberPayments, search, membershipStatusFilter]);
 
   // Filtered Events
   const filteredEvents = useMemo(() => {
-    if (!data?.events) return [];
     const now = new Date();
 
-    return data.events.filter((ev) => {
+    return timeframeEvents.filter((ev) => {
       // Fee filter
       if (paidEventsOnly && ev.fee <= 0) return false;
 
@@ -406,7 +560,7 @@ export function PaymentTrackerPage() {
 
       return true;
     });
-  }, [data?.events, paidEventsOnly, eventStatusFilter, search]);
+  }, [timeframeEvents, paidEventsOnly, eventStatusFilter, search]);
 
   if (!isAuthorized) {
     return (
@@ -460,32 +614,55 @@ export function PaymentTrackerPage() {
         </div>
       </motion.div>
 
+      {/* Timeline Range Selector Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-[#111]/70 border border-white/5 p-3 rounded-xl backdrop-blur-md"
+      >
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs sm:text-sm font-medium text-white font-mono">
+            Audit Timeline:
+          </span>
+          <span className="text-xs text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20 font-mono">
+            {getTimeframeLabel(timeline)}
+          </span>
+        </div>
+        <TimelineFilter value={timeline} onChange={setTimeline} />
+      </motion.div>
+
       {/* 2. Top KPI Cards */}
       <div className="grid gap-4 grid-cols-2 lg:grid-cols-4">
         <StatCard
           icon={DollarSign}
-          label="Total Club Collections"
-          value={`৳${(data?.summary?.totalVerifiedAmount || 0).toLocaleString()}`}
+          label={timeline === 'all' ? 'Total Club Collections' : `Collections (${timeline.toUpperCase()})`}
+          value={`৳${periodMetrics.totalVerified.toLocaleString()}`}
           trend="up"
+          trendLabel={timeline === 'all' ? undefined : `All-time: ৳${(data?.summary?.totalVerifiedAmount || 0).toLocaleString()}`}
           delay={0}
         />
         <StatCard
           icon={Clock}
-          label="Pending Verification"
-          value={`৳${(data?.summary?.totalPendingAmount || 0).toLocaleString()} (${data?.summary?.totalPendingCount || 0})`}
-          trend={(data?.summary?.totalPendingCount || 0) > 5 ? 'down' : 'up'}
+          label={timeline === 'all' ? 'Pending Verification' : `Pending (${timeline.toUpperCase()})`}
+          value={`৳${periodMetrics.totalPending.toLocaleString()} (${periodMetrics.pendingCount})`}
+          trend={periodMetrics.pendingCount > 5 ? 'down' : 'up'}
+          trendLabel={timeline === 'all' ? undefined : `All-time: ${data?.summary?.totalPendingCount || 0} pending`}
           delay={0.05}
         />
         <StatCard
           icon={UserCheck}
-          label="Membership Funds"
-          value={`৳${(data?.summary?.membershipVerifiedAmount || 0).toLocaleString()}`}
+          label={timeline === 'all' ? 'Membership Funds' : `Membership (${timeline.toUpperCase()})`}
+          value={`৳${periodMetrics.membershipVerified.toLocaleString()}`}
+          trendLabel={timeline === 'all' ? undefined : `All-time: ৳${(data?.summary?.membershipVerifiedAmount || 0).toLocaleString()}`}
           delay={0.1}
         />
         <StatCard
           icon={Calendar}
-          label="Event Ticket Revenues"
-          value={`৳${(data?.summary?.eventVerifiedAmount || 0).toLocaleString()}`}
+          label={timeline === 'all' ? 'Event Ticket Revenues' : `Events (${timeline.toUpperCase()})`}
+          value={`৳${periodMetrics.eventVerified.toLocaleString()}`}
+          trendLabel={timeline === 'all' ? undefined : `All-time: ৳${(data?.summary?.eventVerifiedAmount || 0).toLocaleString()}`}
           delay={0.15}
         />
       </div>
@@ -502,7 +679,7 @@ export function PaymentTrackerPage() {
             }`}
           >
             <Users className="h-4 w-4" />
-            Member Registrations ({data?.membershipPayments?.length || 0})
+            Member Registrations ({timeframeMemberPayments.length})
           </button>
 
           <button
@@ -514,7 +691,7 @@ export function PaymentTrackerPage() {
             }`}
           >
             <Calendar className="h-4 w-4" />
-            Event Registrations ({data?.events?.length || 0})
+            Event Registrations ({timeframeEvents.length})
           </button>
 
           <button
@@ -526,7 +703,7 @@ export function PaymentTrackerPage() {
             }`}
           >
             <Smartphone className="h-4 w-4" />
-            Receiver Balances ({data?.receiversSummary?.length || 0})
+            Receiver Balances ({periodReceiversSummary.length})
           </button>
         </div>
 
@@ -578,16 +755,16 @@ export function PaymentTrackerPage() {
               {/* Status Filters */}
               <div className="flex items-center gap-1.5 p-1 bg-white/5 border border-white/10 rounded-xl overflow-x-auto">
                 {[
-                  { key: 'ALL', label: 'All Applications' },
-                  { key: 'PENDING', label: 'Pending Verification' },
-                  { key: 'VERIFIED', label: 'Verified / Approved' },
-                  { key: 'REJECTED', label: 'Rejected' },
-                  { key: 'PREVIOUS_MEMBER', label: 'Previous Members (৳0)' },
+                  { key: 'ALL', label: `All Applications (${timeframeMemberPayments.length})` },
+                  { key: 'PENDING', label: `Pending Verification (${timeframeMemberPayments.filter(p => p.status === 'PENDING').length})` },
+                  { key: 'VERIFIED', label: `Verified / Approved (${timeframeMemberPayments.filter(p => p.status === 'VERIFIED' || p.status === 'APPROVED').length})` },
+                  { key: 'REJECTED', label: `Rejected (${timeframeMemberPayments.filter(p => p.status === 'REJECTED').length})` },
+                  { key: 'PREVIOUS_MEMBER', label: `Previous Members (${timeframeMemberPayments.filter(p => p.paymentMethod === 'PREVIOUS_MEMBER').length})` },
                 ].map((tab) => (
                   <button
                     key={tab.key}
                     onClick={() => setMembershipStatusFilter(tab.key)}
-                    className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+                    className={`px-3 py-1.5 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
                       membershipStatusFilter === tab.key
                         ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30'
                         : 'text-gray-400 hover:text-white hover:bg-white/5'
@@ -1042,14 +1219,14 @@ export function PaymentTrackerPage() {
                 💡 This ledger aggregates all incoming member dues and event fees categorized by which personal SIM account or campus desk received the funds. Executive leadership can use this to reconcile physical cash handovers with the Central Treasury.
               </div>
 
-              {(!data?.receiversSummary || data.receiversSummary.length === 0) ? (
+              {(!periodReceiversSummary || periodReceiversSummary.length === 0) ? (
                 <div className="text-center py-16 rounded-xl border border-white/5 bg-[#111]/40">
                   <Smartphone className="h-10 w-10 text-gray-600 mx-auto mb-3" />
-                  <p className="text-sm text-gray-400 font-mono">No receiver activity recorded yet</p>
+                  <p className="text-sm text-gray-400 font-mono">No receiver activity recorded for this timeline</p>
                 </div>
               ) : (
                 <div className="grid gap-4 grid-cols-1 md:grid-cols-2 lg:grid-cols-3">
-                  {data.receiversSummary.map((rec) => (
+                  {periodReceiversSummary.map((rec) => (
                     <Card key={rec.receiverKey} className="border-white/10 bg-[#0d1620]/90 backdrop-blur">
                       <CardContent className="p-5 space-y-4">
                         <div className="flex items-start justify-between">

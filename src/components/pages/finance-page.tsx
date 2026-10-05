@@ -1,12 +1,12 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { motion } from 'framer-motion';
 import {
   DollarSign, TrendingUp, TrendingDown, ArrowUpRight, ArrowDownRight,
   Loader2, Wallet, Activity, Landmark, Receipt, Eye, ExternalLink,
   ShieldCheck, Calendar, User, FileText, CheckCircle, XCircle, AlertCircle,
-  ChevronDown, ChevronUp, Package
+  ChevronDown, ChevronUp, Package, Clock
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { StatCard } from '@/components/shared/stat-card';
@@ -21,6 +21,13 @@ import {
   DialogTitle,
   DialogDescription,
 } from '@/components/ui/dialog';
+import {
+  TimelineFilter,
+  type TimeframeOption,
+  filterByTimeframe,
+  getTimeframeLabel,
+} from '@/components/shared/timeline-filter';
+import { CashflowTimelineChart } from '@/components/treasury/cashflow-timeline-chart';
 
 /* ─── Status Badge Config ─── */
 const STATUS_CONFIG: Record<string, { color: string; dotColor: string; bg: string; label: string }> = {
@@ -62,6 +69,7 @@ export function FinancePage() {
   const [selectedItem, setSelectedItem] = useState<ActivityItem | null>(null);
   const [expandedActivityId, setExpandedActivityId] = useState<string | null>(null);
   const [activityFilter, setActivityFilter] = useState<'all' | 'expense' | 'deposit'>('all');
+  const [timeline, setTimeline] = useState<TimeframeOption>('all');
 
   const isExecutive = currentUser && ['PRESIDENT', 'GS', 'TREASURER', 'PLATFORM_ADMIN', 'VP'].includes(currentUser.role);
 
@@ -96,9 +104,32 @@ export function FinancePage() {
   const pendingDeposits = stats?.pendingDepositsCount ?? 0;
   const pendingExpenses = stats?.pendingExpensesCount ?? 0;
 
-  // Merge activity with full underlying raw details
-  const allActivities: ActivityItem[] = [
-    ...recentDeposits.map((d: any) => {
+  // Filter records by the chosen timeline
+  const timeframeDeposits = useMemo(() => filterByTimeframe(recentDeposits, timeline), [recentDeposits, timeline]);
+  const timeframeExpenses = useMemo(() => filterByTimeframe(recentExpenses, timeline), [recentExpenses, timeline]);
+
+  // Aggregate period-scoped financials
+  const periodApprovedDeposits = useMemo(
+    () => timeframeDeposits.filter((d: any) => d.status === 'APPROVED').reduce((sum: number, d: any) => sum + (Number(d.amount) || 0), 0),
+    [timeframeDeposits]
+  );
+  const periodApprovedExpenses = useMemo(
+    () => timeframeExpenses.filter((e: any) => e.status === 'APPROVED').reduce((sum: number, e: any) => sum + (Number(e.amount) || 0), 0),
+    [timeframeExpenses]
+  );
+  const periodPendingDeposits = useMemo(
+    () => timeframeDeposits.filter((d: any) => d.status === 'PENDING').length,
+    [timeframeDeposits]
+  );
+  const periodPendingExpenses = useMemo(
+    () => timeframeExpenses.filter((e: any) => e.status === 'PENDING').length,
+    [timeframeExpenses]
+  );
+  const periodNetCashflow = periodApprovedDeposits - periodApprovedExpenses;
+
+  // Merge activity with full underlying raw details scoped to active timeline
+  const allActivities: ActivityItem[] = useMemo(() => [
+    ...timeframeDeposits.map((d: any) => {
       const sourceLabel = DEPOSIT_SOURCE_LABELS[d.source] || d.source?.replace(/_/g, ' ') || 'Deposit';
       let title = sourceLabel;
       if (d.source === 'MEMBERSHIP_REGISTRATION') {
@@ -118,7 +149,7 @@ export function FinancePage() {
         raw: d,
       };
     }),
-    ...recentExpenses.map((e: any) => ({
+    ...timeframeExpenses.map((e: any) => ({
       id: e.id,
       type: 'expense' as const,
       description: e.note || e.category || 'Expense Voucher',
@@ -128,7 +159,7 @@ export function FinancePage() {
       note: e.note,
       raw: e,
     })),
-  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+  ].sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime()), [timeframeDeposits, timeframeExpenses]);
 
   const filteredActivities = allActivities.filter((item) => {
     if (activityFilter === 'all') return true;
@@ -170,35 +201,71 @@ export function FinancePage() {
         </div>
       </motion.div>
 
+      {/* Timeline Range Selector Bar */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.3 }}
+        className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-[#111]/70 border border-white/5 p-3 rounded-xl backdrop-blur-md"
+      >
+        <div className="flex items-center gap-2">
+          <div className="h-2 w-2 rounded-full bg-emerald-400 animate-pulse" />
+          <span className="text-xs sm:text-sm font-medium text-white">
+            Timeline Scope:
+          </span>
+          <span className="text-xs text-emerald-400 font-medium bg-emerald-500/10 px-2 py-0.5 rounded-full border border-emerald-500/20">
+            {getTimeframeLabel(timeline)}
+          </span>
+          {timeline !== 'all' && (
+            <span className="text-xs text-gray-500 hidden md:inline">
+              ({allActivities.length} transaction{allActivities.length === 1 ? '' : 's'})
+            </span>
+          )}
+        </div>
+        <TimelineFilter value={timeline} onChange={setTimeline} />
+      </motion.div>
+
       {/* 3 Summary Cards */}
       <div className="grid gap-4 sm:grid-cols-3">
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.1 }}>
           <StatCard
-            label="Current Balance"
-            value={`৳${currentBalance.toLocaleString()}`}
+            label={timeline === 'all' ? 'Current Balance' : `Net Cashflow (${timeline.toUpperCase()})`}
+            value={`৳${(timeline === 'all' ? currentBalance : periodNetCashflow).toLocaleString()}`}
             icon={Wallet}
-            trend={currentBalance >= 0 ? 'up' : 'down'}
-            trendLabel="Approved Deposits − Approved Expenses"
+            trend={(timeline === 'all' ? currentBalance : periodNetCashflow) >= 0 ? 'up' : 'down'}
+            trendLabel={
+              timeline === 'all'
+                ? 'Approved Deposits − Approved Expenses'
+                : `All-time balance: ৳${currentBalance.toLocaleString()}`
+            }
             className="border-emerald-500/10"
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.2 }}>
           <StatCard
-            label="Total Deposits"
-            value={`৳${totalDeposits.toLocaleString()}`}
+            label={timeline === 'all' ? 'Total Deposits' : `Deposits (${timeline.toUpperCase()})`}
+            value={`৳${(timeline === 'all' ? totalDeposits : periodApprovedDeposits).toLocaleString()}`}
             icon={TrendingUp}
             trend="up"
-            trendLabel={`${pendingDeposits} pending approval`}
+            trendLabel={
+              timeline === 'all'
+                ? `${pendingDeposits} pending approval`
+                : `${periodPendingDeposits} pending in this period`
+            }
             className="border-cyan-500/10"
           />
         </motion.div>
         <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.4, delay: 0.3 }}>
           <StatCard
-            label="Total Expenses"
-            value={`৳${totalExpenses.toLocaleString()}`}
+            label={timeline === 'all' ? 'Total Expenses' : `Expenses (${timeline.toUpperCase()})`}
+            value={`৳${(timeline === 'all' ? totalExpenses : periodApprovedExpenses).toLocaleString()}`}
             icon={TrendingDown}
             trend="down"
-            trendLabel={`${pendingExpenses} pending approval`}
+            trendLabel={
+              timeline === 'all'
+                ? `${pendingExpenses} pending approval`
+                : `${periodPendingExpenses} pending in this period`
+            }
             className="border-amber-500/10"
           />
         </motion.div>
@@ -268,6 +335,19 @@ export function FinancePage() {
         </div>
       )}
 
+      {/* Cashflow Timeline Visualizer Chart */}
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.4, delay: 0.42 }}
+      >
+        <CashflowTimelineChart
+          deposits={recentDeposits}
+          expenses={recentExpenses}
+          timeframe={timeline}
+        />
+      </motion.div>
+
       {/* Treasury Activity List with Clickable Expandable Details */}
       <motion.div
         initial={{ opacity: 0, y: 20 }}
@@ -280,6 +360,11 @@ export function FinancePage() {
               <CardTitle className="flex items-center gap-2 text-lg text-white">
                 <Activity className="h-5 w-5 text-emerald-400" />
                 Treasury Activity
+                {timeline !== 'all' && (
+                  <Badge className="bg-emerald-500/10 border-emerald-500/30 text-emerald-400 text-[10px] font-medium ml-1.5 py-0 px-2">
+                    {getTimeframeLabel(timeline)}
+                  </Badge>
+                )}
               </CardTitle>
               <span className="text-xs text-gray-400">Click any transaction to expand and inspect purchased items & details</span>
             </div>

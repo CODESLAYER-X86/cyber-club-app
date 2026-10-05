@@ -7,6 +7,7 @@ import {
   XCircle, Plus, Activity, Users, Clock, Shield, ShieldAlert,
   CreditCard, Ban, ArrowRight, Eye, RefreshCw, Layers,
   Download, Megaphone, Trophy, Image as ImageIcon, Globe,
+  Calendar, Database, Sparkles, Loader2,
 } from 'lucide-react';
 import { StatCard } from '@/components/shared/stat-card';
 import { Card, CardContent } from '@/components/ui/card';
@@ -571,80 +572,143 @@ function renderHumanNarrative(action: string, details: string, user?: AuditLogEn
   );
 }
 
-const PAGE_SIZE = 20;
+function getDateGroupKey(dateString: string): string {
+  const date = new Date(dateString);
+  const now = new Date();
+
+  const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+  const logDate = new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+  const diffDays = Math.round((today.getTime() - logDate.getTime()) / (1000 * 60 * 60 * 24));
+
+  if (diffDays === 0) return 'Today';
+  if (diffDays === 1) return 'Yesterday';
+
+  if (now.getFullYear() === date.getFullYear()) {
+    return date.toLocaleDateString(undefined, { weekday: 'short', month: 'short', day: 'numeric' });
+  }
+
+  return date.toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' });
+}
+
+const PAGE_SIZE = 50;
 
 export function AuditLogsPage() {
   const [logs, setLogs] = useState<AuditLogEntry[]>([]);
   const [loading, setLoading] = useState(true);
+  const [loadingMore, setLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
+  const [pruning, setPruning] = useState(false);
   const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
   const [activeFilter, setActiveFilter] = useState<FilterTab>('ALL');
-  const [visibleCount, setVisibleCount] = useState(PAGE_SIZE);
+  const [nextCursor, setNextCursor] = useState<string | null>(null);
+  const [hasMore, setHasMore] = useState(false);
+  const [totalCount, setTotalCount] = useState(0);
+  const [todayCount, setTodayCount] = useState(0);
   const [selectedLog, setSelectedLog] = useState<AuditLogEntry | null>(null);
 
-  const fetchLogs = async (isRefresh = false) => {
-    if (isRefresh) setRefreshing(true);
-    else setLoading(true);
+  // Debounce search input by 300ms to preserve serverless bandwidth
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
+
+  // Fetch logs with cursor and server-side filters
+  const fetchLogs = async (isRefresh = false, cursorToUse?: string | null) => {
+    const isNextPage = Boolean(cursorToUse);
+
+    if (isNextPage) {
+      setLoadingMore(true);
+    } else if (isRefresh) {
+      setRefreshing(true);
+    } else {
+      setLoading(true);
+    }
 
     try {
-      const r = await fetch('/api/audit-logs?limit=100');
+      const params = new URLSearchParams();
+      params.set('limit', PAGE_SIZE.toString());
+      if (activeFilter !== 'ALL') {
+        params.set('category', activeFilter);
+      }
+      if (debouncedSearch.trim()) {
+        params.set('q', debouncedSearch.trim());
+      }
+      if (cursorToUse) {
+        params.set('cursor', cursorToUse);
+      }
+
+      const r = await fetch(`/api/audit-logs?${params.toString()}`);
       const d = await r.json();
-      if (d.success) setLogs(d.data.auditLogs || []);
+
+      if (d.success) {
+        const newLogs: AuditLogEntry[] = d.data.auditLogs || [];
+        if (isNextPage) {
+          setLogs(prev => [...prev, ...newLogs]);
+        } else {
+          setLogs(newLogs);
+        }
+        setNextCursor(d.data.nextCursor || null);
+        setHasMore(Boolean(d.data.hasMore));
+        if (typeof d.data.total === 'number') setTotalCount(d.data.total);
+        if (typeof d.data.todayCount === 'number') setTodayCount(d.data.todayCount);
+      }
     } catch (e) {
       console.error('Failed to load audit logs:', e);
     } finally {
       setLoading(false);
+      setLoadingMore(false);
       setRefreshing(false);
     }
   };
 
   useEffect(() => {
     fetchLogs();
-  }, []);
+  }, [activeFilter, debouncedSearch]);
 
-  // Filter by category and search query
-  const filtered = useMemo(() => {
-    let result = logs;
-    if (activeFilter !== 'ALL') {
-      result = result.filter(l => getActionMeta(l.action).category === activeFilter);
+  const handlePruneLogs = async () => {
+    if (!confirm('Run 100k FIFO maintenance check now? Any logs older than the 100,000th newest record will be purged to protect Supabase free tier storage.')) {
+      return;
     }
-    if (search.trim()) {
-      const q = search.toLowerCase();
-      result = result.filter(l =>
-        l.action.toLowerCase().includes(q) ||
-        l.details.toLowerCase().includes(q) ||
-        l.user?.name.toLowerCase().includes(q) ||
-        l.user?.email.toLowerCase().includes(q)
-      );
-    }
-    return result;
-  }, [logs, activeFilter, search]);
-
-  const visibleLogs = filtered.slice(0, visibleCount);
-  const hasMore = visibleCount < filtered.length;
-
-  // Stats
-  const todayStart = new Date();
-  todayStart.setHours(0, 0, 0, 0);
-  const todaysActivity = logs.filter(l => new Date(l.createdAt) >= todayStart).length;
-  const uniqueUsers = new Set(logs.map(l => l.user?.email).filter(Boolean)).size;
-
-  // Category counts
-  const filterCounts = useMemo(() => {
-    const counts: Record<FilterTab, number> = {
-      ALL: logs.length,
-      MEMBERSHIP: 0,
-      ROLES: 0,
-      FINANCE: 0,
-      SYSTEM: 0,
-    };
-    logs.forEach(l => {
-      const cat = getActionMeta(l.action).category;
-      if (counts[cat] !== undefined) {
-        counts[cat]++;
+    setPruning(true);
+    try {
+      const res = await fetch('/api/audit-logs', { method: 'DELETE' });
+      const d = await res.json();
+      if (d.success) {
+        alert(d.data.message || 'Pruning completed');
+        fetchLogs(true);
+      } else {
+        alert(d.error?.message || 'Pruning failed');
       }
-    });
-    return counts;
+    } catch (err) {
+      console.error('Prune request failed:', err);
+    } finally {
+      setPruning(false);
+    }
+  };
+
+  // Group logs chronologically into timeline dates
+  const groupedLogs = useMemo(() => {
+    const groups: { dateKey: string; logs: AuditLogEntry[] }[] = [];
+    const map = new Map<string, AuditLogEntry[]>();
+
+    for (const log of logs) {
+      const key = getDateGroupKey(log.createdAt);
+      if (!map.has(key)) {
+        map.set(key, []);
+        groups.push({ dateKey: key, logs: map.get(key)! });
+      }
+      map.get(key)!.push(log);
+    }
+
+    return groups;
+  }, [logs]);
+
+  const uniqueUsers = useMemo(() => {
+    return new Set(logs.map(l => l.user?.email).filter(Boolean)).size;
   }, [logs]);
 
   return (
@@ -662,41 +726,72 @@ export function AuditLogsPage() {
               <Shield className="h-6 w-6 text-emerald-400" />
             </div>
             <div>
-              <div className="flex items-center gap-2">
-                <h1 className="text-2xl font-bold text-white tracking-tight font-mono">Audit Logs</h1>
+              <div className="flex items-center gap-2 flex-wrap">
+                <h1 className="text-2xl font-bold text-white tracking-tight font-mono">Audit Logs Timeline</h1>
                 <Badge variant="outline" className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px]">
                   Tamper-Proof Trail
                 </Badge>
+                <Badge variant="outline" className="border-cyan-500/30 bg-cyan-500/10 text-cyan-300 text-[10px] font-mono">
+                  100k FIFO Cap
+                </Badge>
               </div>
               <p className="text-xs text-gray-400 mt-1">
-                Chronological security ledger tracking executive decisions, membership updates, and financial actions.
+                Chronological security ledger with server-side query filtering and automatic 100k free-tier retention.
               </p>
             </div>
           </div>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => fetchLogs(true)}
-            disabled={refreshing || loading}
-            className="border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 font-mono text-xs self-start md:self-auto"
-          >
-            <RefreshCw className={`mr-2 h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
-            Refresh Trail
-          </Button>
+          <div className="flex items-center gap-2 self-start md:self-auto flex-wrap">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={handlePruneLogs}
+              disabled={pruning || loading}
+              className="border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 font-mono text-xs"
+              title="Ensure log count stays within 100,000 free-tier limit"
+            >
+              <Database className={`mr-1.5 h-3.5 w-3.5 text-cyan-400 ${pruning ? 'animate-spin' : ''}`} />
+              Prune Check
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchLogs(true)}
+              disabled={refreshing || loading}
+              className="border-white/10 bg-white/5 hover:bg-white/10 text-gray-300 font-mono text-xs"
+            >
+              <RefreshCw className={`mr-2 h-3.5 w-3.5 ${refreshing ? 'animate-spin' : ''}`} />
+              Refresh Trail
+            </Button>
+          </div>
         </div>
       </motion.div>
 
       {/* Stats Summary */}
       <div className="grid gap-4 grid-cols-1 sm:grid-cols-3">
-        <StatCard icon={Activity} label="Total Actions Logged" value={logs.length.toString()} delay={0} />
-        <StatCard icon={Clock} label="Today's Executive Actions" value={todaysActivity.toString()} trend={todaysActivity > 0 ? 'up' : 'neutral'} delay={0.05} />
-        <StatCard icon={Users} label="Active Actors Tracked" value={uniqueUsers.toString()} delay={0.1} />
+        <StatCard
+          icon={Activity}
+          label="Total Records in DB"
+          value={totalCount > 0 ? totalCount.toLocaleString() : logs.length.toString()}
+          delay={0}
+        />
+        <StatCard
+          icon={Clock}
+          label="Today's Executive Actions"
+          value={todayCount.toString()}
+          trend={todayCount > 0 ? 'up' : 'neutral'}
+          delay={0.05}
+        />
+        <StatCard
+          icon={Users}
+          label="Active Actors in View"
+          value={uniqueUsers.toString()}
+          delay={0.1}
+        />
       </div>
 
       {/* Filter Tabs */}
       <div className="flex gap-2 overflow-x-auto pb-1 scrollbar-none border-b border-white/5 pt-1">
         {FILTER_TABS.map(tab => {
-          const count = filterCounts[tab.key];
           const isActive = activeFilter === tab.key;
           const TabIcon = tab.icon;
 
@@ -705,7 +800,6 @@ export function AuditLogsPage() {
               key={tab.key}
               onClick={() => {
                 setActiveFilter(tab.key);
-                setVisibleCount(PAGE_SIZE);
               }}
               className={`shrink-0 flex items-center gap-2 rounded-lg px-3.5 py-2 text-xs font-medium transition-all border ${
                 isActive
@@ -715,13 +809,11 @@ export function AuditLogsPage() {
             >
               <TabIcon className="h-3.5 w-3.5" />
               <span>{tab.label}</span>
-              <span
-                className={`ml-1 text-[10px] px-1.5 py-0.5 rounded-full font-mono ${
-                  isActive ? 'bg-emerald-500/30 text-emerald-200' : 'bg-white/10 text-gray-400'
-                }`}
-              >
-                {count}
-              </span>
+              {isActive && (
+                <span className="ml-1 text-[10px] px-1.5 py-0.5 rounded-full font-mono bg-emerald-500/30 text-emerald-200">
+                  {totalCount.toLocaleString()}
+                </span>
+              )}
             </button>
           );
         })}
@@ -732,31 +824,36 @@ export function AuditLogsPage() {
         <Search className="absolute left-3.5 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
         <Input
           value={search}
-          onChange={e => {
-            setSearch(e.target.value);
-            setVisibleCount(PAGE_SIZE);
-          }}
-          placeholder="Filter by actor name, affected student email, role, or action keyword..."
-          className="border-white/10 bg-[#0c1017] pl-10 text-white placeholder:text-gray-500 text-xs font-sans focus-visible:ring-emerald-500/40"
+          onChange={e => setSearch(e.target.value)}
+          placeholder="Server-side search by actor name, student ID, TxID, role, action, or details..."
+          className="border-white/10 bg-[#0c1017] pl-10 pr-20 text-white placeholder:text-gray-500 text-xs font-sans focus-visible:ring-emerald-500/40"
         />
-        {search && (
-          <button
-            onClick={() => setSearch('')}
-            className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white text-xs"
-          >
-            Clear
-          </button>
-        )}
+        <div className="absolute right-3 top-1/2 -translate-y-1/2 flex items-center gap-2">
+          {loading && !loadingMore && (
+            <Loader2 className="h-3.5 w-3.5 text-emerald-400 animate-spin" />
+          )}
+          {search && (
+            <button
+              onClick={() => setSearch('')}
+              className="text-gray-400 hover:text-white text-xs font-mono"
+            >
+              Clear
+            </button>
+          )}
+        </div>
       </div>
 
-      {/* Logs Timeline */}
+      {/* Timeline Stream */}
       {loading ? (
-        <div className="space-y-3">
+        <div className="space-y-4 py-4">
           {[1, 2, 3, 4, 5].map(i => (
-            <div key={i} className="h-16 animate-pulse rounded-lg bg-white/5 border border-white/5" />
+            <div key={i} className="flex items-start gap-4">
+              <div className="h-8 w-8 rounded-full bg-white/5 border border-white/5 animate-pulse shrink-0" />
+              <div className="flex-1 h-20 animate-pulse rounded-lg bg-white/5 border border-white/5" />
+            </div>
           ))}
         </div>
-      ) : filtered.length === 0 ? (
+      ) : logs.length === 0 ? (
         <motion.div
           initial={{ opacity: 0, y: 15 }}
           animate={{ opacity: 1, y: 0 }}
@@ -771,96 +868,135 @@ export function AuditLogsPage() {
           </p>
         </motion.div>
       ) : (
-        <div className="space-y-2.5">
-          {visibleLogs.map((log) => {
-            const meta = getActionMeta(log.action);
-            const ActionIcon = meta.icon;
-            const actorName = log.user?.name || 'System Auto';
-            const actorRole = log.user?.role || 'SYSTEM';
+        <div className="space-y-8">
+          {groupedLogs.map(group => (
+            <div key={group.dateKey} className="space-y-3">
+              {/* Sticky Date Group Header */}
+              <div className="sticky top-2 z-10 flex items-center gap-2 py-1">
+                <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-mono font-semibold bg-[#0c121d] border border-emerald-500/25 text-emerald-400 shadow-md backdrop-blur-md">
+                  <Calendar className="h-3 w-3 text-emerald-400" />
+                  {group.dateKey}
+                  <span className="text-[10px] text-gray-500 font-normal">
+                    • {group.logs.length} {group.logs.length === 1 ? 'event' : 'events'}
+                  </span>
+                </span>
+                <div className="h-px flex-1 bg-gradient-to-r from-emerald-500/20 via-white/5 to-transparent" />
+              </div>
 
-            return (
-              <motion.div
-                key={log.id}
-                initial={{ opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.15 }}
-              >
-                <Card
-                  onClick={() => setSelectedLog(log)}
-                  className={`cursor-pointer group border-white/5 border-l-4 ${meta.borderColor} bg-[#0c1017] hover:bg-[#111722] transition-all hover:border-white/10 hover:shadow-lg hover:shadow-black/40`}
-                >
-                  <CardContent className="p-3.5 sm:p-4 flex items-start sm:items-center gap-3.5">
-                    {/* Semantic Action Icon */}
-                    <div className={`shrink-0 flex h-10 w-10 items-center justify-center rounded-lg border ${meta.color}`}>
-                      <ActionIcon className="h-5 w-5" />
-                    </div>
+              {/* Vertical Timeline Spine */}
+              <div className="relative pl-6 sm:pl-8 before:absolute before:left-2.5 sm:before:left-3.5 before:top-3 before:bottom-3 before:w-0.5 before:bg-gradient-to-b before:from-emerald-500/40 before:via-white/10 before:to-white/5 space-y-3">
+                {group.logs.map(log => {
+                  const meta = getActionMeta(log.action);
+                  const ActionIcon = meta.icon;
+                  const actorName = log.user?.name || 'System Auto';
+                  const actorRole = log.user?.role || 'SYSTEM';
 
-                    {/* Main Content */}
-                    <div className="flex-1 min-w-0 space-y-1">
-                      {/* Top Row: Human Action Badge + Technical Tag + Actor Info */}
-                      <div className="flex items-center gap-2 flex-wrap">
-                        {/* Human Action Name */}
-                        <span className="text-xs font-bold text-white tracking-tight">
-                          {meta.label}
-                        </span>
-
-                        {/* Technical Action Tag */}
-                        <span className="text-[10px] font-mono text-gray-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
-                          {log.action}
-                        </span>
-
-                        <span className="text-gray-600 text-xs hidden sm:inline">•</span>
-
-                        {/* Actor Info */}
-                        <div className="flex items-center gap-1.5 text-xs text-gray-400">
-                          <span className="text-gray-500 text-[11px]">Performed by</span>
-                          <span className="font-semibold text-gray-200">{actorName}</span>
-                          {actorRole && (
-                            <Badge
-                              variant="outline"
-                              className={`text-[9px] px-1.5 py-0 font-mono ${ROLE_BADGE_STYLES[actorRole] || 'border-white/10 text-gray-400'}`}
-                            >
-                              {actorRole}
-                            </Badge>
-                          )}
-                        </div>
+                  return (
+                    <motion.div
+                      key={log.id}
+                      initial={{ opacity: 0, y: 6 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      transition={{ duration: 0.15 }}
+                      className="relative"
+                    >
+                      {/* Timeline Node on the Spine */}
+                      <div className={`absolute -left-6 sm:-left-8 top-3.5 flex h-5 w-5 sm:h-6 sm:w-6 items-center justify-center rounded-full border bg-[#0b0f17] shadow-sm z-0 ${meta.badgeClass}`}>
+                        <ActionIcon className="h-2.5 w-2.5 sm:h-3 sm:w-3" />
                       </div>
 
-                      {/* Bottom Row: Human Story Narrative */}
-                      <div className="pt-0.5">
-                        {renderHumanNarrative(log.action, log.details, log.user)}
-                      </div>
-                    </div>
+                      {/* Card Content */}
+                      <Card
+                        onClick={() => setSelectedLog(log)}
+                        className={`cursor-pointer group border-white/5 border-l-4 ${meta.borderColor} bg-[#0c1017] hover:bg-[#111722] transition-all hover:border-white/10 hover:shadow-lg hover:shadow-black/40`}
+                      >
+                        <CardContent className="p-3.5 sm:p-4 flex items-start sm:items-center gap-3.5">
+                          {/* Semantic Action Icon */}
+                          <div className={`shrink-0 flex h-10 w-10 items-center justify-center rounded-lg border ${meta.color}`}>
+                            <ActionIcon className="h-5 w-5" />
+                          </div>
 
-                    {/* Timestamp & Inspect Action */}
-                    <div className="shrink-0 flex flex-col items-end justify-center text-right pl-2">
-                      <div className="flex items-center gap-1 text-[11px] text-gray-400 font-mono group-hover:text-emerald-400 transition-colors">
-                        <Clock className="h-3 w-3 text-gray-500" />
-                        <span>{timeAgo(log.createdAt)}</span>
-                      </div>
-                      <span className="text-[10px] text-gray-600 hidden sm:block mt-1">
-                        {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                      </span>
-                    </div>
-                  </CardContent>
-                </Card>
-              </motion.div>
-            );
-          })}
+                          {/* Main Content */}
+                          <div className="flex-1 min-w-0 space-y-1">
+                            {/* Top Row: Human Action Badge + Technical Tag + Actor Info */}
+                            <div className="flex items-center gap-2 flex-wrap">
+                              <span className="text-xs font-bold text-white tracking-tight">
+                                {meta.label}
+                              </span>
 
-          {/* Load More Button */}
-          {hasMore && (
-            <div className="flex justify-center pt-3">
+                              <span className="text-[10px] font-mono text-gray-500 bg-white/5 px-1.5 py-0.5 rounded border border-white/5">
+                                {log.action}
+                              </span>
+
+                              <span className="text-gray-600 text-xs hidden sm:inline">•</span>
+
+                              <div className="flex items-center gap-1.5 text-xs text-gray-400">
+                                <span className="text-gray-500 text-[11px]">by</span>
+                                <span className="font-semibold text-gray-200">{actorName}</span>
+                                {actorRole && (
+                                  <Badge
+                                    variant="outline"
+                                    className={`text-[9px] px-1.5 py-0 font-mono ${ROLE_BADGE_STYLES[actorRole] || 'border-white/10 text-gray-400'}`}
+                                  >
+                                    {actorRole}
+                                  </Badge>
+                                )}
+                              </div>
+                            </div>
+
+                            {/* Bottom Row: Human Story Narrative */}
+                            <div className="pt-0.5">
+                              {renderHumanNarrative(log.action, log.details, log.user)}
+                            </div>
+                          </div>
+
+                          {/* Timestamp & Inspect Action */}
+                          <div className="shrink-0 flex flex-col items-end justify-center text-right pl-2">
+                            <div className="flex items-center gap-1 text-[11px] text-gray-400 font-mono group-hover:text-emerald-400 transition-colors">
+                              <Clock className="h-3 w-3 text-gray-500" />
+                              <span>{timeAgo(log.createdAt)}</span>
+                            </div>
+                            <span className="text-[10px] text-gray-600 hidden sm:block mt-1">
+                              {new Date(log.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                            </span>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  );
+                })}
+              </div>
+            </div>
+          ))}
+
+          {/* Load Earlier Events or Reached Beginning */}
+          <div className="flex flex-col items-center justify-center pt-4 pb-2 gap-2">
+            {hasMore ? (
               <Button
                 variant="outline"
                 size="sm"
-                onClick={() => setVisibleCount(prev => prev + PAGE_SIZE)}
-                className="border-white/10 bg-[#0c1017] text-gray-300 hover:bg-white/5 hover:text-white font-mono text-xs px-6"
+                onClick={() => fetchLogs(false, nextCursor)}
+                disabled={loadingMore}
+                className="border-white/10 bg-[#0c1017] text-gray-300 hover:bg-white/5 hover:text-white font-mono text-xs px-6 py-2 shadow-md hover:border-emerald-500/30"
               >
-                Load More ({filtered.length - visibleCount} remaining)
+                {loadingMore ? (
+                  <>
+                    <Loader2 className="mr-2 h-3.5 w-3.5 animate-spin text-emerald-400" />
+                    Fetching Earlier Logs...
+                  </>
+                ) : (
+                  <>
+                    <Clock className="mr-2 h-3.5 w-3.5 text-emerald-400" />
+                    Load Earlier Events ({logs.length} of {totalCount.toLocaleString()} loaded)
+                  </>
+                )}
               </Button>
-            </div>
-          )}
+            ) : logs.length > 0 ? (
+              <div className="flex items-center gap-2 text-[11px] text-gray-500 font-mono py-2">
+                <CheckCircle className="h-3.5 w-3.5 text-emerald-400" />
+                <span>Beginning of recorded timeline reached • All {logs.length} matching events displayed</span>
+              </div>
+            ) : null}
+          </div>
         </div>
       )}
 

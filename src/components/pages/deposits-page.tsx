@@ -20,6 +20,12 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog';
 import { toast } from '@/hooks/use-toast';
 import { cn } from '@/lib/utils';
+import {
+  TimelineFilter,
+  type TimeframeOption,
+  filterByTimeframe,
+  getTimeframeLabel,
+} from '@/components/shared/timeline-filter';
 
 /* ─── Constants ─── */
 const DEPOSIT_SOURCE_LABELS: Record<string, string> = {
@@ -52,6 +58,7 @@ export function DepositsPage() {
   const [voiding, setVoiding] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [filter, setFilter] = useState<string>('ALL');
+  const [timeline, setTimeline] = useState<TimeframeOption>('all');
   const [expandedId, setExpandedId] = useState<string | null>(null);
 
   // Form state
@@ -152,10 +159,11 @@ export function DepositsPage() {
     setVoidReason('');
   };
 
-  // Filtered deposits
-  const filtered = filter === 'ALL' ? deposits : deposits.filter((d) => d.status === filter);
-  const totalAmount = deposits.filter((d) => d.status === 'APPROVED').reduce((s, d) => s + d.amount, 0);
-  const pendingCount = deposits.filter((d) => d.status === 'PENDING').length;
+  // Filtered deposits by timeline and status
+  const timeframeDeposits = filterByTimeframe(deposits, timeline);
+  const filtered = filter === 'ALL' ? timeframeDeposits : timeframeDeposits.filter((d) => d.status === filter);
+  const totalAmount = timeframeDeposits.filter((d) => d.status === 'APPROVED').reduce((s, d) => s + d.amount, 0);
+  const pendingCount = timeframeDeposits.filter((d) => d.status === 'PENDING').length;
 
   return (
     <div className="space-y-6">
@@ -226,30 +234,59 @@ export function DepositsPage() {
 
       {/* Summary Stats */}
       <div className="grid gap-4 sm:grid-cols-3">
-        <StatCard label="Total Approved" value={`৳${totalAmount.toLocaleString()}`} icon={ArrowUpRight} trend="up" trendLabel="Sum of approved deposits" className="border-emerald-500/10" />
-        <StatCard label="Pending" value={pendingCount.toString()} icon={Loader2} trend="neutral" trendLabel="Awaiting approval" className="border-amber-500/10" />
-        <StatCard label="Total Entries" value={deposits.length.toString()} icon={Landmark} trend="neutral" trendLabel="All deposit records" className="border-cyan-500/10" />
+        <StatCard
+          label={timeline === 'all' ? 'Total Approved' : `Approved (${timeline.toUpperCase()})`}
+          value={`৳${totalAmount.toLocaleString()}`}
+          icon={ArrowUpRight}
+          trend="up"
+          trendLabel={timeline === 'all' ? 'Sum of approved deposits' : `In ${getTimeframeLabel(timeline)}`}
+          className="border-emerald-500/10"
+        />
+        <StatCard
+          label={timeline === 'all' ? 'Pending' : `Pending (${timeline.toUpperCase()})`}
+          value={pendingCount.toString()}
+          icon={Loader2}
+          trend="neutral"
+          trendLabel={timeline === 'all' ? 'Awaiting approval' : `In ${getTimeframeLabel(timeline)}`}
+          className="border-amber-500/10"
+        />
+        <StatCard
+          label={timeline === 'all' ? 'Total Entries' : `Entries (${timeline.toUpperCase()})`}
+          value={timeframeDeposits.length.toString()}
+          icon={Landmark}
+          trend="neutral"
+          trendLabel={timeline === 'all' ? 'All deposit records' : `In ${getTimeframeLabel(timeline)}`}
+          className="border-cyan-500/10"
+        />
       </div>
 
-      {/* Filter Tabs */}
-      <div className="flex gap-2 overflow-x-auto pb-2 pt-1 no-scrollbar sm:flex-wrap">
-        {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'VOIDED'].map((f) => {
-          const count = f === 'ALL' ? deposits.length : deposits.filter((d) => d.status === f).length;
-          return (
-            <Button
-              key={f}
-              size="sm"
-              variant={filter === f ? 'default' : 'outline'}
-              className={cn(
-                'shrink-0 text-xs sm:text-sm',
-                filter === f ? 'bg-emerald-600 text-white' : 'border-white/10 text-gray-400 hover:text-white'
-              )}
-              onClick={() => setFilter(f)}
-            >
-              {f === 'ALL' ? 'All' : STATUS_CONFIG[f]?.label || f} ({count})
-            </Button>
-          );
-        })}
+      {/* Filter Tabs & Timeline Selector */}
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 bg-[#111]/40 border border-white/5 p-2 rounded-xl backdrop-blur-sm">
+        {/* Status Tabs */}
+        <div className="flex gap-1.5 overflow-x-auto pb-1 sm:pb-0 no-scrollbar items-center">
+          {['ALL', 'PENDING', 'APPROVED', 'REJECTED', 'VOIDED'].map((f) => {
+            const count = f === 'ALL' ? timeframeDeposits.length : timeframeDeposits.filter((d) => d.status === f).length;
+            return (
+              <Button
+                key={f}
+                size="sm"
+                variant={filter === f ? 'default' : 'outline'}
+                className={cn(
+                  'shrink-0 text-xs h-8 px-2.5',
+                  filter === f ? 'bg-emerald-600 text-white' : 'border-white/10 text-gray-400 hover:text-white'
+                )}
+                onClick={() => setFilter(f)}
+              >
+                {f === 'ALL' ? 'All' : STATUS_CONFIG[f]?.label || f} ({count})
+              </Button>
+            );
+          })}
+        </div>
+
+        {/* Timeline Selector */}
+        <div className="flex items-center justify-end shrink-0">
+          <TimelineFilter value={timeline} onChange={setTimeline} size="sm" />
+        </div>
       </div>
 
       {/* Void / Fallback Confirmation Dialog */}
