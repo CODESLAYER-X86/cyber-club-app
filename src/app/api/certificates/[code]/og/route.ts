@@ -334,7 +334,13 @@ export async function GET(
     ) => {
       const el = layout.textElements?.[key];
       if (el?.visible === false) return '';
-      const rawText = el?.text || defaultText || '';
+      let rawText = el?.text || defaultText || '';
+      if (rawText) {
+        rawText = rawText
+          .replace(/Md\. Rahim Uddin Shuvo/g, displayName)
+          .replace(/{{recipient_name}}/g, displayName)
+          .replace(/{{event_name}}/g, eventTitle);
+      }
       const x = el?.x ?? defaults.x;
       const y = el?.y ?? defaults.y;
       const fontSize = el?.fontSize ?? defaults.fontSize;

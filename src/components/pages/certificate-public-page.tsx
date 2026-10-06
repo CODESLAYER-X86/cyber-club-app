@@ -374,9 +374,24 @@ export function CertificatePublicPage() {
                   <text x="130" y="20" text-anchor="middle" fontFamily="sans-serif" fontSize="12" fontWeight="bold" fill="#ffffff">{certTitle}</text>
                 </g>
                 
-                <text x={width / 2} y={isLandscape ? 535 : 600} text-anchor="middle" fontFamily="sans-serif" fontSize="13" fill="#6b7280" width={width - 200}>
-                  {resolvedDesc}
-                </text>
+                {(() => {
+                  const descLines = String(resolvedDesc || '').split('\n');
+                  const isMulti = descLines.length > 1;
+                  const lh = 18;
+                  const baseY = isLandscape ? 535 : 600;
+                  const startY = isMulti ? baseY - ((descLines.length - 1) * lh) / 2 : baseY;
+                  return (
+                    <text x={width / 2} y={startY} textAnchor="middle" fontFamily="sans-serif" fontSize={13} fill="#6b7280">
+                      {isMulti ? (
+                        descLines.map((line, idx) => (
+                          <tspan key={idx} x={width / 2} dy={idx === 0 ? 0 : lh}>{line}</tspan>
+                        ))
+                      ) : (
+                        resolvedDesc
+                      )}
+                    </text>
+                  );
+                })()}
                 
                 {idVisible && (
                   <text x={idX} y={idY} textAnchor="middle" fontFamily="monospace" fontSize="14" fill={primaryColor}>{cert.certificateCode}</text>

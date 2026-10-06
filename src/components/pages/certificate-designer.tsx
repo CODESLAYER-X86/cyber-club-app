@@ -914,7 +914,19 @@ export function CertificateDesigner() {
       qrCode: { visible: qrVisible, size: qrSize, x: qrX, y: qrY },
       certId: { visible: idVisible, x: idX, y: idY },
       watermark: { visible: watermarkVisible, text: watermarkText, opacity: watermarkOpacity },
-      textElements,
+      textElements: (() => {
+        const copy = { ...textElements };
+        if (copy.description?.text) {
+          if (copy.description.text.includes('Md. Rahim Uddin Shuvo')) {
+            const templated = copy.description.text
+              .replace(/Md\. Rahim Uddin Shuvo/g, '{{recipient_name}}')
+              .replace(new RegExp(eventTitle, 'g'), '{{event_name}}');
+            templates[previewType] = { ...templates[previewType], description: templated };
+          }
+          delete copy.description.text;
+        }
+        return copy;
+      })(),
       logoElements,
       selectedTypes,
       templates,
@@ -1260,13 +1272,13 @@ export function CertificateDesigner() {
                 </button>
               )}
             </div>
-            {key === 'description' || (el.text && el.text.includes('\n')) ? (
+            {key === 'description' ? (
               <>
                 <textarea
                   rows={3}
-                  value={el.text !== undefined ? el.text : (textPreviewValues[key] || '')}
-                  onChange={(e) => updateTextElement(key, { text: e.target.value })}
-                  placeholder={textPreviewValues[key]}
+                  value={templates[previewType]?.description || ''}
+                  onChange={(e) => updateTemplate(previewType, 'description', e.target.value)}
+                  placeholder="This certifies that {{recipient_name}}..."
                   className="w-full p-2 text-xs border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:border-emerald-500/50 resize-y font-sans"
                 />
                 <div className="flex items-center justify-between text-[10px] text-gray-500">
@@ -1274,32 +1286,41 @@ export function CertificateDesigner() {
                   <button
                     type="button"
                     onClick={() => {
-                      const currentVal = el.text !== undefined ? el.text : (textPreviewValues[key] || '');
-                      if (!currentVal.includes('\n')) {
+                      const cur = templates[previewType]?.description || '';
+                      if (!cur.includes('\n')) {
+                        const clean = cur.replace(/\r?\n+/g, ' ').trim();
                         let splitIdx = -1;
                         const phrases = ['successfully participated in', 'participated in', 'successfully served as', 'secured', 'in appreciation of', 'for completing'];
                         for (const p of phrases) {
-                          const idx = currentVal.indexOf(p);
+                          const idx = clean.indexOf(p);
                           if (idx !== -1) { splitIdx = idx; break; }
                         }
                         if (splitIdx === -1) {
-                          const half = Math.floor(currentVal.length / 2);
-                          const nextSpace = currentVal.indexOf(' ', half);
+                          const half = Math.floor(clean.length / 2);
+                          const nextSpace = clean.indexOf(' ', half);
                           splitIdx = nextSpace !== -1 ? nextSpace + 1 : half;
                         }
-                        if (splitIdx > 0) {
-                          const newText = currentVal.slice(0, splitIdx).trim() + '\n' + currentVal.slice(splitIdx).trim();
-                          updateTextElement(key, { text: newText });
-                        }
+                        const newText = clean.slice(0, splitIdx).trim() + '\n' + clean.slice(splitIdx).trim();
+                        updateTemplate(previewType, 'description', newText);
                       } else {
-                        updateTextElement(key, { text: currentVal.replace(/\n+/g, ' ') });
+                        updateTemplate(previewType, 'description', cur.replace(/\r?\n+/g, ' ').trim());
                       }
                     }}
                     className="text-[10px] text-emerald-400 hover:text-emerald-300 font-medium hover:underline flex items-center gap-1"
                   >
-                    {(el.text !== undefined ? el.text : (textPreviewValues[key] || '')).includes('\n') ? '🔗 Join into 1 line' : '✂️ Split into 2 lines'}
+                    {(templates[previewType]?.description || '').includes('\n') ? '🔗 Join into 1 line' : '✂️ Split into 2 lines'}
                   </button>
                 </div>
+              </>
+            ) : (el.text && el.text.includes('\n')) ? (
+              <>
+                <textarea
+                  rows={3}
+                  value={el.text}
+                  onChange={(e) => updateTextElement(key, { text: e.target.value })}
+                  placeholder={textPreviewValues[key]}
+                  className="w-full p-2 text-xs border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:border-emerald-500/50 resize-y font-sans"
+                />
               </>
             ) : (
               <Input
@@ -1946,26 +1967,25 @@ export function CertificateDesigner() {
                               onClick={() => {
                                 const cur = templates[previewType]?.description || '';
                                 if (!cur.includes('\n')) {
+                                  const clean = cur.replace(/\r?\n+/g, ' ').trim();
                                   let splitIdx = -1;
                                   const searchPhrases = ['successfully participated in', 'participated in', 'successfully served as', 'secured', 'in appreciation of', 'for completing'];
                                   for (const phrase of searchPhrases) {
-                                    const idx = cur.indexOf(phrase);
+                                    const idx = clean.indexOf(phrase);
                                     if (idx !== -1) {
                                       splitIdx = idx;
                                       break;
                                     }
                                   }
                                   if (splitIdx === -1) {
-                                    const half = Math.floor(cur.length / 2);
-                                    const nextSpace = cur.indexOf(' ', half);
+                                    const half = Math.floor(clean.length / 2);
+                                    const nextSpace = clean.indexOf(' ', half);
                                     splitIdx = nextSpace !== -1 ? nextSpace + 1 : half;
                                   }
-                                  if (splitIdx > 0) {
-                                    const newText = cur.slice(0, splitIdx).trim() + '\n' + cur.slice(splitIdx).trim();
-                                    updateTemplate(previewType, 'description', newText);
-                                  }
+                                  const newText = clean.slice(0, splitIdx).trim() + '\n' + clean.slice(splitIdx).trim();
+                                  updateTemplate(previewType, 'description', newText);
                                 } else {
-                                  const newText = cur.replace(/\n+/g, ' ');
+                                  const newText = cur.replace(/\r?\n+/g, ' ').trim();
                                   updateTemplate(previewType, 'description', newText);
                                 }
                               }}

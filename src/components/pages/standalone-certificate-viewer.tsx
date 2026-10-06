@@ -65,10 +65,21 @@ function resolveEl(
   layout: any,
   isLandscape: boolean,
   width: number,
-  defaults: { x: number; y: number; fontSize: number; color: string; text: string; fontWeight?: number | string; textAnchor?: 'start' | 'middle' | 'end' | 'inherit'; letterSpacing?: number }
+  defaults: { x: number; y: number; fontSize: number; color: string; text: string; fontWeight?: number | string; textAnchor?: 'start' | 'middle' | 'end' | 'inherit'; letterSpacing?: number },
+  recipientName?: string,
+  eventTitleName?: string
 ): ResolvedEl {
   const el = layout.textElements?.[key];
   const tc = layout.textColors?.[key];
+  let rawText = el?.text || defaults.text || '';
+  if (recipientName && rawText) {
+    rawText = rawText
+      .replace(/Md\. Rahim Uddin Shuvo/g, recipientName)
+      .replace(/{{recipient_name}}/g, recipientName);
+  }
+  if (eventTitleName && rawText) {
+    rawText = rawText.replace(/{{event_name}}/g, eventTitleName);
+  }
   return {
     x: el?.x ?? defaults.x,
     y: el?.y ?? defaults.y,
@@ -79,7 +90,7 @@ function resolveEl(
     letterSpacing: el?.letterSpacing ?? defaults.letterSpacing,
     fontFamily: el?.fontFamily || 'sans-serif',
     visible: el?.visible !== false,
-    text: el?.text || defaults.text,
+    text: rawText,
   };
 }
 
@@ -160,7 +171,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
       eventLabel: resolveEl('eventLabel', layout, isLandscape, width, d(width/2, isLandscape?395:440, 16, '#9ca3af', 'has successfully completed the event')),
       eventName: resolveEl('eventName', layout, isLandscape, width, d(width/2, isLandscape?435:480, 26, '#ffffff', eventTitle, 'bold')),
       certificateTitle: resolveEl('certificateTitle', layout, isLandscape, width, d(width/2, isLandscape?485:540, 12, '#ffffff', certTitle, 'bold')),
-      description: resolveEl('description', layout, isLandscape, width, d(width/2, isLandscape?535:600, 13, '#6b7280', resolvedDesc)),
+      description: resolveEl('description', layout, isLandscape, width, d(width/2, isLandscape?535:600, 13, '#6b7280', resolvedDesc), displayName, eventTitle),
       issueDate: resolveEl('issueDate', layout, isLandscape, width, d(140, isLandscape?750:1010, 12, '#9ca3af', dateStr)),
       issueDateLabel: resolveEl('issueDateLabel', layout, isLandscape, width, d(140, isLandscape?768:1028, 10, '#4b5563', 'Issue Date')),
       certificateId: resolveEl('certificateId', layout, isLandscape, width, d(width/2, 480, 14, '#10b981', cert.certificateCode)),
@@ -302,12 +313,18 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
     img.src = blobUrl;
   };
 
-  // Helper to render a resolved text element as SVG <text>
+  // Helper to render a resolved text element as SVG <text> with multiline <tspan> support
   const renderEl = (e: ResolvedEl, gradientFill?: string) => {
     if (!e.visible) return null;
+    const lines = String(e.text || '').split('\n');
+    const isMultiLine = lines.length > 1;
+    const lineHeight = Math.round(e.fontSize * 1.38);
+    const startY = isMultiLine ? e.y - ((lines.length - 1) * lineHeight) / 2 : e.y;
+
     return (
       <text
-        x={e.x} y={e.y}
+        x={e.x}
+        y={startY}
         textAnchor={e.textAnchor}
         fontFamily={e.fontFamily}
         fontSize={e.fontSize}
@@ -315,7 +332,19 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
         fill={gradientFill || e.color}
         letterSpacing={e.letterSpacing}
       >
-        {e.text}
+        {isMultiLine ? (
+          lines.map((line, idx) => (
+            <tspan
+              key={idx}
+              x={e.x}
+              dy={idx === 0 ? 0 : lineHeight}
+            >
+              {line}
+            </tspan>
+          ))
+        ) : (
+          e.text
+        )}
       </text>
     );
   };
