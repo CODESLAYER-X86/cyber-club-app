@@ -23,10 +23,9 @@ import {
   RefreshCw,
   Zap,
   ExternalLink,
-  CheckSquare,
-  Square,
   Undo2,
   Sparkles,
+  HelpCircle,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { toast } from '@/hooks/use-toast';
@@ -215,6 +214,10 @@ export function CertificateAuthorityPage() {
   const [selectedPresetReason, setSelectedPresetReason] = useState<string>('');
   const [revocationNotes, setRevocationNotes] = useState('');
 
+  // Executive Override Modal state (for issuing certificates to absent attendees)
+  const [showOverrideDialog, setShowOverrideDialog] = useState(false);
+  const [overrideCert, setOverrideCert] = useState<Certificate | null>(null);
+
   // Preview Modal state
   const [previewCert, setPreviewCert] = useState<Certificate | null>(null);
 
@@ -388,6 +391,21 @@ export function CertificateAuthorityPage() {
 
     return { total, attended, pending, valid, revoked };
   }, [eventCerts, isPendingEligible, isValidActive, isRevokedCert]);
+
+  // Counts of selected items by category
+  const selectedPendingCount = useMemo(() => {
+    return selectedCertIds.filter((id) => {
+      const c = eventCerts.find((x) => x.id === id);
+      return c && isPendingEligible(c);
+    }).length;
+  }, [selectedCertIds, eventCerts, isPendingEligible]);
+
+  const selectedValidCount = useMemo(() => {
+    return selectedCertIds.filter((id) => {
+      const c = eventCerts.find((x) => x.id === id);
+      return c && isValidActive(c);
+    }).length;
+  }, [selectedCertIds, eventCerts, isValidActive]);
 
   // Filtered certificates list
   const filteredCerts = useMemo(() => {
@@ -735,6 +753,53 @@ export function CertificateAuthorityPage() {
     }
   };
 
+  // Executive Override Issue (for absent members)
+  const handleConfirmOverrideIssue = async () => {
+    if (!overrideCert) return;
+    setActionInProgress(true);
+    try {
+      const res = await fetch('/api/certificates', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: overrideCert.userId,
+          eventId: overrideCert.eventId,
+          type: certType,
+          score: certScore ? parseFloat(certScore) : overrideCert.score,
+          eligibilityVerified: true,
+          eligibilityDetails: { executiveOverride: true, authorizedBy: currentUser?.name },
+        }),
+      });
+
+      const data = await res.json();
+      if (data.success) {
+        toast({
+          title: 'Executive Override Granted',
+          description: `Authorized certificate for ${overrideCert.user?.name} despite absent status.`,
+        });
+        setShowOverrideDialog(false);
+        setOverrideCert(null);
+        if (selectedEventId) fetchEventCerts(selectedEventId);
+        fetchStats();
+      } else {
+        toast({
+          title: 'Error',
+          description: data.error || 'Failed to issue certificate.',
+          variant: 'destructive',
+        });
+      }
+    } catch (e) {
+      console.error(e);
+      toast({
+        title: 'Error',
+        description: 'Failed to process override issuance.',
+        variant: 'destructive',
+      });
+    } finally {
+      setActionInProgress(false);
+    }
+  };
+
   // Global Cross-Event Search
   const handleGlobalSearch = async () => {
     if (!searchQuery.trim()) return;
@@ -902,15 +967,15 @@ export function CertificateAuthorityPage() {
                   </p>
                 </div>
 
-                <div className="w-full md:w-96">
+                <div className="w-full md:w-[420px]">
                   {eventsLoading ? (
-                    <Skeleton className="h-10 w-full bg-white/5 rounded-lg" />
+                    <Skeleton className="h-11 w-full bg-white/5 rounded-lg" />
                   ) : (
                     <Select
                       value={selectedEventId}
                       onValueChange={setSelectedEventId}
                     >
-                      <SelectTrigger className="border-white/10 bg-white/5 text-white rounded-lg h-10 hover:border-emerald-500/40 transition-colors">
+                      <SelectTrigger className="border-white/10 bg-white/5 text-white rounded-lg h-11 px-3 text-xs hover:border-emerald-500/40 transition-colors">
                         <SelectValue placeholder="Choose completed/active event..." />
                       </SelectTrigger>
                       <SelectContent className="border-white/10 bg-[#12121a] text-white max-h-72">
@@ -923,15 +988,24 @@ export function CertificateAuthorityPage() {
                             <SelectItem
                               key={ev.id}
                               value={ev.id}
-                              className="focus:bg-white/10 text-xs py-2 text-zinc-200"
+                              textValue={`${ev.title} • ${new Date(ev.startDate).toLocaleDateString()}`}
+                              className="focus:bg-white/10 text-xs py-2.5 text-zinc-200 cursor-pointer"
                             >
                               <div className="flex items-center justify-between gap-3 w-full">
                                 <span className="font-medium text-white truncate">
                                   {ev.title}
                                 </span>
-                                <span className="text-[10px] text-zinc-400 shrink-0 font-mono">
-                                  {new Date(ev.startDate).toLocaleDateString()}
-                                </span>
+                                <div className="flex items-center gap-1.5 shrink-0">
+                                  <Badge
+                                    variant="outline"
+                                    className="text-[9px] py-0 px-1 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 font-normal"
+                                  >
+                                    {ev.category}
+                                  </Badge>
+                                  <span className="text-[10px] text-zinc-400 font-mono">
+                                    {new Date(ev.startDate).toLocaleDateString()}
+                                  </span>
+                                </div>
                               </div>
                             </SelectItem>
                           ))
@@ -1101,29 +1175,22 @@ export function CertificateAuthorityPage() {
                     <div className="flex items-center gap-2 flex-wrap">
                       <Button
                         size="sm"
-                        disabled={
-                          actionInProgress ||
-                          selectedCertIds.filter((id) => {
-                            const c = eventCerts.find((x) => x.id === id);
-                            return c && isPendingEligible(c);
-                          }).length === 0
-                        }
+                        disabled={actionInProgress || selectedPendingCount === 0}
                         onClick={handleBatchIssueSelected}
-                        className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-8 shadow-sm"
+                        className={`text-xs h-8 shadow-sm transition-all ${
+                          selectedPendingCount > 0
+                            ? 'bg-emerald-600 hover:bg-emerald-500 text-white cursor-pointer shadow-emerald-950/40'
+                            : 'bg-zinc-800/40 text-zinc-500 border border-white/5 cursor-not-allowed opacity-50'
+                        }`}
                       >
                         {actionInProgress ? (
                           <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
                         ) : (
                           <Zap className="mr-1.5 h-3.5 w-3.5" />
                         )}
-                        Issue Selected (
-                        {
-                          selectedCertIds.filter((id) => {
-                            const c = eventCerts.find((x) => x.id === id);
-                            return c && isPendingEligible(c);
-                          }).length
-                        }
-                        )
+                        {selectedPendingCount > 0
+                          ? `Issue Selected (${selectedPendingCount})`
+                          : 'Issue Selected'}
                       </Button>
 
                       {eventMetrics.pending > 0 && (
@@ -1132,7 +1199,7 @@ export function CertificateAuthorityPage() {
                           variant="outline"
                           disabled={actionInProgress}
                           onClick={handleIssueAllEligible}
-                          className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs h-8"
+                          className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 text-xs h-8 cursor-pointer"
                         >
                           <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                           Issue All Eligible ({eventMetrics.pending})
@@ -1143,25 +1210,18 @@ export function CertificateAuthorityPage() {
                         <Button
                           size="sm"
                           variant="outline"
-                          disabled={
-                            actionInProgress ||
-                            selectedCertIds.filter((id) => {
-                              const c = eventCerts.find((x) => x.id === id);
-                              return c && isValidActive(c);
-                            }).length === 0
-                          }
+                          disabled={actionInProgress || selectedValidCount === 0}
                           onClick={openBatchRevokeDialog}
-                          className="border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-xs h-8"
+                          className={`text-xs h-8 transition-all ${
+                            selectedValidCount > 0
+                              ? 'border-red-500/40 bg-red-500/10 text-red-400 hover:bg-red-500/20 cursor-pointer'
+                              : 'border-white/5 bg-zinc-800/40 text-zinc-500 cursor-not-allowed opacity-50'
+                          }`}
                         >
                           <ShieldAlert className="mr-1.5 h-3.5 w-3.5" />
-                          Revoke Selected (
-                          {
-                            selectedCertIds.filter((id) => {
-                              const c = eventCerts.find((x) => x.id === id);
-                              return c && isValidActive(c);
-                            }).length
-                          }
-                          )
+                          {selectedValidCount > 0
+                            ? `Revoke Selected (${selectedValidCount})`
+                            : 'Revoke Selected'}
                         </Button>
                       )}
                     </div>
@@ -1230,19 +1290,29 @@ export function CertificateAuthorityPage() {
               {/* Participant / Certificate Rows */}
               <div className="space-y-2">
                 {/* Table Header / Selection Bar */}
-                <div className="flex items-center justify-between px-3 py-1 text-[11px] text-zinc-400 font-medium">
-                  <div className="flex items-center gap-2">
-                    <Checkbox
-                      checked={
-                        filteredCerts.length > 0 &&
-                        selectedCertIds.length === filteredCerts.length
-                      }
-                      onCheckedChange={toggleSelectAll}
-                      className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
-                    />
+                <div className="flex items-center justify-between px-3.5 py-2 text-xs text-zinc-400 font-medium bg-black/20 rounded-lg border border-white/5">
+                  <div className="flex items-center gap-2.5">
+                    <div className="flex items-center justify-center shrink-0 w-4 h-4">
+                      <Checkbox
+                        checked={
+                          filteredCerts.length > 0 &&
+                          selectedCertIds.length === filteredCerts.length
+                        }
+                        onCheckedChange={toggleSelectAll}
+                        className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                      />
+                    </div>
                     <span>Select All in Filter ({filteredCerts.length})</span>
                   </div>
-                  <span>Actions & Status</span>
+                  <div className="text-right text-[11px] text-zinc-500">
+                    {selectedCertIds.length > 0 ? (
+                      <span className="text-emerald-400 font-medium">
+                        {selectedCertIds.length} of {filteredCerts.length} selected
+                      </span>
+                    ) : (
+                      <span>Status & Actions</span>
+                    )}
+                  </div>
                 </div>
 
                 {filteredCerts.length === 0 ? (
@@ -1250,12 +1320,36 @@ export function CertificateAuthorityPage() {
                     <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-zinc-800/60 border border-white/5 mb-3 text-zinc-500">
                       <User className="h-6 w-6" />
                     </div>
-                    <p className="text-sm text-zinc-300 font-medium">No recipients found</p>
-                    <p className="text-xs text-zinc-500 mt-1">
-                      {eventSearch
-                        ? 'Try adjusting your search criteria'
-                        : `No records currently in '${statusFilter.toLowerCase()}' stage`}
+                    <p className="text-sm text-zinc-300 font-medium">
+                      {statusFilter === 'PENDING'
+                        ? 'No Pending Certificates'
+                        : statusFilter === 'VALID'
+                        ? 'No Active Certificates Yet'
+                        : statusFilter === 'REVOKED'
+                        ? 'No Revoked Certificates'
+                        : 'No Recipients Found'}
                     </p>
+                    <p className="text-xs text-zinc-500 mt-1 max-w-sm">
+                      {statusFilter === 'PENDING'
+                        ? 'All eligible participants for this event have already been issued certificates, or remaining attendees were marked absent.'
+                        : statusFilter === 'VALID'
+                        ? 'No certificates have been issued yet. Switch to "Ready to Issue" to authorize participants.'
+                        : statusFilter === 'REVOKED'
+                        ? 'No certificates have been revoked for this event.'
+                        : eventSearch
+                        ? 'No records matched your search filter.'
+                        : 'No registrations found for this event.'}
+                    </p>
+                    {statusFilter !== 'ALL' && (
+                      <Button
+                        variant="ghost"
+                        size="sm"
+                        onClick={() => setStatusFilter('ALL')}
+                        className="mt-3 text-xs text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 h-7"
+                      >
+                        View All Attendees ({eventMetrics.total})
+                      </Button>
+                    )}
                   </div>
                 ) : (
                   <motion.div
@@ -1291,11 +1385,13 @@ export function CertificateAuthorityPage() {
                         >
                           {/* Left: Checkbox + User Info */}
                           <div className="flex items-start gap-3 min-w-0">
-                            <Checkbox
-                              checked={isSelected}
-                              onCheckedChange={() => toggleSelectOne(cert.id)}
-                              className="mt-1 border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
-                            />
+                            <div className="flex items-center justify-center shrink-0 w-4 h-4 mt-1">
+                              <Checkbox
+                                checked={isSelected}
+                                onCheckedChange={() => toggleSelectOne(cert.id)}
+                                className="border-white/20 data-[state=checked]:bg-emerald-500 data-[state=checked]:border-emerald-500"
+                              />
+                            </div>
 
                             <div className="min-w-0">
                               <div className="flex items-center gap-2 flex-wrap">
@@ -1304,13 +1400,52 @@ export function CertificateAuthorityPage() {
                                     cert.user?.name ||
                                     'Unknown Participant'}
                                 </span>
-                                <CertificateTypeBadge type={cert.type} />
+
                                 {isValid && (
+                                  <>
+                                    <CertificateTypeBadge type={cert.type} />
+                                    <Badge
+                                      variant="outline"
+                                      className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px] h-4.5 px-1.5 font-medium"
+                                    >
+                                      ● ACTIVE
+                                    </Badge>
+                                    <Badge
+                                      variant="outline"
+                                      className="border-white/10 bg-white/5 text-emerald-400 text-[10px] h-4.5 px-1.5 font-mono"
+                                    >
+                                      {cert.certificateCode}
+                                    </Badge>
+                                  </>
+                                )}
+
+                                {isPending && (
                                   <Badge
                                     variant="outline"
-                                    className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 text-[10px] h-4 px-1 font-mono"
+                                    className="border-amber-500/30 bg-amber-500/10 text-amber-400 text-[10px] h-4.5 px-1.5 font-medium"
                                   >
-                                    {cert.certificateCode}
+                                    ● READY TO ISSUE
+                                  </Badge>
+                                )}
+
+                                {isRevoked && (
+                                  <>
+                                    <CertificateTypeBadge type={cert.type} />
+                                    <Badge
+                                      variant="outline"
+                                      className="border-red-500/30 bg-red-500/10 text-red-400 text-[10px] h-4.5 px-1.5 font-medium"
+                                    >
+                                      ● REVOKED
+                                    </Badge>
+                                  </>
+                                )}
+
+                                {!isValid && !isPending && !isRevoked && (
+                                  <Badge
+                                    variant="outline"
+                                    className="border-zinc-700/80 bg-zinc-800/80 text-zinc-400 text-[10px] h-4.5 px-1.5 font-medium"
+                                  >
+                                    ● INELIGIBLE (ABSENT)
                                   </Badge>
                                 )}
                               </div>
@@ -1347,7 +1482,7 @@ export function CertificateAuthorityPage() {
                                       ? 'bg-emerald-500/10 text-emerald-400 border border-emerald-500/20'
                                       : att === 'LATE'
                                       ? 'bg-cyan-500/10 text-cyan-400 border border-cyan-500/20'
-                                      : 'bg-zinc-800 text-zinc-400'
+                                      : 'bg-zinc-800/80 text-zinc-400 border border-white/5'
                                   }`}
                                 >
                                   Attendance: {att || 'Not Marked'}
@@ -1363,7 +1498,7 @@ export function CertificateAuthorityPage() {
                                 {isRevoked && cert.revocationReason && (
                                   <span className="text-[10px] text-red-300 bg-red-500/10 border border-red-500/20 px-2 py-0.5 rounded flex items-center gap-1 font-medium">
                                     <AlertTriangle className="h-3 w-3 text-red-400" />
-                                    Revoked: {cert.revocationReason}
+                                    Reason: {cert.revocationReason}
                                   </span>
                                 )}
                               </div>
@@ -1377,7 +1512,7 @@ export function CertificateAuthorityPage() {
                                 size="sm"
                                 disabled={actionInProgress}
                                 onClick={() => handleIssueSingle(cert)}
-                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-7 px-3 shadow-xs"
+                                className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs h-7 px-3 shadow-xs cursor-pointer"
                               >
                                 <Zap className="mr-1 h-3 w-3" />
                                 {canDirectAuthorize ? 'Issue & Authorize' : 'Issue'}
@@ -1390,7 +1525,7 @@ export function CertificateAuthorityPage() {
                                   size="sm"
                                   variant="ghost"
                                   onClick={() => setPreviewCert(cert)}
-                                  className="text-zinc-300 hover:text-white hover:bg-white/10 text-xs h-7 px-2.5"
+                                  className="text-zinc-300 hover:text-white hover:bg-white/10 text-xs h-7 px-2.5 cursor-pointer"
                                 >
                                   <Eye className="mr-1 h-3.5 w-3.5 text-cyan-400" />
                                   Preview
@@ -1402,7 +1537,7 @@ export function CertificateAuthorityPage() {
                                     variant="ghost"
                                     disabled={actionInProgress}
                                     onClick={() => openSingleRevokeDialog(cert)}
-                                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7 px-2.5"
+                                    className="text-red-400 hover:text-red-300 hover:bg-red-500/10 text-xs h-7 px-2.5 cursor-pointer"
                                   >
                                     <ShieldAlert className="mr-1 h-3.5 w-3.5" />
                                     Revoke
@@ -1417,11 +1552,34 @@ export function CertificateAuthorityPage() {
                                 variant="outline"
                                 disabled={actionInProgress}
                                 onClick={() => handleReinstateRevoked(cert)}
-                                className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs h-7 px-2.5"
+                                className="border-emerald-500/30 text-emerald-400 hover:bg-emerald-500/10 text-xs h-7 px-2.5 cursor-pointer"
                               >
                                 <Undo2 className="mr-1 h-3.5 w-3.5" />
                                 Re-issue
                               </Button>
+                            )}
+
+                            {!isPending && !isValid && !isRevoked && (
+                              <div className="flex items-center gap-2">
+                                <span className="text-xs text-zinc-500 italic hidden sm:inline">
+                                  Absent
+                                </span>
+                                {canDirectAuthorize && (
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    disabled={actionInProgress}
+                                    onClick={() => {
+                                      setOverrideCert(cert);
+                                      setShowOverrideDialog(true);
+                                    }}
+                                    className="border-zinc-700 bg-zinc-800/40 text-zinc-300 hover:text-white hover:bg-zinc-700 text-xs h-7 px-2.5 cursor-pointer"
+                                  >
+                                    <Zap className="mr-1 h-3 w-3 text-amber-400" />
+                                    Override & Issue
+                                  </Button>
+                                )}
+                              </div>
                             )}
                           </div>
                         </motion.div>
@@ -1461,7 +1619,7 @@ export function CertificateAuthorityPage() {
                 <Button
                   onClick={handleGlobalSearch}
                   disabled={searching || !searchQuery.trim()}
-                  className="bg-cyan-600 hover:bg-cyan-500 text-white shrink-0 px-4"
+                  className="bg-cyan-600 hover:bg-cyan-500 text-white shrink-0 px-4 cursor-pointer"
                 >
                   {searching ? (
                     <Loader2 className="h-4 w-4 animate-spin" />
@@ -1531,7 +1689,7 @@ export function CertificateAuthorityPage() {
                           size="sm"
                           variant="ghost"
                           onClick={() => setPreviewCert(cert)}
-                          className="text-zinc-300 hover:text-white hover:bg-white/10 text-xs h-8"
+                          className="text-zinc-300 hover:text-white hover:bg-white/10 text-xs h-8 cursor-pointer"
                         >
                           <Eye className="mr-1 h-3.5 w-3.5 text-cyan-400" />
                           Preview
@@ -1542,7 +1700,7 @@ export function CertificateAuthorityPage() {
                             size="sm"
                             variant="destructive"
                             onClick={() => openSingleRevokeDialog(cert)}
-                            className="bg-red-600 hover:bg-red-500 text-white text-xs h-8"
+                            className="bg-red-600 hover:bg-red-500 text-white text-xs h-8 cursor-pointer"
                           >
                             <ShieldAlert className="mr-1 h-3.5 w-3.5" />
                             Revoke
@@ -1601,7 +1759,7 @@ export function CertificateAuthorityPage() {
               variant="ghost"
               size="sm"
               onClick={fetchAuditLogs}
-              className="text-zinc-400 hover:text-white text-xs h-8"
+              className="text-zinc-400 hover:text-white text-xs h-8 cursor-pointer"
             >
               <RefreshCw className="mr-1 h-3.5 w-3.5" />
               Refresh Logs
@@ -1688,12 +1846,7 @@ export function CertificateAuthorityPage() {
             </div>
             <DialogDescription className="text-xs text-zinc-400">
               {isBatchRevoke
-                ? `You are revoking ${
-                    selectedCertIds.filter((id) => {
-                      const c = eventCerts.find((x) => x.id === id);
-                      return c && isValidActive(c);
-                    }).length
-                  } selected active certificate(s). This will mark them officially invalid on public verification.`
+                ? `You are revoking ${selectedValidCount} selected active certificate(s). This will mark them officially invalid on public verification.`
                 : `You are revoking the certificate for ${
                     revokingCert?.user?.name || 'this participant'
                   } (${revokingCert?.certificateCode}).`}
@@ -1740,7 +1893,7 @@ export function CertificateAuthorityPage() {
             <Button
               variant="ghost"
               onClick={() => setShowRevokeDialog(false)}
-              className="text-zinc-400 hover:text-white text-xs h-8"
+              className="text-zinc-400 hover:text-white text-xs h-8 cursor-pointer"
             >
               Cancel
             </Button>
@@ -1750,7 +1903,7 @@ export function CertificateAuthorityPage() {
                 (!selectedPresetReason && !revocationNotes.trim())
               }
               onClick={handleConfirmRevoke}
-              className="bg-red-600 hover:bg-red-500 text-white text-xs h-8"
+              className="bg-red-600 hover:bg-red-500 text-white text-xs h-8 cursor-pointer"
             >
               {actionInProgress ? (
                 <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
@@ -1812,9 +1965,63 @@ export function CertificateAuthorityPage() {
               variant="outline"
               size="sm"
               onClick={() => setPreviewCert(null)}
-              className="border-white/10 bg-white/5 text-xs text-white"
+              className="border-white/10 bg-white/5 text-xs text-white cursor-pointer"
             >
               Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ────────────────────────────────────────── */}
+      {/* MODAL 3: EXECUTIVE OVERRIDE CONFIRMATION   */}
+      {/* ────────────────────────────────────────── */}
+      <Dialog open={showOverrideDialog} onOpenChange={setShowOverrideDialog}>
+        <DialogContent className="border-amber-500/20 bg-[#14141c] text-white sm:max-w-md">
+          <DialogHeader>
+            <div className="flex items-center gap-2 text-amber-400">
+              <Zap className="h-5 w-5" />
+              <DialogTitle>Grant Executive Override</DialogTitle>
+            </div>
+            <DialogDescription className="text-xs text-zinc-400">
+              Participant <strong className="text-white">{overrideCert?.user?.name}</strong> was marked <strong className="text-red-400">ABSENT</strong> for this event.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-3 py-2 text-xs text-zinc-300">
+            <div className="p-3 rounded-lg border border-amber-500/20 bg-amber-500/5 space-y-1.5">
+              <p className="font-semibold text-amber-300 flex items-center gap-1.5">
+                <AlertTriangle className="h-4 w-4" />
+                Presidential Exemption Notice
+              </p>
+              <p className="text-[11px] text-zinc-400 leading-relaxed">
+                As President or Platform Admin, issuing this certificate will bypass the absence disqualification and immediately grant an active, verified certificate. This action will be recorded in the audit trail.
+              </p>
+            </div>
+          </div>
+
+          <DialogFooter className="gap-2 sm:gap-0">
+            <Button
+              variant="ghost"
+              onClick={() => {
+                setShowOverrideDialog(false);
+                setOverrideCert(null);
+              }}
+              className="text-zinc-400 hover:text-white text-xs h-8 cursor-pointer"
+            >
+              Cancel
+            </Button>
+            <Button
+              disabled={actionInProgress}
+              onClick={handleConfirmOverrideIssue}
+              className="bg-amber-600 hover:bg-amber-500 text-white text-xs h-8 cursor-pointer"
+            >
+              {actionInProgress ? (
+                <Loader2 className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <Zap className="mr-1.5 h-3.5 w-3.5" />
+              )}
+              Confirm Override & Issue
             </Button>
           </DialogFooter>
         </DialogContent>
