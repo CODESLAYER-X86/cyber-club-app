@@ -282,7 +282,106 @@ export async function GET(request: NextRequest) {
 
 export async function POST(request: NextRequest) {
   try {
+    const caller = await getSupabaseUser(AUTHORIZED_ROLES);
+    if (!caller) {
+      return forbiddenResponse(
+        "Only GS, President, VP, or Platform Admin can issue certificates"
+      );
+    }
+    const issuedBy = caller.userId;
+    const isExecutiveApprover = ["PRESIDENT", "VP", "PLATFORM_ADMIN"].includes(caller.role);
+
     const body = await request.json();
+
+    // Check if batch issuance
+    if (Array.isArray(body.items) && body.items.length > 0) {
+      const results: any[] = [];
+      for (const item of body.items) {
+        const { userId, eventId, type = "PARTICIPATION", score, eligibilityVerified = false, eligibilityDetails } = item;
+        if (!userId || !eventId) continue;
+
+        const requiresApproval = !isExecutiveApprover && ["EXCELLENCE", "WINNER", "FIRST_PLACE", "SECOND_PLACE", "THIRD_PLACE", "CUSTOM"].includes(type);
+        const status = requiresApproval ? "ELIGIBLE" : "AUTHORIZED";
+        const approvedBy = isExecutiveApprover ? caller.userId : null;
+
+        const existingCert = await prisma.certificate.findFirst({
+          where: { userId, eventId },
+        });
+
+        let certificate;
+        if (existingCert) {
+          certificate = await prisma.certificate.update({
+            where: { id: existingCert.id },
+            data: {
+              type,
+              score,
+              status,
+              issuedBy,
+              approvedBy: approvedBy || existingCert.approvedBy,
+              eligibilityVerified,
+              eligibilityDetails: eligibilityDetails ? JSON.stringify(eligibilityDetails) : null,
+              issuedAt: new Date(),
+            },
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+              event: { select: { id: true, title: true } },
+              issuer: { select: { id: true, name: true } },
+            },
+          });
+        } else {
+          const certificateCode = `CSC-2026-MANUAL-${uuidv4().split("-")[0].toUpperCase()}`;
+          certificate = await prisma.certificate.create({
+            data: {
+              certificateCode,
+              userId,
+              eventId,
+              type,
+              score,
+              status,
+              issuedBy,
+              approvedBy,
+              eligibilityVerified,
+              eligibilityDetails: eligibilityDetails ? JSON.stringify(eligibilityDetails) : null,
+            },
+            include: {
+              user: { select: { id: true, name: true, email: true } },
+              event: { select: { id: true, title: true } },
+              issuer: { select: { id: true, name: true } },
+            },
+          });
+        }
+
+        await prisma.certificateAuditLog.create({
+          data: {
+            certificateId: certificate.id,
+            action: status === "AUTHORIZED" ? "APPROVED" : "ISSUED",
+            performedBy: issuedBy,
+            details: JSON.stringify({
+              type,
+              status,
+              score,
+              issuedBy,
+              approvedBy,
+              issuedAt: new Date().toISOString(),
+            }),
+          },
+        });
+
+        await prisma.notification.create({
+          data: {
+            userId,
+            title: status === "AUTHORIZED" ? "Certificate Issued & Authorized" : "Certificate Issued - Pending Approval",
+            message: `Your ${type.toLowerCase()} certificate for "${certificate.event.title}" is now ${status === "AUTHORIZED" ? "active and verified" : "pending approval"}. Code: ${certificate.certificateCode}`,
+            type: status === "AUTHORIZED" ? "SUCCESS" : "WARNING",
+          },
+        });
+
+        results.push(certificate);
+      }
+
+      return successResponse({ certificates: results, count: results.length }, 201);
+    }
+
     const {
       userId,
       eventId,
@@ -292,26 +391,14 @@ export async function POST(request: NextRequest) {
       eligibilityDetails,
     } = body;
 
-    // Authority check: Only GS, PRESIDENT, or PLATFORM_ADMIN can issue certificates
-    const caller = await getSupabaseUser(AUTHORIZED_ROLES);
-    if (!caller) {
-      return forbiddenResponse(
-        "Only GS, President, VP, or Platform Admin can issue certificates"
-      );
-    }
-    const issuedBy = caller.userId;
-
     if (!userId || !eventId) {
       return errorResponse("userId and eventId are required");
     }
 
-    // Determine certificate status based on type
-    // EXCELLENCE/WINNER/PLACE types require President/GS approval -> ELIGIBLE
-    // Standard types (PARTICIPATION, ORGANIZER, VOLUNTEER, etc.) -> AUTHORIZED
-    const requiresApproval = ["EXCELLENCE", "WINNER", "FIRST_PLACE", "SECOND_PLACE", "THIRD_PLACE", "CUSTOM"].includes(type);
+    const requiresApproval = !isExecutiveApprover && ["EXCELLENCE", "WINNER", "FIRST_PLACE", "SECOND_PLACE", "THIRD_PLACE", "CUSTOM"].includes(type);
     const status = requiresApproval ? "ELIGIBLE" : "AUTHORIZED";
+    const approvedBy = isExecutiveApprover ? caller.userId : null;
 
-    // Check if certificate already exists (e.g. created during registration)
     const existingCert = await prisma.certificate.findFirst({
       where: { userId, eventId },
     });
@@ -325,6 +412,7 @@ export async function POST(request: NextRequest) {
           score,
           status,
           issuedBy,
+          approvedBy: approvedBy || existingCert.approvedBy,
           eligibilityVerified,
           eligibilityDetails: eligibilityDetails
             ? JSON.stringify(eligibilityDetails)
@@ -344,7 +432,6 @@ export async function POST(request: NextRequest) {
         },
       });
     } else {
-      // Generate unique certificate code
       const certificateCode = `CSC-2026-MANUAL-${uuidv4().split("-")[0].toUpperCase()}`;
       certificate = await prisma.certificate.create({
         data: {
@@ -355,6 +442,7 @@ export async function POST(request: NextRequest) {
           score,
           status,
           issuedBy,
+          approvedBy,
           eligibilityVerified,
           eligibilityDetails: eligibilityDetails
             ? JSON.stringify(eligibilityDetails)
@@ -374,40 +462,39 @@ export async function POST(request: NextRequest) {
       });
     }
 
-    // Create CertificateAuditLog entry
     await prisma.certificateAuditLog.create({
       data: {
         certificateId: certificate.id,
-        action: "ISSUED",
+        action: status === "AUTHORIZED" ? "APPROVED" : "ISSUED",
         performedBy: issuedBy,
         details: JSON.stringify({
           type,
           status,
           score,
           issuedBy,
+          approvedBy,
           eligibilityVerified,
           eligibilityDetails: eligibilityDetails || null,
           issuedAt: new Date().toISOString(),
-          requiresApproval: type === "EXCELLENCE",
+          requiresApproval,
         }),
       },
     });
 
-    // Create notification for the certificate holder
     const notificationMessage =
-      type === "EXCELLENCE"
-        ? `You have been issued a ${type.toLowerCase()} certificate for "${certificate.event.title}". It is pending President approval. Code: ${certificate.certificateCode}`
-        : `You have been issued a ${type.toLowerCase()} certificate for "${certificate.event.title}". Code: ${certificate.certificateCode}`;
+      status === "AUTHORIZED"
+        ? `You have been issued a ${type.toLowerCase()} certificate for "${certificate.event.title}". It is verified and ready to view or download. Code: ${certificate.certificateCode}`
+        : `You have been issued a ${type.toLowerCase()} certificate for "${certificate.event.title}". It is pending President approval. Code: ${certificate.certificateCode}`;
 
     await prisma.notification.create({
       data: {
         userId,
         title:
-          type === "EXCELLENCE"
-            ? "Certificate Issued - Pending Approval"
-            : "Certificate Issued",
+          status === "AUTHORIZED"
+            ? "Certificate Issued & Verified"
+            : "Certificate Issued - Pending Approval",
         message: notificationMessage,
-        type: type === "EXCELLENCE" ? "WARNING" : "SUCCESS",
+        type: status === "AUTHORIZED" ? "SUCCESS" : "WARNING",
       },
     });
 

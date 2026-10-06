@@ -262,6 +262,7 @@ export interface CertificateAuditLog {
   details: string;
   createdAt: string;
   performer?: User;
+  certificate?: Certificate;
 }
 
 export interface EligibilityCheck {

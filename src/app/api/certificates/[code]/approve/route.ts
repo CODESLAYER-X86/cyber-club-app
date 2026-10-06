@@ -25,9 +25,11 @@ export async function PATCH(
     }
     const performedBy = caller.userId;
 
-    // Find the certificate
-    const certificate = await prisma.certificate.findUnique({
-      where: { id: certificateId },
+    // Find the certificate by id or code
+    const certificate = await prisma.certificate.findFirst({
+      where: {
+        OR: [{ id: certificateId }, { certificateCode: certificateId }],
+      },
       include: {
         user: {
           select: { id: true, name: true, email: true, avatar: true },
@@ -52,7 +54,7 @@ export async function PATCH(
 
     // Update the certificate to AUTHORIZED status
     const updatedCertificate = await prisma.certificate.update({
-      where: { id: certificateId },
+      where: { id: certificate.id },
       data: {
         approvedBy: performedBy,
         status: "AUTHORIZED",

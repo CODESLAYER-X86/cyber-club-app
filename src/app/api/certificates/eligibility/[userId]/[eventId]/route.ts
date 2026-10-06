@@ -106,32 +106,34 @@ export async function GET(
       }
     }
 
-    // Check 5: User must NOT already have a certificate for this event
-    const existingCertificate = await prisma.certificate.findFirst({
+    // Check 5: Check if user already has an active issued certificate (AUTHORIZED, GENERATED, DOWNLOADED)
+    // Draft/placeholder records (REGISTERED, PRESENT, ELIGIBLE) do not block issuance.
+    const activeCertificate = await prisma.certificate.findFirst({
       where: {
         userId,
         eventId,
-        status: { not: "REVOKED" }, // Revoked certificates don't count
+        status: { in: ["AUTHORIZED", "GENERATED", "DOWNLOADED"] },
       },
     });
-    const noExistingCertificate = !existingCertificate;
+    const alreadyIssued = !!activeCertificate;
 
-    // Overall eligibility
+    // Overall eligibility to be issued
     const eligible =
       eventCompleted &&
       registrationApproved &&
       attendancePresent &&
       assessmentPassed &&
-      noExistingCertificate;
+      !alreadyIssued;
 
     return successResponse({
       eligible,
+      alreadyIssued,
       checks: {
         eventCompleted,
         registration: registrationApproved,
         attendance: attendancePresent,
         assessment: assessmentPassed,
-        existingCertificate: !noExistingCertificate,
+        alreadyIssued,
       },
       event: {
         title: event.title,
