@@ -5,7 +5,7 @@ import {
   ArrowLeft, Save, Loader2, Sparkles, Image as ImageIcon,
   Paintbrush, Settings, Sliders, Type, Award,
   AlignCenter, AlignLeft, AlignRight, Lock, Unlock,
-  X
+  X, Check, GraduationCap, Shield, FileText, Calendar
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { Button } from '@/components/ui/button';
@@ -13,7 +13,10 @@ import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@/components/ui/tabs';
 import { Switch } from '@/components/ui/switch';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { Badge } from '@/components/ui/badge';
 import { toast } from '@/hooks/use-toast';
+import type { Event } from '@/types';
 
 /* ─── Types ─── */
 
@@ -94,7 +97,107 @@ interface AlignmentGuide {
   horizontal?: number;
 }
 
+export type ThemeKey = 'ACADEMIC' | 'CYBER' | 'MODERN';
+
+export interface WatermarkConfig {
+  visible: boolean;
+  text: string;
+  opacity: number;
+}
+
+export interface ThemePreset {
+  id: ThemeKey;
+  name: string;
+  subtitle: string;
+  bgColor: string;
+  primaryColor: string;
+  secondaryColor: string;
+  isLight: boolean;
+  textColors: Record<TextElementKey, string>;
+  signatureColors: { name: string; title: string };
+  defaultWatermark: string;
+}
+
+export const THEME_PRESETS: Record<ThemeKey, ThemePreset> = {
+  ACADEMIC: {
+    id: 'ACADEMIC',
+    name: 'Classic Academic',
+    subtitle: 'Ivory parchment with ornate gold & navy accents',
+    bgColor: '#faf8f5',
+    primaryColor: '#b45309',
+    secondaryColor: '#1e293b',
+    isLight: true,
+    textColors: {
+      headerTitle: '#0f172a',
+      headerSubtitle: '#b45309',
+      intro: '#475569',
+      recipientName: '#0f172a',
+      eventLabel: '#475569',
+      eventName: '#b45309',
+      certificateTitle: '#991b1b',
+      description: '#334155',
+      issueDate: '#475569',
+      issueDateLabel: '#64748b',
+      certificateId: '#b45309',
+      footer: '#64748b',
+    },
+    signatureColors: { name: '#0f172a', title: '#64748b' },
+    defaultWatermark: 'VERIFIED',
+  },
+  CYBER: {
+    id: 'CYBER',
+    name: 'Cyber Tactical',
+    subtitle: 'Cybersecurity dark theme with emerald & cyan neon accents',
+    bgColor: '#050508',
+    primaryColor: '#10b981',
+    secondaryColor: '#06b6d4',
+    isLight: false,
+    textColors: {
+      headerTitle: '#ffffff',
+      headerSubtitle: '#06b6d4',
+      intro: '#9ca3af',
+      recipientName: '#10b981',
+      eventLabel: '#9ca3af',
+      eventName: '#ffffff',
+      certificateTitle: '#ffffff',
+      description: '#6b7280',
+      issueDate: '#9ca3af',
+      issueDateLabel: '#4b5563',
+      certificateId: '#10b981',
+      footer: '#4b5563',
+    },
+    signatureColors: { name: '#ffffff', title: '#6b7280' },
+    defaultWatermark: 'AUTHENTIC',
+  },
+  MODERN: {
+    id: 'MODERN',
+    name: 'Clean Modern',
+    subtitle: 'Minimalist white cardstock with crisp dual rules',
+    bgColor: '#ffffff',
+    primaryColor: '#0284c7',
+    secondaryColor: '#059669',
+    isLight: true,
+    textColors: {
+      headerTitle: '#0f172a',
+      headerSubtitle: '#64748b',
+      intro: '#64748b',
+      recipientName: '#0284c7',
+      eventLabel: '#64748b',
+      eventName: '#0f172a',
+      certificateTitle: '#0f172a',
+      description: '#475569',
+      issueDate: '#64748b',
+      issueDateLabel: '#94a3b8',
+      certificateId: '#0284c7',
+      footer: '#94a3b8',
+    },
+    signatureColors: { name: '#0f172a', title: '#64748b' },
+    defaultWatermark: 'OFFICIAL',
+  },
+};
+
 interface LayoutConfig {
+  theme?: ThemeKey;
   orientation: "LANDSCAPE" | "PORTRAIT";
   paperSize: "A4" | "LETTER";
   bgImage: string;
@@ -117,6 +220,7 @@ interface LayoutConfig {
     x: number;
     y: number;
   };
+  watermark?: WatermarkConfig;
   textColors?: Record<string, string>;
   textElements?: Partial<Record<TextElementKey, PositionedTextElement>>;
   logoElements?: Partial<Record<LogoKey, PositionedLogo>>;
@@ -225,18 +329,27 @@ const createDefaultSignatureLayouts = (isLandscape: boolean): SignatureLayout[] 
 /* ─── Component ─── */
 
 export function CertificateDesigner() {
-  const { selectedEventId, setCurrentView } = useAppStore();
+  const { selectedEventId, setSelectedEventId, setCurrentView } = useAppStore();
+  const [events, setEvents] = useState<Event[]>([]);
+  const [currentEventId, setCurrentEventId] = useState<string>(selectedEventId || '');
+  const [eventsLoading, setEventsLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [eventTitle, setEventTitle] = useState('Dynamic Event Title');
   const [loading, setLoading] = useState(true);
   const svgRef = useRef<SVGSVGElement | null>(null);
+
+  // Theme & Watermark states
+  const [currentTheme, setCurrentTheme] = useState<ThemeKey>('CYBER');
+  const [watermarkVisible, setWatermarkVisible] = useState(true);
+  const [watermarkText, setWatermarkText] = useState('VERIFIED');
+  const [watermarkOpacity, setWatermarkOpacity] = useState(0.06);
 
   // Layout states
   const [orientation, setOrientation] = useState<"LANDSCAPE" | "PORTRAIT">("LANDSCAPE");
   const [paperSize, setPaperSize] = useState<"A4" | "LETTER">("A4");
   const [bgImage, setBgImage] = useState('');
   const [bgImageOpacity, setBgImageOpacity] = useState(1);
-  const [bgColor, setBgColor] = useState('#000000');
+  const [bgColor, setBgColor] = useState('#050508');
   const [primaryColor, setPrimaryColor] = useState('#10b981');
   const [secondaryColor, setSecondaryColor] = useState('#06b6d4');
   const [collabMode, setCollabMode] = useState(false);
@@ -263,6 +376,7 @@ export function CertificateDesigner() {
   const [logoElements, setLogoElements] = useState<Record<LogoKey, PositionedLogo>>(() => createDefaultLogoElements(true));
   const [signatureLayouts, setSignatureLayouts] = useState<SignatureLayout[]>(() => createDefaultSignatureLayouts(true));
   const [selectedElement, setSelectedElement] = useState<SelectedElement>(null);
+  const [activeDesignerTab, setActiveDesignerTab] = useState<string>('properties');
   const [dragState, setDragState] = useState<{
     kind: 'text' | 'logo' | 'signature' | 'signatureImage';
     key: TextElementKey | LogoKey | number;
@@ -289,10 +403,41 @@ export function CertificateDesigner() {
   const width = isLandscape ? 1200 : 840;
   const height = isLandscape ? 840 : 1200;
 
-  /* ─── Load Event Data ─── */
-
+  /* ─── 1. Load Events List on Mount ─── */
   useEffect(() => {
-    if (!selectedEventId) return;
+    let isMounted = true;
+    const fetchEventsList = async () => {
+      setEventsLoading(true);
+      try {
+        const res = await fetch('/api/events');
+        const data = await res.json();
+        if (data.success && data.data.events) {
+          const list: Event[] = data.data.events;
+          list.sort((a, b) => new Date(b.startDate).getTime() - new Date(a.startDate).getTime());
+          if (isMounted) {
+            setEvents(list);
+            if (!currentEventId && list.length > 0) {
+              const defaultEv = list[0].id;
+              setCurrentEventId(defaultEv);
+              setSelectedEventId(defaultEv);
+            } else if (list.length === 0) {
+              setLoading(false);
+            }
+          }
+        }
+      } catch (err) {
+        console.error('Failed to load events:', err);
+      } finally {
+        if (isMounted) setEventsLoading(false);
+      }
+    };
+    fetchEventsList();
+    return () => { isMounted = false; };
+  }, []);
+
+  /* ─── 2. Load Selected Event Layout ─── */
+  useEffect(() => {
+    if (!currentEventId) return;
     const fetchEvent = async () => {
       setLoading(true);
       try {
@@ -305,7 +450,7 @@ export function CertificateDesigner() {
           defaultSecondary = configData.data.defaultSecondaryColor || '#06b6d4';
         }
 
-        const res = await fetch(`/api/events/${selectedEventId}`);
+        const res = await fetch(`/api/events/${currentEventId}`);
         const data = await res.json();
         if (data.success && data.data.event) {
           const ev = data.data.event;
@@ -313,17 +458,25 @@ export function CertificateDesigner() {
           if (ev.certificateLayout) {
             try {
               const layout: LayoutConfig = JSON.parse(ev.certificateLayout);
+              const theme = layout.theme || 'CYBER';
+              setCurrentTheme(theme);
               setOrientation(layout.orientation || "LANDSCAPE");
               setPaperSize(layout.paperSize || "A4");
               setBgImage(layout.bgImage || '');
               setBgImageOpacity((layout as any).bgImageOpacity ?? 1);
-              setBgColor((layout as any).bgColor || '#000000');
-              setPrimaryColor(layout.primaryColor || defaultPrimary);
-              setSecondaryColor(layout.secondaryColor || defaultSecondary);
+              setBgColor((layout as any).bgColor || THEME_PRESETS[theme]?.bgColor || '#050508');
+              setPrimaryColor(layout.primaryColor || THEME_PRESETS[theme]?.primaryColor || defaultPrimary);
+              setSecondaryColor(layout.secondaryColor || THEME_PRESETS[theme]?.secondaryColor || defaultSecondary);
               setCollabMode(layout.collabMode ?? false);
               setClubLogo((layout as any).clubLogo || '/certificate/logo.png');
               setOrgLogo(layout.orgLogo || '');
               setEventLogo(layout.eventLogo || '');
+
+              if (layout.watermark) {
+                setWatermarkVisible(layout.watermark.visible ?? true);
+                setWatermarkText(layout.watermark.text || 'VERIFIED');
+                setWatermarkOpacity(layout.watermark.opacity ?? 0.06);
+              }
 
               if (layout.qrCode) {
                 setQrVisible(layout.qrCode.visible ?? true);
@@ -392,7 +545,45 @@ export function CertificateDesigner() {
       }
     };
     fetchEvent();
-  }, [selectedEventId]);
+  }, [currentEventId]);
+
+  /* ─── 3. Apply Theme Preset ─── */
+  const applyTheme = (themeKey: ThemeKey) => {
+    const preset = THEME_PRESETS[themeKey];
+    if (!preset) return;
+    setCurrentTheme(themeKey);
+    setBgColor(preset.bgColor);
+    setPrimaryColor(preset.primaryColor);
+    setSecondaryColor(preset.secondaryColor);
+    setTextColors(preset.textColors);
+
+    setTextElements(prev => {
+      const updated = { ...prev };
+      for (const k of Object.keys(updated) as TextElementKey[]) {
+        if (preset.textColors[k]) {
+          updated[k] = { ...updated[k], color: preset.textColors[k] };
+        }
+      }
+      return updated;
+    });
+
+    setSignatureLayouts(prev => prev.map(s => ({
+      ...s,
+      nameColor: preset.signatureColors.name,
+      titleColor: preset.signatureColors.title,
+    })));
+    setSignatures(prev => prev.map(s => ({
+      ...s,
+      layout: s.layout ? {
+        ...s.layout,
+        nameColor: preset.signatureColors.name,
+        titleColor: preset.signatureColors.title,
+      } : undefined
+    })));
+
+    setWatermarkText(preset.defaultWatermark);
+    toast({ title: 'Theme Preset Applied', description: `Switched layout styling to ${preset.name}` });
+  };
 
   /* ─── Updaters ─── */
 
@@ -409,6 +600,12 @@ export function CertificateDesigner() {
       ...prev,
       [type]: { ...prev[type], [field]: value }
     }));
+    if (field === 'description' && textElements.description?.text) {
+      setTextElements(prev => ({
+        ...prev,
+        description: { ...prev.description, text: undefined }
+      }));
+    }
   };
 
   const updateTextColor = (key: keyof typeof DEFAULT_TEXT_COLORS, value: string) => {
@@ -521,6 +718,7 @@ export function CertificateDesigner() {
     event.stopPropagation();
     const point = svgPointFromEvent(event);
     setSelectedElement(kind === 'signature' || kind === 'signatureImage' ? { kind, index: key as number } : { kind, key: key as any });
+    setActiveDesignerTab('properties');
     setDragState({
       kind,
       key,
@@ -693,7 +891,7 @@ export function CertificateDesigner() {
   /* ─── Save ─── */
 
   const handleSave = async () => {
-    if (!selectedEventId) return;
+    if (!currentEventId) return;
     if (selectedTypes.length === 0) {
       toast({ title: 'Validation Error', description: 'You must select at least one certificate type', variant: 'destructive' });
       return;
@@ -701,6 +899,7 @@ export function CertificateDesigner() {
 
     setSaving(true);
     const layoutConfig: LayoutConfig = {
+      theme: currentTheme,
       orientation,
       paperSize,
       bgImage,
@@ -714,6 +913,7 @@ export function CertificateDesigner() {
       eventLogo: collabMode ? eventLogo : '',
       qrCode: { visible: qrVisible, size: qrSize, x: qrX, y: qrY },
       certId: { visible: idVisible, x: idX, y: idY },
+      watermark: { visible: watermarkVisible, text: watermarkText, opacity: watermarkOpacity },
       textElements,
       logoElements,
       selectedTypes,
@@ -724,15 +924,14 @@ export function CertificateDesigner() {
     };
 
     try {
-      const res = await fetch(`/api/events/${selectedEventId}`, {
+      const res = await fetch(`/api/events/${currentEventId}`, {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ certificateLayout: JSON.stringify(layoutConfig) }),
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: 'Design Saved', description: 'Certificate template has been updated.' });
-        setCurrentView('event-detail');
+        toast({ title: 'Design Saved', description: `Certificate template saved for ${eventTitle}.` });
       } else {
         toast({ title: 'Save Failed', description: data.error || 'Could not save layout config', variant: 'destructive' });
       }
@@ -905,12 +1104,20 @@ export function CertificateDesigner() {
     const position = textElements[key];
     if (position.visible === false) return null;
     const isSelected = selectedTextKey === key;
-    const previewValue = position.text || textPreviewValues[key]; // Custom text if set, else default
+    const previewValue = position.text || textPreviewValues[key] || ''; // Custom text if set, else default
     const effectiveColor = position.color || textColors[key] || '#ffffff';
 
-    // Estimate text width for selection box
-    const estimatedWidth = Math.max(previewValue.length * position.fontSize * 0.6, 80);
-    const boxHeight = position.fontSize + 12;
+    // Support multiline text via \n
+    const lines = String(previewValue).split('\n');
+    const isMultiLine = lines.length > 1;
+    const lineHeight = Math.round(position.fontSize * 1.38);
+    // Vertically center multiline text block around position.y
+    const startY = isMultiLine ? position.y - ((lines.length - 1) * lineHeight) / 2 : position.y;
+
+    // Estimate text width and bounding box for selection
+    const maxLineLength = Math.max(...lines.map(l => l.length), 1);
+    const estimatedWidth = Math.max(maxLineLength * position.fontSize * 0.6, 80);
+    const boxHeight = (lines.length - 1) * lineHeight + position.fontSize + 12;
 
     return (
       <g
@@ -920,7 +1127,7 @@ export function CertificateDesigner() {
       >
         <text
           x={position.x}
-          y={position.y}
+          y={startY}
           textAnchor={position.textAnchor}
           fontFamily={position.fontFamily || 'sans-serif'}
           fontSize={position.fontSize}
@@ -928,13 +1135,25 @@ export function CertificateDesigner() {
           fill={effectiveColor}
           letterSpacing={position.letterSpacing}
         >
-          {previewValue}
+          {isMultiLine ? (
+            lines.map((line, idx) => (
+              <tspan
+                key={idx}
+                x={position.x}
+                dy={idx === 0 ? 0 : lineHeight}
+              >
+                {line}
+              </tspan>
+            ))
+          ) : (
+            previewValue
+          )}
         </text>
         {isSelected && (
           <>
             <rect
               x={position.textAnchor === 'middle' ? position.x - estimatedWidth / 2 : position.textAnchor === 'end' ? position.x - estimatedWidth : position.x}
-              y={position.y - position.fontSize - 4}
+              y={startY - position.fontSize - 4}
               width={estimatedWidth}
               height={boxHeight}
               fill="none"
@@ -946,7 +1165,7 @@ export function CertificateDesigner() {
             {/* Element label */}
             <rect
               x={position.textAnchor === 'middle' ? position.x - 40 : position.textAnchor === 'end' ? position.x - 80 : position.x}
-              y={position.y - position.fontSize - 18}
+              y={startY - position.fontSize - 18}
               width="80"
               height="14"
               fill={primaryColor}
@@ -954,7 +1173,7 @@ export function CertificateDesigner() {
             />
             <text
               x={position.textAnchor === 'middle' ? position.x : position.textAnchor === 'end' ? position.x - 40 : position.x + 40}
-              y={position.y - position.fontSize - 8}
+              y={startY - position.fontSize - 8}
               textAnchor="middle"
               fontFamily="sans-serif"
               fontSize="8"
@@ -1028,14 +1247,68 @@ export function CertificateDesigner() {
           </div>
 
           {/* Text Content — Editable */}
-          <div className="space-y-1">
-            <label className="text-[10px] text-gray-500 font-semibold uppercase">Text Content</label>
-            <Input
-              value={el.text || textPreviewValues[key] || ''}
-              onChange={(e) => updateTextElement(key, { text: e.target.value })}
-              placeholder={textPreviewValues[key]}
-              className="h-7 text-xs border-white/10 bg-white/5 text-white"
-            />
+          <div className="space-y-1.5">
+            <div className="flex items-center justify-between">
+              <label className="text-[10px] text-gray-500 font-semibold uppercase">Text Content</label>
+              {el.text !== undefined && (
+                <button
+                  type="button"
+                  onClick={() => updateTextElement(key, { text: undefined })}
+                  className="text-[9px] text-emerald-400 hover:text-emerald-300 underline"
+                >
+                  Reset to Template
+                </button>
+              )}
+            </div>
+            {key === 'description' || (el.text && el.text.includes('\n')) ? (
+              <>
+                <textarea
+                  rows={3}
+                  value={el.text !== undefined ? el.text : (textPreviewValues[key] || '')}
+                  onChange={(e) => updateTextElement(key, { text: e.target.value })}
+                  placeholder={textPreviewValues[key]}
+                  className="w-full p-2 text-xs border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:border-emerald-500/50 resize-y font-sans"
+                />
+                <div className="flex items-center justify-between text-[10px] text-gray-500">
+                  <span>Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-[9px]">Enter</kbd> for 2 lines</span>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      const currentVal = el.text !== undefined ? el.text : (textPreviewValues[key] || '');
+                      if (!currentVal.includes('\n')) {
+                        let splitIdx = -1;
+                        const phrases = ['successfully participated in', 'participated in', 'successfully served as', 'secured', 'in appreciation of', 'for completing'];
+                        for (const p of phrases) {
+                          const idx = currentVal.indexOf(p);
+                          if (idx !== -1) { splitIdx = idx; break; }
+                        }
+                        if (splitIdx === -1) {
+                          const half = Math.floor(currentVal.length / 2);
+                          const nextSpace = currentVal.indexOf(' ', half);
+                          splitIdx = nextSpace !== -1 ? nextSpace + 1 : half;
+                        }
+                        if (splitIdx > 0) {
+                          const newText = currentVal.slice(0, splitIdx).trim() + '\n' + currentVal.slice(splitIdx).trim();
+                          updateTextElement(key, { text: newText });
+                        }
+                      } else {
+                        updateTextElement(key, { text: currentVal.replace(/\n+/g, ' ') });
+                      }
+                    }}
+                    className="text-[10px] text-emerald-400 hover:text-emerald-300 font-medium hover:underline flex items-center gap-1"
+                  >
+                    {(el.text !== undefined ? el.text : (textPreviewValues[key] || '')).includes('\n') ? '🔗 Join into 1 line' : '✂️ Split into 2 lines'}
+                  </button>
+                </div>
+              </>
+            ) : (
+              <Input
+                value={el.text !== undefined ? el.text : (textPreviewValues[key] || '')}
+                onChange={(e) => updateTextElement(key, { text: e.target.value })}
+                placeholder={textPreviewValues[key]}
+                className="h-7 text-xs border-white/10 bg-white/5 text-white"
+              />
+            )}
           </div>
 
           {/* Position */}
@@ -1395,16 +1668,83 @@ export function CertificateDesigner() {
 
   return (
     <div className="space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => setCurrentView('event-detail')} className="text-gray-400 hover:text-white">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Event
-        </Button>
-        <Button onClick={handleSave} disabled={saving} className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2">
-          {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
-          Save Design
-        </Button>
+      {/* Header with Event Selector */}
+      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 p-4 rounded-xl border border-white/5 bg-[#111]/80 backdrop-blur">
+        <div className="flex flex-wrap items-center gap-3">
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={() => setCurrentView('certificate-authority')}
+            className="text-zinc-400 hover:text-white text-xs h-9 cursor-pointer"
+          >
+            <ArrowLeft className="mr-1.5 h-3.5 w-3.5" /> Back to CA Console
+          </Button>
+
+          <div className="h-4 w-px bg-white/10 hidden sm:block" />
+
+          <div className="flex items-center gap-2">
+            <span className="text-xs text-zinc-400 font-medium whitespace-nowrap hidden md:inline">Target Event:</span>
+            <Select
+              value={currentEventId}
+              onValueChange={(val) => {
+                setCurrentEventId(val);
+                setSelectedEventId(val);
+              }}
+              disabled={eventsLoading}
+            >
+              <SelectTrigger className="border-white/10 bg-black/40 text-white rounded-lg h-9 text-xs min-w-[260px] max-w-[380px] hover:border-emerald-500/40 transition-colors">
+                <SelectValue placeholder={eventsLoading ? "Loading events..." : "Select event to design..."} />
+              </SelectTrigger>
+              <SelectContent className="border-white/10 bg-[#12121a] text-white max-h-72">
+                {events.length === 0 ? (
+                  <div className="py-2 px-3 text-xs text-zinc-500">No events found</div>
+                ) : (
+                  events.map((ev) => (
+                    <SelectItem
+                      key={ev.id}
+                      value={ev.id}
+                      textValue={`${ev.title} • ${new Date(ev.startDate).toLocaleDateString()}`}
+                      className="text-xs py-2 cursor-pointer focus:bg-white/10 text-zinc-200"
+                    >
+                      <div className="flex items-center justify-between gap-2 w-full">
+                        <span className="font-medium text-white truncate max-w-[220px]">{ev.title}</span>
+                        <div className="flex items-center gap-1.5 shrink-0">
+                          <Badge variant="outline" className="text-[9px] py-0 px-1 border-emerald-500/30 text-emerald-400 bg-emerald-500/10 font-normal">
+                            {ev.category}
+                          </Badge>
+                          <span className="text-[10px] text-zinc-400 font-mono">
+                            {new Date(ev.startDate).toLocaleDateString()}
+                          </span>
+                        </div>
+                      </div>
+                    </SelectItem>
+                  ))
+                )}
+              </SelectContent>
+            </Select>
+          </div>
+        </div>
+
+        <div className="flex items-center gap-2 w-full sm:w-auto justify-end">
+          <Button
+            onClick={handleSave}
+            disabled={saving || !currentEventId}
+            className="bg-emerald-600 hover:bg-emerald-500 text-white gap-2 text-xs h-9 px-4 cursor-pointer shadow-lg shadow-emerald-950/40"
+          >
+            {saving ? <Loader2 className="h-4 w-4 animate-spin" /> : <Save className="h-4 w-4" />}
+            Save Design
+          </Button>
+        </div>
       </div>
+
+      {!eventsLoading && events.length === 0 && (
+        <Card className="border-white/5 bg-[#111]/60 p-8 text-center space-y-3">
+          <p className="text-zinc-400 text-sm">No events found in the database. Please create an event first.</p>
+          <Button onClick={() => setCurrentView('events')} className="bg-emerald-600 hover:bg-emerald-500 text-white text-xs cursor-pointer">
+            Go to Events
+          </Button>
+        </Card>
+      )}
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         {/* Editor Controls (5 cols) */}
@@ -1417,7 +1757,7 @@ export function CertificateDesigner() {
               </CardTitle>
             </CardHeader>
             <CardContent className="p-4">
-              <Tabs defaultValue="properties" className="space-y-4">
+              <Tabs value={activeDesignerTab} onValueChange={setActiveDesignerTab} className="space-y-4">
                 <TabsList className="bg-white/5 border border-white/10 w-full justify-start overflow-x-auto">
                   <TabsTrigger value="properties" className="text-xs">1. Element</TabsTrigger>
                   <TabsTrigger value="types" className="text-xs">2. Types</TabsTrigger>
@@ -1583,18 +1923,57 @@ export function CertificateDesigner() {
                             </div>
                           ))}
                         </div>
-                        <div className="space-y-1">
-                          <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider flex items-center justify-between">
-                            <span>Certificate Text Template</span>
-                            <span className="text-[9px] text-gray-600 font-mono">{"Use {{recipient_name}}"}</span>
-                          </label>
+                        <div className="space-y-1.5">
+                          <div className="flex items-center justify-between">
+                            <label className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">
+                              Certificate Text Template
+                            </label>
+                            <span className="text-[9px] text-gray-600 font-mono">{"Use {{recipient_name}}, {{event_name}}"}</span>
+                          </div>
                           <textarea
                             rows={3}
                             value={templates[previewType]?.description || ''}
                             onChange={(e) => updateTemplate(previewType, 'description', e.target.value)}
-                            className="w-full p-2 text-xs border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:border-emerald-500/50 resize-none font-sans"
+                            className="w-full p-2 text-xs border border-white/10 rounded-md bg-white/5 text-white focus:outline-none focus:border-emerald-500/50 resize-y font-sans"
                             placeholder="This certifies that {{recipient_name}}..."
                           />
+                          <div className="flex items-center justify-between pt-0.5">
+                            <span className="text-[10px] text-gray-500">
+                              Press <kbd className="px-1 py-0.5 rounded bg-white/10 text-gray-300 font-mono text-[9px]">Enter</kbd> for line breaks
+                            </span>
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const cur = templates[previewType]?.description || '';
+                                if (!cur.includes('\n')) {
+                                  let splitIdx = -1;
+                                  const searchPhrases = ['successfully participated in', 'participated in', 'successfully served as', 'secured', 'in appreciation of', 'for completing'];
+                                  for (const phrase of searchPhrases) {
+                                    const idx = cur.indexOf(phrase);
+                                    if (idx !== -1) {
+                                      splitIdx = idx;
+                                      break;
+                                    }
+                                  }
+                                  if (splitIdx === -1) {
+                                    const half = Math.floor(cur.length / 2);
+                                    const nextSpace = cur.indexOf(' ', half);
+                                    splitIdx = nextSpace !== -1 ? nextSpace + 1 : half;
+                                  }
+                                  if (splitIdx > 0) {
+                                    const newText = cur.slice(0, splitIdx).trim() + '\n' + cur.slice(splitIdx).trim();
+                                    updateTemplate(previewType, 'description', newText);
+                                  }
+                                } else {
+                                  const newText = cur.replace(/\n+/g, ' ');
+                                  updateTemplate(previewType, 'description', newText);
+                                }
+                              }}
+                              className="text-[10px] text-emerald-400 hover:text-emerald-300 font-medium hover:underline flex items-center gap-1"
+                            >
+                              {(templates[previewType]?.description || '').includes('\n') ? '🔗 Join into 1 line' : '✂️ Split into 2 lines'}
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
@@ -1603,6 +1982,105 @@ export function CertificateDesigner() {
 
                 {/* TAB 3: Branding & Style */}
                 <TabsContent value="branding" className="space-y-4 pt-2">
+                  {/* Theme Presets */}
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between">
+                      <label className="text-xs text-gray-300 font-semibold uppercase tracking-wider flex items-center gap-1.5">
+                        <Sparkles className="h-3.5 w-3.5 text-emerald-400" /> 1-Click Style Themes
+                      </label>
+                      <Badge variant="outline" className="text-[10px] border-emerald-500/30 text-emerald-400 bg-emerald-500/10">
+                        {THEME_PRESETS[currentTheme]?.name || 'Custom'}
+                      </Badge>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-2">
+                      {(Object.keys(THEME_PRESETS) as ThemeKey[]).map((tKey) => {
+                        const theme = THEME_PRESETS[tKey];
+                        const isSelected = currentTheme === tKey;
+                        return (
+                          <div
+                            key={tKey}
+                            onClick={() => applyTheme(tKey)}
+                            className={`flex items-center gap-3 p-3 rounded-lg border text-left transition-all cursor-pointer ${
+                              isSelected
+                                ? 'bg-emerald-500/10 border-emerald-500/60 ring-1 ring-emerald-500/40 shadow-sm'
+                                : 'bg-white/[0.02] border-white/5 hover:bg-white/[0.05] hover:border-white/10'
+                            }`}
+                          >
+                            <div
+                              className="h-10 w-14 rounded border flex items-center justify-center shrink-0 relative overflow-hidden shadow-inner"
+                              style={{
+                                backgroundColor: theme.bgColor,
+                                borderColor: theme.isLight ? '#cbd5e1' : '#334155',
+                              }}
+                            >
+                              <div
+                                className="w-8 h-1 rounded"
+                                style={{ backgroundColor: theme.primaryColor }}
+                              />
+                              {isSelected && (
+                                <div className="absolute top-1 right-1 h-3.5 w-3.5 rounded-full bg-emerald-500 flex items-center justify-center">
+                                  <Check className="h-2.5 w-2.5 text-black stroke-[3]" />
+                                </div>
+                              )}
+                            </div>
+                            <div className="min-w-0 flex-1">
+                              <div className="flex items-center justify-between">
+                                <span className={`text-xs font-semibold ${isSelected ? 'text-emerald-400' : 'text-white'}`}>
+                                  {theme.name}
+                                </span>
+                                <span className="text-[9px] uppercase px-1.5 py-0.5 rounded border border-white/10 text-zinc-400 font-mono">
+                                  {theme.isLight ? 'Printable Light' : 'Dark Screen'}
+                                </span>
+                              </div>
+                              <p className="text-[11px] text-zinc-400 truncate mt-0.5">{theme.subtitle}</p>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+
+                  {/* Watermark Section */}
+                  <div className="rounded-lg border border-white/5 bg-white/[0.02] p-3 space-y-3">
+                    <div className="flex items-center justify-between">
+                      <div>
+                        <p className="text-xs font-semibold text-gray-200">Security Watermark</p>
+                        <p className="text-[10px] text-gray-500">Translucent diagonal anti-counterfeit stamp</p>
+                      </div>
+                      <Switch checked={watermarkVisible} onCheckedChange={setWatermarkVisible} />
+                    </div>
+
+                    {watermarkVisible && (
+                      <div className="space-y-3 pt-2 border-t border-white/5">
+                        <div className="space-y-1">
+                          <label className="text-[10px] text-gray-400 uppercase font-semibold">Watermark Text</label>
+                          <Input
+                            value={watermarkText}
+                            onChange={(e) => setWatermarkText(e.target.value)}
+                            placeholder="VERIFIED"
+                            className="h-8 border-white/10 bg-white/5 text-white text-xs font-mono uppercase"
+                          />
+                        </div>
+                        <div className="space-y-1">
+                          <div className="flex justify-between text-[10px] text-gray-400">
+                            <span>Watermark Opacity</span>
+                            <span className="font-mono text-white">{Math.round(watermarkOpacity * 100)}%</span>
+                          </div>
+                          <input
+                            type="range"
+                            min="0.02"
+                            max="0.25"
+                            step="0.01"
+                            value={watermarkOpacity}
+                            onChange={(e) => setWatermarkOpacity(parseFloat(e.target.value))}
+                            className="w-full h-1 accent-emerald-500 cursor-pointer"
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
                       <label className="text-xs text-gray-400 font-semibold uppercase tracking-wider">Orientation</label>
@@ -1881,16 +2359,62 @@ export function CertificateDesigner() {
               ) : (
                 <>
                   <rect width={width} height={height} fill={bgColor} />
-                  <rect width={width} height={height} fill="url(#gridPreview)" />
+                  {currentTheme === 'CYBER' && <rect width={width} height={height} fill="url(#gridPreview)" />}
                 </>
               )}
 
-              {/* Borders */}
-              <rect x="15" y="15" width={width - 30} height={height - 30} rx="16" fill="none" stroke="url(#borderGradPreview)" strokeWidth="2" />
-              <path d={`M 30 30 L 30 60 M 30 30 L 60 30`} stroke={primaryColor} strokeWidth="2" opacity="0.5" />
-              <path d={`M ${width - 30} 30 L ${width - 30} 60 M ${width - 30} 30 L ${width - 60} 30`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
-              <path d={`M 30 ${height - 30} L 30 ${height - 60} M 30 ${height - 30} L 60 ${height - 30}`} stroke={primaryColor} strokeWidth="2" opacity="0.5" />
-              <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.5" />
+              {/* Theme Borders & Corners */}
+              {currentTheme === 'ACADEMIC' ? (
+                <>
+                  {/* Academic Theme: Ornate Double Gold & Navy Border */}
+                  <rect x="18" y="18" width={width - 36} height={height - 36} rx="4" fill="none" stroke={primaryColor} strokeWidth="3" />
+                  <rect x="26" y="26" width={width - 52} height={height - 52} rx="2" fill="none" stroke={secondaryColor} strokeWidth="1" opacity="0.5" />
+                  {/* Classical Gold Corner Brackets */}
+                  <path d="M 18 55 L 55 55 L 55 18 M 26 62 L 62 62 L 62 26" stroke={primaryColor} strokeWidth="2" fill="none" />
+                  <path d={`M ${width - 18} 55 L ${width - 55} 55 L ${width - 55} 18 M ${width - 26} 62 L ${width - 62} 62 L ${width - 62} 26`} stroke={primaryColor} strokeWidth="2" fill="none" />
+                  <path d={`M 18 ${height - 55} L 55 ${height - 55} L 55 ${height - 18} M 26 ${height - 62} L 62 ${height - 62} L 62 ${height - 26}`} stroke={primaryColor} strokeWidth="2" fill="none" />
+                  <path d={`M ${width - 18} ${height - 55} L ${width - 55} ${height - 55} L ${width - 55} ${height - 18} M ${width - 26} ${height - 62} L ${width - 62} ${height - 62} L ${width - 62} ${height - 26}`} stroke={primaryColor} strokeWidth="2" fill="none" />
+                </>
+              ) : currentTheme === 'MODERN' ? (
+                <>
+                  {/* Clean Modern: Minimalist Slate Frame with Dual Color Rules */}
+                  <rect x="20" y="20" width={width - 40} height={height - 40} rx="2" fill="none" stroke="#cbd5e1" strokeWidth="1" />
+                  <line x1="20" y1="20" x2={width / 3} y2="20" stroke={primaryColor} strokeWidth="3.5" />
+                  <line x1={2 * width / 3} y1="20" x2={width - 20} y2="20" stroke={secondaryColor} strokeWidth="3.5" />
+                  <line x1="20" y1={height - 20} x2={width / 3} y2={height - 20} stroke={secondaryColor} strokeWidth="3.5" />
+                  <line x1={2 * width / 3} y1={height - 20} x2={width - 20} y2={height - 20} stroke={primaryColor} strokeWidth="3.5" />
+                </>
+              ) : (
+                <>
+                  {/* Cyber Theme: Neon Rounded Gradient Border & Tech Ticks */}
+                  <rect x="15" y="15" width={width - 30} height={height - 30} rx="14" fill="none" stroke="url(#borderGradPreview)" strokeWidth="2" />
+                  <path d="M 30 30 L 30 60 M 30 30 L 60 30" stroke={primaryColor} strokeWidth="2" opacity="0.7" />
+                  <path d={`M ${width - 30} 30 L ${width - 30} 60 M ${width - 30} 30 L ${width - 60} 30`} stroke={secondaryColor} strokeWidth="2" opacity="0.7" />
+                  <path d={`M 30 ${height - 30} L 30 ${height - 60} M 30 ${height - 30} L 60 ${height - 30}`} stroke={primaryColor} strokeWidth="2" opacity="0.7" />
+                  <path d={`M ${width - 30} ${height - 30} L ${width - 30} ${height - 60} M ${width - 30} ${height - 30} L ${width - 60} ${height - 30}`} stroke={secondaryColor} strokeWidth="2" opacity="0.7" />
+                </>
+              )}
+
+              {/* Security Watermark */}
+              {watermarkVisible && watermarkText && (
+                <g transform={`translate(${width / 2}, ${height / 2}) rotate(-25)`} pointerEvents="none">
+                  <text
+                    x="0"
+                    y="0"
+                    textAnchor="middle"
+                    dominantBaseline="central"
+                    fontFamily="sans-serif"
+                    fontSize={isLandscape ? 120 : 90}
+                    fontWeight="900"
+                    letterSpacing="14"
+                    fill={currentTheme === 'ACADEMIC' ? '#b45309' : currentTheme === 'MODERN' ? '#0284c7' : primaryColor}
+                    opacity={watermarkOpacity}
+                    style={{ userSelect: 'none' }}
+                  >
+                    {watermarkText.toUpperCase()}
+                  </text>
+                </g>
+              )}
 
               {/* Alignment Guide Lines */}
               {alignmentGuides?.vertical != null && (

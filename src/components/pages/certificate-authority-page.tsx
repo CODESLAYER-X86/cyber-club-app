@@ -26,6 +26,7 @@ import {
   Undo2,
   Sparkles,
   HelpCircle,
+  Paintbrush,
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { toast } from '@/hooks/use-toast';
@@ -167,7 +168,7 @@ const StatCard = ({
 // ──────────────────────────────────────────
 
 export function CertificateAuthorityPage() {
-  const { currentUser } = useAppStore();
+  const { currentUser, setCurrentView, setSelectedEventId: setSelectedEventIdStore } = useAppStore();
   const role = currentUser?.role ?? 'GUEST';
 
   const isGS = role === 'GS';
@@ -1042,11 +1043,27 @@ export function CertificateAuthorityPage() {
                     )}
                   </div>
 
-                  <div className="text-[11px] text-zinc-400 flex items-center gap-1.5">
-                    <Clock className="h-3.5 w-3.5 text-zinc-500" />
-                    <span>
-                      {new Date(selectedEvent.startDate).toLocaleDateString()} — {new Date(selectedEvent.endDate).toLocaleDateString()}
-                    </span>
+                  <div className="flex items-center gap-3 ml-auto">
+                    <div className="text-[11px] text-zinc-400 flex items-center gap-1.5">
+                      <Clock className="h-3.5 w-3.5 text-zinc-500" />
+                      <span>
+                        {new Date(selectedEvent.startDate).toLocaleDateString()} — {new Date(selectedEvent.endDate).toLocaleDateString()}
+                      </span>
+                    </div>
+                    {(canDirectAuthorize || isGS) && (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => {
+                          setSelectedEventIdStore(selectedEventId);
+                          setCurrentView('certificate-designer');
+                        }}
+                        className="border-emerald-500/30 bg-emerald-500/10 text-emerald-400 hover:bg-emerald-500/20 hover:text-white text-xs h-7 gap-1.5 cursor-pointer"
+                      >
+                        <Paintbrush className="h-3 w-3" />
+                        Customize Template
+                      </Button>
+                    )}
                   </div>
                 </div>
               )}
