@@ -153,23 +153,25 @@ export function Header() {
   const [currentTime, setCurrentTime] = useState<Date>(() => new Date());
   const [mobileNavOpen, setMobileNavOpen] = useState(false);
 
-  // Determine if we're in full-page mode (public portal pages)
-  const isFullPageMode = [
-    'landing',
-    'login',
-    'register',
-    'certificate-public',
-    'about',
-    'resources',
-    'gallery',
-    'achievements',
-    'events',
-    'event-detail',
-    'certificate-verify',
-    'apply-membership',
-    'committee',
-    'sponsors',
-  ].includes(currentView);
+  // Determine if we're in full-page mode (public portal pages for guests or explicit standalone public pages)
+  const isFullPageMode = !isAuthenticated
+    ? [
+        'landing',
+        'login',
+        'register',
+        'certificate-public',
+        'about',
+        'resources',
+        'gallery',
+        'achievements',
+        'events',
+        'event-detail',
+        'certificate-verify',
+        'apply-membership',
+        'committee',
+        'sponsors',
+      ].includes(currentView)
+    : (currentView === 'landing' || currentView === 'certificate-public' || currentView === 'certificate-verify');
 
   useEffect(() => {
     const timer = setInterval(() => {

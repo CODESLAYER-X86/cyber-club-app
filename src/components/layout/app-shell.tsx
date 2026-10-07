@@ -146,8 +146,10 @@ export function AppShell() {
   const allowed = isViewAllowed(currentView, isAuthenticated, currentUser?.role);
   const PageComponent = allowed ? (PAGE_MAP[currentView] || LandingPage) : (isAuthenticated ? DashboardPage : LandingPage);
 
-  // Full-page layout for public portal views
-  const isFullPageLayout = PUBLIC_PORTAL_VIEWS.has(currentView);
+  // Full-page layout for public portal views (unauthenticated visitors or explicit public landing/standalone views)
+  const isFullPageLayout = !isAuthenticated
+    ? PUBLIC_PORTAL_VIEWS.has(currentView)
+    : (currentView === 'landing' || currentView === 'certificate-public' || currentView === 'certificate-verify');
 
   if (isFullPageLayout) {
     return (

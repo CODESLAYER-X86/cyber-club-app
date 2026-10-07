@@ -390,23 +390,24 @@ export function EventDetailPage() {
 
   return (
     <div className="space-y-6">
-      {/* Back Button */}
-      <div className="flex items-center justify-between">
-        <Button variant="ghost" onClick={() => setCurrentView('events')} className="text-gray-400 hover:text-white">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to Events
+      {/* Back Button & Actions */}
+      <div className="flex flex-wrap items-center justify-between gap-2.5">
+        <Button variant="ghost" size="sm" onClick={() => setCurrentView('events')} className="text-gray-400 hover:text-white px-2 sm:px-3 text-xs sm:text-sm shrink-0">
+          <ArrowLeft className="mr-1.5 h-4 w-4" /> Back to Events
         </Button>
-        <div className="flex items-center gap-2">
+        <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
           {/* Share Button */}
           <div className="relative">
-            <Button variant="outline" size="sm" onClick={handleShare} className="border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-emerald-500/30">
-              <Share2 className="mr-2 h-4 w-4" /> Share
+            <Button variant="outline" size="sm" onClick={handleShare} className="border-white/10 bg-white/5 text-gray-300 hover:text-white hover:border-emerald-500/30 text-xs sm:text-sm h-8 sm:h-9 px-2.5 sm:px-3">
+              <Share2 className="h-3.5 w-3.5 mr-1 sm:mr-1.5" />
+              <span>Share</span>
             </Button>
             {shareMsg && (
               <motion.div
                 initial={{ opacity: 0, y: 5 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0 }}
-                className="absolute -bottom-8 right-0 whitespace-nowrap rounded bg-emerald-600 px-2 py-1 text-xs text-white"
+                className="absolute -bottom-8 right-0 whitespace-nowrap rounded bg-emerald-600 px-2 py-1 text-xs text-white z-20"
               >
                 {shareMsg}
               </motion.div>
@@ -414,19 +415,24 @@ export function EventDetailPage() {
           </div>
           {/* Edit Button */}
           {canEdit && (
-            <div className="flex gap-2">
-              <Button variant="outline" size="sm" onClick={() => setCurrentView('certificate-designer')} className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-white">
-                <Award className="mr-2 h-4 w-4" /> Design Certificate
+            <div className="flex flex-wrap items-center gap-1.5 sm:gap-2">
+              <Button variant="outline" size="sm" onClick={() => setCurrentView('certificate-designer')} className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 hover:text-white text-xs sm:text-sm h-8 sm:h-9 px-2.5 sm:px-3">
+                <Award className="h-3.5 w-3.5 mr-1 sm:mr-1.5" />
+                <span className="hidden sm:inline">Design Certificate</span>
+                <span className="sm:hidden">Cert Design</span>
               </Button>
-              <Button variant="outline" size="sm" onClick={handleEdit} className="border-white/10 bg-white/5 text-gray-400 hover:text-white hover:border-emerald-500/30">
-                <Pencil className="mr-2 h-4 w-4" /> Edit Event
+              <Button variant="outline" size="sm" onClick={handleEdit} className="border-white/10 bg-white/5 text-gray-300 hover:text-white hover:border-emerald-500/30 text-xs sm:text-sm h-8 sm:h-9 px-2.5 sm:px-3">
+                <Pencil className="h-3.5 w-3.5 mr-1 sm:mr-1.5" />
+                <span className="hidden sm:inline">Edit Event</span>
+                <span className="sm:hidden">Edit</span>
               </Button>
             </div>
           )}
           {/* Delete Button */}
           {canDelete && (
-            <Button variant="outline" size="sm" onClick={() => setDeleteDialogOpen(true)} className="border-red-500/20 bg-red-500/5 text-red-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/40">
-              <Trash2 className="mr-2 h-4 w-4" /> Delete
+            <Button variant="outline" size="sm" onClick={() => setDeleteDialogOpen(true)} className="border-red-500/20 bg-red-500/5 text-red-400 hover:text-white hover:bg-red-500/20 hover:border-red-500/40 text-xs sm:text-sm h-8 sm:h-9 px-2.5 sm:px-3">
+              <Trash2 className="h-3.5 w-3.5 mr-1 sm:mr-1.5" />
+              <span>Delete</span>
             </Button>
           )}
           {/* Mark as Completed Button */}

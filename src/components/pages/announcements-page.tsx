@@ -195,26 +195,26 @@ export function AnnouncementsPage() {
   return (
     <motion.div variants={container} initial="hidden" animate="show" className="space-y-6">
       {/* Gradient Header Banner */}
-      <motion.div variants={item} className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600/20 via-cyan-600/15 to-emerald-600/10 border border-emerald-500/10 p-6">
+      <motion.div variants={item} className="relative overflow-hidden rounded-xl bg-gradient-to-r from-emerald-600/20 via-cyan-600/15 to-emerald-600/10 border border-emerald-500/10 p-4 sm:p-6">
         {/* SVG Pattern Overlay */}
         <div className="absolute inset-0 bg-[url('data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iNDAiIGhlaWdodD0iNDAiIHhtbG5zPSJodHRwOi8vd3d3LnczLm9yZy8yMDAwL3N2ZyI+PGRlZnM+PHBhdHRlcm4gaWQ9ImciIHdpZHRoPSI0MCIgaGVpZ2h0PSI0MCIgcGF0dGVyblVuaXRzPSJ1c2VyU3BhY2VPblVzZSI+PHBhdGggZD0iTTAgMjBMMjAgMEw0MCAyMEwyMCA0MFoiIGZpbGw9Im5vbmUiIHN0cm9rZT0icmdiYSgyNTUsMjU1LDI1NSwwLjAzKSIgc3Ryb2tlLXdpZHRoPSIxIi8+PC9wYXR0ZXJuPjwvZGVmcz48cmVjdCBmaWxsPSJ1cmwoI2cpIiB3aWR0aD0iMTAwJSIgaGVpZ2h0PSIxMDAlIi8+PC9zdmc+')] opacity-50" />
         {/* Blur Orbs */}
         <div className="absolute -right-20 -top-20 h-40 w-40 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute -left-10 -bottom-10 h-32 w-32 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="relative flex items-center justify-between">
-          <div className="flex items-center gap-4">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
-              <Megaphone className="h-6 w-6 text-emerald-400" />
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3 sm:gap-4 min-w-0">
+            <div className="flex h-11 w-11 sm:h-12 sm:w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
+              <Megaphone className="h-5 w-5 sm:h-6 sm:w-6 text-emerald-400" />
             </div>
-            <div>
-              <h1 className="text-2xl font-bold text-white">Announcements</h1>
-              <p className="text-sm text-gray-400">Club news and updates</p>
+            <div className="min-w-0">
+              <h1 className="text-xl sm:text-2xl font-bold text-white truncate">Announcements</h1>
+              <p className="text-xs sm:text-sm text-gray-400 truncate">Club news and updates</p>
             </div>
           </div>
           {canCreate && (
             <Dialog open={dialogOpen} onOpenChange={(open) => { setDialogOpen(open); if (!open) setShowPreview(false); }}>
               <DialogTrigger asChild>
-                <Button className="bg-emerald-600 text-white hover:bg-emerald-500">
+                <Button className="bg-emerald-600 text-white hover:bg-emerald-500 w-full sm:w-auto shrink-0 shadow-lg shadow-emerald-950/40">
                   <Plus className="mr-2 h-4 w-4" />New Announcement
                 </Button>
               </DialogTrigger>
