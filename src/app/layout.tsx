@@ -38,15 +38,24 @@ export const metadata: Metadata = {
     icon: "/logo.png",
   },
   openGraph: {
-    title: "Cyber Security Club - Verified Certificate",
-    description: "View and verify a certificate issued by Cyber Security Club",
+    title: "Cyber Security Club - Dhaka International University",
+    description: "Defend. Learn. Lead. Join our cybersecurity community at Dhaka International University and master the art of digital defense.",
     type: "website",
     siteName: "Cyber Security Club",
+    images: [
+      {
+        url: "https://www.cybersecdiu.club/logo.png",
+        width: 800,
+        height: 800,
+        alt: "Cyber Security Club Logo",
+      },
+    ],
   },
   twitter: {
     card: "summary_large_image",
-    title: "Cyber Security Club - Verified Certificate",
-    description: "View and verify a certificate issued by Cyber Security Club",
+    title: "Cyber Security Club - Dhaka International University",
+    description: "Defend. Learn. Lead. Join our cybersecurity community at Dhaka International University and master the art of digital defense.",
+    images: ["https://www.cybersecdiu.club/logo.png"],
   },
 };
 
