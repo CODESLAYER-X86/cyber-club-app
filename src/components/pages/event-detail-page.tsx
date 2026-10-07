@@ -288,6 +288,18 @@ export function EventDetailPage() {
 
   const handleShare = async () => {
     const url = `${window.location.origin}?view=event-detail&id=${event?.id}`;
+    if (navigator.share && /mobile|android|iphone/i.test(navigator.userAgent)) {
+      try {
+        await navigator.share({
+          title: event?.title || 'Cyber Security Club Event',
+          text: `Check out "${event?.title}" organized by Cyber Security Club, DIU!`,
+          url,
+        });
+        return;
+      } catch {
+        // Fallback to clipboard if cancelled or dismissed
+      }
+    }
     try {
       await navigator.clipboard.writeText(url);
       setShareMsg('Link copied!');
