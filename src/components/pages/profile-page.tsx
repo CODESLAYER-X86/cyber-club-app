@@ -7,7 +7,7 @@ import {
   Award, CreditCard, Clock, Camera, Activity,
   XCircle, Loader2, ShieldCheck, UserCheck, Layers, BookOpen,
   ArrowRight, ArrowLeft, ExternalLink, Download, Copy, CheckCircle, Eye, Share2, MapPin, Tag, Star,
-  UserX, ZoomIn
+  UserX, ZoomIn, RotateCw
 } from 'lucide-react';
 import { ImagePreviewModal } from '@/components/shared/image-preview-modal';
 import { useAppStore } from '@/store/use-app-store';
@@ -41,7 +41,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { formatDeptShort } from '@/utils/export-attendees-pdf';
 import { jsPDF } from 'jspdf';
 import { toast } from '@/hooks/use-toast';
-import { cn } from '@/lib/utils';
+import { cn, getOptimizedAvatarUrl } from '@/lib/utils';
 import {
   sanitizePhone,
   isValidPhone,
@@ -224,6 +224,38 @@ export function ProfilePage() {
     }
   };
 
+  const [syncingPhoto, setSyncingPhoto] = useState(false);
+
+  const handleSyncPhoto = async () => {
+    setSyncingPhoto(true);
+    try {
+      const res = await fetch('/api/auth/google-user');
+      const data = await res.json();
+      if (data.success && data.data?.user) {
+        updateCurrentUser(data.data.user);
+        setProfileUser((prev) => (prev ? { ...prev, ...data.data.user } : data.data.user));
+        toast({
+          title: 'Photo Synchronized',
+          description: 'Your profile picture has been synced with your Google account.',
+        });
+      } else {
+        toast({
+          title: 'Sync Notice',
+          description: data.error || 'Could not refresh photo. Please try re-logging in.',
+          variant: 'destructive',
+        });
+      }
+    } catch {
+      toast({
+        title: 'Sync Error',
+        description: 'Network error while syncing profile photo.',
+        variant: 'destructive',
+      });
+    } finally {
+      setSyncingPhoto(false);
+    }
+  };
+
   const handleCancelEdit = () => {
     if (userToShow) {
       setForm({
@@ -372,6 +404,21 @@ export function ProfilePage() {
 
           {isViewingSelf && (
             <div className="flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={syncingPhoto || editing}
+                onClick={handleSyncPhoto}
+                title="Sync latest photo from Google Account"
+                className="border-white/10 bg-white/5 text-gray-300 hover:text-white hover:bg-white/10 font-mono text-xs"
+              >
+                {syncingPhoto ? (
+                  <Loader2 className="h-3.5 w-3.5 animate-spin mr-1.5 text-emerald-400" />
+                ) : (
+                  <RotateCw className="h-3.5 w-3.5 mr-1.5 text-emerald-400" />
+                )}
+                Sync Photo
+              </Button>
               {editing ? (
                 <>
                   <Button
@@ -472,7 +519,7 @@ export function ProfilePage() {
                 onClick={() =>
                   setPreviewImage({
                     isOpen: true,
-                    src: userToShow.avatar,
+                    src: getOptimizedAvatarUrl(userToShow.avatar, 800),
                     name: userToShow.name,
                     role: userToShow.role,
                     department: userToShow.department,
@@ -484,7 +531,7 @@ export function ProfilePage() {
                 <div className="rounded-full p-[3px] bg-gradient-to-br from-emerald-400 via-cyan-400 to-emerald-500 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
                   {userToShow.avatar ? (
                     <img
-                      src={userToShow.avatar}
+                      src={getOptimizedAvatarUrl(userToShow.avatar, 384)}
                       alt={userToShow.name}
                       className="h-24 w-24 rounded-full object-cover border-2 border-[#111]"
                     />

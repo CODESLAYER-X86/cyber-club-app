@@ -165,7 +165,7 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, phone, bio, studentId, rollNumber, batch, department } = body;
+    const { name, phone, bio, studentId, rollNumber, batch, department, avatar } = body;
 
     // Only allow updating specific profile fields
     const updateData: Record<string, unknown> = {};
@@ -176,6 +176,7 @@ export async function PATCH(
     if (rollNumber !== undefined) updateData.rollNumber = rollNumber;
     if (batch !== undefined) updateData.batch = batch;
     if (department !== undefined) updateData.department = department;
+    if (avatar !== undefined) updateData.avatar = avatar;
 
     if (Object.keys(updateData).length === 0) {
       return errorResponse("No valid fields to update");

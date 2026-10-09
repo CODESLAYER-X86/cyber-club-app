@@ -54,6 +54,18 @@ export function isSafeUrl(url?: string | null): boolean {
   return sanitized !== '' && sanitized !== '#';
 }
 
+/**
+ * Normalizes Google user content profile photos to high-resolution (384px) instead of low-res (96px) thumbnails.
+ * Prevents blurriness on high-DPI displays and bypasses Google CDN stale thumbnail caching.
+ */
+export function getOptimizedAvatarUrl(url?: string | null, size = 384): string | undefined {
+  if (!url || typeof url !== 'string') return undefined;
+  if (url.includes('googleusercontent.com')) {
+    return url.replace(/=s\d+(-c)?$/, `=s${size}-c`);
+  }
+  return url;
+}
+
 
 export function isViewAllowed(view: AppView, isAuthenticated: boolean, role?: string): boolean {
   // Public Views - always allowed

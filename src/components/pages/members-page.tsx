@@ -19,6 +19,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Badge } from '@/components/ui/badge';
 import { exportToCSV } from '@/lib/export-utils';
 import { toast } from '@/hooks/use-toast';
+import { getOptimizedAvatarUrl } from '@/lib/utils';
 import {
   AlertDialog,
   AlertDialogAction,
@@ -430,7 +431,7 @@ export function MembersPage() {
                         onClick={() =>
                           setPreviewImage({
                             isOpen: true,
-                            src: user.avatar,
+                            src: getOptimizedAvatarUrl(user.avatar, 800) || user.avatar,
                             name: user.name,
                             role: user.role,
                             department: user.department,
@@ -441,7 +442,7 @@ export function MembersPage() {
                       >
                         {user.avatar ? (
                           <div className="relative h-11 w-11 rounded-full overflow-hidden border border-white/10 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
-                            <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                            <img src={getOptimizedAvatarUrl(user.avatar) || user.avatar} alt={user.name} className="h-full w-full object-cover" />
                             <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                               <ZoomIn className="h-3.5 w-3.5 text-white" />
                             </div>
@@ -569,7 +570,7 @@ export function MembersPage() {
                       onClick={() =>
                         setPreviewImage({
                           isOpen: true,
-                          src: user.avatar,
+                          src: getOptimizedAvatarUrl(user.avatar, 800) || user.avatar,
                           name: user.name,
                           role: user.role,
                           department: user.department,
@@ -580,7 +581,7 @@ export function MembersPage() {
                     >
                       {user.avatar ? (
                         <div className="relative h-16 w-16 rounded-full overflow-hidden border-2 border-white/10 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
-                          <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                          <img src={getOptimizedAvatarUrl(user.avatar) || user.avatar} alt={user.name} className="h-full w-full object-cover" />
                           <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                             <ZoomIn className="h-4 w-4 text-white" />
                           </div>

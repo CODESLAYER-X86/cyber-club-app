@@ -67,9 +67,28 @@ export async function GET() {
   const resolvedMembershipStatus =
     resolvedRole === 'GUEST' ? dbUser.membershipStatus : 'ACTIVE';
 
+  // Normalize avatar from session (or heal legacy s96-c thumbnail)
+  const rawSessionAvatar =
+    user.user_metadata?.avatar_url ||
+    user.user_metadata?.picture ||
+    null;
+  const sessionAvatar =
+    rawSessionAvatar && rawSessionAvatar.includes('googleusercontent.com')
+      ? rawSessionAvatar.replace(/=s\d+(-c)?$/, '=s384-c')
+      : rawSessionAvatar;
+
+  let resolvedAvatar = dbUser.avatar;
   const updateData: Record<string, string> = {};
   if (resolvedRole !== dbUser.role) updateData.role = resolvedRole;
   if (resolvedMembershipStatus !== dbUser.membershipStatus) updateData.membershipStatus = resolvedMembershipStatus;
+
+  if (sessionAvatar && sessionAvatar !== dbUser.avatar) {
+    resolvedAvatar = sessionAvatar;
+    updateData.avatar = sessionAvatar;
+  } else if (dbUser.avatar && dbUser.avatar.includes('googleusercontent.com') && dbUser.avatar.includes('=s96-c')) {
+    resolvedAvatar = dbUser.avatar.replace(/=s96-c/, '=s384-c');
+    updateData.avatar = resolvedAvatar;
+  }
 
   if (Object.keys(updateData).length > 0) {
     await prisma.user.update({ where: { id: dbUser.id }, data: updateData });
@@ -82,6 +101,7 @@ export async function GET() {
         ...dbUser,
         role: resolvedRole,
         membershipStatus: resolvedMembershipStatus,
+        avatar: resolvedAvatar,
       },
     },
   });

@@ -53,6 +53,7 @@ import {
 } from '@/components/ui/dialog';
 import { useToast } from '@/hooks/use-toast';
 import { ImagePreviewModal } from '@/components/shared/image-preview-modal';
+import { getOptimizedAvatarUrl } from '@/lib/utils';
 
 function timeAgo(date: string): string {
   const now = new Date();
@@ -355,7 +356,7 @@ export function MemberApprovalPage() {
                           onClick={() =>
                             setPreviewImage({
                               isOpen: true,
-                              src: user.avatar,
+                              src: getOptimizedAvatarUrl(user.avatar, 800) || user.avatar,
                               name: user.name,
                               role: user.role,
                               department: user.department || undefined,
@@ -366,7 +367,7 @@ export function MemberApprovalPage() {
                         >
                           {user.avatar ? (
                             <div className="relative h-14 w-14 rounded-2xl overflow-hidden border border-amber-500/30 group-hover:ring-2 group-hover:ring-amber-400 transition-all">
-                              <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                              <img src={getOptimizedAvatarUrl(user.avatar) || user.avatar} alt={user.name} className="h-full w-full object-cover" />
                               <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                                 <ZoomIn className="h-4 w-4 text-white" />
                               </div>
@@ -583,7 +584,7 @@ export function MemberApprovalPage() {
                     onClick={() => {
                       setPreviewImage({
                         isOpen: true,
-                        src: dossierUser.avatar,
+                        src: getOptimizedAvatarUrl(dossierUser.avatar, 800) || dossierUser.avatar,
                         name: dossierUser.name,
                         role: dossierUser.role,
                         department: dossierUser.department || undefined,
@@ -594,7 +595,7 @@ export function MemberApprovalPage() {
                   >
                     {dossierUser.avatar ? (
                       <div className="relative h-16 w-16 rounded-2xl overflow-hidden border-2 border-emerald-500/30 group-hover:ring-2 group-hover:ring-emerald-400 transition-all">
-                        <img src={dossierUser.avatar} alt={dossierUser.name} className="h-full w-full object-cover" />
+                        <img src={getOptimizedAvatarUrl(dossierUser.avatar) || dossierUser.avatar} alt={dossierUser.name} className="h-full w-full object-cover" />
                         <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 flex items-center justify-center transition-opacity">
                           <ZoomIn className="h-5 w-5 text-white" />
                         </div>

@@ -47,7 +47,7 @@ import {
   BreadcrumbPage,
   BreadcrumbSeparator,
 } from '@/components/ui/breadcrumb';
-import { cn } from '@/lib/utils';
+import { cn, getOptimizedAvatarUrl } from '@/lib/utils';
 
 const VIEW_TITLES: Record<AppView, string> = {
   landing: 'Home',
@@ -393,7 +393,7 @@ export function Header() {
               <div className="relative">
                 <Avatar className="h-8 w-8 border border-emerald-500/30">
                   {currentUser.avatar && (
-                    <AvatarImage src={currentUser.avatar} alt={currentUser.name} className="object-cover" />
+                    <AvatarImage src={getOptimizedAvatarUrl(currentUser.avatar)} alt={currentUser.name} className="object-cover" />
                   )}
                   <AvatarFallback className="bg-emerald-500/20 text-xs font-semibold text-emerald-400">
                     {initials}
@@ -538,7 +538,7 @@ export function Header() {
                   <div className="flex items-center gap-2.5 min-w-0">
                     <Avatar className="h-8 w-8 border border-emerald-500/30 shrink-0">
                       {currentUser.avatar && (
-                        <AvatarImage src={currentUser.avatar} alt={currentUser.name} className="object-cover" />
+                        <AvatarImage src={getOptimizedAvatarUrl(currentUser.avatar)} alt={currentUser.name} className="object-cover" />
                       )}
                       <AvatarFallback className="bg-emerald-500/20 text-xs font-semibold text-emerald-400">
                         {initials}

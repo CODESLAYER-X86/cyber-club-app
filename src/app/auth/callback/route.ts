@@ -63,10 +63,14 @@ export async function GET(request: NextRequest) {
     user.user_metadata?.name ||
     email?.split('@')[0] ||
     'User';
-  const avatar =
+  const rawAvatar =
     user.user_metadata?.avatar_url ||
     user.user_metadata?.picture ||
     null;
+  const avatar =
+    rawAvatar && rawAvatar.includes('googleusercontent.com')
+      ? rawAvatar.replace(/=s\d+(-c)?$/, '=s384-c')
+      : rawAvatar;
 
   if (!email) {
     return NextResponse.redirect(`${origin}/?error=google_no_email`);

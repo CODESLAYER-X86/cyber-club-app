@@ -7,6 +7,7 @@ import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import type { User } from '@/types';
 import { formatDeptShort } from '@/utils/export-attendees-pdf';
+import { getOptimizedAvatarUrl } from '@/lib/utils';
 
 interface DigitalIdCardProps {
   user: User;
@@ -235,7 +236,7 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
               <div className="col-span-1 flex flex-col items-center justify-center rounded-xl border border-emerald-500/20 bg-slate-900/60 p-2">
                 <div className="relative flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-xl border-2 border-emerald-400/40 bg-emerald-950/40 text-2xl font-black text-emerald-300 shadow-md overflow-hidden">
                   {user.avatar ? (
-                    <img src={user.avatar} alt={user.name} className="h-full w-full object-cover" />
+                    <img src={getOptimizedAvatarUrl(user.avatar) || user.avatar} alt={user.name} className="h-full w-full object-cover" />
                   ) : (
                     user.name ? user.name.charAt(0).toUpperCase() : 'C'
                   )}
