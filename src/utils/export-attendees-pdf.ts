@@ -51,16 +51,16 @@ interface ExportPdfOptions {
 export async function exportEventAttendeesPdf({ event }: ExportPdfOptions): Promise<void> {
   const { jsPDF } = await import("jspdf");
   const doc = new jsPDF({
-    orientation: "landscape",
+    orientation: "portrait",
     unit: "mm",
     format: "a4",
   });
 
-  const pageWidth = doc.internal.pageSize.getWidth(); // 297mm
-  const pageHeight = doc.internal.pageSize.getHeight(); // 210mm
-  const marginLeft = 12;
-  const marginRight = 12;
-  const contentWidth = pageWidth - marginLeft - marginRight; // 273mm
+  const pageWidth = doc.internal.pageSize.getWidth(); // 210mm
+  const pageHeight = doc.internal.pageSize.getHeight(); // 297mm
+  const marginLeft = 10;
+  const marginRight = 10;
+  const contentWidth = pageWidth - marginLeft - marginRight; // 190mm
 
   const registrations = event.registrations || [];
   const totalRegs = registrations.length;
@@ -72,55 +72,57 @@ export async function exportEventAttendeesPdf({ event }: ExportPdfOptions): Prom
     day: "numeric",
   });
 
-  // Table Column Definitions: Name, Email, Roll, Batch, Dept in short form, Signature
+  // Table Column Definitions for 190mm portrait width:
+  // # (8), Name (42), Email (48), Roll No (28), Batch (16), Dept (16), Signature (32) = 190mm
   const columns = [
-    { header: "#", width: 12, align: "center" as const },
-    { header: "Name", width: 54, align: "left" as const },
-    { header: "Email", width: 60, align: "left" as const },
-    { header: "Roll No", width: 35, align: "left" as const },
-    { header: "Batch", width: 22, align: "center" as const },
-    { header: "Dept", width: 22, align: "center" as const },
-    { header: "Signature", width: 68, align: "center" as const },
+    { header: "#", width: 8, align: "center" as const },
+    { header: "Name", width: 42, align: "left" as const },
+    { header: "Email", width: 48, align: "left" as const },
+    { header: "Roll No", width: 28, align: "left" as const },
+    { header: "Batch", width: 16, align: "center" as const },
+    { header: "Dept", width: 16, align: "center" as const },
+    { header: "Signature", width: 32, align: "center" as const },
   ];
 
   let currentPage = 1;
-  const rowsPerPage = 12;
+  const rowsPerPage = 20;
   const totalPages = Math.max(1, Math.ceil(registrations.length / rowsPerPage));
 
   function drawHeader(page: number) {
     // Header background banner
     doc.setFillColor(15, 23, 42); // slate-900
-    doc.rect(0, 0, pageWidth, 28, "F");
+    doc.rect(0, 0, pageWidth, 29, "F");
 
     // Decorative emerald accent line
     doc.setFillColor(16, 185, 129); // emerald-500
-    doc.rect(0, 28, pageWidth, 1.5, "F");
+    doc.rect(0, 29, pageWidth, 1.5, "F");
 
-    // Club Brand Title
+    // Club Brand Title (Left)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
+    doc.setFontSize(12.5);
     doc.setTextColor(255, 255, 255);
     doc.text("CYBER SECURITY CLUB", marginLeft, 11);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(167, 243, 208); // emerald-200
     doc.text("Official Event Attendee & Verification Roster", marginLeft, 17);
 
     // Event Info (Top Right)
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
+    doc.setFontSize(9.5);
     doc.setTextColor(255, 255, 255);
-    const eventTitle = doc.splitTextToSize(event.title, 110);
-    doc.text(eventTitle[0] || event.title, pageWidth - marginRight, 10, { align: "right" });
+    const eventTitle = doc.splitTextToSize(event.title || "Event", 95);
+    doc.text(eventTitle[0] || event.title || "Event", pageWidth - marginRight, 10, { align: "right" });
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(8);
+    doc.setFontSize(7.5);
     doc.setTextColor(203, 213, 225); // slate-300
-    const subInfo = `Date: ${eventDateStr}  |  Venue: ${event.venue}  |  Type: ${event.type}`;
+    const venueShort = event.venue ? (event.venue.length > 28 ? event.venue.slice(0, 28) + "..." : event.venue) : "Campus";
+    const subInfo = `Date: ${eventDateStr}  |  ${venueShort}`;
     doc.text(subInfo, pageWidth - marginRight, 17, { align: "right" });
 
-    const statsInfo = `Total Attendees: ${totalRegs}  |  Approved Seats: ${approvedCount}`;
+    const statsInfo = `Total: ${totalRegs}  |  Approved: ${approvedCount}  |  Type: ${event.type || "PUBLIC"}`;
     doc.text(statsInfo, pageWidth - marginRight, 23, { align: "right" });
 
     // Summary metadata bar below header
@@ -136,17 +138,17 @@ export async function exportEventAttendeesPdf({ event }: ExportPdfOptions): Prom
 
   function drawTableHeaders(startY: number) {
     doc.setFillColor(30, 41, 59); // slate-800
-    doc.rect(marginLeft, startY, contentWidth, 8, "F");
+    doc.rect(marginLeft, startY, contentWidth, 7.5, "F");
 
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(8.5);
+    doc.setFontSize(8);
     doc.setTextColor(255, 255, 255);
 
     let currentX = marginLeft;
     columns.forEach((col) => {
       let textX = currentX + 2;
       if (col.align === "center") textX = currentX + col.width / 2;
-      doc.text(col.header, textX, startY + 5.5, { align: col.align });
+      doc.text(col.header, textX, startY + 5.2, { align: col.align });
       currentX += col.width;
     });
   }
@@ -157,12 +159,12 @@ export async function exportEventAttendeesPdf({ event }: ExportPdfOptions): Prom
     doc.line(marginLeft, pageHeight - 12, pageWidth - marginRight, pageHeight - 12);
 
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(7.5);
+    doc.setFontSize(7);
     doc.setTextColor(148, 163, 184); // slate-400
     doc.text("Cyber Security Club — Confidential & Internal Club Use Only", marginLeft, pageHeight - 7);
 
-    // Verifier signature space
-    doc.text("Verifier Signature: _______________________", pageWidth - marginRight - 65, pageHeight - 7);
+    // Verifier signature space & Page count
+    doc.text("Verifier: ____________________", pageWidth - marginRight - 55, pageHeight - 7);
     doc.text(`Page ${page} of ${totalPages}`, pageWidth - marginRight, pageHeight - 7, { align: "right" });
   }
 
@@ -181,8 +183,8 @@ export async function exportEventAttendeesPdf({ event }: ExportPdfOptions): Prom
     const startIndex = p * rowsPerPage;
     const pageRows = registrations.slice(startIndex, startIndex + rowsPerPage);
 
-    let rowY = tableStartY + 8;
-    const rowHeight = 11.5;
+    let rowY = tableStartY + 7.5;
+    const rowHeight = 11;
 
     pageRows.forEach((reg, i) => {
       const globalIndex = startIndex + i + 1;
@@ -213,53 +215,53 @@ export async function exportEventAttendeesPdf({ event }: ExportPdfOptions): Prom
 
       // 1. Index (#)
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(100, 116, 139);
-      doc.text(String(globalIndex), currentX + columns[0].width / 2, rowY + 7, { align: "center" });
+      doc.text(String(globalIndex), currentX + columns[0].width / 2, rowY + 6.8, { align: "center" });
       currentX += columns[0].width;
 
       // 2. Attendee Name (from user profile)
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8.5);
+      doc.setFontSize(8);
       doc.setTextColor(15, 23, 42); // slate-900
-      const truncatedName = doc.splitTextToSize(attendeeName, columns[1].width - 4);
-      doc.text(truncatedName[0] || attendeeName, currentX + 2, rowY + 7);
+      const truncatedName = doc.splitTextToSize(attendeeName, columns[1].width - 3);
+      doc.text(truncatedName[0] || attendeeName, currentX + 2, rowY + 6.8);
       currentX += columns[1].width;
 
       // 3. Email
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(7.5);
+      doc.setFontSize(7);
       doc.setTextColor(71, 85, 105);
-      const emailText = doc.splitTextToSize(email, columns[2].width - 4);
-      doc.text(emailText[0] || email, currentX + 2, rowY + 7);
+      const emailText = doc.splitTextToSize(email, columns[2].width - 3);
+      doc.text(emailText[0] || email, currentX + 2, rowY + 6.8);
       currentX += columns[2].width;
 
       // 4. Roll No / Student ID
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(30, 41, 59);
-      const rollText = doc.splitTextToSize(rollNumber, columns[3].width - 4);
-      doc.text(rollText[0] || rollNumber, currentX + 2, rowY + 7);
+      const rollText = doc.splitTextToSize(rollNumber, columns[3].width - 3);
+      doc.text(rollText[0] || rollNumber, currentX + 2, rowY + 6.8);
       currentX += columns[3].width;
 
       // 5. Batch
       doc.setFont("helvetica", "normal");
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(51, 65, 85);
-      doc.text(batch, currentX + columns[4].width / 2, rowY + 7, { align: "center" });
+      doc.text(batch, currentX + columns[4].width / 2, rowY + 6.8, { align: "center" });
       currentX += columns[4].width;
 
       // 6. Department (Short form)
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(8);
+      doc.setFontSize(7.5);
       doc.setTextColor(16, 149, 106); // emerald-700
-      doc.text(deptShort, currentX + columns[5].width / 2, rowY + 7, { align: "center" });
+      doc.text(deptShort, currentX + columns[5].width / 2, rowY + 6.8, { align: "center" });
       currentX += columns[5].width;
 
-      // 7. Signature Line (Wide, clear line for manual event check-in)
+      // 7. Signature Line (Clear line for manual event check-in)
       doc.setFont("helvetica", "normal");
       doc.setTextColor(203, 213, 225);
-      doc.text("________________________", currentX + columns[6].width / 2, rowY + 7, { align: "center" });
+      doc.text("_______________", currentX + columns[6].width / 2, rowY + 6.8, { align: "center" });
 
       rowY += rowHeight;
     });

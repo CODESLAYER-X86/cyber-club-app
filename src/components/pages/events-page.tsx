@@ -111,20 +111,22 @@ export function EventsPage() {
         {/* Blur Orbs */}
         <div className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-emerald-500/10 blur-3xl" />
         <div className="absolute -left-8 -bottom-8 h-24 w-24 rounded-full bg-cyan-500/10 blur-3xl" />
-        <div className="relative flex items-center gap-4">
-          <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
-            <Calendar className="h-6 w-6 text-emerald-400" />
-          </div>
-          <div>
-            <h1 className="text-2xl font-bold text-white">Events</h1>
-            <p className="text-sm text-gray-400">Discover and join cybersecurity events</p>
+        <div className="relative flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+          <div className="flex items-center gap-3.5">
+            <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-emerald-500/20 border border-emerald-500/20">
+              <Calendar className="h-6 w-6 text-emerald-400" />
+            </div>
+            <div>
+              <h1 className="text-xl sm:text-2xl font-bold text-white">Events</h1>
+              <p className="text-xs sm:text-sm text-gray-400">Discover and join cybersecurity events</p>
+            </div>
           </div>
           {canCreate && (
-            <div className="ml-auto flex items-center gap-2">
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <div className="flex items-center gap-2 w-full sm:w-auto sm:ml-auto">
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="flex-1 sm:flex-initial">
                 <Button
                   variant="outline"
-                  className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
+                  className="w-full sm:w-auto border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 justify-center"
                   disabled={exporting}
                   onClick={() => {
                     setExporting(true);
@@ -158,17 +160,17 @@ export function EventsPage() {
                   Export CSV
                 </Button>
               </motion.div>
-              <Button onClick={() => setCurrentView('create-event')} className="bg-emerald-600 text-white hover:bg-emerald-500">
-                <Plus className="mr-2 h-4 w-4" /> Create Event
+              <Button onClick={() => setCurrentView('create-event')} className="flex-1 sm:flex-initial bg-emerald-600 text-white hover:bg-emerald-500 justify-center shrink-0">
+                <Plus className="mr-2 h-4 w-4 shrink-0" /> Create Event
               </Button>
             </div>
           )}
           {!canCreate && (
-            <div className="ml-auto">
-              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}>
+            <div className="w-full sm:w-auto sm:ml-auto">
+              <motion.div whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }} className="w-full sm:w-auto">
                 <Button
                   variant="outline"
-                  className="border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10"
+                  className="w-full sm:w-auto border-emerald-500/20 text-emerald-400 hover:bg-emerald-500/10 justify-center"
                   disabled={exporting}
                   onClick={() => {
                     setExporting(true);

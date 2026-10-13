@@ -439,24 +439,24 @@ export function CertificatePublicPage() {
 
             {/* Sharing Bar */}
             {isValid && (
-              <div className="border-t border-white/5 bg-white/[0.02] px-8 py-5 flex items-center justify-between flex-wrap gap-4">
+              <div className="border-t border-white/5 bg-white/[0.02] px-4 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
                 <div className="flex items-center gap-2">
                   <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 px-3 py-1 text-xs">
                     <CheckCircle className="mr-1 h-3.5 w-3.5" /> Verified & Authentic
                   </Badge>
                 </div>
 
-                <div className="flex items-center gap-3">
-                  <Button onClick={handleLinkedInShare} className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-2 text-xs" size="sm">
+                <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
+                  <Button onClick={handleLinkedInShare} className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-2 text-xs justify-center w-full sm:w-auto" size="sm">
                     <Linkedin className="h-4 w-4" /> Share
                   </Button>
-                  <Button onClick={handleLinkedInAddToProfile} className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-2 text-xs" size="sm">
+                  <Button onClick={handleLinkedInAddToProfile} className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-2 text-xs justify-center w-full sm:w-auto" size="sm">
                     <Linkedin className="h-4 w-4" /> Add to Profile
                   </Button>
-                  <Button onClick={handleTwitterShare} variant="outline" className="border-sky-500/30 text-sky-400 hover:bg-sky-500/10 gap-2 text-xs" size="sm">
+                  <Button onClick={handleTwitterShare} variant="outline" className="border-sky-500/30 text-sky-400 hover:bg-sky-500/10 gap-2 text-xs justify-center w-full sm:w-auto" size="sm">
                     <Twitter className="h-4 w-4" /> Tweet
                   </Button>
-                  <Button onClick={handleCopyLink} variant="outline" className="border-white/10 text-gray-400 hover:text-white hover:bg-white/5 gap-2 text-xs" size="sm">
+                  <Button onClick={handleCopyLink} variant="outline" className="border-white/10 text-gray-400 hover:text-white hover:bg-white/5 gap-2 text-xs justify-center w-full sm:w-auto" size="sm">
                     <Copy className="h-4 w-4" /> {copied ? 'Copied' : 'Copy'}
                   </Button>
                 </div>
