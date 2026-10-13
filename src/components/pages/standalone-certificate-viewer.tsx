@@ -268,49 +268,68 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
     }
   };
 
-  const downloadPDF = () => {
-    const svgElement = document.querySelector("#certificate-svg") as SVGGraphicsElement;
-    if (!svgElement) {
-      toast.error("Could not find certificate visual template.");
-      return;
-    }
-
+  const downloadPDF = async () => {
     setDownloading(true);
-    const svgString = new XMLSerializer().serializeToString(svgElement);
-    const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-    const blobUrl = URL.createObjectURL(svgBlob);
-
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = width * 1.5;
-      canvas.height = height * 1.5;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.scale(1.5, 1.5);
-        ctx.drawImage(img, 0, 0, width, height);
-        const imgData = canvas.toDataURL("image/jpeg", 0.8);
-
-        const pdf = new jsPDF({
-          orientation: isLandscape ? "landscape" : "portrait",
-          unit: "px",
-          format: isLandscape ? [width, height] : [width, height],
-          compress: true,
-        });
-
-        pdf.addImage(imgData, "JPEG", 0, 0, width, height, undefined, "FAST");
-        pdf.save(`certificate-${cert.certificateCode}.pdf`);
-        toast.success("PDF Downloaded!");
+    try {
+      let svgText = '';
+      try {
+        const res = await fetch(`/api/certificates/${cert.certificateCode}/og`);
+        if (res.ok) {
+          svgText = await res.text();
+        }
+      } catch (err) {
+        console.warn('Could not fetch server OG SVG, falling back to client DOM:', err);
       }
-      URL.revokeObjectURL(blobUrl);
-      setDownloading(false);
-    };
-    img.onerror = () => {
+
+      if (!svgText) {
+        const svgElement = document.querySelector("#certificate-svg") as SVGGraphicsElement;
+        if (!svgElement) {
+          toast.error("Could not find certificate visual template.");
+          setDownloading(false);
+          return;
+        }
+        svgText = new XMLSerializer().serializeToString(svgElement);
+      }
+
+      const svgBlob = new Blob([svgText], { type: "image/svg+xml;charset=utf-8" });
+      const blobUrl = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width * 1.5;
+        canvas.height = height * 1.5;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.scale(1.5, 1.5);
+          ctx.drawImage(img, 0, 0, width, height);
+          const imgData = canvas.toDataURL("image/jpeg", 0.8);
+
+          const pdf = new jsPDF({
+            orientation: isLandscape ? "landscape" : "portrait",
+            unit: "px",
+            format: isLandscape ? [width, height] : [width, height],
+            compress: true,
+          });
+
+          pdf.addImage(imgData, "JPEG", 0, 0, width, height, undefined, "FAST");
+          pdf.save(`certificate-${cert.certificateCode}.pdf`);
+          toast.success("PDF Downloaded!");
+        }
+        URL.revokeObjectURL(blobUrl);
+        setDownloading(false);
+      };
+      img.onerror = () => {
+        toast.error("Could not render template.");
+        setDownloading(false);
+        URL.revokeObjectURL(blobUrl);
+      };
+      img.src = blobUrl;
+    } catch (e) {
+      console.error(e);
       toast.error("Could not render template.");
       setDownloading(false);
-      URL.revokeObjectURL(blobUrl);
-    };
-    img.src = blobUrl;
+    }
   };
 
   // Helper to render a resolved text element as SVG <text> with multiline <tspan> support

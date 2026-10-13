@@ -191,52 +191,70 @@ export function CertificatePublicPage() {
     }
   };
 
-  const downloadPDF = () => {
-    const svgElement = document.querySelector("#certificate-svg") as SVGGraphicsElement;
-    if (!svgElement) {
-      toast.error("Could not find certificate visual template.");
-      return;
-    }
-
+  const downloadPDF = async () => {
     setDownloading(true);
-    // Convert SVG to canvas
-    const svgString = new XMLSerializer().serializeToString(svgElement);
-    const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
-    const blobUrl = URL.createObjectURL(svgBlob);
-
-    const img = new Image();
-    img.onload = () => {
-      const canvas = document.createElement("canvas");
-      canvas.width = width * 1.5; // Optimized scale factor for balance of quality and size
-      canvas.height = height * 1.5;
-      const ctx = canvas.getContext("2d");
-      if (ctx) {
-        ctx.scale(1.5, 1.5);
-        ctx.drawImage(img, 0, 0, width, height);
-        // Use JPEG with 0.8 compression instead of lossless PNG to dramatically reduce PDF size
-        const imgData = canvas.toDataURL("image/jpeg", 0.8);
-
-        const pdf = new jsPDF({
-          orientation: isLandscape ? "landscape" : "portrait",
-          unit: "px",
-          format: isLandscape ? [width, height] : [width, height],
-          compress: true,
-        });
-
-        pdf.addImage(imgData, "JPEG", 0, 0, width, height, undefined, "FAST");
-        pdf.save(`certificate-${cert?.certificateCode}.pdf`);
-        toast.success("PDF Downloaded successfully!");
+    try {
+      let svgString = '';
+      try {
+        const res = await fetch(`/api/certificates/${cert?.certificateCode}/og`);
+        if (res.ok) {
+          svgString = await res.text();
+        }
+      } catch (err) {
+        console.warn('Could not fetch server OG SVG, falling back to client DOM:', err);
       }
-      URL.revokeObjectURL(blobUrl);
-      setDownloading(false);
-    };
-    img.onerror = (e) => {
+
+      if (!svgString) {
+        const svgElement = document.querySelector("#certificate-svg") as SVGGraphicsElement;
+        if (!svgElement) {
+          toast.error("Could not find certificate visual template.");
+          setDownloading(false);
+          return;
+        }
+        svgString = new XMLSerializer().serializeToString(svgElement);
+      }
+
+      const svgBlob = new Blob([svgString], { type: "image/svg+xml;charset=utf-8" });
+      const blobUrl = URL.createObjectURL(svgBlob);
+
+      const img = new Image();
+      img.onload = () => {
+        const canvas = document.createElement("canvas");
+        canvas.width = width * 1.5; // Optimized scale factor for balance of quality and size
+        canvas.height = height * 1.5;
+        const ctx = canvas.getContext("2d");
+        if (ctx) {
+          ctx.scale(1.5, 1.5);
+          ctx.drawImage(img, 0, 0, width, height);
+          // Use JPEG with 0.8 compression instead of lossless PNG to dramatically reduce PDF size
+          const imgData = canvas.toDataURL("image/jpeg", 0.8);
+
+          const pdf = new jsPDF({
+            orientation: isLandscape ? "landscape" : "portrait",
+            unit: "px",
+            format: isLandscape ? [width, height] : [width, height],
+            compress: true,
+          });
+
+          pdf.addImage(imgData, "JPEG", 0, 0, width, height, undefined, "FAST");
+          pdf.save(`certificate-${cert?.certificateCode}.pdf`);
+          toast.success("PDF Downloaded successfully!");
+        }
+        URL.revokeObjectURL(blobUrl);
+        setDownloading(false);
+      };
+      img.onerror = (e) => {
+        console.error(e);
+        toast.error("Could not compile dynamic elements to PDF.");
+        setDownloading(false);
+        URL.revokeObjectURL(blobUrl);
+      };
+      img.src = blobUrl;
+    } catch (e) {
       console.error(e);
       toast.error("Could not compile dynamic elements to PDF.");
       setDownloading(false);
-      URL.revokeObjectURL(blobUrl);
-    };
-    img.src = blobUrl;
+    }
   };
 
   if (loading) {
