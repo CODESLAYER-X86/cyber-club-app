@@ -551,42 +551,26 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
           </div>
 
           {isValid ? (
-            <div className="border-t border-white/5 bg-white/[0.02] px-4 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 px-3 py-1 text-xs">
-                  <CheckCircle className="mr-1 h-3.5 w-3.5" /> Verified & Authentic
-                </Badge>
-              </div>
-
-              <div className="grid grid-cols-2 sm:flex sm:items-center gap-2 sm:gap-3 w-full sm:w-auto">
-                <Button onClick={handleLinkedInShare} className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-2 text-xs justify-center w-full sm:w-auto" size="sm">
-                  <Linkedin className="h-4 w-4" /> Share
-                </Button>
-                <Button onClick={handleLinkedInAddToProfile} className="bg-[#0A66C2] hover:bg-[#0A66C2]/85 text-white gap-2 text-xs justify-center w-full sm:w-auto" size="sm">
-                  <Linkedin className="h-4 w-4" /> Add to Profile
-                </Button>
-                <Button onClick={handleTwitterShare} variant="outline" className="border-sky-500/30 text-sky-400 hover:bg-sky-500/10 gap-2 text-xs justify-center w-full sm:w-auto" size="sm">
-                  <Twitter className="h-4 w-4" /> Tweet
-                </Button>
-                <Button onClick={handleCopyLink} variant="outline" className="border-white/10 text-gray-400 hover:text-white hover:bg-white/5 gap-2 text-xs justify-center w-full sm:w-auto" size="sm">
-                  <Copy className="h-4 w-4" /> {copied ? 'Copied' : 'Copy Link'}
-                </Button>
-              </div>
+            <div className="border-t border-white/5 bg-white/[0.02] px-6 py-4 flex items-center justify-between">
+              <Badge className="bg-emerald-500/15 text-emerald-400 border-emerald-500/30 px-3.5 py-1.5 text-xs font-medium">
+                <CheckCircle className="mr-1.5 h-4 w-4" /> Verified & Authentic
+              </Badge>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={handleCopyLink}
+                className="text-gray-400 hover:text-white hover:bg-white/5 text-xs gap-1.5"
+              >
+                <Copy className="h-3.5 w-3.5" />
+                {copied ? 'Copied' : 'Copy Link'}
+              </Button>
             </div>
           ) : isRevoked ? (
-            <div className="border-t border-rose-500/20 bg-rose-500/[0.04] px-4 sm:px-8 py-4 sm:py-5 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4">
-              <div className="flex items-center gap-2">
-                <Badge className="bg-rose-500/15 text-rose-400 border-rose-500/30 px-3 py-1 text-xs">
-                  <XCircle className="mr-1 h-3.5 w-3.5" /> Certificate Status: Revoked
-                </Badge>
-                <span className="text-xs text-gray-400 hidden sm:inline">Official invalidation record.</span>
-              </div>
-
-              <div className="flex items-center gap-3 w-full sm:w-auto">
-                <Button onClick={handleCopyLink} variant="outline" className="border-rose-500/30 text-rose-300 hover:bg-rose-500/10 hover:text-white gap-2 text-xs w-full sm:w-auto justify-center" size="sm">
-                  <Copy className="h-4 w-4" /> {copied ? 'Copied Link' : 'Copy Verification URL'}
-                </Button>
-              </div>
+            <div className="border-t border-rose-500/20 bg-rose-500/[0.04] px-6 py-4 flex items-center justify-between">
+              <Badge className="bg-rose-500/15 text-rose-400 border-rose-500/30 px-3.5 py-1.5 text-xs font-medium">
+                <XCircle className="mr-1.5 h-4 w-4" /> Certificate Status: Revoked
+              </Badge>
+              <span className="text-xs text-gray-400 hidden sm:inline">Official invalidation record.</span>
             </div>
           ) : null}
         </div>

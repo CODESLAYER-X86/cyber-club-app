@@ -222,15 +222,23 @@ export function CertificatesPage() {
                         )}
                         {/* Action buttons */}
                         {['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(cert.status) ? (
-                          <div className="mt-3 flex justify-end gap-2">
-                            <Button variant="ghost" size="sm" asChild className="text-gray-500 hover:text-cyan-400 h-7 text-xs">
+                          <div className="mt-3 flex flex-wrap items-center justify-end gap-2">
+                            <Button variant="ghost" size="sm" asChild className="text-gray-400 hover:text-cyan-400 h-7 text-xs">
                               <a href={`/verify/${cert.certificateCode}`} target="_blank" rel="noopener noreferrer">
                                 <ExternalLink className="mr-1 h-3 w-3" /> View
                               </a>
                             </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleLinkedInAddToProfile(cert)}
+                              className="border-[#0A66C2]/40 bg-[#0A66C2]/10 text-sky-300 hover:bg-[#0A66C2]/25 hover:text-white h-7 text-xs gap-1.5"
+                            >
+                              <Linkedin className="h-3.5 w-3.5 text-[#0A66C2]" /> Add to LinkedIn
+                            </Button>
                             <Popover open={shareOpen === cert.id} onOpenChange={(open) => setShareOpen(open ? cert.id : null)}>
                               <PopoverTrigger asChild>
-                                <Button variant="ghost" size="sm" className="text-gray-500 hover:text-emerald-400 h-7 text-xs">
+                                <Button variant="ghost" size="sm" className="text-gray-400 hover:text-emerald-400 h-7 text-xs">
                                   <Share2 className="mr-1 h-3 w-3" /> Share
                                 </Button>
                               </PopoverTrigger>

@@ -1,8 +1,8 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag, FileDown, Copy, Check, CreditCard, Smartphone } from 'lucide-react';
+import { ArrowLeft, Calendar, MapPin, Users, DollarSign, Clock, Award, CheckCircle, AlertTriangle, Share2, Pencil, Loader2, User, ChevronDown, ChevronUp, ShieldCheck, Eye, Trash2, XCircle, Flag, FileDown, Copy, Check, CreditCard, Smartphone, Search, X } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAppStore } from '@/store/use-app-store';
 import type { Event, EventRegistration, User as UserType, EventType } from '@/types';
@@ -61,6 +61,21 @@ export function EventDetailPage() {
   const [certificateStatus, setCertificateStatus] = useState<string>('REGISTERED');
   const [updatingAttendanceId, setUpdatingAttendanceId] = useState<string | null>(null);
   const [copiedKey, setCopiedKey] = useState<string | null>(null);
+  const [registrantSearch, setRegistrantSearch] = useState('');
+
+  const filteredRegistrants = useMemo(() => {
+    const list = event?.registrations || [];
+    if (!registrantSearch.trim()) return list;
+    const q = registrantSearch.toLowerCase().trim();
+    return list.filter((reg) => {
+      const name = (reg.user?.name || reg.preferredName || '').toLowerCase();
+      const email = (reg.user?.email || '').toLowerCase();
+      const roll = (reg.user?.rollNumber || reg.user?.studentId || reg.studentId || '').toLowerCase();
+      const dept = (reg.user?.department || reg.department || '').toLowerCase();
+      const batch = (reg.user?.batch || '').toLowerCase();
+      return name.includes(q) || email.includes(q) || roll.includes(q) || dept.includes(q) || batch.includes(q);
+    });
+  }, [event?.registrations, registrantSearch]);
 
   const handleCopyPaymentNumber = (number: string, label: string, key: string) => {
     if (!number) return;
@@ -964,9 +979,39 @@ export function EventDetailPage() {
                   transition={{ duration: 0.2 }}
                   className="overflow-hidden"
                 >
-                  <CardContent className="pt-0">
+                  <CardContent className="pt-0 space-y-3">
+                    {/* Search & Counter Bar */}
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2.5 pb-1">
+                      <div className="relative flex-1">
+                        <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-3.5 w-3.5 text-gray-500" />
+                        <Input
+                          value={registrantSearch}
+                          onChange={(e) => setRegistrantSearch(e.target.value)}
+                          placeholder="Search registrants by name, email, roll number, department..."
+                          className="h-8.5 pl-9 pr-8 text-xs bg-white/5 border-white/10 text-white placeholder:text-gray-500 rounded-lg focus-visible:ring-emerald-500/50"
+                        />
+                        {registrantSearch && (
+                          <button
+                            type="button"
+                            onClick={() => setRegistrantSearch('')}
+                            className="absolute right-2.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+                          >
+                            <X className="h-3.5 w-3.5" />
+                          </button>
+                        )}
+                      </div>
+                      <div className="text-[11px] font-mono text-gray-400 shrink-0 flex items-center justify-end">
+                        Showing <span className="text-emerald-400 font-bold mx-1">{filteredRegistrants.length}</span> of {event.registrations.length}
+                      </div>
+                    </div>
+
                     <div className="max-h-96 overflow-y-auto space-y-2 pr-1" style={{ scrollbarWidth: 'thin', scrollbarColor: '#10b981 transparent' }}>
-                      {event.registrations.map((reg, index) => (
+                      {filteredRegistrants.length === 0 ? (
+                        <div className="py-8 text-center text-xs text-gray-500 rounded-lg border border-dashed border-white/10 bg-white/[0.01]">
+                          No registrants found matching &ldquo;{registrantSearch}&rdquo;
+                        </div>
+                      ) : (
+                        filteredRegistrants.map((reg, index) => (
                         <motion.div
                           key={reg.id}
                           initial={{ opacity: 0, x: -10 }}
@@ -1215,8 +1260,9 @@ export function EventDetailPage() {
                             )}
                           </div>
                         </motion.div>
-                      ))}
-                    </div>
+                      ))
+                    )}
+                  </div>
                   </CardContent>
                 </motion.div>
               )}
