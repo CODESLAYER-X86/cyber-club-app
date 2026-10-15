@@ -438,6 +438,31 @@ export async function PATCH(
       },
     });
 
+    // Cascade update certificate codes if event category changed
+    if (data.category && data.category !== event.category) {
+      const targetCategory = String(data.category).toUpperCase();
+      const certsToUpdate = await prisma.certificate.findMany({
+        where: { eventId: id },
+        select: { id: true, certificateCode: true },
+      });
+
+      for (const cert of certsToUpdate) {
+        // Pattern: CSC-[YEAR]-[OLD_CATEGORY]-[SUFFIX]
+        const match = cert.certificateCode.match(/^CSC-(\d{4})-[A-Za-z0-9_]+-([A-Za-z0-9]+)$/);
+        if (match) {
+          const year = match[1];
+          const suffix = match[2];
+          const newCode = `CSC-${year}-${targetCategory}-${suffix}`;
+          if (newCode !== cert.certificateCode) {
+            await prisma.certificate.update({
+              where: { id: cert.id },
+              data: { certificateCode: newCode },
+            });
+          }
+        }
+      }
+    }
+
     if (body.status === "COMPLETED" && event.status !== "COMPLETED") {
       // Fetch all attendance records for this event that are PRESENT or LATE
       const presentAttendance = await prisma.attendance.findMany({
