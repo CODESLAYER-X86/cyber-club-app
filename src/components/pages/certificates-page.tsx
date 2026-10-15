@@ -78,14 +78,18 @@ export function CertificatesPage() {
     setTimeout(() => setCopiedId(null), 2000);
   };
 
-  const filtered = certificates.filter(c => !search || c.certificateCode.toLowerCase().includes(search.toLowerCase()) || c.event?.title?.toLowerCase().includes(search.toLowerCase()));
+  const issuedCertificates = useMemo(() => {
+    return certificates.filter(c => ['AUTHORIZED', 'GENERATED', 'DOWNLOADED', 'REVOKED'].includes(c.status));
+  }, [certificates]);
+
+  const filtered = issuedCertificates.filter(c => !search || c.certificateCode.toLowerCase().includes(search.toLowerCase()) || c.event?.title?.toLowerCase().includes(search.toLowerCase()));
 
   // Certificate stats
   const certStats = useMemo(() => ({
-    total: certificates.length,
-    valid: certificates.filter(c => ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(c.status)).length,
-    revoked: certificates.filter(c => c.status === 'REVOKED').length,
-  }), [certificates]);
+    total: issuedCertificates.length,
+    valid: issuedCertificates.filter(c => ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(c.status)).length,
+    revoked: issuedCertificates.filter(c => c.status === 'REVOKED').length,
+  }), [issuedCertificates]);
 
   return (
     <div className="space-y-6">
@@ -334,7 +338,7 @@ export function CertificatesPage() {
                 <Award className="h-8 w-8 text-gray-600" />
               </div>
               <p className="text-gray-500">No certificates found</p>
-              <p className="text-xs text-gray-600 mt-1">Participate in events to earn certificates</p>
+              <p className="text-xs text-gray-600 mt-1">Certificates will appear here once officially awarded and issued by club leadership.</p>
             </motion.div>
           )}
         </motion.div>

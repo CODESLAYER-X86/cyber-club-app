@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useMemo } from 'react';
-import { Shield, CheckCircle, XCircle, AlertTriangle, Linkedin, Twitter, Copy, Award, Download, Fingerprint, Loader2 } from 'lucide-react';
+import { Shield, CheckCircle, XCircle, AlertTriangle, Linkedin, Twitter, Copy, Award, Download, Fingerprint, Loader2, Clock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
 import { toast } from 'sonner';
@@ -421,7 +421,23 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
         </div>
       )}
 
-      <div className={`relative rounded-xl p-[2px] shadow-2xl ${
+      {!isValid && !isRevoked ? (
+        <div className="rounded-2xl border border-amber-500/20 bg-[#0d1117] p-8 sm:p-12 text-center max-w-xl mx-auto space-y-4 shadow-2xl">
+          <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+            <Clock className="h-7 w-7" />
+          </div>
+          <div>
+            <h2 className="text-xl font-bold text-white">Certificate Pending Official Issuance</h2>
+            <p className="text-sm text-gray-400 mt-2 leading-relaxed">
+              This credential has not yet been officially authorized or issued by club leadership. Official certificates can only be viewed and verified once issued by the President or Platform Admin.
+            </p>
+          </div>
+          <div className="pt-2 text-xs font-mono text-gray-500">
+            Credential ID: <span className="text-amber-400 font-semibold">{cert.certificateCode}</span>
+          </div>
+        </div>
+      ) : (
+        <div className={`relative rounded-xl p-[2px] shadow-2xl ${
         isRevoked
           ? 'bg-gradient-to-r from-rose-500/60 via-red-600/50 to-rose-500/60'
           : 'bg-gradient-to-r from-emerald-500/50 via-cyan-500/50 to-emerald-500/50'
@@ -575,6 +591,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
           ) : null}
         </div>
       </div>
+      )}
     </div>
   );
 }

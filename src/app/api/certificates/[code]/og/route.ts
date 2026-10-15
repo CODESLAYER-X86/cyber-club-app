@@ -126,6 +126,12 @@ export async function GET(
       return renderNotFound();
     }
 
+    // Only officially authorized, generated, downloaded (or revoked) certificates can render
+    const isAuthorized = ['AUTHORIZED', 'GENERATED', 'DOWNLOADED', 'REVOKED'].includes(certificate.status);
+    if (!isAuthorized) {
+      return renderNotIssued();
+    }
+
     // Check if certificate registration is approved
     const registration = await prisma.eventRegistration.findUnique({
       where: { userId_eventId: { userId: certificate.userId, eventId: certificate.eventId } },
@@ -485,6 +491,23 @@ function renderNotFound() {
     headers: {
       'Content-Type': 'image/svg+xml',
       'Cache-Control': 'public, max-age=300',
+    },
+  });
+}
+
+function renderNotIssued() {
+  const notIssuedSvg = `<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630">
+    <rect width="1200" height="630" fill="#050508"/>
+    <rect x="120" y="100" width="960" height="430" rx="16" fill="#0d1117" stroke="rgba(255,255,255,0.1)" stroke-width="2"/>
+    <text x="600" y="270" text-anchor="middle" font-family="sans-serif" font-size="44" font-weight="bold" fill="#f59e0b">Certificate Not Issued</text>
+    <text x="600" y="330" text-anchor="middle" font-family="sans-serif" font-size="20" fill="#9ca3af">This certificate has not been officially authorized or issued by club leadership.</text>
+    <text x="600" y="420" text-anchor="middle" font-family="sans-serif" font-size="16" fill="#4b5563">Cyber Security Club - Official Credentials</text>
+  </svg>`;
+  return new Response(notIssuedSvg, {
+    status: 403,
+    headers: {
+      'Content-Type': 'image/svg+xml',
+      'Cache-Control': 'no-store, no-cache, must-revalidate',
     },
   });
 }

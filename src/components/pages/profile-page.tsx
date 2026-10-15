@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Mail, Hash, Building2, Phone, Edit3, Save, Calendar,
@@ -116,6 +116,11 @@ export function ProfilePage() {
 
   const isViewingSelf = !selectedMemberId || selectedMemberId === currentUser?.id;
   const userToShow = profileUser || (isViewingSelf ? currentUser : null);
+  const issuedCertificates = useMemo(() => {
+    return (userToShow?.certificates || []).filter((cert: any) =>
+      ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(cert.status)
+    );
+  }, [userToShow?.certificates]);
   const isMember = userToShow?.membershipStatus === 'ACTIVE' || ['PLATFORM_ADMIN', 'PRESIDENT', 'SECRETARY', 'TREASURER', 'EXECUTIVE_MEMBER'].includes(userToShow?.role || '');
   // Leadership permission to inspect other members' records: President, VP, GS, Platform Admin (Treasurer explicitly cannot have this feature)
   const canInspectOtherRecords = !!currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role) && currentUser.role !== 'TREASURER';
@@ -146,7 +151,7 @@ export function ProfilePage() {
         });
         setStats({
           eventsAttended: user.eventRegistrations?.length || 0,
-          certificates: user.certificates?.length || 0,
+          certificates: (user.certificates || []).filter((c: any) => ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(c.status)).length,
           payments: user.payments?.length || 0,
         });
       }
@@ -920,7 +925,7 @@ export function ProfilePage() {
               <Award className="h-3.5 w-3.5" />
               Certificates Earned
               <span className="ml-1 rounded bg-black/40 px-1.5 py-0.5 text-[10px] font-semibold text-cyan-400">
-                {userToShow.certificates?.length || 0}
+                {issuedCertificates.length}
               </span>
             </button>
 
@@ -1043,15 +1048,15 @@ export function ProfilePage() {
         {/* TAB 2: CERTIFICATES EARNED */}
         {activeTab === 'certificates' && (
           <div className="space-y-4">
-            {(!userToShow.certificates || userToShow.certificates.length === 0) ? (
+            {issuedCertificates.length === 0 ? (
               <div className="rounded-xl border border-white/5 bg-[#111]/40 p-12 text-center">
                 <Award className="h-10 w-10 text-gray-600 mx-auto mb-3" />
                 <p className="text-gray-400 text-sm font-medium">No certificates earned yet</p>
-                <p className="text-gray-600 text-xs mt-1">This user has not been issued any event certificates.</p>
+                <p className="text-gray-600 text-xs mt-1">Certificates will appear here once officially awarded and issued by club leadership.</p>
               </div>
             ) : (
               <div className="grid gap-4 sm:grid-cols-2">
-                {userToShow.certificates.map((cert) => {
+                {issuedCertificates.map((cert) => {
                   const isExcellence = cert.type === 'EXCELLENCE';
                   const canPreview = ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(cert.status);
 
@@ -1235,7 +1240,7 @@ export function ProfilePage() {
   )}
 
       {/* Certificate Visual Preview Modal */}
-      <Dialog open={!!previewCert} onOpenChange={(open) => { if (!open) setPreviewCert(null); }}>
+      <Dialog open={!!previewCert && ['AUTHORIZED', 'GENERATED', 'DOWNLOADED'].includes(previewCert.status)} onOpenChange={(open) => { if (!open) setPreviewCert(null); }}>
         <DialogContent className="border-white/10 bg-[#0d131f] text-white max-w-4xl p-6 overflow-hidden">
           <DialogHeader>
             <div className="flex items-start justify-between pr-6 gap-4">
@@ -1285,13 +1290,13 @@ export function ProfilePage() {
                 <div>
                   <span className="text-gray-500 block text-[10px] uppercase font-mono">Issued By</span>
                   <span className="text-cyan-400 font-medium truncate block">
-                    {previewCert.issuer?.name || 'General Secretary'}
+                    {previewCert.issuer?.name || 'Club Leadership'}
                   </span>
                 </div>
                 <div>
                   <span className="text-gray-500 block text-[10px] uppercase font-mono">Authorized By</span>
                   <span className="text-amber-400 font-medium truncate block">
-                    {previewCert.approver?.name || 'President'}
+                    {previewCert.approver?.name || previewCert.issuer?.name || 'President'}
                   </span>
                 </div>
               </div>

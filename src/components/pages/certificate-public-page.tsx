@@ -5,7 +5,7 @@ import { motion } from 'framer-motion';
 import {
   Shield, CheckCircle, XCircle, Linkedin, Twitter,
   Copy, ArrowLeft, Award, Star, Calendar,
-  Hash, Trophy, Fingerprint, Loader2, Download
+  Hash, Trophy, Fingerprint, Loader2, Download, Clock
 } from 'lucide-react';
 import { useAppStore } from '@/store/use-app-store';
 import { Button } from '@/components/ui/button';
@@ -317,8 +317,24 @@ export function CertificatePublicPage() {
           )}
         </div>
 
-        {/* Certificate Rendering Container */}
-        <div className="relative rounded-xl p-[2px] bg-gradient-to-r from-emerald-500/50 via-cyan-500/50 to-emerald-500/50 shadow-2xl">
+        {!isValid ? (
+          <div className="rounded-2xl border border-amber-500/20 bg-[#0d1117] p-8 sm:p-12 text-center max-w-xl mx-auto space-y-4 shadow-2xl">
+            <div className="mx-auto w-14 h-14 rounded-2xl bg-amber-500/10 border border-amber-500/20 flex items-center justify-center text-amber-400">
+              <Clock className="h-7 w-7" />
+            </div>
+            <div>
+              <h2 className="text-xl font-bold text-white">Certificate Pending Official Issuance</h2>
+              <p className="text-sm text-gray-400 mt-2 leading-relaxed">
+                This credential has not yet been officially authorized or issued by club leadership. Official certificates can only be viewed and verified once issued by the President or Platform Admin.
+              </p>
+            </div>
+            <div className="pt-2 text-xs font-mono text-gray-500">
+              Credential ID: <span className="text-amber-400 font-semibold">{cert.certificateCode}</span>
+            </div>
+          </div>
+        ) : (
+          /* Certificate Rendering Container */
+          <div className="relative rounded-xl p-[2px] bg-gradient-to-r from-emerald-500/50 via-cyan-500/50 to-emerald-500/50 shadow-2xl">
           <motion.div
             className="absolute -inset-1 rounded-xl bg-gradient-to-r from-emerald-500/20 via-cyan-500/20 to-emerald-500/20 blur-xl -z-10"
             animate={{ opacity: [0.3, 0.6, 0.3] }}
@@ -474,6 +490,7 @@ export function CertificatePublicPage() {
             )}
           </div>
         </div>
+        )}
       </motion.div>
     </div>
   );
