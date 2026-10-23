@@ -18,7 +18,7 @@ import { Label } from '@/components/ui/label';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { Achievement, AchievementCategory, AchievementStatus } from '@/types';
-import { uploadToSupabase } from '@/lib/upload';
+import { uploadToR2 } from '@/lib/upload';
 import { getOptimizedAvatarUrl } from '@/lib/utils';
 
 // ──────────────────────────────────────────
@@ -281,9 +281,9 @@ export function AchievementsPage() {
     setSubmitting(true);
     try {
       let imageUrl: string | undefined;
-      // Upload image if selected
+      // Upload image to Cloudflare R2 if selected (with Supabase fallback)
       if (selectedFile) {
-        imageUrl = await uploadToSupabase(selectedFile, 'achievements');
+        imageUrl = await uploadToR2(selectedFile, 'achievements');
       }
 
       // Create achievement

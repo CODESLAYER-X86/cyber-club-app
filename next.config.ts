@@ -33,3 +33,5 @@ const nextConfig: NextConfig = {
     ignoreBuildErrors: false,
   },
 };
+
+export default nextConfig;

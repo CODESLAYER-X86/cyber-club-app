@@ -108,3 +108,66 @@ export async function uploadToSupabase(file: File, folder: string = 'uploads'): 
   const { data } = supabase.storage.from('uploads').getPublicUrl(storagePath);
   return data.publicUrl;
 }
+
+/**
+ * Upload a file to Cloudflare R2 via our server API route (/api/upload).
+ * Compresses the image client-side to WebP first, then posts formData.
+ * Automatically falls back to Supabase Storage if R2 is not configured or fails.
+ */
+export async function uploadToR2(file: File, folder: string = 'gallery'): Promise<string> {
+  // Validate file size
+  if (file.size > MAX_FILE_SIZE_BYTES) {
+    throw new Error('File size exceeds the 5MB limit');
+  }
+
+  // Validate MIME type
+  if (!ALLOWED_MIME_TYPES.has(file.type)) {
+    throw new Error('Invalid file type. Only JPEG, PNG, WEBP, and GIF images are permitted.');
+  }
+
+  // Optimize image to WebP client-side
+  let optimizedFile = file;
+  try {
+    optimizedFile = await compressImageToWebp(file, 1600, 0.85);
+  } catch {
+    optimizedFile = file;
+  }
+
+  try {
+    const formData = new FormData();
+    formData.append('file', optimizedFile);
+    formData.append('folder', folder);
+
+    const res = await fetch('/api/upload', {
+      method: 'POST',
+      body: formData,
+    });
+
+    const data = await res.json();
+    if (data?.success && data?.data?.url) {
+      return data.data.url;
+    }
+
+    console.warn('R2 upload failed or unconfigured, falling back to Supabase Storage:', data?.error);
+    return await uploadToSupabase(optimizedFile, folder);
+  } catch (err) {
+    console.warn('R2 network upload error, falling back to Supabase Storage:', err);
+    return await uploadToSupabase(optimizedFile, folder);
+  }
+}
+
+/**
+ * Unified media upload function.
+ * Routes to Cloudflare R2 ('r2') or Supabase ('supabase').
+ */
+export async function uploadMedia(
+  file: File,
+  target: 'r2' | 'supabase' = 'r2',
+  folder: string = 'uploads'
+): Promise<string> {
+  if (target === 'r2') {
+    return uploadToR2(file, folder);
+  }
+  return uploadToSupabase(file, folder);
+}
+
