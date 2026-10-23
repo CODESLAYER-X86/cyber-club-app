@@ -370,6 +370,8 @@ export interface CommitteeMember {
   email?: string;
   socialLinks?: string; // JSON string
   order: number;
+  session?: string;
+  isCurrent?: boolean;
   isActive: boolean;
   createdAt: string;
   updatedAt: string;

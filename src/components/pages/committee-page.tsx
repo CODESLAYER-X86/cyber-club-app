@@ -15,6 +15,8 @@ import {
   Sparkles,
   RefreshCw,
   AlertTriangle,
+  History,
+  Calendar,
 } from 'lucide-react';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
@@ -23,6 +25,7 @@ import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Switch } from '@/components/ui/switch';
 import {
   Dialog,
   DialogContent,
@@ -61,7 +64,7 @@ const stagger = {
   animate: { opacity: 1, y: 0 },
 };
 
-/* ──────────── Committee Member Form State ──────────── */
+/* ──────────── Committee / Vanguard Member Form State ──────────── */
 
 interface MemberFormData {
   name: string;
@@ -75,6 +78,8 @@ interface MemberFormData {
   socialLinkedIn: string;
   socialGithub: string;
   socialFacebook: string;
+  session: string;
+  isCurrent: boolean;
 }
 
 const emptyForm: MemberFormData = {
@@ -89,6 +94,8 @@ const emptyForm: MemberFormData = {
   socialLinkedIn: '',
   socialGithub: '',
   socialFacebook: '',
+  session: '2025-2026',
+  isCurrent: true,
 };
 
 interface SocialLinkData {
@@ -174,9 +181,9 @@ class CommitteeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundary
             <AlertTriangle className="h-8 w-8" />
           </div>
           <div className="space-y-2">
-            <h2 className="text-2xl font-bold font-mono text-white">Unable to Load Committee Directory</h2>
+            <h2 className="text-2xl font-bold font-mono text-white">Unable to Load Vanguards Directory</h2>
             <p className="text-sm text-gray-400 font-sans">
-              An unexpected error occurred while rendering the committee list.
+              An unexpected error occurred while rendering the Vanguards list.
             </p>
           </div>
           <Button
@@ -201,10 +208,18 @@ class CommitteeErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundary
 function CommitteePageContent() {
   const currentUser = useAppStore((s) => s.currentUser);
 
-  // Committee members state
+  // Committee / Vanguard members state
   const [members, setMembers] = useState<CommitteeMember[]>([]);
+  const [availableSessions, setAvailableSessions] = useState<string[]>(['2025-2026']);
+  const [currentActiveSession, setCurrentActiveSession] = useState<string>('2025-2026');
+  const [selectedSession, setSelectedSession] = useState<string>('2025-2026');
   const [membersLoading, setMembersLoading] = useState(true);
   const [membersError, setMembersError] = useState<string | null>(null);
+
+  // New session modal state
+  const [newSessionDialogOpen, setNewSessionDialogOpen] = useState(false);
+  const [newSessionInput, setNewSessionInput] = useState('');
+  const [newSessionIsActive, setNewSessionIsActive] = useState(false);
 
   // Dialog state
   const [addDialogOpen, setAddDialogOpen] = useState(false);
@@ -238,15 +253,21 @@ function CommitteePageContent() {
       const data = await res.json();
       if (data?.success && Array.isArray(data?.data?.members)) {
         setMembers(data.data.members);
+        if (Array.isArray(data?.data?.availableSessions) && data.data.availableSessions.length > 0) {
+          setAvailableSessions(data.data.availableSessions);
+        }
+        if (data?.data?.currentSession) {
+          setCurrentActiveSession(data.data.currentSession);
+        }
       } else {
         setMembers([]);
         if (!data?.success) {
-          setMembersError('Failed to load committee members');
+          setMembersError('Failed to load Vanguards directory');
         }
       }
     } catch {
       setMembers([]);
-      setMembersError('Failed to load committee members');
+      setMembersError('Failed to load Vanguards directory');
     } finally {
       setMembersLoading(false);
     }
@@ -274,15 +295,19 @@ function CommitteePageContent() {
     return (a.name || '').localeCompare(b.name || '');
   }, []);
 
-  // Separate members into Advisory and Committee sorted by order & hierarchy
+  // Separate members into Advisory and Vanguards sorted by order & hierarchy
   const safeMembers = Array.isArray(members) ? members : [];
   const advisoryMembers = useMemo(
     () => safeMembers.filter(isAdvisoryMember).sort(sortMembers),
     [safeMembers, sortMembers]
   );
-  const committeeMembers = useMemo(
-    () => safeMembers.filter((m) => !isAdvisoryMember(m)).sort(sortMembers),
-    [safeMembers, sortMembers]
+  const vanguardMembers = useMemo(
+    () =>
+      safeMembers
+        .filter((m) => !isAdvisoryMember(m))
+        .filter((m) => (m.session || '2025-2026') === selectedSession)
+        .sort(sortMembers),
+    [safeMembers, selectedSession, sortMembers]
   );
 
   // Upload image to Supabase
@@ -339,8 +364,14 @@ function CommitteePageContent() {
   // Open add dialog with initial category and auto-suggested order
   const openAddDialog = (initialCategory: 'COMMITTEE' | 'ADVISORY' = 'COMMITTEE') => {
     resetForm();
-    const count = initialCategory === 'ADVISORY' ? advisoryMembers.length : committeeMembers.length;
-    setFormData({ ...emptyForm, category: initialCategory, order: count + 1 });
+    const count = initialCategory === 'ADVISORY' ? advisoryMembers.length : vanguardMembers.length;
+    setFormData({
+      ...emptyForm,
+      category: initialCategory,
+      order: count + 1,
+      session: selectedSession,
+      isCurrent: selectedSession === currentActiveSession,
+    });
     setAddDialogOpen(true);
   };
 
@@ -352,6 +383,12 @@ function CommitteePageContent() {
       : isAdvisoryMember(member)
       ? 'ADVISORY'
       : 'COMMITTEE';
+
+    const memberSession = member.session || selectedSession || '2025-2026';
+    const memberIsCurrent =
+      typeof member.isCurrent === 'boolean'
+        ? member.isCurrent
+        : memberSession === currentActiveSession;
 
     setFormData({
       name: member.name || '',
@@ -365,6 +402,8 @@ function CommitteePageContent() {
       socialLinkedIn: socials?.linkedin || '',
       socialGithub: socials?.github || '',
       socialFacebook: socials?.facebook || '',
+      session: memberSession,
+      isCurrent: memberIsCurrent,
     });
     setImagePreview(member.imageUrl || null);
     setEditingMemberId(member.id);
@@ -404,18 +443,20 @@ function CommitteePageContent() {
           imageUrl: imageUrl || undefined,
           socialLinks,
           order: isNaN(parsedOrder) ? 0 : parsedOrder,
+          session: formData.session || selectedSession,
+          isCurrent: formData.isCurrent,
           requesterRole: currentUser?.role,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        toast({ title: 'Success', description: 'Committee member added successfully.' });
+        toast({ title: 'Success', description: 'Vanguard profile added successfully.' });
         setAddDialogOpen(false);
         resetForm();
         fetchMembers();
       } else {
-        toast({ title: 'Creation failed', description: data.error || 'Could not add committee member', variant: 'destructive' });
+        toast({ title: 'Creation failed', description: data.error || 'Could not add member', variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Error', description: 'A network error occurred. Please try again.', variant: 'destructive' });
@@ -457,18 +498,20 @@ function CommitteePageContent() {
           imageUrl: imageUrl || undefined,
           socialLinks,
           order: isNaN(parsedOrder) ? 0 : parsedOrder,
+          session: formData.session,
+          isCurrent: formData.isCurrent,
           requesterRole: currentUser?.role,
         }),
       });
 
       const data = await res.json();
       if (data.success) {
-        toast({ title: 'Success', description: 'Committee member updated successfully.' });
+        toast({ title: 'Success', description: 'Vanguard profile updated successfully.' });
         setEditDialogOpen(false);
         resetForm();
         fetchMembers();
       } else {
-        toast({ title: 'Update failed', description: data.error || 'Could not update committee member', variant: 'destructive' });
+        toast({ title: 'Update failed', description: data.error || 'Could not update member', variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Error', description: 'A network error occurred. Please try again.', variant: 'destructive' });
@@ -489,13 +532,13 @@ function CommitteePageContent() {
       });
       const data = await res.json();
       if (data.success) {
-        toast({ title: 'Deleted', description: 'Committee member removed successfully.' });
+        toast({ title: 'Deleted', description: 'Vanguard profile removed successfully.' });
         setDeleteDialogOpen(false);
         setDeletingMemberId(null);
         setDeletingMemberName('');
         fetchMembers();
       } else {
-        toast({ title: 'Delete failed', description: data.error || 'Could not delete committee member', variant: 'destructive' });
+        toast({ title: 'Delete failed', description: data.error || 'Could not delete member', variant: 'destructive' });
       }
     } catch {
       toast({ title: 'Error', description: 'A network error occurred while deleting member.', variant: 'destructive' });
@@ -597,10 +640,52 @@ function CommitteePageContent() {
             )}
           >
             <Users className="h-3.5 w-3.5" />
-            Committee Member
+            Vanguard Member
           </button>
         </div>
       </div>
+
+      {/* Session / Tenure & Active Vanguard Status (when Vanguard) */}
+      {formData.category === 'COMMITTEE' && (
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 p-3 rounded-lg border border-white/10 bg-white/[0.02]">
+          <div className="space-y-1.5">
+            <Label className="text-gray-300 font-mono text-xs flex items-center gap-1.5">
+              <Calendar className="h-3.5 w-3.5 text-emerald-400" />
+              Session / Tenure <span className="text-red-400">*</span>
+            </Label>
+            <Input
+              value={formData.session}
+              onChange={(e) => updateField('session', e.target.value)}
+              placeholder="e.g. 2025-2026"
+              list="session-options"
+              className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
+            />
+            <datalist id="session-options">
+              {availableSessions.map((sess) => (
+                <option key={sess} value={sess} />
+              ))}
+            </datalist>
+          </div>
+
+          <div className="space-y-1.5 flex flex-col justify-center">
+            <Label className="text-gray-300 font-mono text-xs">Vanguard Status</Label>
+            <div className="flex items-center justify-between p-2 rounded border border-white/5 bg-white/5">
+              <div className="flex flex-col">
+                <span className="text-xs font-mono font-medium text-white">
+                  {formData.isCurrent ? 'Active Vanguard' : 'Former Vanguard'}
+                </span>
+                <span className="text-[10px] text-gray-400 font-sans">
+                  {formData.isCurrent ? 'Current active tenure' : 'Historical session'}
+                </span>
+              </div>
+              <Switch
+                checked={formData.isCurrent}
+                onCheckedChange={(checked) => updateField('isCurrent', checked)}
+              />
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Avatar Upload */}
       <div className="space-y-2">
@@ -821,7 +906,7 @@ function CommitteePageContent() {
             </Badge>
           </div>
           <h1 className="text-3xl sm:text-4xl font-black tracking-tight text-white font-mono">
-            ADVISORY & COMMITTEE MEMBERS
+            VANGUARDS & ADVISORY DIRECTORY
           </h1>
           <p className="text-sm text-gray-400 mt-1 max-w-2xl font-sans">
             The faculty mentors, advisors, and executive student board steering Dhaka International University Cyber Security Club.
@@ -845,7 +930,7 @@ function CommitteePageContent() {
               className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs shadow-lg shadow-emerald-500/20"
             >
               <Plus className="mr-1.5 h-3.5 w-3.5" />
-              Add Committee
+              Add Vanguard
             </Button>
           </div>
         )}
@@ -950,27 +1035,91 @@ function CommitteePageContent() {
         <div className="relative flex justify-center">
           <span className="bg-[#060b08] px-4 text-[11px] font-mono tracking-widest text-emerald-400 uppercase flex items-center gap-2">
             <Sparkles className="h-3 w-3 text-emerald-400" />
-            EXECUTIVE OPERATIONAL BOARD
+            EXECUTIVE VANGUARDS BOARD
             <Sparkles className="h-3 w-3 text-emerald-400" />
           </span>
         </div>
       </div>
 
-      {/* ── SECTION 2: COMMITTEE MEMBERS ── */}
+      {/* ── SECTION 2: VANGUARDS & HISTORICAL TIMELINE ── */}
       <section className="space-y-6">
+        {/* Timeline / Session Switcher Bar */}
+        <div className="flex flex-wrap items-center justify-between gap-3 bg-white/[0.02] border border-white/5 rounded-xl p-3 sm:p-4">
+          <div className="flex items-center gap-2">
+            <History className="h-4 w-4 text-emerald-400" />
+            <span className="text-xs font-mono font-semibold uppercase tracking-wider text-gray-300">
+              Session Timeline:
+            </span>
+          </div>
+
+          <div className="flex flex-wrap items-center gap-2">
+            {availableSessions.map((sess) => {
+              const isSelected = selectedSession === sess;
+              const isActive = sess === currentActiveSession;
+              return (
+                <button
+                  key={sess}
+                  type="button"
+                  onClick={() => setSelectedSession(sess)}
+                  className={cn(
+                    'px-3 py-1.5 rounded-lg text-xs font-mono font-medium transition-all flex items-center gap-1.5 border',
+                    isSelected
+                      ? 'bg-emerald-500/15 border-emerald-500 text-emerald-300 font-semibold shadow-[0_0_12px_rgba(16,185,129,0.2)]'
+                      : 'bg-white/5 border-white/10 text-gray-400 hover:text-white hover:border-white/20'
+                  )}
+                >
+                  <span>{sess}</span>
+                  {isActive ? (
+                    <span className="px-1.5 py-0.5 text-[9px] font-bold rounded bg-emerald-500/20 text-emerald-300 border border-emerald-500/30">
+                      Active
+                    </span>
+                  ) : (
+                    <span className="px-1.5 py-0.5 text-[9px] rounded bg-white/5 text-gray-400">
+                      Former
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+
+            {canManage && (
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                onClick={() => {
+                  setNewSessionInput('');
+                  setNewSessionIsActive(false);
+                  setNewSessionDialogOpen(true);
+                }}
+                className="border-dashed border-emerald-500/40 text-emerald-400 hover:bg-emerald-500/10 font-mono text-xs h-7 px-2.5"
+              >
+                <Plus className="mr-1 h-3.5 w-3.5" />
+                New Session
+              </Button>
+            )}
+          </div>
+        </div>
+
+        {/* Section Heading */}
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 border-b border-emerald-500/20 pb-3">
           <div>
             <div className="flex items-center gap-2">
               <Badge variant="outline" className="border-emerald-500/40 bg-emerald-500/10 text-emerald-300 font-mono text-xs">
                 <Users className="mr-1.5 h-3.5 w-3.5 text-emerald-400" />
-                EXECUTIVE BOARD
+                {selectedSession === currentActiveSession ? 'ACTIVE VANGUARDS' : 'FORMER VANGUARDS'}
+              </Badge>
+              <Badge variant="outline" className="border-white/10 bg-white/5 text-gray-400 font-mono text-[11px]">
+                {selectedSession}
               </Badge>
             </div>
             <h2 className="text-2xl font-bold font-mono text-white tracking-tight mt-1.5">
-              COMMITTEE MEMBERS
+              {selectedSession === currentActiveSession ? 'VANGUARDS' : `FORMER VANGUARDS (${selectedSession})`}
             </h2>
             <p className="text-xs text-gray-400 mt-0.5 font-sans">
-              The student leaders, department heads, and event coordinators executing club operations.
+              {selectedSession === currentActiveSession
+                ? `The student leaders, department heads, and coordinators executing club operations for the ${selectedSession} session.`
+                : `Honoring the former student leaders and pioneers of the ${selectedSession} session who built our cybersecurity foundation.`}
             </p>
           </div>
 
@@ -982,12 +1131,12 @@ function CommitteePageContent() {
               className="text-emerald-400 hover:text-emerald-300 hover:bg-emerald-500/10 font-mono text-xs self-start sm:self-auto"
             >
               <Plus className="mr-1 h-3.5 w-3.5" />
-              Add Committee Member
+              Add Vanguard Member
             </Button>
           )}
         </div>
 
-        {/* Committee Grid */}
+        {/* Vanguards Grid */}
         {membersLoading ? (
           <div className="grid gap-6 sm:grid-cols-2 lg:grid-cols-3 mt-4">
             {Array.from({ length: 3 }).map((_, i) => (
@@ -1003,10 +1152,14 @@ function CommitteePageContent() {
               </Card>
             ))}
           </div>
-        ) : committeeMembers.length === 0 ? (
+        ) : vanguardMembers.length === 0 ? (
           <div className="text-center py-12 border border-dashed border-emerald-500/20 bg-emerald-950/10 rounded-2xl">
             <Users className="mx-auto h-10 w-10 text-emerald-500/40 mb-3" />
-            <p className="text-xs font-mono text-gray-400">No committee members listed yet.</p>
+            <p className="text-xs font-mono text-gray-400">
+              {selectedSession === currentActiveSession
+                ? 'No active Vanguards listed yet for this session.'
+                : `No former Vanguard records found for session ${selectedSession}.`}
+            </p>
             {canManage && (
               <Button
                 onClick={() => openAddDialog('COMMITTEE')}
@@ -1014,13 +1167,13 @@ function CommitteePageContent() {
                 className="mt-3 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs"
               >
                 <Plus className="mr-1 h-3.5 w-3.5" />
-                Add First Committee Member
+                Add Vanguard to {selectedSession}
               </Button>
             )}
           </div>
         ) : (
           <div className="flex flex-wrap justify-center gap-6 md:gap-8 mt-6">
-            {committeeMembers.map((member, i) => (
+            {vanguardMembers.map((member, i) => (
               <motion.div
                 key={member.id}
                 {...stagger}
@@ -1036,10 +1189,10 @@ function CommitteePageContent() {
                     setDeletingMemberName(m.name);
                     setDeleteDialogOpen(true);
                   }}
-                  onMoveEarlier={() => handleMoveMember(member, committeeMembers, 'earlier')}
-                  onMoveLater={() => handleMoveMember(member, committeeMembers, 'later')}
+                  onMoveEarlier={() => handleMoveMember(member, vanguardMembers, 'earlier')}
+                  onMoveLater={() => handleMoveMember(member, vanguardMembers, 'later')}
                   canMoveEarlier={i > 0}
-                  canMoveLater={i < committeeMembers.length - 1}
+                  canMoveLater={i < vanguardMembers.length - 1}
                 />
               </motion.div>
             ))}
@@ -1052,10 +1205,10 @@ function CommitteePageContent() {
         <DialogContent className="bg-[#111] border-white/10 text-white sm:max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-white font-mono">
-              Add {formData.category === 'ADVISORY' ? 'Advisory Member' : 'Committee Member'}
+              Add {formData.category === 'ADVISORY' ? 'Advisory Member' : (formData.isCurrent ? 'Vanguard Member' : 'Former Vanguard Member')}
             </DialogTitle>
             <DialogDescription className="text-gray-400 font-sans text-xs">
-              Create a new profile card for the {formData.category === 'ADVISORY' ? 'advisory mentors' : 'executive committee'} directory.
+              Create a new profile card for the {formData.category === 'ADVISORY' ? 'advisory mentors' : 'Vanguards'} directory.
             </DialogDescription>
           </DialogHeader>
           {renderMemberForm(false, addFileInputRef)}
@@ -1090,7 +1243,7 @@ function CommitteePageContent() {
         <DialogContent className="bg-[#111] border-white/10 text-white sm:max-w-lg max-h-[90vh]">
           <DialogHeader>
             <DialogTitle className="text-white font-mono">
-              Edit {formData.category === 'ADVISORY' ? 'Advisory Member' : 'Committee Member'}
+              Edit {formData.category === 'ADVISORY' ? 'Advisory Member' : (formData.isCurrent ? 'Vanguard Member' : 'Former Vanguard Member')}
             </DialogTitle>
             <DialogDescription className="text-gray-400 font-sans text-xs">
               Update existing profile details and picture for this member.
@@ -1118,6 +1271,83 @@ function CommitteePageContent() {
               ) : (
                 'Save Changes'
               )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* ── New Session Dialog ── */}
+      <Dialog open={newSessionDialogOpen} onOpenChange={setNewSessionDialogOpen}>
+        <DialogContent className="bg-[#111] border-white/10 text-white sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="text-white font-mono flex items-center gap-2">
+              <History className="h-5 w-5 text-emerald-400" />
+              Add Timeline Session
+            </DialogTitle>
+            <DialogDescription className="text-gray-400 font-sans text-xs">
+              Create a new tenure session for past or upcoming Vanguard committees (e.g. 2024-2025 or 2023-2024).
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="space-y-4 py-2">
+            <div className="space-y-1.5">
+              <Label className="text-gray-300 font-mono text-xs">
+                Session Year Range <span className="text-red-400">*</span>
+              </Label>
+              <Input
+                value={newSessionInput}
+                onChange={(e) => setNewSessionInput(e.target.value)}
+                placeholder="e.g. 2024-2025"
+                className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
+              />
+              <p className="text-[10px] text-gray-500 font-mono">Format: YYYY-YYYY (e.g., 2024-2025)</p>
+            </div>
+
+            <div className="flex items-center justify-between p-3 rounded-lg border border-white/10 bg-white/5">
+              <div>
+                <p className="text-xs font-mono font-medium text-white">Set as Current Active Session</p>
+                <p className="text-[10px] text-gray-400 font-sans">
+                  Toggle on if this session is the active governing board
+                </p>
+              </div>
+              <Switch
+                checked={newSessionIsActive}
+                onCheckedChange={setNewSessionIsActive}
+              />
+            </div>
+          </div>
+
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setNewSessionDialogOpen(false)}
+              className="border-white/10 text-gray-400 hover:text-white font-mono text-xs"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={() => {
+                const trimmed = newSessionInput.trim();
+                if (!trimmed) {
+                  toast({ title: 'Validation error', description: 'Please enter a valid session year range.', variant: 'destructive' });
+                  return;
+                }
+                if (!availableSessions.includes(trimmed)) {
+                  setAvailableSessions((prev) => [trimmed, ...prev].sort().reverse());
+                }
+                setSelectedSession(trimmed);
+                if (newSessionIsActive) {
+                  setCurrentActiveSession(trimmed);
+                }
+                setNewSessionDialogOpen(false);
+                toast({
+                  title: 'Session Created',
+                  description: `Switched view to session "${trimmed}". You can now add members to this timeline.`,
+                });
+              }}
+              className="bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold font-mono text-xs"
+            >
+              Create Session
             </Button>
           </DialogFooter>
         </DialogContent>

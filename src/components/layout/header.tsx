@@ -82,7 +82,7 @@ const VIEW_TITLES: Record<AppView, string> = {
   achievements: 'Achievements',
   resources: 'Resources',
   'certificate-designer': 'Certificate Designer',
-  committee: 'Committee',
+  committee: 'Vanguards',
   sponsors: 'Official Sponsors',
 };
 
@@ -119,7 +119,7 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
   gallery: [{ label: 'Gallery' }],
   achievements: [{ label: 'Achievements' }],
   'certificate-designer': [{ label: 'Settings', parent: 'settings' }, { label: 'Certificate Designer' }],
-  committee: [{ label: 'Home', parent: 'landing' }, { label: 'Committee' }],
+  committee: [{ label: 'Home', parent: 'landing' }, { label: 'Vanguards' }],
   sponsors: [{ label: 'Dashboard', parent: 'dashboard' }, { label: 'Official Sponsors' }],
 };
 
@@ -127,7 +127,7 @@ const VIEW_BREADCRUMBS: Record<AppView, { label: string; parent?: string }[]> = 
 const PUBLIC_NAV_LINKS: { label: string; view: AppView; icon: React.ElementType }[] = [
   { label: 'Home', view: 'landing', icon: Home },
   { label: 'About', view: 'about', icon: Info },
-  { label: 'Committee', view: 'committee', icon: Users },
+  { label: 'Vanguards', view: 'committee', icon: Users },
   { label: 'Events', view: 'events', icon: Calendar },
   { label: 'Resources', view: 'resources', icon: BookOpen },
   { label: 'Gallery', view: 'gallery', icon: Image },

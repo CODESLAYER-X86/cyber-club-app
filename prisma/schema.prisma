@@ -379,9 +379,14 @@ model CommitteeMember {
   email       String?
   socialLinks String?  // JSON: { linkedin, github, twitter }
   order       Int      @default(0)
+  session     String   @default("2025-2026")
+  isCurrent   Boolean  @default(true)
   isActive    Boolean  @default(true)
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
+
+  @@index([session])
+  @@index([isCurrent])
 }
 
 model SystemConfig {

@@ -42,7 +42,7 @@ export async function PATCH(
     }
 
     // Build update data from allowed fields
-    const allowedFields = ["name", "role", "description", "imageUrl", "department", "email", "order", "isActive"];
+    const allowedFields = ["name", "role", "description", "imageUrl", "department", "email", "order", "session", "isCurrent", "isActive"];
     const data: Record<string, unknown> = {};
 
     for (const field of allowedFields) {

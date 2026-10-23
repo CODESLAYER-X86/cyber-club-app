@@ -182,6 +182,21 @@ export function CommitteeMemberCard({
             {/* Gradient Overlay for Text */}
             <div className="absolute inset-0 bg-gradient-to-t from-[#121614] via-[#121614]/40 to-transparent opacity-95" />
 
+            {/* Top Status Pill: Vanguard vs Former Vanguard */}
+            <div className="absolute top-3.5 right-3.5 z-10 flex items-center gap-1.5">
+              {member.isCurrent === false ? (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-amber-500/30 bg-black/70 backdrop-blur-md px-2.5 py-0.5 font-mono text-[10px] font-bold text-amber-300 tracking-wider shadow-sm">
+                  <span className="h-1.5 w-1.5 rounded-full bg-amber-400" />
+                  Former Vanguard {member.session ? `(${member.session})` : ''}
+                </span>
+              ) : (
+                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-500/30 bg-black/70 backdrop-blur-md px-2.5 py-0.5 font-mono text-[10px] font-bold text-emerald-400 tracking-wider shadow-sm">
+                  <span className="h-1.5 w-1.5 rounded-full bg-emerald-400 animate-pulse" />
+                  Vanguard
+                </span>
+              )}
+            </div>
+
             {/* Info and Social Links positioned at bottom of image */}
             <div className="absolute bottom-4 left-4 right-4 z-10">
               <span className={`text-[10px] font-bold tracking-widest uppercase ${colors.accentClass}`}>

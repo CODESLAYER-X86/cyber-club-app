@@ -6,11 +6,18 @@ import { NextRequest } from "next/server";
 
 const CREATE_ROLES = ["PRESIDENT", "VP", "GS", "MEDIA", "PLATFORM_ADMIN"];
 
-export async function GET() {
+export async function GET(request: NextRequest) {
   try {
+    const session = request.nextUrl.searchParams.get("session");
+    const whereClause: Record<string, unknown> = { isActive: true };
+
+    if (session && session !== "all") {
+      whereClause.session = session;
+    }
+
     const members = await prisma.committeeMember.findMany({
-      where: { isActive: true },
-      orderBy: { order: "asc" },
+      where: whereClause,
+      orderBy: [{ order: "asc" }, { createdAt: "asc" }],
       select: {
         id: true, // Required for card edit/delete and React tracking
         name: true,
@@ -18,15 +25,42 @@ export async function GET() {
         description: true,
         imageUrl: true,
         department: true,
+        email: true,
         socialLinks: true,
         order: true,
+        session: true,
+        isCurrent: true,
         isActive: true,
         createdAt: true,
         updatedAt: true,
       },
     });
 
-    return successResponse({ members });
+    // Extract distinct sessions available in the system
+    const sessionRecords = await prisma.committeeMember.findMany({
+      where: { isActive: true },
+      select: { session: true, isCurrent: true },
+      distinct: ["session"],
+      orderBy: { session: "desc" },
+    });
+
+    const sessionSet = new Set<string>();
+    let currentSession = "2025-2026";
+
+    sessionRecords.forEach((r) => {
+      if (r.session) {
+        sessionSet.add(r.session);
+        if (r.isCurrent) {
+          currentSession = r.session;
+        }
+      }
+    });
+
+    // Guarantee default active session exists in the list
+    sessionSet.add("2025-2026");
+    const availableSessions = Array.from(sessionSet).sort().reverse();
+
+    return successResponse({ members, availableSessions, currentSession });
   } catch {
     return serverErrorResponse();
   }
@@ -36,10 +70,10 @@ export async function POST(request: NextRequest) {
   try {
     // Get role from server session — NEVER from client body
     const caller = await getSupabaseUser(CREATE_ROLES);
-    if (!caller) return forbiddenResponse("Only PRESIDENT, GS, or PLATFORM_ADMIN can create committee members");
+    if (!caller) return forbiddenResponse("Only PRESIDENT, GS, MEDIA, or PLATFORM_ADMIN can create committee members");
 
     const body = await request.json();
-    const { name, role, description, imageUrl, department, email, socialLinks, order } = body;
+    const { name, role, description, imageUrl, department, email, socialLinks, order, session, isCurrent } = body;
 
     if (!name || !role || !description) {
       return errorResponse("name, role, and description are required");
@@ -58,6 +92,9 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    const assignedSession = (typeof session === "string" && session.trim()) ? session.trim() : "2025-2026";
+    const assignedIsCurrent = typeof isCurrent === "boolean" ? isCurrent : (assignedSession === "2025-2026");
+
     const member = await prisma.committeeMember.create({
       data: {
         name,
@@ -68,6 +105,8 @@ export async function POST(request: NextRequest) {
         email,
         socialLinks: socialLinks ? JSON.stringify(socialLinks) : null,
         order: typeof order === "number" ? order : parseInt(String(order), 10) || 0,
+        session: assignedSession,
+        isCurrent: assignedIsCurrent,
       },
     });
 
