@@ -94,7 +94,7 @@ const emptyForm: MemberFormData = {
   socialLinkedIn: '',
   socialGithub: '',
   socialFacebook: '',
-  session: '2025-2026',
+  session: '2026-2027',
   isCurrent: true,
 };
 
@@ -210,9 +210,9 @@ function CommitteePageContent() {
 
   // Committee / Vanguard members state
   const [members, setMembers] = useState<CommitteeMember[]>([]);
-  const [availableSessions, setAvailableSessions] = useState<string[]>(['2025-2026']);
-  const [currentActiveSession, setCurrentActiveSession] = useState<string>('2025-2026');
-  const [selectedSession, setSelectedSession] = useState<string>('2025-2026');
+  const [availableSessions, setAvailableSessions] = useState<string[]>(['2026-2027']);
+  const [currentActiveSession, setCurrentActiveSession] = useState<string>('2026-2027');
+  const [selectedSession, setSelectedSession] = useState<string>('2026-2027');
   const [membersLoading, setMembersLoading] = useState(true);
   const [membersError, setMembersError] = useState<string | null>(null);
 
@@ -305,7 +305,7 @@ function CommitteePageContent() {
     () =>
       safeMembers
         .filter((m) => !isAdvisoryMember(m))
-        .filter((m) => (m.session || '2025-2026') === selectedSession)
+        .filter((m) => (m.session || '2026-2027') === selectedSession)
         .sort(sortMembers),
     [safeMembers, selectedSession, sortMembers]
   );
@@ -384,7 +384,7 @@ function CommitteePageContent() {
       ? 'ADVISORY'
       : 'COMMITTEE';
 
-    const memberSession = member.session || selectedSession || '2025-2026';
+    const memberSession = member.session || selectedSession || '2026-2027';
     const memberIsCurrent =
       typeof member.isCurrent === 'boolean'
         ? member.isCurrent
@@ -656,7 +656,7 @@ function CommitteePageContent() {
             <Input
               value={formData.session}
               onChange={(e) => updateField('session', e.target.value)}
-              placeholder="e.g. 2025-2026"
+              placeholder="e.g. 2026-2027"
               list="session-options"
               className="border-white/10 bg-white/5 text-white placeholder:text-gray-600 font-mono text-xs"
             />

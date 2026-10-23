@@ -45,7 +45,7 @@ export async function GET(request: NextRequest) {
     });
 
     const sessionSet = new Set<string>();
-    let currentSession = "2025-2026";
+    let currentSession = "2026-2027";
 
     sessionRecords.forEach((r) => {
       if (r.session) {
@@ -57,7 +57,7 @@ export async function GET(request: NextRequest) {
     });
 
     // Guarantee default active session exists in the list
-    sessionSet.add("2025-2026");
+    sessionSet.add("2026-2027");
     const availableSessions = Array.from(sessionSet).sort().reverse();
 
     return successResponse({ members, availableSessions, currentSession });
@@ -92,8 +92,8 @@ export async function POST(request: NextRequest) {
       }
     }
 
-    const assignedSession = (typeof session === "string" && session.trim()) ? session.trim() : "2025-2026";
-    const assignedIsCurrent = typeof isCurrent === "boolean" ? isCurrent : (assignedSession === "2025-2026");
+    const assignedSession = (typeof session === "string" && session.trim()) ? session.trim() : "2026-2027";
+    const assignedIsCurrent = typeof isCurrent === "boolean" ? isCurrent : (assignedSession === "2026-2027");
 
     const member = await prisma.committeeMember.create({
       data: {
