@@ -26,8 +26,7 @@ export async function GET(
     }
 
     const isAuthorized = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER", "VERIFIER"].includes(caller.role) ||
-      caller.userId === event.verifierId ||
-      caller.userId === event.createdBy;
+      (!["MEMBER", "GUEST"].includes(caller.role) && (caller.userId === event.verifierId || caller.userId === event.createdBy));
 
     if (!isAuthorized) {
       return forbiddenResponse("Only event administrators and verifiers can view the full registration roster");

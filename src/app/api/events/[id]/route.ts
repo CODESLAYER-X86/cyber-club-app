@@ -193,8 +193,7 @@ export async function GET(
 
     const isLeadershipOrVerifier = !!(caller && (
       ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER", "VERIFIER"].includes(caller.role) ||
-      caller.userId === event.verifierId ||
-      caller.userId === event.createdBy
+      (!["MEMBER", "GUEST"].includes(caller.role) && (caller.userId === event.verifierId || caller.userId === event.createdBy))
     ));
 
     // Fetch payments for this event to link transactionId/payment info

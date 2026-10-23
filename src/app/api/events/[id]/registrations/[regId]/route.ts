@@ -51,8 +51,8 @@ export async function PATCH(
     const ALLOWED_ROLES = ["PLATFORM_ADMIN", "PRESIDENT", "VP", "GS", "TREASURER", "VERIFIER"];
     const isAuthorizedRole = ALLOWED_ROLES.includes(caller.role);
     
-    // 2. Designated verifier or event creator can update registration
-    const isDesignatedVerifier = event.verifierId === caller.userId || event.createdBy === caller.userId;
+    // 2. Designated verifier or event creator can update registration (only if staff/non-member)
+    const isDesignatedVerifier = !["MEMBER", "GUEST"].includes(caller.role) && (event.verifierId === caller.userId || event.createdBy === caller.userId);
 
     if (!isAuthorizedRole && !isDesignatedVerifier) {
       return forbiddenResponse("You do not have permission to update registration status");

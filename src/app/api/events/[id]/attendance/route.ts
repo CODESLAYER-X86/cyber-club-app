@@ -38,8 +38,8 @@ export async function POST(
       return notFoundResponse("Event not found");
     }
 
-    // Cryptographically secure authorization check
-    const isDesignatedVerifier = event.verifierId === caller.userId || event.createdBy === caller.userId;
+    // Cryptographically secure authorization check: members/guests never have verifier privileges
+    const isDesignatedVerifier = !["MEMBER", "GUEST"].includes(caller.role) && (event.verifierId === caller.userId || event.createdBy === caller.userId);
     const isGlobalAuthorized = AUTHORIZED_ROLES.includes(caller.role);
 
     if (!isDesignatedVerifier && !isGlobalAuthorized) {

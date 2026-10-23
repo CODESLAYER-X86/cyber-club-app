@@ -26,14 +26,87 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
   const joinYear = new Date(user.createdAt).getFullYear() || 2026;
 
   // Generate and download high-resolution PNG of the digital card
-  const handleDownloadCard = () => {
+  const handleDownloadCard = async () => {
     setIsGeneratingPng(true);
     try {
+      // Preload avatar if available
+      let loadedAvatar: HTMLImageElement | null = null;
+      if (user.avatar) {
+        const targetUrl = getOptimizedAvatarUrl(user.avatar, 384) || user.avatar;
+        const createImagePromise = (src: string, isCors = false): Promise<HTMLImageElement | null> => {
+          return new Promise((resolve) => {
+            const img = new Image();
+            if (isCors) img.crossOrigin = 'anonymous';
+            const timer = setTimeout(() => {
+              img.onload = null;
+              img.onerror = null;
+              resolve(null);
+            }, 6000);
+
+            img.onload = () => {
+              clearTimeout(timer);
+              resolve(img);
+            };
+            img.onerror = () => {
+              clearTimeout(timer);
+              resolve(null);
+            };
+            img.src = src;
+          });
+        };
+
+        if (targetUrl.startsWith('data:image/')) {
+          loadedAvatar = await createImagePromise(targetUrl, false);
+        } else {
+          // 1. Try internal image proxy to get base64 (avoids CORS tainted canvas)
+          try {
+            const res = await fetch(`/api/certificates/image-proxy?url=${encodeURIComponent(targetUrl)}`);
+            if (res.ok) {
+              const data = await res.json();
+              if (data.success && data.base64) {
+                loadedAvatar = await createImagePromise(data.base64, false);
+              }
+            }
+          } catch (proxyErr) {
+            console.warn('Image proxy failed, attempting direct CORS image load', proxyErr);
+          }
+
+          // 2. Direct CORS fallback
+          if (!loadedAvatar) {
+            loadedAvatar = await createImagePromise(targetUrl, true);
+          }
+        }
+      }
+
       const canvas = document.createElement('canvas');
       canvas.width = 1200;
       canvas.height = 760;
       const ctx = canvas.getContext('2d');
       if (!ctx) return;
+
+      const drawRoundedRect = (
+        c: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        w: number,
+        h: number,
+        r: number
+      ) => {
+        if (typeof c.roundRect === 'function') {
+          c.roundRect(x, y, w, h, r);
+        } else {
+          c.moveTo(x + r, y);
+          c.lineTo(x + w - r, y);
+          c.quadraticCurveTo(x + w, y, x + w, y + r);
+          c.lineTo(x + w, y + h - r);
+          c.quadraticCurveTo(x + w, y + h, x + w - r, y + h);
+          c.lineTo(x + r, y + h);
+          c.quadraticCurveTo(x, y + h, x, y + h - r);
+          c.lineTo(x, y + r);
+          c.quadraticCurveTo(x, y, x + r, y);
+          c.closePath();
+        }
+      };
 
       // Background obsidian gradient
       const bgGrad = ctx.createLinearGradient(0, 0, 1200, 760);
@@ -103,20 +176,84 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
       ctx.fillText(isExecutive ? 'TIER 3 // EXECUTIVE' : 'TIER 1 // OPERATIVE', 1000, 82);
       ctx.textAlign = 'left';
 
-      // Left Column: Member Photo Placeholder / Avatar Shield
+      // Left Column: Member Photo Container / Avatar Shield
       ctx.fillStyle = 'rgba(15, 23, 42, 0.9)';
       ctx.fillRect(60, 180, 240, 300);
       ctx.strokeStyle = isExecutive ? 'rgba(6, 182, 212, 0.5)' : 'rgba(16, 185, 129, 0.5)';
       ctx.lineWidth = 2;
       ctx.strokeRect(60, 180, 240, 300);
 
+      const photoX = 75;
+      const photoY = 195;
+      const photoW = 210;
+      const photoH = 210;
+      const photoR = 16;
+
+      if (loadedAvatar) {
+        ctx.save();
+        ctx.beginPath();
+        drawRoundedRect(ctx, photoX, photoY, photoW, photoH, photoR);
+        ctx.clip();
+
+        // Object-fit: cover logic
+        const imgW = loadedAvatar.naturalWidth || loadedAvatar.width;
+        const imgH = loadedAvatar.naturalHeight || loadedAvatar.height;
+        let sx = 0, sy = 0, sw = imgW, sh = imgH;
+        if (imgW > imgH) {
+          sw = imgH;
+          sx = (imgW - imgH) / 2;
+        } else if (imgH > imgW) {
+          sh = imgW;
+          sy = (imgH - imgW) / 2;
+        }
+        ctx.drawImage(loadedAvatar, sx, sy, sw, sh, photoX, photoY, photoW, photoH);
+        ctx.restore();
+
+        // Border around photo
+        ctx.strokeStyle = isExecutive ? 'rgba(34, 211, 238, 0.6)' : 'rgba(52, 211, 153, 0.6)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        drawRoundedRect(ctx, photoX, photoY, photoW, photoH, photoR);
+        ctx.stroke();
+      } else {
+        // Fallback: Initial letter on cyber background
+        ctx.fillStyle = isExecutive ? 'rgba(6, 182, 212, 0.15)' : 'rgba(6, 78, 59, 0.3)';
+        ctx.beginPath();
+        drawRoundedRect(ctx, photoX, photoY, photoW, photoH, photoR);
+        ctx.fill();
+
+        ctx.strokeStyle = isExecutive ? 'rgba(34, 211, 238, 0.5)' : 'rgba(52, 211, 153, 0.5)';
+        ctx.lineWidth = 2;
+        ctx.beginPath();
+        drawRoundedRect(ctx, photoX, photoY, photoW, photoH, photoR);
+        ctx.stroke();
+
+        ctx.fillStyle = isExecutive ? '#38bdf8' : '#34d399';
+        ctx.font = 'bold 72px sans-serif';
+        ctx.textAlign = 'center';
+        const initial = user.name ? user.name.charAt(0).toUpperCase() : 'C';
+        ctx.fillText(initial, 180, 325);
+      }
+
+      // Small Verified Checkmark Badge at bottom-right of avatar
+      ctx.beginPath();
+      ctx.arc(273, 393, 14, 0, Math.PI * 2);
+      ctx.fillStyle = isExecutive ? '#06b6d4' : '#10b981';
+      ctx.fill();
+
+      ctx.strokeStyle = '#020617';
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      ctx.moveTo(268, 393);
+      ctx.lineTo(272, 397);
+      ctx.lineTo(279, 389);
+      ctx.stroke();
+
+      // [VERIFIED OPERATIVE] text at bottom of left column
       ctx.fillStyle = isExecutive ? '#38bdf8' : '#34d399';
-      ctx.font = 'bold 64px sans-serif';
+      ctx.font = 'bold 13px monospace';
       ctx.textAlign = 'center';
-      const initial = user.name ? user.name.charAt(0).toUpperCase() : 'C';
-      ctx.fillText(initial, 180, 350);
-      ctx.font = '14px monospace';
-      ctx.fillText('[VERIFIED OPERATIVE]', 180, 440);
+      ctx.fillText('[VERIFIED OPERATIVE]', 180, 445);
       ctx.textAlign = 'left';
 
       // Right Column: Operative Metadata
@@ -158,11 +295,20 @@ export function DigitalIdCard({ user }: DigitalIdCardProps) {
       ctx.font = '12px monospace';
       ctx.fillText('AUTHORIZED ACCESS ONLY. UNAUTHORIZED DUPLICATION OR FORGERY IS A CODE VIOLATION.', 60, 690);
 
-      // Download
-      const link = document.createElement('a');
-      link.download = `CSC_Member_Badge_${user.name.replace(/\s+/g, '_')}.png`;
-      link.href = canvas.toDataURL('image/png');
-      link.click();
+      // Download with fallback in case canvas was tainted
+      let dataUrl = '';
+      try {
+        dataUrl = canvas.toDataURL('image/png');
+      } catch (taintErr) {
+        console.warn('Canvas was tainted by avatar image, trying download without image', taintErr);
+      }
+
+      if (dataUrl) {
+        const link = document.createElement('a');
+        link.download = `CSC_Member_Badge_${user.name.replace(/\s+/g, '_')}.png`;
+        link.href = dataUrl;
+        link.click();
+      }
     } catch (err) {
       console.error('Failed to generate PNG badge:', err);
     } finally {

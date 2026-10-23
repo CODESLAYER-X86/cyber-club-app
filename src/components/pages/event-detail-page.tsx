@@ -400,8 +400,7 @@ export function EventDetailPage() {
   const isAdmin = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS'].includes(currentUser.role);
   const canApproveReg = currentUser && (
     ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS', 'VERIFIER'].includes(currentUser.role) ||
-    event.verifierId === currentUser.id ||
-    event.createdBy === currentUser.id
+    (!['MEMBER', 'GUEST'].includes(currentUser.role) && (event.verifierId === currentUser.id || event.createdBy === currentUser.id))
   );
   const canEdit = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT', 'VP', 'GS', 'MEDIA'].includes(currentUser.role);
   const canDelete = currentUser && ['PLATFORM_ADMIN', 'PRESIDENT'].includes(currentUser.role);
@@ -1061,7 +1060,7 @@ export function EventDetailPage() {
                           <div className="flex items-center gap-2">
                             <RegistrationBadge status={reg.status} />
                             <span className="text-xs text-gray-600">{new Date(reg.registeredAt).toLocaleDateString()}</span>
-                            {reg.status === 'APPROVED' && (currentUser?.role === 'VERIFIER' || isAdmin || event.verifierId === currentUser?.id || event.createdBy === currentUser?.id) && (
+                            {reg.status === 'APPROVED' && canApproveReg && (
                               (() => {
                                 const userAttendance = (event as any).attendance?.find((a: any) => a.userId === reg.userId);
                                 const attendanceStatus = userAttendance?.status || 'ABSENT';
