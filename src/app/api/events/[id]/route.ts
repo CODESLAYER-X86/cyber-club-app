@@ -3,6 +3,7 @@ import { successResponse, errorResponse, notFoundResponse, serverErrorResponse, 
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 import { isSafeUrl } from "@/lib/utils";
+import { deleteMediaFromStorage } from "@/lib/storage-cleanup";
 
 const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN"];
 const MODIFY_ROLES = ["PRESIDENT", "PLATFORM_ADMIN", "MEDIA", "VP", "GS"];
@@ -93,6 +94,11 @@ export async function DELETE(
     await prisma.payment.updateMany({ where: { eventId: id }, data: { eventId: null } });
     // 9. Finally, delete the event
     await prisma.event.delete({ where: { id } });
+
+    // Clean up event poster image from Cloudflare R2 / Supabase Storage
+    if (event.poster) {
+      await deleteMediaFromStorage(event.poster);
+    }
 
     return successResponse({ message: "Event deleted successfully" });
   } catch {

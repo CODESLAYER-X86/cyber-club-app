@@ -3,6 +3,7 @@ import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, se
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 import { isSafeUrl } from "@/lib/utils";
+import { deleteMediaFromStorage } from "@/lib/storage-cleanup";
 
 const UPDATE_ROLES = ["PRESIDENT", "VP", "GS", "MEDIA", "PLATFORM_ADMIN"];
 const DELETE_ROLES = ["PRESIDENT", "VP", "GS", "MEDIA", "PLATFORM_ADMIN"];
@@ -118,6 +119,9 @@ export async function DELETE(
     } catch (auditErr) {
       console.error("Audit log error on committee delete:", auditErr);
     }
+
+    // Purge avatar photo from Supabase / R2 storage
+    await deleteMediaFromStorage(member.imageUrl);
 
     await prisma.committeeMember.delete({
       where: { id },

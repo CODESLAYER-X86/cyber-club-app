@@ -3,6 +3,7 @@ import { successResponse, errorResponse, forbiddenResponse, serverErrorResponse 
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
 import { isSafeUrl } from "@/lib/utils";
+import { deleteMediaFromStorage } from "@/lib/storage-cleanup";
 
 export async function PUT(request: NextRequest, { params }: { params: Promise<{ id: string }> }) {
   try {
@@ -79,6 +80,11 @@ export async function DELETE(request: NextRequest, { params }: { params: Promise
     }
 
     await prisma.clubSponsor.delete({ where: { id } });
+
+    if (existing.logoUrl) {
+      await deleteMediaFromStorage(existing.logoUrl);
+    }
+
     return successResponse("Sponsor deleted successfully");
   } catch (error) {
     console.error("Delete Sponsor Error:", error);

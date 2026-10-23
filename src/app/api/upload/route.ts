@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server';
 import { getSupabaseUser } from '@/lib/supabase-server';
 import { errorResponse, serverErrorResponse, successResponse, unauthorizedResponse } from '@/lib/api-utils';
-import { isR2Configured, uploadBufferToR2 } from '@/lib/r2';
+import { isR2Configured, uploadBufferToR2, deleteFromR2 } from '@/lib/r2';
 
 const ALLOWED_MIME_TYPES = new Set([
   'image/jpeg',
@@ -58,4 +58,42 @@ export async function POST(request: NextRequest) {
     console.error('Error in /api/upload:', err);
     return serverErrorResponse(err?.message || 'Failed to upload image to R2');
   }
+}
+
+export async function GET(request: NextRequest) {
+  const accountId = process.env.R2_ACCOUNT_ID?.trim().replace(/^["']|["']$/g, '');
+  const accessKeyId = process.env.R2_ACCESS_KEY_ID?.trim().replace(/^["']|["']$/g, '');
+  const secretKey = process.env.R2_SECRET_ACCESS_KEY?.trim().replace(/^["']|["']$/g, '');
+  const bucketName = process.env.R2_BUCKET_NAME?.trim().replace(/^["']|["']$/g, '');
+  const publicUrl = process.env.R2_PUBLIC_URL?.trim().replace(/^["']|["']$/g, '');
+
+  const diagnostics = {
+    hasAccountId: !!accountId,
+    accountIdPreview: accountId ? `${accountId.slice(0, 4)}...${accountId.slice(-4)}` : null,
+    hasAccessKeyId: !!accessKeyId,
+    accessKeyIdLength: accessKeyId?.length || 0,
+    hasSecretKey: !!secretKey,
+    hasBucketName: !!bucketName,
+    bucketName: bucketName || null,
+    hasPublicUrl: !!publicUrl,
+    publicUrl: publicUrl || null,
+    isR2Configured: isR2Configured(),
+    testUploadResult: null as any,
+  };
+
+  if (diagnostics.isR2Configured) {
+    try {
+      const testBuffer = Buffer.from('r2-healthcheck-ping');
+      const testKey = `healthcheck/ping-${Date.now()}.txt`;
+      const url = await uploadBufferToR2(testBuffer, testKey, 'text/plain');
+      diagnostics.testUploadResult = { success: true, url };
+      try {
+        await deleteFromR2(testKey);
+      } catch {}
+    } catch (err: any) {
+      diagnostics.testUploadResult = { success: false, error: err?.message || String(err) };
+    }
+  }
+
+  return successResponse(diagnostics);
 }

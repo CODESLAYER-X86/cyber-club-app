@@ -1,29 +1,34 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
 
 let s3ClientInstance: S3Client | null = null;
+
+function getCleanEnv(val?: string): string | undefined {
+  if (!val) return undefined;
+  return val.trim().replace(/^["']|["']$/g, '');
+}
 
 /**
  * Returns true if all required Cloudflare R2 environment variables are present.
  */
 export function isR2Configured(): boolean {
   return !!(
-    process.env.R2_ACCOUNT_ID &&
-    process.env.R2_ACCESS_KEY_ID &&
-    process.env.R2_SECRET_ACCESS_KEY &&
-    process.env.R2_BUCKET_NAME &&
-    process.env.R2_PUBLIC_URL
+    getCleanEnv(process.env.R2_ACCOUNT_ID) &&
+    getCleanEnv(process.env.R2_ACCESS_KEY_ID) &&
+    getCleanEnv(process.env.R2_SECRET_ACCESS_KEY) &&
+    getCleanEnv(process.env.R2_BUCKET_NAME) &&
+    getCleanEnv(process.env.R2_PUBLIC_URL)
   );
 }
 
 /**
  * Returns a cached S3Client instance targeting Cloudflare R2's S3-compatible endpoint.
  */
-function getR2Client(): S3Client {
+export function getR2Client(): S3Client {
   if (s3ClientInstance) return s3ClientInstance;
 
-  const accountId = process.env.R2_ACCOUNT_ID;
-  const accessKeyId = process.env.R2_ACCESS_KEY_ID;
-  const secretAccessKey = process.env.R2_SECRET_ACCESS_KEY;
+  const accountId = getCleanEnv(process.env.R2_ACCOUNT_ID);
+  const accessKeyId = getCleanEnv(process.env.R2_ACCESS_KEY_ID);
+  const secretAccessKey = getCleanEnv(process.env.R2_SECRET_ACCESS_KEY);
 
   if (!accountId || !accessKeyId || !secretAccessKey) {
     throw new Error('Cloudflare R2 credentials are missing or incomplete in environment variables.');
@@ -54,8 +59,8 @@ export async function uploadBufferToR2(
   contentType: string
 ): Promise<string> {
   const client = getR2Client();
-  const bucketName = process.env.R2_BUCKET_NAME;
-  const publicBaseUrl = process.env.R2_PUBLIC_URL;
+  const bucketName = getCleanEnv(process.env.R2_BUCKET_NAME);
+  const publicBaseUrl = getCleanEnv(process.env.R2_PUBLIC_URL);
 
   if (!bucketName) {
     throw new Error('R2_BUCKET_NAME is not configured.');
@@ -78,3 +83,40 @@ export async function uploadBufferToR2(
 
   return `${publicBaseUrl.replace(/\/$/, '')}/${cleanKey}`;
 }
+
+/**
+ * Deletes an object from Cloudflare R2 by key or public URL.
+ */
+export async function deleteFromR2(keyOrUrl: string): Promise<boolean> {
+  try {
+    if (!isR2Configured()) return false;
+    const client = getR2Client();
+    const bucketName = getCleanEnv(process.env.R2_BUCKET_NAME);
+    if (!bucketName) return false;
+
+    // Extract key if a full URL was provided
+    let key = keyOrUrl;
+    if (keyOrUrl.startsWith('http')) {
+      try {
+        const urlObj = new URL(keyOrUrl);
+        key = urlObj.pathname.replace(/^\/+/, '');
+      } catch {
+        key = keyOrUrl;
+      }
+    }
+
+    const cleanKey = key.replace(/^\/+/, '');
+
+    await client.send(
+      new DeleteObjectCommand({
+        Bucket: bucketName,
+        Key: cleanKey,
+      })
+    );
+    return true;
+  } catch (err) {
+    console.error('Failed to delete object from R2:', err);
+    return false;
+  }
+}
+

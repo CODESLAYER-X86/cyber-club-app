@@ -2,6 +2,7 @@ import prisma from "@/lib/db";
 import { successResponse, errorResponse, notFoundResponse, forbiddenResponse, serverErrorResponse } from "@/lib/api-utils";
 import { NextRequest } from "next/server";
 import { getSupabaseUser } from "@/lib/supabase-server";
+import { deleteMediaFromStorage } from "@/lib/storage-cleanup";
 
 const APPROVE_ROLES = ["PRESIDENT", "VP", "PLATFORM_ADMIN"];
 const DELETE_ROLES = ["PRESIDENT", "PLATFORM_ADMIN"];
@@ -96,6 +97,9 @@ export async function DELETE(
     } catch (auditErr) {
       console.error("Audit log error on achievement delete:", auditErr);
     }
+
+    // Purge physical image from Cloudflare R2 / Supabase Storage
+    await deleteMediaFromStorage(achievement.imageUrl);
 
     await prisma.achievement.delete({
       where: { id },

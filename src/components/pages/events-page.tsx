@@ -45,6 +45,7 @@ export function EventsPage() {
   const [exporting, setExporting] = useState(false);
   const [deleteTarget, setDeleteTarget] = useState<Event | null>(null);
   const [deleting, setDeleting] = useState(false);
+  const [deleteConfirmText, setDeleteConfirmText] = useState('');
 
   const canCreate = currentUser && ['PRESIDENT', 'GS', 'PLATFORM_ADMIN'].includes(currentUser.role);
   const canDelete = currentUser && ['PRESIDENT', 'PLATFORM_ADMIN'].includes(currentUser.role);
@@ -62,6 +63,7 @@ export function EventsPage() {
       if (data.success) {
         setEvents(prev => prev.filter(e => e.id !== deleteTarget.id));
         setDeleteTarget(null);
+        setDeleteConfirmText('');
         toast({ title: 'Event deleted', description: `"${deleteTarget.title}" has been deleted.` });
       } else {
         toast({ title: 'Delete failed', description: data.error || 'Could not delete event', variant: 'destructive' });
@@ -376,23 +378,47 @@ export function EventsPage() {
       {/* Delete Confirmation Dialog */}
       <AlertDialog
         open={!!deleteTarget}
-        onOpenChange={(open) => { if (!open) setDeleteTarget(null); }}
+        onOpenChange={(open) => {
+          if (!open) {
+            setDeleteTarget(null);
+            setDeleteConfirmText('');
+          }
+        }}
       >
         <AlertDialogContent className="border-white/10 bg-[#111111] text-white">
           <AlertDialogHeader>
-            <AlertDialogTitle className="text-white">Delete Event</AlertDialogTitle>
+            <AlertDialogTitle className="text-white flex items-center gap-2">
+              <span className="text-rose-500 font-bold">⚠️</span> Delete Event
+            </AlertDialogTitle>
             <AlertDialogDescription className="text-gray-400">
-              Are you sure you want to delete &ldquo;{deleteTarget?.title}&rdquo;? This will also remove all registrations, attendance records, and certificates associated with this event. This action cannot be undone.
+              Are you sure you want to delete &ldquo;{deleteTarget?.title}&rdquo;? This will permanently remove all registrations, attendance records, and certificates associated with this event. This action cannot be undone.
             </AlertDialogDescription>
           </AlertDialogHeader>
+
+          <div className="space-y-2 my-2 rounded-lg border border-rose-500/20 bg-rose-500/5 p-3">
+            <p className="text-xs text-rose-300 font-medium">
+              To confirm deletion, please type <strong className="font-mono text-white underline decoration-rose-400">DELETE</strong> below:
+            </p>
+            <Input
+              value={deleteConfirmText}
+              onChange={(e) => setDeleteConfirmText(e.target.value)}
+              placeholder="Type DELETE to confirm"
+              className="border-white/10 bg-black/60 text-white placeholder:text-gray-500 font-mono text-sm focus-visible:ring-rose-500"
+              autoFocus
+            />
+          </div>
+
           <AlertDialogFooter>
-            <AlertDialogCancel className="border-white/10 bg-transparent text-gray-300 hover:bg-white/5 hover:text-white">
+            <AlertDialogCancel
+              onClick={() => setDeleteConfirmText('')}
+              className="border-white/10 bg-transparent text-gray-300 hover:bg-white/5 hover:text-white"
+            >
               Cancel
             </AlertDialogCancel>
             <AlertDialogAction
               onClick={handleDeleteEvent}
-              disabled={deleting}
-              className="gap-2 bg-rose-600 text-white hover:bg-rose-500"
+              disabled={deleting || deleteConfirmText.trim() !== 'DELETE'}
+              className="gap-2 bg-rose-600 text-white hover:bg-rose-500 disabled:opacity-40 disabled:cursor-not-allowed"
             >
               {deleting ? (
                 <>
