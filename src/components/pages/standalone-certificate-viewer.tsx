@@ -282,7 +282,7 @@ export function StandaloneCertificateViewer({ cert }: { cert: CertificateData })
     try {
       let svgText = '';
       try {
-        const res = await fetch(`/api/certificates/${cert.certificateCode}/og`);
+        const res = await fetch(`/api/certificates/${cert.certificateCode}/og?t=${Date.now()}`, { cache: 'no-store' });
         if (res.ok) {
           svgText = await res.text();
         }

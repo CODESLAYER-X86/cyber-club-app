@@ -280,7 +280,7 @@ export function ProfilePage() {
   const handleDownloadCertificate = async (cert: Certificate) => {
     setDownloadingCertId(cert.id);
     try {
-      const res = await fetch(`/api/certificates/${cert.certificateCode}/og`);
+      const res = await fetch(`/api/certificates/${cert.certificateCode}/og?t=${Date.now()}`, { cache: 'no-store' });
       if (!res.ok) throw new Error('Failed to generate certificate');
       const svgText = await res.text();
 
@@ -1269,7 +1269,7 @@ export function ProfilePage() {
               {/* Live Rendered SVG Certificate Image */}
               <div className="relative rounded-xl border border-white/10 bg-black/60 overflow-hidden shadow-2xl p-2 flex items-center justify-center">
                 <img
-                  src={`/api/certificates/${previewCert.certificateCode}/og`}
+                  src={`/api/certificates/${previewCert.certificateCode}/og?v=${new Date(previewCert.issuedAt || 1).getTime()}`}
                   alt="Official Certificate Preview"
                   className="w-full h-auto rounded-lg object-contain max-h-[58vh]"
                 />
