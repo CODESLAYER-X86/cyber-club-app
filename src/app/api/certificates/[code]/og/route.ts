@@ -88,11 +88,15 @@ async function fetchBase64(url: string | undefined, protocol?: string, host?: st
     const timer = setTimeout(() => controller.abort(), 6000);
     const res = await fetch(parsed.toString(), {
       signal: controller.signal,
-      headers: { 'User-Agent': 'CSC-OG-Generator/1.0', Accept: 'image/*' },
+      headers: { 'User-Agent': 'CSC-OG-Generator/1.0', Accept: 'image/*', 'Accept-Encoding': 'identity' },
     });
     clearTimeout(timer);
 
     if (!res.ok) return '';
+    // CVE-2026-111497 (Node2Shell) Defense-in-depth: disallow Brotli compressed payload
+    const contentEncoding = (res.headers.get('content-encoding') || '').toLowerCase();
+    if (contentEncoding.includes('br')) return '';
+
     const contentType = (res.headers.get('content-type') || 'image/png').toLowerCase();
     if (!contentType.startsWith('image/')) return '';
 

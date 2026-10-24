@@ -108,12 +108,19 @@ export async function GET(request: NextRequest) {
       headers: {
         'User-Agent': 'CyberSecClub-ImageProxy/1.0',
         Accept: 'image/*',
+        'Accept-Encoding': 'identity',
       },
     });
     clearTimeout(timeout);
 
     if (!res.ok) {
       return NextResponse.json({ success: false, error: 'Failed to fetch external image' }, { status: 502 });
+    }
+
+    // CVE-2026-111497 (Node2Shell) Defense-in-depth: disallow Brotli compressed payload
+    const contentEncoding = (res.headers.get('content-encoding') || '').toLowerCase();
+    if (contentEncoding.includes('br')) {
+      return NextResponse.json({ success: false, error: 'Brotli compression disallowed on proxy fetch' }, { status: 400 });
     }
 
     const contentType = (res.headers.get('content-type') || '').toLowerCase();
