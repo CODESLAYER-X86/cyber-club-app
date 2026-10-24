@@ -137,9 +137,9 @@ export async function GET(
       where: { userId_eventId: { userId: certificate.userId, eventId: certificate.eventId } },
     });
 
-    const displayName = escapeXml(registration?.preferredName || certificate.user?.name || 'Unknown');
-    const eventTitle = escapeXml(certificate.event?.title || 'Unknown Event');
-    const certCode = escapeXml(certificate.certificateCode);
+    const displayName = registration?.preferredName || certificate.user?.name || 'Unknown';
+    const eventTitle = certificate.event?.title || 'Unknown Event';
+    const certCode = certificate.certificateCode;
     const dateStr = new Date(certificate.issuedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' });
 
     // Parse layout JSON
@@ -513,7 +513,17 @@ function renderNotIssued() {
 }
 
 function escapeXml(str: string): string {
-  return str
+  if (!str) return '';
+  // Normalize any previously escaped entities to prevent double-escaping (& -> &amp;, not &amp;amp;)
+  const normalized = String(str)
+    .replace(/&amp;/g, '&')
+    .replace(/&lt;/g, '<')
+    .replace(/&gt;/g, '>')
+    .replace(/&quot;/g, '"')
+    .replace(/&apos;/g, "'")
+    .replace(/&#39;/g, "'");
+
+  return normalized
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')
     .replace(/>/g, '&gt;')

@@ -113,11 +113,12 @@ export function CertificatePublicPage() {
   const currentTemplate = layout.templates?.[templateType] || DEFAULT_TEMPLATES[templateType] || DEFAULT_TEMPLATES.PARTICIPATION;
   const certTitle = currentTemplate.title;
 
-  const displayName = (cert as any)?.registration?.preferredName || (cert as any)?.preferredName || cert?.user?.name || 'Unknown User';
+  const rawDisplayName = (cert as any)?.registration?.preferredName || (cert as any)?.preferredName || cert?.user?.name || 'Unknown User';
+  const displayName = rawDisplayName.replace(/&amp;/g, '&');
   const studentId = (cert as any)?.registration?.studentId || (cert as any)?.user?.studentId || '';
   const department = (cert as any)?.registration?.department || (cert as any)?.user?.department || '';
   const institution = (cert as any)?.registration?.institution || 'Dhaka International University';
-  const eventTitle = cert?.event?.title || 'Unknown Event';
+  const eventTitle = (cert?.event?.title || 'Unknown Event').replace(/&amp;/g, '&');
   const dateStr = cert?.issuedAt
     ? new Date(cert.issuedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })
     : '';

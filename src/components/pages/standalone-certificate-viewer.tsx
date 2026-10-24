@@ -72,6 +72,15 @@ function resolveEl(
   const el = layout.textElements?.[key];
   const tc = layout.textColors?.[key];
   let rawText = el?.text || defaults.text || '';
+  if (rawText) {
+    rawText = rawText
+      .replace(/&amp;/g, '&')
+      .replace(/&lt;/g, '<')
+      .replace(/&gt;/g, '>')
+      .replace(/&quot;/g, '"')
+      .replace(/&apos;/g, "'")
+      .replace(/&#39;/g, "'");
+  }
   if (recipientName && rawText) {
     rawText = rawText
       .replace(/Md\. Rahim Uddin Shuvo/g, recipientName)
